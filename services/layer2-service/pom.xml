@@ -23,7 +23,7 @@
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <web3j.version>4.12.2</web3j.version><!-- UPGRADED for Arbitrum support -->
+        <web3j.version>5.0.1</web3j.version><!-- UPGRADED for Arbitrum support -->
         <mapstruct.version>1.5.5.Final</mapstruct.version>
         <org.postgresql.version>42.7.4</org.postgresql.version>
         <springdoc.version>2.6.0</springdoc.version>
