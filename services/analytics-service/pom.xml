@@ -20,7 +20,7 @@
 
     <properties>
         <java.version>21</java.version>
-        <spring-cloud.version>2023.0.4</spring-cloud.version>
+        <spring-cloud.version>2025.1.0</spring-cloud.version>
         <mapstruct.version>1.5.5.Final</mapstruct.version>
         <testcontainers.version>1.19.3</testcontainers.version>
         <elasticsearch.version>8.11.0</elasticsearch.version>

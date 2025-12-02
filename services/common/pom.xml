@@ -28,7 +28,7 @@
         <confluent.version>7.8.0</confluent.version>
         <prometheus.version>0.16.0</prometheus.version>
         <logstash.version>8.0</logstash.version>
-        <spring-vault.version>3.2.0</spring-vault.version>
+        <spring-vault.version>4.0.0</spring-vault.version>
         <vault-driver.version>6.2.0</vault-driver.version>
         <jjwt.version>0.12.6</jjwt.version>
         <azure-keyvault.version>4.10.0</azure-keyvault.version>
