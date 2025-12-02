@@ -326,7 +326,7 @@
         
         <!-- Other Libraries -->
         <zxing.version>3.5.2</zxing.version>
-        <opencsv.version>5.9</opencsv.version>
+        <opencsv.version>5.12.0</opencsv.version>
         <qrgen.version>2.6.0</qrgen.version>
         <totp.version>1.7.1</totp.version>
         <springdoc-openapi-ui.version>2.3.0</springdoc-openapi-ui.version>
