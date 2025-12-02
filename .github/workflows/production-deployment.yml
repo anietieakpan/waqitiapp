@@ -149,7 +149,7 @@ jobs:
       
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v5
         with:
           name: test-results-${{ matrix.service }}
           path: services/${{ matrix.service }}/target/surefire-reports/
@@ -191,7 +191,7 @@ jobs:
           python3 scripts/analyze-performance.py testing/performance/results.jtl
       
       - name: Upload Performance Report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v5
         with:
           name: performance-report
           path: testing/performance/report/

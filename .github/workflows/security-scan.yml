@@ -99,7 +99,7 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
       - name: Upload dependency check results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v5
         if: always()
         with:
           name: dependency-check-${{ matrix.type }}
@@ -293,7 +293,7 @@ jobs:
             --output security-report.html
 
       - name: Upload security report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v5
         with:
           name: security-report
           path: security-report.html
