@@ -24,7 +24,7 @@ ARG SERVICE_NAME
 RUN mvn package -pl ${SERVICE_PATH} -am -DskipTests
 
 # Runtime stage
-FROM eclipse-temurin:17-jre-alpine
+FROM eclipse-temurin:25-jre-alpine
 
 WORKDIR /app
 
