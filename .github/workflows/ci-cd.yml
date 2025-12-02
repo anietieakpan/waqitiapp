@@ -357,7 +357,7 @@ jobs:
           node analyze-results.js results.json
 
       - name: Upload performance results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v5
         with:
           name: performance-results
           path: scripts/load-tests/results.json

@@ -155,7 +155,7 @@ jobs:
       
       - name: Upload performance reports
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v5
         with:
           name: performance-reports-${{ github.run_id }}
           path: |

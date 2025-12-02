@@ -116,7 +116,7 @@ jobs:
           reporter: java-junit
       
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v5
         with:
           name: ${{ matrix.service }}-jar
           path: services/${{ matrix.service }}/target/*.jar
@@ -292,7 +292,7 @@ jobs:
       
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v5
         with:
           name: smoke-test-results
           path: testing/e2e/reports/

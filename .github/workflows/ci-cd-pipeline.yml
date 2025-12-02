@@ -61,7 +61,7 @@ jobs:
           -DfailBuildOnCVSS=7
 
     - name: Upload dependency check results
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       if: always()
       with:
         name: dependency-check-report
@@ -165,7 +165,7 @@ jobs:
         mvn site -DgenerateReports=false
 
     - name: Upload test results
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       if: always()
       with:
         name: test-results-${{ matrix.service }}
@@ -444,7 +444,7 @@ jobs:
         flags: --out json=results.json
 
     - name: Upload performance results
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: performance-results
         path: results.json
@@ -469,7 +469,7 @@ jobs:
         cmd_options: '-a'
 
     - name: Upload ZAP results
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       if: always()
       with:
         name: zap-scan-results

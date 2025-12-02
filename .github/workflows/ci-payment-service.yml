@@ -75,7 +75,7 @@ jobs:
 
       - name: Upload OWASP Report
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v5
         with:
           name: owasp-dependency-check-report
           path: services/payment-service/target/dependency-check-report.html
@@ -148,7 +148,7 @@ jobs:
 
       - name: Upload Test Results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v5
         with:
           name: test-results-${{ matrix.test-suite }}
           path: |
@@ -494,7 +494,7 @@ jobs:
             -Jduration=300
 
       - name: Upload Performance Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v5
         with:
           name: performance-results
           path: results/
