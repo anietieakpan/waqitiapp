@@ -1,0 +1,92 @@
+{
+  "properties": [
+    {
+      "name": "fraud-detection.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable fraud detection functionality",
+      "defaultValue": true
+    },
+    {
+      "name": "fraud-detection.real-time.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable real-time fraud detection",
+      "defaultValue": true
+    },
+    {
+      "name": "fraud-detection.ml.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable machine learning fraud detection",
+      "defaultValue": true
+    },
+    {
+      "name": "fraud-detection.ml.model-path",
+      "type": "java.lang.String",
+      "description": "Path to ML fraud detection model",
+      "defaultValue": "/opt/ml/models/fraud-detection"
+    },
+    {
+      "name": "fraud-detection.risk-score.threshold",
+      "type": "java.lang.Double",
+      "description": "Risk score threshold for flagging",
+      "defaultValue": 0.75
+    },
+    {
+      "name": "fraud-detection.velocity-checks.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable velocity checks",
+      "defaultValue": true
+    },
+    {
+      "name": "fraud-detection.velocity-checks.window-minutes",
+      "type": "java.lang.Integer",
+      "description": "Velocity check window in minutes",
+      "defaultValue": 60
+    },
+    {
+      "name": "fraud-detection.geo-location.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable geolocation-based fraud detection",
+      "defaultValue": true
+    },
+    {
+      "name": "fraud-detection.device-fingerprinting.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable device fingerprinting",
+      "defaultValue": true
+    },
+    {
+      "name": "fraud-detection.behavioral-analysis.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable behavioral analysis",
+      "defaultValue": true
+    },
+    {
+      "name": "fraud-detection.auto-block.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable automatic blocking of suspicious activity",
+      "defaultValue": false
+    },
+    {
+      "name": "fraud-detection.alert.channels",
+      "type": "java.util.List",
+      "description": "Alert channels for fraud detection"
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "OAuth2 client ID for service",
+      "defaultValue": "fraud-detection-service"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "OAuth2 client secret for service"
+    }
+  ]
+}

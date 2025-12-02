@@ -1,0 +1,361 @@
+{
+  "properties": [
+    {
+      "name": "analytics.processing.batch-size",
+      "type": "java.lang.Integer",
+      "description": "Batch size for processing operations. Must be between 100 and 100,000.",
+      "defaultValue": 10000
+    },
+    {
+      "name": "analytics.processing.parallel-processing",
+      "type": "java.lang.Boolean",
+      "description": "Enable parallel processing for batch operations.",
+      "defaultValue": true
+    },
+    {
+      "name": "analytics.processing.max-threads",
+      "type": "java.lang.Integer",
+      "description": "Maximum number of threads for parallel processing. Must be between 1 and 100.",
+      "defaultValue": 10
+    },
+    {
+      "name": "analytics.processing.chunk-size",
+      "type": "java.lang.Integer",
+      "description": "Chunk size for processing large datasets. Must be between 100 and 50,000.",
+      "defaultValue": 1000
+    },
+    {
+      "name": "analytics.processing.retention-days",
+      "type": "java.lang.Integer",
+      "description": "Data retention period in days. Must be between 1 and 3650 (10 years).",
+      "defaultValue": 2555
+    },
+    {
+      "name": "analytics.real-time.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable real-time analytics processing.",
+      "defaultValue": true
+    },
+    {
+      "name": "analytics.real-time.window-size-minutes",
+      "type": "java.lang.Integer",
+      "description": "Sliding window size in minutes for real-time aggregation. Must be between 1 and 60.",
+      "defaultValue": 5
+    },
+    {
+      "name": "analytics.real-time.aggregation-interval-seconds",
+      "type": "java.lang.Integer",
+      "description": "Aggregation interval in seconds. Must be between 5 and 300.",
+      "defaultValue": 30
+    },
+    {
+      "name": "analytics.real-time.alert-thresholds.transaction-volume",
+      "type": "java.lang.Integer",
+      "description": "Transaction volume alert threshold. Must be at least 1.",
+      "defaultValue": 1000
+    },
+    {
+      "name": "analytics.real-time.alert-thresholds.error-rate",
+      "type": "java.lang.Double",
+      "description": "Error rate alert threshold (0.0-1.0). Must be between 0.0 and 1.0.",
+      "defaultValue": 0.05
+    },
+    {
+      "name": "analytics.real-time.alert-thresholds.response-time-ms",
+      "type": "java.lang.Integer",
+      "description": "Response time alert threshold in milliseconds. Must be at least 100.",
+      "defaultValue": 5000
+    },
+    {
+      "name": "analytics.ml.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable machine learning features.",
+      "defaultValue": true
+    },
+    {
+      "name": "analytics.ml.model-training.auto-retrain",
+      "type": "java.lang.Boolean",
+      "description": "Enable automatic model retraining.",
+      "defaultValue": true
+    },
+    {
+      "name": "analytics.ml.model-training.retrain-interval-hours",
+      "type": "java.lang.Integer",
+      "description": "Model retraining interval in hours. Must be between 1 and 720 (30 days).",
+      "defaultValue": 24
+    },
+    {
+      "name": "analytics.ml.model-training.min-data-points",
+      "type": "java.lang.Integer",
+      "description": "Minimum data points required for model training. Must be at least 1,000.",
+      "defaultValue": 10000
+    },
+    {
+      "name": "analytics.ml.fraud-detection.model-path",
+      "type": "java.lang.String",
+      "description": "Absolute path to fraud detection model. Must start with /.",
+      "defaultValue": "/opt/ml/models/fraud-detection"
+    },
+    {
+      "name": "analytics.ml.fraud-detection.threshold",
+      "type": "java.lang.Double",
+      "description": "Fraud detection confidence threshold (0.0-1.0).",
+      "defaultValue": 0.75
+    },
+    {
+      "name": "analytics.ml.fraud-detection.feature-extraction",
+      "type": "java.lang.Boolean",
+      "description": "Enable automatic feature extraction.",
+      "defaultValue": true
+    },
+    {
+      "name": "analytics.ml.recommendation.model-path",
+      "type": "java.lang.String",
+      "description": "Absolute path to recommendation model. Must start with /.",
+      "defaultValue": "/opt/ml/models/recommendation"
+    },
+    {
+      "name": "analytics.ml.recommendation.collaborative-filtering",
+      "type": "java.lang.Boolean",
+      "description": "Enable collaborative filtering for recommendations.",
+      "defaultValue": true
+    },
+    {
+      "name": "analytics.ml.recommendation.content-based",
+      "type": "java.lang.Boolean",
+      "description": "Enable content-based filtering for recommendations.",
+      "defaultValue": true
+    },
+    {
+      "name": "analytics.etl.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable ETL processes.",
+      "defaultValue": true
+    },
+    {
+      "name": "analytics.etl.schedule",
+      "type": "java.lang.String",
+      "description": "Cron expression for ETL job scheduling. Must be a valid cron expression.",
+      "defaultValue": "0 0 2 * * ?"
+    },
+    {
+      "name": "analytics.etl.parallel-jobs",
+      "type": "java.lang.Integer",
+      "description": "Number of parallel ETL jobs. Must be between 1 and 20.",
+      "defaultValue": 5
+    },
+    {
+      "name": "analytics.reporting.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable reporting features.",
+      "defaultValue": true
+    },
+    {
+      "name": "analytics.reporting.formats",
+      "type": "java.util.List",
+      "description": "Supported report formats. At least one format must be configured.",
+      "defaultValue": ["PDF", "EXCEL", "CSV", "JSON"]
+    },
+    {
+      "name": "analytics.dashboard.refresh-interval-seconds",
+      "type": "java.lang.Integer",
+      "description": "Dashboard refresh interval in seconds. Must be between 5 and 300.",
+      "defaultValue": 30
+    },
+    {
+      "name": "analytics.dashboard.cache-duration-minutes",
+      "type": "java.lang.Integer",
+      "description": "Dashboard cache duration in minutes. Must be between 1 and 60.",
+      "defaultValue": 5
+    },
+    {
+      "name": "analytics.dashboard.real-time-updates",
+      "type": "java.lang.Boolean",
+      "description": "Enable real-time dashboard updates.",
+      "defaultValue": true
+    },
+    {
+      "name": "analytics.dashboard.max-data-points",
+      "type": "java.lang.Integer",
+      "description": "Maximum data points to display. Must be between 100 and 10,000.",
+      "defaultValue": 1000
+    },
+    {
+      "name": "analytics.retention.raw-data-days",
+      "type": "java.lang.Integer",
+      "description": "Raw data retention period in days. Must be between 1 and 3650 (10 years).",
+      "defaultValue": 90
+    },
+    {
+      "name": "analytics.retention.aggregated-data-days",
+      "type": "java.lang.Integer",
+      "description": "Aggregated data retention period in days. Must be between 1 and 3650 (10 years).",
+      "defaultValue": 2555
+    },
+    {
+      "name": "analytics.retention.ml-training-data-days",
+      "type": "java.lang.Integer",
+      "description": "ML training data retention period in days. Must be between 1 and 3650 (10 years).",
+      "defaultValue": 365
+    },
+    {
+      "name": "analytics.retention.audit-logs-days",
+      "type": "java.lang.Integer",
+      "description": "Audit logs retention period in days. Must be between 1 and 3650 (10 years).",
+      "defaultValue": 2555
+    },
+    {
+      "name": "analytics.retention.cleanup-schedule",
+      "type": "java.lang.String",
+      "description": "Cron expression for cleanup job scheduling. Must be a valid cron expression.",
+      "defaultValue": "0 0 3 * * ?"
+    },
+    {
+      "name": "analytics.performance.query-timeout-seconds",
+      "type": "java.lang.Integer",
+      "description": "Query timeout in seconds. Must be between 30 and 3600 (1 hour).",
+      "defaultValue": 300
+    },
+    {
+      "name": "analytics.performance.connection-pool-size",
+      "type": "java.lang.Integer",
+      "description": "Database connection pool size. Must be between 5 and 100.",
+      "defaultValue": 20
+    },
+    {
+      "name": "analytics.performance.cache-size-mb",
+      "type": "java.lang.Integer",
+      "description": "Cache size in megabytes. Must be between 64 and 4096 (4 GB).",
+      "defaultValue": 512
+    },
+    {
+      "name": "analytics.quality.completeness-threshold",
+      "type": "java.lang.Double",
+      "description": "Data completeness threshold (0.0-1.0).",
+      "defaultValue": 0.95
+    },
+    {
+      "name": "analytics.quality.accuracy-threshold",
+      "type": "java.lang.Double",
+      "description": "Data accuracy threshold (0.0-1.0).",
+      "defaultValue": 0.98
+    },
+    {
+      "name": "influxdb.url",
+      "type": "java.lang.String",
+      "description": "InfluxDB server URL. Must start with http:// or https://.",
+      "defaultValue": "http://localhost:8086"
+    },
+    {
+      "name": "influxdb.token",
+      "type": "java.lang.String",
+      "description": "InfluxDB authentication token (sensitive). Keep this secret."
+    },
+    {
+      "name": "influxdb.org",
+      "type": "java.lang.String",
+      "description": "InfluxDB organization name. Alphanumeric, hyphens, and underscores only.",
+      "defaultValue": "waqiti"
+    },
+    {
+      "name": "influxdb.bucket",
+      "type": "java.lang.String",
+      "description": "InfluxDB bucket name. Alphanumeric, hyphens, and underscores only.",
+      "defaultValue": "analytics"
+    },
+    {
+      "name": "spark.app-name",
+      "type": "java.lang.String",
+      "description": "Spark application name for identification.",
+      "defaultValue": "Waqiti Analytics Service"
+    },
+    {
+      "name": "spark.master",
+      "type": "java.lang.String",
+      "description": "Spark master URL (local, standalone, YARN, Mesos, or Kubernetes).",
+      "defaultValue": "local[*]"
+    },
+    {
+      "name": "spark.sql.adaptive.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Spark adaptive query execution (AQE).",
+      "defaultValue": true
+    },
+    {
+      "name": "spark.sql.adaptive.coalescePartitions.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable automatic partition coalescing in AQE.",
+      "defaultValue": true
+    },
+    {
+      "name": "spark.executor.memory",
+      "type": "java.lang.String",
+      "description": "Executor memory allocation. Format: number + unit (k/m/g/t), e.g., '2g'.",
+      "defaultValue": "2g"
+    },
+    {
+      "name": "spark.executor.cores",
+      "type": "java.lang.Integer",
+      "description": "Number of cores per executor. Must be at least 1.",
+      "defaultValue": 2
+    },
+    {
+      "name": "spark.driver.memory",
+      "type": "java.lang.String",
+      "description": "Driver memory allocation. Format: number + unit (k/m/g/t), e.g., '1g'.",
+      "defaultValue": "1g"
+    },
+    {
+      "name": "health.circuit-breaker.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable circuit breaker pattern for resilience.",
+      "defaultValue": true
+    },
+    {
+      "name": "health.rate-limiter.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable rate limiting for API protection.",
+      "defaultValue": true
+    },
+    {
+      "name": "feature.flags.dual-auth-mode.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable dual authentication mode (legacy JWT + Keycloak).",
+      "defaultValue": false
+    },
+    {
+      "name": "feature.flags.keycloak-only.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Keycloak-only authentication mode.",
+      "defaultValue": true
+    },
+    {
+      "name": "feature.flags.legacy-jwt-deprecation-warning.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Show deprecation warnings for legacy JWT authentication.",
+      "defaultValue": true
+    }
+  ],
+  "hints": [
+    {
+      "name": "analytics.reporting.formats",
+      "values": [
+        {"value": "PDF", "description": "Adobe PDF format"},
+        {"value": "EXCEL", "description": "Microsoft Excel format (.xlsx)"},
+        {"value": "CSV", "description": "Comma-separated values"},
+        {"value": "JSON", "description": "JSON format for API consumption"}
+      ]
+    },
+    {
+      "name": "spark.master",
+      "values": [
+        {"value": "local[*]", "description": "Local mode with all available cores"},
+        {"value": "local[4]", "description": "Local mode with 4 cores"},
+        {"value": "spark://host:port", "description": "Standalone cluster mode"},
+        {"value": "yarn", "description": "YARN cluster mode"},
+        {"value": "mesos://host:port", "description": "Mesos cluster mode"},
+        {"value": "k8s://https://host:port", "description": "Kubernetes cluster mode"}
+      ]
+    }
+  ]
+}

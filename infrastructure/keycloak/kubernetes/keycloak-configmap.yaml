@@ -1,0 +1,240 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keycloak-config
+  namespace: keycloak-system
+  labels:
+    app: keycloak
+data:
+  # Keycloak server configuration
+  KC_DB: "postgres"
+  KC_DB_SCHEMA: "public"
+  KC_HTTP_ENABLED: "false"
+  KC_HTTPS_ENABLED: "true"
+  KC_HTTP_PORT: "8080"
+  KC_HTTPS_PORT: "8443"
+  KC_HOSTNAME_STRICT: "true"
+  KC_HOSTNAME_STRICT_HTTPS: "true"
+  KC_PROXY: "edge"
+  KC_HTTPS_CERTIFICATE_FILE: "/opt/keycloak/certs/tls.crt"
+  KC_HTTPS_CERTIFICATE_KEY_FILE: "/opt/keycloak/certs/tls.key"
+  KC_METRICS_ENABLED: "true"
+  KC_HEALTH_ENABLED: "true"
+  KC_CACHE: "ispn"
+  KC_CACHE_STACK: "kubernetes"
+  
+  # Performance tuning
+  KC_DB_POOL_INITIAL_SIZE: "20"
+  KC_DB_POOL_MIN_SIZE: "20"
+  KC_DB_POOL_MAX_SIZE: "100"
+  
+  # Features
+  KC_FEATURES: "token-exchange,admin-fine-grained-authz,dynamic-scopes,client-policies,declarative-user-profile,recovery-codes,par"
+  
+  # Logging
+  KC_LOG_LEVEL: "INFO"
+  KC_LOG_CONSOLE_OUTPUT: "json"
+  
+  # Java options
+  JAVA_OPTS_APPEND: |
+    -Djgroups.dns.query=keycloak-headless.keycloak-system.svc.cluster.local
+    -Xms2g
+    -Xmx4g
+    -XX:+UseG1GC
+    -XX:MaxGCPauseMillis=200
+    -XX:+ParallelRefProcEnabled
+    -XX:+DisableExplicitGC
+    -Djava.net.preferIPv4Stack=true
+    -Djboss.modules.system.pkgs=org.jboss.byteman
+    
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keycloak-realm-config
+  namespace: keycloak-system
+  labels:
+    app: keycloak
+data:
+  waqiti-realm.json: |
+    {
+      "realm": "waqiti-fintech",
+      "enabled": true,
+      "sslRequired": "all",
+      "registrationAllowed": true,
+      "registrationEmailAsUsername": true,
+      "rememberMe": true,
+      "verifyEmail": true,
+      "loginWithEmailAllowed": true,
+      "duplicateEmailsAllowed": false,
+      "resetPasswordAllowed": true,
+      "editUsernameAllowed": false,
+      "bruteForceProtected": true,
+      "permanentLockout": false,
+      "maxFailureWaitSeconds": 900,
+      "minimumQuickLoginWaitSeconds": 60,
+      "waitIncrementSeconds": 300,
+      "quickLoginCheckMilliSeconds": 1000,
+      "maxDeltaTimeSeconds": 43200,
+      "failureFactor": 5,
+      "defaultSignatureAlgorithm": "RS256",
+      "offlineSessionMaxLifespanEnabled": true,
+      "offlineSessionMaxLifespan": 5184000,
+      "clientSessionIdleTimeout": 0,
+      "clientSessionMaxLifespan": 0,
+      "clientOfflineSessionIdleTimeout": 0,
+      "clientOfflineSessionMaxLifespan": 0,
+      "accessTokenLifespan": 300,
+      "accessTokenLifespanForImplicitFlow": 900,
+      "ssoSessionIdleTimeout": 1800,
+      "ssoSessionMaxLifespan": 36000,
+      "ssoSessionIdleTimeoutRememberMe": 0,
+      "ssoSessionMaxLifespanRememberMe": 0,
+      "actionTokenGeneratedByAdminLifespan": 43200,
+      "actionTokenGeneratedByUserLifespan": 300,
+      "oauth2DeviceCodeLifespan": 600,
+      "oauth2DevicePollingInterval": 5,
+      "internationalizationEnabled": true,
+      "supportedLocales": ["en", "es", "fr", "de", "ar"],
+      "defaultLocale": "en",
+      "eventsEnabled": true,
+      "eventsListeners": ["jboss-logging", "metrics-listener"],
+      "enabledEventTypes": [
+        "LOGIN",
+        "LOGIN_ERROR",
+        "LOGOUT",
+        "LOGOUT_ERROR",
+        "REGISTER",
+        "REGISTER_ERROR",
+        "CODE_TO_TOKEN",
+        "CODE_TO_TOKEN_ERROR",
+        "REFRESH_TOKEN",
+        "REFRESH_TOKEN_ERROR"
+      ],
+      "adminEventsEnabled": true,
+      "adminEventsDetailsEnabled": true,
+      "identityProviders": [],
+      "identityProviderMappers": [],
+      "components": {
+        "org.keycloak.services.clientregistration.policy.ClientRegistrationPolicy": [
+          {
+            "name": "Allowed Protocol Mapper Types",
+            "providerId": "allowed-protocol-mappers",
+            "subType": "authenticated",
+            "subComponents": {},
+            "config": {
+              "allowed-protocol-mapper-types": [
+                "oidc-usermodel-attribute-mapper",
+                "oidc-full-name-mapper",
+                "oidc-address-mapper",
+                "oidc-email-verified-mapper",
+                "oidc-usermodel-property-mapper",
+                "oidc-role-name-mapper"
+              ]
+            }
+          }
+        ],
+        "org.keycloak.keys.KeyProvider": [
+          {
+            "name": "rsa-generated",
+            "providerId": "rsa-generated",
+            "subComponents": {},
+            "config": {
+              "priority": ["100"],
+              "keySize": ["4096"],
+              "algorithm": ["RS256"]
+            }
+          },
+          {
+            "name": "hmac-generated",
+            "providerId": "hmac-generated",
+            "subComponents": {},
+            "config": {
+              "priority": ["100"],
+              "secretSize": ["512"],
+              "algorithm": ["HS512"]
+            }
+          }
+        ]
+      },
+      "requiredActions": [
+        {
+          "alias": "CONFIGURE_TOTP",
+          "name": "Configure OTP",
+          "providerId": "CONFIGURE_TOTP",
+          "enabled": true,
+          "defaultAction": false,
+          "priority": 10,
+          "config": {}
+        },
+        {
+          "alias": "UPDATE_PASSWORD",
+          "name": "Update Password",
+          "providerId": "UPDATE_PASSWORD",
+          "enabled": true,
+          "defaultAction": false,
+          "priority": 30,
+          "config": {}
+        },
+        {
+          "alias": "UPDATE_PROFILE",
+          "name": "Update Profile",
+          "providerId": "UPDATE_PROFILE",
+          "enabled": true,
+          "defaultAction": false,
+          "priority": 40,
+          "config": {}
+        },
+        {
+          "alias": "VERIFY_EMAIL",
+          "name": "Verify Email",
+          "providerId": "VERIFY_EMAIL",
+          "enabled": true,
+          "defaultAction": false,
+          "priority": 50,
+          "config": {}
+        }
+      ],
+      "browserFlow": "browser",
+      "registrationFlow": "registration",
+      "directGrantFlow": "direct grant",
+      "resetCredentialsFlow": "reset credentials",
+      "clientAuthenticationFlow": "clients",
+      "dockerAuthenticationFlow": "docker auth",
+      "attributes": {
+        "cibaBackchannelTokenDeliveryMode": "poll",
+        "cibaExpiresIn": "120",
+        "cibaInterval": "5",
+        "parRequestUriLifespan": "60",
+        "frontendUrl": "https://auth.example.com"
+      },
+      "userManagedAccessAllowed": false,
+      "passwordPolicy": "length(12) and upperCase(2) and lowerCase(2) and digits(2) and specialChars(2) and notUsername()",
+      "otpPolicyType": "totp",
+      "otpPolicyAlgorithm": "HmacSHA256",
+      "otpPolicyInitialCounter": 0,
+      "otpPolicyDigits": 6,
+      "otpPolicyLookAheadWindow": 1,
+      "otpPolicyPeriod": 30,
+      "otpSupportedApplications": ["FreeOTP", "Google Authenticator", "Microsoft Authenticator"],
+      "webAuthnPolicyRpEntityName": "Waqiti",
+      "webAuthnPolicySignatureAlgorithms": ["ES256", "ES384", "ES512", "RS256", "RS384", "RS512"],
+      "webAuthnPolicyRpId": "",
+      "webAuthnPolicyAttestationConveyancePreference": "not specified",
+      "webAuthnPolicyAuthenticatorAttachment": "not specified",
+      "webAuthnPolicyRequireResidentKey": "not specified",
+      "webAuthnPolicyUserVerificationRequirement": "not specified",
+      "webAuthnPolicyCreateTimeout": 0,
+      "webAuthnPolicyAvoidSameAuthenticatorRegister": false,
+      "webAuthnPolicyAcceptableAaguids": [],
+      "webAuthnPolicyPasswordlessRpEntityName": "Waqiti",
+      "webAuthnPolicyPasswordlessSignatureAlgorithms": ["ES256", "ES384", "ES512", "RS256", "RS384", "RS512"],
+      "webAuthnPolicyPasswordlessRpId": "",
+      "webAuthnPolicyPasswordlessAttestationConveyancePreference": "not specified",
+      "webAuthnPolicyPasswordlessAuthenticatorAttachment": "not specified",
+      "webAuthnPolicyPasswordlessRequireResidentKey": "not specified",
+      "webAuthnPolicyPasswordlessUserVerificationRequirement": "not specified",
+      "webAuthnPolicyPasswordlessCreateTimeout": 0,
+      "webAuthnPolicyPasswordlessAvoidSameAuthenticatorRegister": false,
+      "webAuthnPolicyPasswordlessAcceptableAaguids": []
+    }

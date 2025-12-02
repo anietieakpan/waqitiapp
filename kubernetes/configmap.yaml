@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: waqiti-config
+  namespace: waqiti
+data:
+  SPRING_PROFILES_ACTIVE: "prod"
+  SPRING_KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
+  SPRING_DATA_REDIS_HOST: "redis"
+  SERVICES_USER_SERVICE_URL: "http://user-service:8081"
+  SERVICES_WALLET_SERVICE_URL: "http://wallet-service:8082"
+  SERVICES_PAYMENT_SERVICE_URL: "http://payment-service:8083"
+  SERVICES_NOTIFICATION_SERVICE_URL: "http://notification-service:8084"
+  SERVICES_INTEGRATION_SERVICE_URL: "http://integration-service:8085"
+  FINERACT_BASE_URL: "https://fineract:8443/fineract-provider/api/v1"
+  CYCLOS_BASE_URL: "http://cyclos:8080/api"

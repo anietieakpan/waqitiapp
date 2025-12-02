@@ -1,0 +1,358 @@
+server:
+  port: 8095
+  servlet:
+    context-path: /family-service
+
+spring:
+  application:
+    name: family-account-service
+  
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:development}
+  
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/family_account_db}
+    username: ${vault.database.username:family_user}
+    password: ${FAMILY_DB_PASSWORD:${vault.database.family-account-service.password}}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      connection-timeout: 20000
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      leak-detection-threshold: 60000
+  
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQL95Dialect
+        format_sql: true
+        use_sql_comments: true
+        jdbc:
+          batch_size: 50
+          order_inserts: true
+          order_updates: true
+        cache:
+          use_second_level_cache: true
+          use_query_cache: true
+          region:
+            factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
+  
+  flyway:
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+  
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:${vault.redis.password}}
+      database: 5
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 20
+          max-idle: 8
+          min-idle: 2
+          max-wait: 2000ms
+  
+  cache:
+    type: redis
+    redis:
+      time-to-live: 3600000
+      cache-null-values: false
+      key-prefix: "family:"
+  
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 1
+    consumer:
+      group-id: family-account-service
+      enable-auto-commit: false  # Manual acknowledgment for DLQ support
+      max-poll-records: 50  # Batch size control
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      auto-offset-reset: earliest
+      properties:
+        spring.json.trusted.packages: "com.waqiti.*"
+  
+  cloud:
+    config:
+      uri: ${CONFIG_SERVER_URL:http://localhost:8888}
+      fail-fast: true
+      retry:
+        initial-interval: 1000
+        max-attempts: 6
+        max-interval: 2000
+        multiplier: 1.1
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_CLIENT_SERVICE_URL:${EUREKA_SERVER_URL:https://discovery-service:8761/eureka}/}
+    fetch-registry: true
+    register-with-eureka: true
+    registry-fetch-interval-seconds: 30
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+    metadata-map:
+      management.port: ${management.server.port:9095}
+
+management:
+  server:
+    port: 9095
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+    metrics:
+      enabled: true
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      percentiles:
+        http.server.requests: 0.5, 0.95, 0.99
+    tags:
+      application: ${spring.application.name}
+      environment: ${spring.profiles.active}
+
+logging:
+  level:
+    com.waqiti.family: INFO
+    com.waqiti.familyaccount: INFO
+    org.springframework.security: DEBUG
+    org.springframework.kafka: INFO
+    org.hibernate.SQL: ${LOG_LEVEL_SQL:WARN}  # WARN for production
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    root: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
+  logback:
+    rollingpolicy:
+      file-name-pattern: logs/family-account-service-%d{yyyy-MM-dd}.%i.log
+      max-file-size: 10MB
+      max-history: 30
+
+# Family Account Service Specific Configuration
+family:
+  account:
+    max-family-size: 10
+    max-children-per-family: 8
+    min-parent-age: 18
+    min-child-age: 6
+    max-child-age: 17
+    allowance:
+      min-amount: 1.00
+      max-amount: 1000.00
+      processing-time: "09:00"
+    spending-limits:
+      child-daily-max: 50.00
+      child-transaction-max: 20.00
+      teen-daily-max: 200.00
+      teen-transaction-max: 100.00
+    approval:
+      timeout-hours: 24
+      auto-approve-threshold: 5.00
+    educational:
+      quiz-required-frequency: 7 # days
+      financial-literacy-threshold: 70
+    notifications:
+      enabled: true
+      transaction-threshold: 25.00
+      daily-summary-time: "18:00"
+      weekly-summary-day: "SUNDAY"
+
+# Resilience4j Circuit Breaker Configuration
+resilience4j:
+  circuitbreaker:
+    instances:
+      user-service:
+        register-health-indicator: true
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        permitted-number-of-calls-in-half-open-state: 3
+        wait-duration-in-open-state: 10s
+        failure-rate-threshold: 50
+        slow-call-duration-threshold: 2s
+        slow-call-rate-threshold: 50
+      wallet-service:
+        register-health-indicator: true
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        wait-duration-in-open-state: 15s
+        failure-rate-threshold: 60
+      notification-service:
+        register-health-indicator: true
+        sliding-window-size: 5
+        failure-rate-threshold: 70
+        wait-duration-in-open-state: 5s
+  
+  retry:
+    instances:
+      user-service:
+        max-attempts: 3
+        wait-duration: 1s
+      wallet-service:
+        max-attempts: 3
+        wait-duration: 2s
+  
+  timelimiter:
+    instances:
+      user-service:
+        timeout-duration: 3s
+      wallet-service:
+        timeout-duration: 5s
+
+  ratelimiter:
+    instances:
+      # Transaction authorization - most critical endpoint
+      transaction-authorization:
+        register-health-indicator: true
+        limit-for-period: 10       # Max 10 requests
+        limit-refresh-period: 1s   # Per second
+        timeout-duration: 0s       # Don't wait, fail immediately
+        allow-health-indicator-to-fail: true
+
+      # Family account creation - moderate limits
+      family-account-creation:
+        register-health-indicator: true
+        limit-for-period: 5        # Max 5 requests
+        limit-refresh-period: 1m   # Per minute
+        timeout-duration: 0s
+        allow-health-indicator-to-fail: false
+
+      # Member management operations
+      member-management:
+        register-health-indicator: true
+        limit-for-period: 20       # Max 20 requests
+        limit-refresh-period: 1m   # Per minute
+        timeout-duration: 0s
+        allow-health-indicator-to-fail: false
+
+      # Query operations - higher limits
+      query-operations:
+        register-health-indicator: true
+        limit-for-period: 100      # Max 100 requests
+        limit-refresh-period: 1m   # Per minute
+        timeout-duration: 0s
+        allow-health-indicator-to-fail: false
+
+# Keycloak Configuration
+keycloak:
+  enabled: true
+  realm: waqiti-fintech
+  auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}
+  ssl-required: external
+  resource: family-account-service
+  bearer-only: true
+  use-resource-role-mappings: true
+  cors: true
+  cors-allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+  cors-allowed-headers: Authorization,Content-Type,X-Requested-With
+  cors-max-age: 3600
+  public-client: false
+  credentials:
+    secret: ${KEYCLOAK_CLIENT_SECRET:${vault.keycloak.family-account-service.client-secret}}
+
+# Spring Security OAuth2 Configuration
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti
+          jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/certs
+      client:
+        registration:
+          keycloak:
+            client-id: family-account-service
+            client-secret: ${KEYCLOAK_CLIENT_SECRET:${vault.keycloak.family-account-service.client-secret}}
+            authorization-grant-type: client_credentials
+            scope: openid,profile,email,family
+        provider:
+          keycloak:
+            issuer-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti
+            token-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/token
+            authorization-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/auth
+            userinfo-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/userinfo
+            jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/certs
+
+# Service-to-Service Authentication
+service:
+  auth:
+    enabled: true
+    client-id: family-account-service
+    client-secret: ${KEYCLOAK_CLIENT_SECRET:${vault.keycloak.family-account-service.client-secret}}
+
+# Vault Configuration
+vault:
+  addr: ${VAULT_ADDR:http://localhost:8200}
+  token: ${VAULT_TOKEN:}
+  secrets:
+    database:
+      path: secret/family-service/database
+    redis:
+      path: secret/family-service/redis
+    external-apis:
+      path: secret/family-service/external-apis
+
+# Feign Client Configuration
+feign:
+  client:
+    config:
+      default:
+        connect-timeout: 5000
+        read-timeout: 5000
+        logger-level: basic
+      user-service:
+        url: ${USER_SERVICE_URL:http://localhost:8081}
+        connect-timeout: 3000
+        read-timeout: 3000
+      wallet-service:
+        url: ${WALLET_SERVICE_URL:http://localhost:8084}
+        connect-timeout: 5000
+        read-timeout: 5000
+      notification-service:
+        url: ${NOTIFICATION_SERVICE_URL:http://localhost:8087}
+        connect-timeout: 2000
+        read-timeout: 2000
+      security-service:
+        url: ${SECURITY_SERVICE_URL:http://localhost:8089}
+        connect-timeout: 3000
+        read-timeout: 3000
+
+# Security Configuration
+security:
+  jwt:
+    secret-key: ${JWT_SECRET:${vault.jwt.family-account-service.secret}}
+    expiration: 86400000 # 24 hours
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:3001}
+    allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+    allowed-headers: "*"
+    allow-credentials: true
+

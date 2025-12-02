@@ -1,0 +1,133 @@
+# API Gateway Rate Limiting Configuration
+# Production-Ready Configuration
+
+spring:
+  # Redis Configuration for Distributed Rate Limiting
+  redis:
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+    # SECURITY: No default - inherits from main application.yml or fails fast
+    password: ${REDIS_PASSWORD:#{null}}
+    database: 0
+    timeout: 2000ms
+    lettuce:
+      pool:
+        max-active: 20
+        max-idle: 10
+        min-idle: 5
+        max-wait: 2000ms
+
+  # Spring Cloud Gateway Configuration
+  cloud:
+    gateway:
+      routes:
+        # All routes will be rate-limited by RateLimitingFilter
+        - id: auth-service
+          uri: lb://auth-service
+          predicates:
+            - Path=/auth/**
+        - id: payment-service
+          uri: lb://payment-service
+          predicates:
+            - Path=/payments/**
+        - id: wallet-service
+          uri: lb://wallet-service
+          predicates:
+            - Path=/wallets/**
+        - id: user-service
+          uri: lb://user-service
+          predicates:
+            - Path=/users/**
+
+# Resilience4j Rate Limiter Configuration (Local Fallback)
+resilience4j:
+  ratelimiter:
+    instances:
+      default:
+        limitForPeriod: 100
+        limitRefreshPeriod: 1m
+        timeoutDuration: 100ms
+      auth-endpoints:
+        limitForPeriod: 10
+        limitRefreshPeriod: 1m
+        timeoutDuration: 100ms
+      payment-endpoints:
+        limitForPeriod: 20
+        limitRefreshPeriod: 1m
+        timeoutDuration: 100ms
+
+# Rate Limiting Tiers (documented for reference)
+# These are implemented in RateLimitingServiceComplete.java
+rate-limiting:
+  tiers:
+    FREE:
+      requests-per-minute: 60
+      requests-per-hour: 1000
+    BASIC:
+      requests-per-minute: 100
+      requests-per-hour: 5000
+    PREMIUM:
+      requests-per-minute: 500
+      requests-per-hour: 25000
+    ENTERPRISE:
+      requests-per-minute: 2000
+      requests-per-hour: 100000
+
+  # Endpoint-Specific Limits
+  endpoints:
+    /auth/login:
+      requests: 5
+      window-seconds: 60
+      description: "Login endpoint - prevent brute force"
+    /auth/forgot-password:
+      requests: 2
+      window-seconds: 300
+      description: "Password reset - prevent abuse"
+    /auth/register:
+      requests: 3
+      window-seconds: 300
+      description: "Registration - prevent spam"
+    /payments/process:
+      requests: 10
+      window-seconds: 60
+      description: "Payment processing - prevent fraud"
+    /transfers/initiate:
+      requests: 10
+      window-seconds: 60
+      description: "Money transfers - prevent fraud"
+
+  # DDoS Protection
+  ddos:
+    threshold: 1000
+    window-seconds: 60
+    blacklist-duration: 24h
+
+  # Default Limits
+  defaults:
+    requests-per-minute: 100
+    requests-per-hour: 5000
+
+# Logging Configuration
+logging:
+  level:
+    com.waqiti.gateway.filter.com.waqiti.apigateway.filter.RateLimitingFilter: INFO
+    com.waqiti.gateway.service.com.waqiti.apigateway.service.RateLimitingServiceComplete: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+
+# Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus,info,ratelimiters
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: api-gateway
+      service: rate-limiting

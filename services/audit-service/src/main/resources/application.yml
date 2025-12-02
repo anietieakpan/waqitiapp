@@ -1,0 +1,272 @@
+server:
+  port: 8090
+  servlet:
+    context-path: /
+
+spring:
+  application:
+    name: audit-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:development}
+    include: keycloak
+  
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:https://auth.example.com/realms/waqiti-fintech/protocol/openid-connect/certs}
+  
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:waqiti_audit}
+    username: ${DB_USERNAME:waqiti_user}
+    password: ${vault.database.password}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 300000
+      connection-timeout: 20000
+      validation-timeout: 5000
+  
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        use_sql_comments: true
+        jdbc:
+          batch_size: 50
+          order_inserts: true
+          order_updates: true
+        cache:
+          use_second_level_cache: true
+          use_query_cache: true
+  
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+  
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${vault.redis.password}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+  
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false
+    consumer:
+      group-id: audit-service
+      enable-auto-commit: false  # Manual acknowledgment for DLQ support
+      max-poll-records: 50  # Batch size control
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+        spring.json.use.type.headers: false
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:${EUREKA_SERVER_URL:https://discovery-service:8761/eureka}/}
+    healthcheck:
+      enabled: true
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+
+logging:
+  level:
+    com.waqiti: DEBUG
+    org.springframework.kafka: INFO
+    org.hibernate.SQL: ${LOG_LEVEL_SQL:WARN}  # WARN for production
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# Service-specific configuration
+audit:
+  retention:
+    default-days: 2555  # 7 years for financial records
+    archive-after-days: 365
+    delete-after-archive: false
+  
+  integrity:
+    hash-algorithm: SHA-256
+    chain-verification: true
+    periodic-verification: true
+    verification-interval: 24h
+  
+  compliance:
+    auto-generate-reports: true
+    report-schedule: "0 0 1 * * ?" # Monthly
+    sar-threshold-amount: 10000
+    suspicious-patterns:
+      - velocity-abuse
+      - round-dollar-amounts
+      - structured-transactions
+  
+  archive:
+    storage-type: s3
+    bucket-name: ${AUDIT_ARCHIVE_BUCKET:waqiti-audit-archive}
+    compression: gzip
+    encryption: aes-256
+  
+  export:
+    max-records: 50000
+    supported-formats: csv,json,pdf
+    
+  search:
+    index-enabled: true
+    index-refresh-interval: 5s
+
+# External service configurations
+services:
+  security-service:
+    url: ${SECURITY_SERVICE_URL:http://localhost:8089}
+    timeout: 30s
+  notification-service:
+    url: ${NOTIFICATION_SERVICE_URL:http://localhost:8084}
+    timeout: 30s
+
+# AWS Configuration for archiving
+aws:
+  region: ${AWS_REGION:us-east-1}
+  access-key-id: ${vault.aws.access-key-id}
+  secret-access-key: ${vault.aws.secret-access-key}
+  s3:
+    bucket: ${AUDIT_ARCHIVE_BUCKET:waqiti-audit-archive}
+
+# Circuit breaker configuration
+resilience4j:
+  circuitbreaker:
+    instances:
+      security-service:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 5s
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10
+  
+  retry:
+    instances:
+      default:
+        maxAttempts: 3
+        waitDuration: 500ms
+        exponentialBackoffMultiplier: 2
+
+# Security configuration
+security:
+  jwt:
+    secret: ${vault.jwt.audit-service.secret}
+    expiration: 86400000 # 24 hours in milliseconds
+
+---
+spring:
+  profiles: test
+  
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+  
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    database-platform: org.hibernate.dialect.H2Dialect
+  
+  kafka:
+    bootstrap-servers: ${spring.embedded.kafka.brokers}
+
+audit:
+  archive:
+    storage-type: local
+  compliance:
+    auto-generate-reports: false
+
+---
+spring:
+  profiles: production
+  
+  jpa:
+    show-sql: false
+    properties:
+      hibernate:
+        generate_statistics: false
+
+logging:
+  level:
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+    
+audit:
+  retention:
+    delete-after-archive: true
+  integrity:
+    periodic-verification: true
+
+# Keycloak Configuration
+keycloak:
+  enabled: ${KEYCLOAK_ENABLED:false}
+  auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8180}
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  resource: audit-service
+  bearer-only: true
+  ssl-required: ${KEYCLOAK_SSL_REQUIRED:external}
+  verify-token-audience: true
+  use-resource-role-mappings: true
+  principal-attribute: preferred_username
+
+# Authentication Mode Configuration
+authentication:
+  mode: ${AUTH_MODE:KEYCLOAK}
+  legacy-jwt-enabled: ${LEGACY_JWT_ENABLED:false}
+  keycloak-enabled: ${KEYCLOAK_ENABLED:true}
+  circuit-breaker:
+    failure-threshold: 5
+    timeout-duration: 10000
+    half-open-requests: 3
+
+# Feature Flags for Authentication Migration
+features:
+  auth:
+    mode: ${AUTH_MODE:KEYCLOAK}  # KEYCLOAK only - Legacy JWT retired
+    keycloak:
+      enabled: ${KEYCLOAK_ENABLED:true}
+    legacy:
+      enabled: ${LEGACY_AUTH_ENABLED:false}

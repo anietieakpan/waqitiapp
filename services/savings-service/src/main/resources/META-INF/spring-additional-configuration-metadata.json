@@ -1,0 +1,69 @@
+{
+  "properties": [
+    {
+      "name": "savings.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable savings functionality",
+      "defaultValue": true
+    },
+    {
+      "name": "savings.goals.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable savings goals",
+      "defaultValue": true
+    },
+    {
+      "name": "savings.auto-save.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable automatic savings",
+      "defaultValue": true
+    },
+    {
+      "name": "savings.auto-save.round-up.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable round-up savings",
+      "defaultValue": true
+    },
+    {
+      "name": "savings.interest.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable interest on savings",
+      "defaultValue": true
+    },
+    {
+      "name": "savings.interest.apy",
+      "type": "java.math.BigDecimal",
+      "description": "Annual percentage yield on savings",
+      "defaultValue": "2.5"
+    },
+    {
+      "name": "savings.limits.max-balance",
+      "type": "java.math.BigDecimal",
+      "description": "Maximum savings balance",
+      "defaultValue": "250000.00"
+    },
+    {
+      "name": "savings.notifications.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable savings notifications",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "OAuth2 client ID for service",
+      "defaultValue": "savings-service"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "OAuth2 client secret for service"
+    }
+  ]
+}

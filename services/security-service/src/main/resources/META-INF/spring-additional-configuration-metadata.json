@@ -1,0 +1,597 @@
+{
+  "properties": [
+    {
+      "name": "security-service.fraud-detection.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable fraud detection features",
+      "defaultValue": true
+    },
+    {
+      "name": "security-service.fraud-detection.real-time-scoring",
+      "type": "java.lang.Boolean",
+      "description": "Enable real-time fraud scoring",
+      "defaultValue": true
+    },
+    {
+      "name": "security-service.fraud-detection.machine-learning",
+      "type": "java.lang.Boolean",
+      "description": "Enable machine learning for fraud detection",
+      "defaultValue": true
+    },
+    {
+      "name": "security-service.fraud-detection.risk-thresholds.low",
+      "type": "java.lang.Integer",
+      "description": "Low risk threshold for fraud detection",
+      "defaultValue": 25
+    },
+    {
+      "name": "security-service.fraud-detection.risk-thresholds.medium",
+      "type": "java.lang.Integer",
+      "description": "Medium risk threshold for fraud detection",
+      "defaultValue": 50
+    },
+    {
+      "name": "security-service.fraud-detection.risk-thresholds.high",
+      "type": "java.lang.Integer",
+      "description": "High risk threshold for fraud detection",
+      "defaultValue": 75
+    },
+    {
+      "name": "security-service.fraud-detection.risk-thresholds.critical",
+      "type": "java.lang.Integer",
+      "description": "Critical risk threshold for fraud detection",
+      "defaultValue": 90
+    },
+    {
+      "name": "security-service.fraud-detection.velocity-checks.transaction-count.per-minute",
+      "type": "java.lang.Integer",
+      "description": "Maximum transactions per minute for velocity checks",
+      "defaultValue": 10
+    },
+    {
+      "name": "security-service.fraud-detection.velocity-checks.transaction-count.per-hour",
+      "type": "java.lang.Integer",
+      "description": "Maximum transactions per hour for velocity checks",
+      "defaultValue": 100
+    },
+    {
+      "name": "security-service.fraud-detection.velocity-checks.transaction-count.per-day",
+      "type": "java.lang.Integer",
+      "description": "Maximum transactions per day for velocity checks",
+      "defaultValue": 500
+    },
+    {
+      "name": "security-service.fraud-detection.velocity-checks.amount-limits.per-minute",
+      "type": "java.math.BigDecimal",
+      "description": "Maximum transaction amount per minute",
+      "defaultValue": 5000.00
+    },
+    {
+      "name": "security-service.fraud-detection.velocity-checks.amount-limits.per-hour",
+      "type": "java.math.BigDecimal",
+      "description": "Maximum transaction amount per hour",
+      "defaultValue": 25000.00
+    },
+    {
+      "name": "security-service.fraud-detection.velocity-checks.amount-limits.per-day",
+      "type": "java.math.BigDecimal",
+      "description": "Maximum transaction amount per day",
+      "defaultValue": 100000.00
+    },
+    {
+      "name": "security-service.fraud-detection.suspicious-patterns.round-amounts",
+      "type": "java.lang.Boolean",
+      "description": "Enable detection of suspicious round amounts",
+      "defaultValue": true
+    },
+    {
+      "name": "security-service.fraud-detection.suspicious-patterns.unusual-hours",
+      "type": "java.lang.Boolean",
+      "description": "Enable detection of transactions at unusual hours",
+      "defaultValue": true
+    },
+    {
+      "name": "security-service.fraud-detection.suspicious-patterns.geographic-anomalies",
+      "type": "java.lang.Boolean",
+      "description": "Enable detection of geographic anomalies",
+      "defaultValue": true
+    },
+    {
+      "name": "security-service.fraud-detection.suspicious-patterns.velocity-spikes",
+      "type": "java.lang.Boolean",
+      "description": "Enable detection of velocity spikes",
+      "defaultValue": true
+    },
+    {
+      "name": "security-service.fraud-detection.suspicious-patterns.device-fingerprinting",
+      "type": "java.lang.Boolean",
+      "description": "Enable device fingerprinting for fraud detection",
+      "defaultValue": true
+    },
+    {
+      "name": "security-service.aml.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Anti-Money Laundering (AML) features",
+      "defaultValue": true
+    },
+    {
+      "name": "security-service.aml.auto-report-generation",
+      "type": "java.lang.Boolean",
+      "description": "Enable automatic AML report generation",
+      "defaultValue": true
+    },
+    {
+      "name": "security-service.aml.monitoring-thresholds.single-transaction",
+      "type": "java.math.BigDecimal",
+      "description": "Single transaction threshold for AML monitoring",
+      "defaultValue": 10000.00
+    },
+    {
+      "name": "security-service.aml.monitoring-thresholds.daily-aggregate",
+      "type": "java.math.BigDecimal",
+      "description": "Daily aggregate threshold for AML monitoring",
+      "defaultValue": 25000.00
+    },
+    {
+      "name": "security-service.aml.monitoring-thresholds.monthly-aggregate",
+      "type": "java.math.BigDecimal",
+      "description": "Monthly aggregate threshold for AML monitoring",
+      "defaultValue": 100000.00
+    },
+    {
+      "name": "security-service.aml.watchlist-screening",
+      "type": "java.lang.Boolean",
+      "description": "Enable watchlist screening for AML",
+      "defaultValue": true
+    },
+    {
+      "name": "security-service.aml.sanctions-checking",
+      "type": "java.lang.Boolean",
+      "description": "Enable sanctions checking for AML",
+      "defaultValue": true
+    },
+    {
+      "name": "security-service.aml.pep-screening",
+      "type": "java.lang.Boolean",
+      "description": "Enable PEP screening for AML",
+      "defaultValue": true
+    },
+    {
+      "name": "security-service.aml.adverse-media-screening",
+      "type": "java.lang.Boolean",
+      "description": "Enable adverse media screening for AML",
+      "defaultValue": true
+    },
+    {
+      "name": "security-service.kyc.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Know Your Customer (KYC) features",
+      "defaultValue": true
+    },
+    {
+      "name": "security-service.kyc.verification-levels.basic",
+      "type": "java.math.BigDecimal",
+      "description": "Transaction limit for basic KYC verification level",
+      "defaultValue": 1000.00
+    },
+    {
+      "name": "security-service.kyc.verification-levels.standard",
+      "type": "java.math.BigDecimal",
+      "description": "Transaction limit for standard KYC verification level",
+      "defaultValue": 10000.00
+    },
+    {
+      "name": "security-service.kyc.verification-levels.enhanced",
+      "type": "java.math.BigDecimal",
+      "description": "Transaction limit for enhanced KYC verification level",
+      "defaultValue": 50000.00
+    },
+    {
+      "name": "security-service.kyc.verification-levels.premium",
+      "type": "java.math.BigDecimal",
+      "description": "Transaction limit for premium KYC verification level",
+      "defaultValue": 250000.00
+    },
+    {
+      "name": "security-service.kyc.document-verification",
+      "type": "java.lang.Boolean",
+      "description": "Enable document verification for KYC",
+      "defaultValue": true
+    },
+    {
+      "name": "security-service.kyc.biometric-verification",
+      "type": "java.lang.Boolean",
+      "description": "Enable biometric verification for KYC",
+      "defaultValue": true
+    },
+    {
+      "name": "security-service.kyc.liveness-detection",
+      "type": "java.lang.Boolean",
+      "description": "Enable liveness detection for KYC",
+      "defaultValue": true
+    },
+    {
+      "name": "security-service.kyc.address-verification",
+      "type": "java.lang.Boolean",
+      "description": "Enable address verification for KYC",
+      "defaultValue": true
+    },
+    {
+      "name": "security-service.mfa.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Multi-Factor Authentication (MFA)",
+      "defaultValue": true
+    },
+    {
+      "name": "security-service.mfa.totp.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Time-based One-Time Password (TOTP) MFA",
+      "defaultValue": true
+    },
+    {
+      "name": "security-service.mfa.totp.issuer",
+      "type": "java.lang.String",
+      "description": "TOTP issuer name",
+      "defaultValue": "Waqiti"
+    },
+    {
+      "name": "security-service.mfa.totp.algorithm",
+      "type": "java.lang.String",
+      "description": "TOTP algorithm",
+      "defaultValue": "SHA256"
+    },
+    {
+      "name": "security-service.mfa.totp.digits",
+      "type": "java.lang.Integer",
+      "description": "Number of digits in TOTP",
+      "defaultValue": 6
+    },
+    {
+      "name": "security-service.mfa.totp.period",
+      "type": "java.lang.Integer",
+      "description": "TOTP validity period in seconds",
+      "defaultValue": 30
+    },
+    {
+      "name": "security-service.mfa.sms.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable SMS-based MFA",
+      "defaultValue": true
+    },
+    {
+      "name": "security-service.mfa.sms.provider",
+      "type": "java.lang.String",
+      "description": "SMS provider for MFA",
+      "defaultValue": "twilio"
+    },
+    {
+      "name": "security-service.mfa.email.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable email-based MFA",
+      "defaultValue": true
+    },
+    {
+      "name": "security-service.mfa.backup-codes.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable backup codes for MFA",
+      "defaultValue": true
+    },
+    {
+      "name": "security-service.mfa.backup-codes.count",
+      "type": "java.lang.Integer",
+      "description": "Number of backup codes to generate",
+      "defaultValue": 10
+    },
+    {
+      "name": "security-service.behavioral-analysis.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable behavioral analysis",
+      "defaultValue": true
+    },
+    {
+      "name": "security-service.behavioral-analysis.learning-mode",
+      "type": "java.lang.Boolean",
+      "description": "Enable learning mode for behavioral analysis",
+      "defaultValue": true
+    },
+    {
+      "name": "security-service.behavioral-analysis.baseline-period-days",
+      "type": "java.lang.Integer",
+      "description": "Baseline period for behavioral analysis in days",
+      "defaultValue": 30
+    },
+    {
+      "name": "security-service.behavioral-analysis.anomaly-threshold",
+      "type": "java.math.BigDecimal",
+      "description": "Anomaly threshold for behavioral analysis",
+      "defaultValue": 2.5
+    },
+    {
+      "name": "security-service.behavioral-analysis.features.transaction-patterns",
+      "type": "java.lang.Boolean",
+      "description": "Enable transaction pattern analysis",
+      "defaultValue": true
+    },
+    {
+      "name": "security-service.behavioral-analysis.features.device-patterns",
+      "type": "java.lang.Boolean",
+      "description": "Enable device pattern analysis",
+      "defaultValue": true
+    },
+    {
+      "name": "security-service.behavioral-analysis.features.location-patterns",
+      "type": "java.lang.Boolean",
+      "description": "Enable location pattern analysis",
+      "defaultValue": true
+    },
+    {
+      "name": "security-service.behavioral-analysis.features.time-patterns",
+      "type": "java.lang.Boolean",
+      "description": "Enable time pattern analysis",
+      "defaultValue": true
+    },
+    {
+      "name": "security-service.behavioral-analysis.features.velocity-patterns",
+      "type": "java.lang.Boolean",
+      "description": "Enable velocity pattern analysis",
+      "defaultValue": true
+    },
+    {
+      "name": "security-service.compliance.auto-reporting",
+      "type": "java.lang.Boolean",
+      "description": "Enable automatic compliance reporting",
+      "defaultValue": true
+    },
+    {
+      "name": "security-service.compliance.sar-generation",
+      "type": "java.lang.Boolean",
+      "description": "Enable SAR generation",
+      "defaultValue": true
+    },
+    {
+      "name": "security-service.compliance.ctr-generation",
+      "type": "java.lang.Boolean",
+      "description": "Enable CTR generation",
+      "defaultValue": true
+    },
+    {
+      "name": "security-service.compliance.data-retention-days",
+      "type": "java.lang.Integer",
+      "description": "Data retention period for compliance in days",
+      "defaultValue": 2555
+    },
+    {
+      "name": "security-service.compliance.encryption-at-rest",
+      "type": "java.lang.Boolean",
+      "description": "Enable encryption at rest for compliance data",
+      "defaultValue": true
+    },
+    {
+      "name": "security-service.compliance.audit-logging",
+      "type": "java.lang.Boolean",
+      "description": "Enable audit logging for compliance",
+      "defaultValue": true
+    },
+    {
+      "name": "security-service.rate-limiting.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable rate limiting",
+      "defaultValue": true
+    },
+    {
+      "name": "security-service.rate-limiting.global-limits.requests-per-minute",
+      "type": "java.lang.Integer",
+      "description": "Global rate limit: requests per minute",
+      "defaultValue": 1000
+    },
+    {
+      "name": "security-service.rate-limiting.global-limits.requests-per-hour",
+      "type": "java.lang.Integer",
+      "description": "Global rate limit: requests per hour",
+      "defaultValue": 10000
+    },
+    {
+      "name": "security-service.rate-limiting.per-user-limits.requests-per-minute",
+      "type": "java.lang.Integer",
+      "description": "Per-user rate limit: requests per minute",
+      "defaultValue": 60
+    },
+    {
+      "name": "security-service.rate-limiting.per-user-limits.requests-per-hour",
+      "type": "java.lang.Integer",
+      "description": "Per-user rate limit: requests per hour",
+      "defaultValue": 1000
+    },
+    {
+      "name": "security-service.geolocation.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable geolocation features",
+      "defaultValue": true
+    },
+    {
+      "name": "security-service.geolocation.maxmind-database",
+      "type": "java.lang.String",
+      "description": "Path to MaxMind database file",
+      "defaultValue": "/opt/security/GeoLite2-City.mmdb"
+    },
+    {
+      "name": "security-service.geolocation.risk-countries",
+      "type": "java.util.List<java.lang.String>",
+      "description": "List of high-risk country codes",
+      "defaultValue": ["XX", "YY"]
+    },
+    {
+      "name": "security-service.geolocation.blocked-countries",
+      "type": "java.util.List<java.lang.String>",
+      "description": "List of blocked country codes",
+      "defaultValue": ["ZZ"]
+    },
+    {
+      "name": "security-service.device-fingerprinting.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable device fingerprinting",
+      "defaultValue": true
+    },
+    {
+      "name": "security-service.device-fingerprinting.track-changes",
+      "type": "java.lang.Boolean",
+      "description": "Track device fingerprint changes",
+      "defaultValue": true
+    },
+    {
+      "name": "security-service.device-fingerprinting.risk-scoring",
+      "type": "java.lang.Boolean",
+      "description": "Enable risk scoring for device fingerprinting",
+      "defaultValue": true
+    },
+    {
+      "name": "security-service.device-fingerprinting.session-binding",
+      "type": "java.lang.Boolean",
+      "description": "Enable session binding to device fingerprint",
+      "defaultValue": true
+    },
+    {
+      "name": "health.circuit-breaker.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable circuit breaker health check",
+      "defaultValue": true
+    },
+    {
+      "name": "health.rate-limiter.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable rate limiter health check",
+      "defaultValue": true
+    },
+    {
+      "name": "rate-limiting.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable rate limiting system",
+      "defaultValue": true
+    },
+    {
+      "name": "rate-limiting.key-prefix",
+      "type": "java.lang.String",
+      "description": "Redis key prefix for rate limiting",
+      "defaultValue": "waqiti:security:rate-limit:"
+    },
+    {
+      "name": "rate-limiting.bucket-expiration-minutes",
+      "type": "java.lang.Integer",
+      "description": "Rate limit bucket expiration in minutes",
+      "defaultValue": 60
+    },
+    {
+      "name": "rate-limiting.default.capacity",
+      "type": "java.lang.Integer",
+      "description": "Default rate limit bucket capacity",
+      "defaultValue": 100
+    },
+    {
+      "name": "rate-limiting.default.refill-tokens",
+      "type": "java.lang.Integer",
+      "description": "Default rate limit refill tokens",
+      "defaultValue": 100
+    },
+    {
+      "name": "rate-limiting.default.refill-period-minutes",
+      "type": "java.lang.Integer",
+      "description": "Default rate limit refill period in minutes",
+      "defaultValue": 1
+    },
+    {
+      "name": "keycloak.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Keycloak authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "keycloak.auth-server-url",
+      "type": "java.lang.String",
+      "description": "Keycloak authentication server URL",
+      "defaultValue": "https://localhost:8180"
+    },
+    {
+      "name": "keycloak.realm",
+      "type": "java.lang.String",
+      "description": "Keycloak realm name",
+      "defaultValue": "waqiti-fintech"
+    },
+    {
+      "name": "keycloak.resource",
+      "type": "java.lang.String",
+      "description": "Keycloak resource/client ID",
+      "defaultValue": "security-service"
+    },
+    {
+      "name": "keycloak.bearer-only",
+      "type": "java.lang.Boolean",
+      "description": "Configure Keycloak as bearer-only client",
+      "defaultValue": true
+    },
+    {
+      "name": "keycloak.ssl-required",
+      "type": "java.lang.String",
+      "description": "SSL requirement level for Keycloak",
+      "defaultValue": "external"
+    },
+    {
+      "name": "keycloak.verify-token-audience",
+      "type": "java.lang.Boolean",
+      "description": "Enable token audience verification in Keycloak",
+      "defaultValue": true
+    },
+    {
+      "name": "keycloak.use-resource-role-mappings",
+      "type": "java.lang.Boolean",
+      "description": "Use resource-level role mappings in Keycloak",
+      "defaultValue": true
+    },
+    {
+      "name": "keycloak.principal-attribute",
+      "type": "java.lang.String",
+      "description": "Principal attribute for Keycloak authentication",
+      "defaultValue": "preferred_username"
+    },
+    {
+      "name": "keycloak.credentials.secret",
+      "type": "java.lang.String",
+      "description": "Keycloak client secret"
+    },
+    {
+      "name": "authentication.mode",
+      "type": "java.lang.String",
+      "description": "Authentication mode configuration",
+      "defaultValue": "KEYCLOAK"
+    },
+    {
+      "name": "authentication.legacy-jwt-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable legacy JWT authentication",
+      "defaultValue": false
+    },
+    {
+      "name": "authentication.keycloak-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Keycloak authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "authentication.circuit-breaker.failure-threshold",
+      "type": "java.lang.Integer",
+      "description": "Circuit breaker failure threshold for authentication",
+      "defaultValue": 5
+    },
+    {
+      "name": "authentication.circuit-breaker.timeout-duration",
+      "type": "java.lang.Integer",
+      "description": "Circuit breaker timeout duration for authentication in milliseconds",
+      "defaultValue": 10000
+    },
+    {
+      "name": "authentication.circuit-breaker.half-open-requests",
+      "type": "java.lang.Integer",
+      "description": "Number of requests allowed in half-open state",
+      "defaultValue": 3
+    }
+  ]
+}

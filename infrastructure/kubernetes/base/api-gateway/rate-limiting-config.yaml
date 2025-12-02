@@ -1,0 +1,311 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-gateway-rate-limiting
+  namespace: waqiti
+data:
+  rate-limits.yaml: |
+    # Global rate limiting configuration
+    rateLimits:
+      # Default limits for all endpoints
+      default:
+        requestsPerSecond: 100
+        requestsPerMinute: 1000
+        requestsPerHour: 10000
+        burstCapacity: 200
+        
+      # Service-specific rate limits
+      services:
+        # Payment service - stricter limits for financial operations
+        payment-service:
+          endpoints:
+            - path: "/api/v1/payments/**"
+              methods: ["POST", "PUT"]
+              limits:
+                requestsPerSecond: 10
+                requestsPerMinute: 100
+                requestsPerHour: 1000
+                burstCapacity: 20
+                
+            - path: "/api/v1/payments/*/status"
+              methods: ["GET"]
+              limits:
+                requestsPerSecond: 50
+                requestsPerMinute: 500
+                requestsPerHour: 5000
+                
+        # Wallet service - moderate limits
+        wallet-service:
+          endpoints:
+            - path: "/api/v1/wallets/*/transfer"
+              methods: ["POST"]
+              limits:
+                requestsPerSecond: 5
+                requestsPerMinute: 50
+                requestsPerHour: 500
+                burstCapacity: 10
+                
+            - path: "/api/v1/wallets/**"
+              methods: ["GET"]
+              limits:
+                requestsPerSecond: 100
+                requestsPerMinute: 1000
+                requestsPerHour: 10000
+                
+        # User service - standard limits
+        user-service:
+          endpoints:
+            - path: "/api/v1/users/register"
+              methods: ["POST"]
+              limits:
+                requestsPerSecond: 2
+                requestsPerMinute: 10
+                requestsPerHour: 100
+                burstCapacity: 5
+                
+            - path: "/api/v1/users/login"
+              methods: ["POST"]
+              limits:
+                requestsPerSecond: 5
+                requestsPerMinute: 30
+                requestsPerHour: 300
+                burstCapacity: 10
+                
+        # KYC service - strict limits for verification
+        kyc-service:
+          endpoints:
+            - path: "/api/v1/kyc/verify"
+              methods: ["POST"]
+              limits:
+                requestsPerSecond: 1
+                requestsPerMinute: 5
+                requestsPerHour: 50
+                burstCapacity: 2
+                
+            - path: "/api/v1/kyc/documents/**"
+              methods: ["POST"]
+              limits:
+                requestsPerSecond: 2
+                requestsPerMinute: 10
+                requestsPerHour: 100
+                
+        # Virtual card service
+        virtual-card-service:
+          endpoints:
+            - path: "/api/v1/virtual-cards/create"
+              methods: ["POST"]
+              limits:
+                requestsPerSecond: 2
+                requestsPerMinute: 20
+                requestsPerHour: 200
+                
+            - path: "/api/v1/physical-cards/order"
+              methods: ["POST"]
+              limits:
+                requestsPerSecond: 1
+                requestsPerMinute: 5
+                requestsPerHour: 50
+                
+      # User-specific rate limits based on tiers
+      userTiers:
+        basic:
+          requestsPerSecond: 10
+          requestsPerMinute: 100
+          requestsPerHour: 1000
+          dailyTransactionLimit: 100
+          
+        verified:
+          requestsPerSecond: 50
+          requestsPerMinute: 500
+          requestsPerHour: 5000
+          dailyTransactionLimit: 500
+          
+        premium:
+          requestsPerSecond: 100
+          requestsPerMinute: 1000
+          requestsPerHour: 10000
+          dailyTransactionLimit: 1000
+          
+        business:
+          requestsPerSecond: 500
+          requestsPerMinute: 5000
+          requestsPerHour: 50000
+          dailyTransactionLimit: 10000
+          
+      # IP-based rate limiting
+      ipRateLimits:
+        anonymous:
+          requestsPerSecond: 5
+          requestsPerMinute: 30
+          requestsPerHour: 300
+          
+        authenticated:
+          requestsPerSecond: 50
+          requestsPerMinute: 500
+          requestsPerHour: 5000
+          
+        # Blocked IPs and ranges
+        blockedIPs:
+          - "192.168.1.100"
+          - "10.0.0.0/8"
+          
+        # Whitelisted IPs (no rate limiting)
+        whitelistedIPs:
+          - "127.0.0.1"
+          - "::1"
+          
+      # Geographic rate limiting
+      geoRateLimits:
+        highRisk:
+          countries: ["XX", "YY", "ZZ"]
+          requestsPerSecond: 2
+          requestsPerMinute: 20
+          requestsPerHour: 200
+          
+        standard:
+          requestsPerSecond: 50
+          requestsPerMinute: 500
+          requestsPerHour: 5000
+          
+      # API key rate limits
+      apiKeyLimits:
+        trial:
+          requestsPerDay: 1000
+          requestsPerMonth: 10000
+          
+        standard:
+          requestsPerDay: 10000
+          requestsPerMonth: 100000
+          
+        enterprise:
+          requestsPerDay: 100000
+          requestsPerMonth: 1000000
+          
+    # Circuit breaker configuration
+    circuitBreaker:
+      failureRateThreshold: 50
+      waitDurationInOpenState: 60000
+      slidingWindowSize: 100
+      minimumNumberOfCalls: 10
+      
+    # Retry configuration
+    retry:
+      maxAttempts: 3
+      waitDuration: 1000
+      retryExceptions:
+        - "java.io.IOException"
+        - "java.net.SocketTimeoutException"
+        
+    # Headers configuration
+    headers:
+      rateLimitHeaders:
+        - "X-RateLimit-Limit"
+        - "X-RateLimit-Remaining"
+        - "X-RateLimit-Reset"
+        - "Retry-After"
+        
+    # Redis configuration for distributed rate limiting
+    redis:
+      enabled: true
+      keyPrefix: "rate_limit:"
+      ttl: 3600
+      
+    # Monitoring and alerting
+    monitoring:
+      enabled: true
+      metricsEndpoint: "/metrics/rate-limiting"
+      alertThresholds:
+        highUsage: 80
+        critical: 95
+        
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-gateway-rate-limiting-rules
+  namespace: waqiti
+data:
+  rules.lua: |
+    -- Lua script for advanced rate limiting logic
+    local function checkRateLimit(key, limit, window)
+      local current = redis.call('GET', key)
+      if current == false then
+        redis.call('SET', key, 1)
+        redis.call('EXPIRE', key, window)
+        return true
+      elseif tonumber(current) < limit then
+        redis.call('INCR', key)
+        return true
+      else
+        return false
+      end
+    end
+    
+    local function getUserTier(userId)
+      local tier = redis.call('HGET', 'user:tiers', userId)
+      if tier == false then
+        return 'basic'
+      end
+      return tier
+    end
+    
+    local function applyGeoRateLimit(ip)
+      local country = redis.call('HGET', 'ip:geo', ip)
+      if country == false then
+        return 'standard'
+      end
+      
+      local highRiskCountries = {'XX', 'YY', 'ZZ'}
+      for _, c in ipairs(highRiskCountries) do
+        if country == c then
+          return 'highRisk'
+        end
+      end
+      
+      return 'standard'
+    end
+    
+    -- Main rate limiting function
+    local userId = ARGV[1]
+    local ip = ARGV[2]
+    local endpoint = ARGV[3]
+    local method = ARGV[4]
+    
+    -- Check IP whitelist
+    local whitelisted = redis.call('SISMEMBER', 'ip:whitelist', ip)
+    if whitelisted == 1 then
+      return 1
+    end
+    
+    -- Check IP blacklist
+    local blacklisted = redis.call('SISMEMBER', 'ip:blacklist', ip)
+    if blacklisted == 1 then
+      return 0
+    end
+    
+    -- Apply user tier rate limiting
+    if userId ~= '' then
+      local tier = getUserTier(userId)
+      local tierKey = 'rate_limit:user:' .. userId .. ':' .. tier
+      local tierLimit = redis.call('HGET', 'tier:limits:' .. tier, 'requestsPerMinute')
+      if not checkRateLimit(tierKey, tonumber(tierLimit), 60) then
+        return 0
+      end
+    end
+    
+    -- Apply geographic rate limiting
+    local geoTier = applyGeoRateLimit(ip)
+    local geoKey = 'rate_limit:geo:' .. ip
+    local geoLimit = redis.call('HGET', 'geo:limits:' .. geoTier, 'requestsPerMinute')
+    if not checkRateLimit(geoKey, tonumber(geoLimit), 60) then
+      return 0
+    end
+    
+    -- Apply endpoint-specific rate limiting
+    local endpointKey = 'rate_limit:endpoint:' .. endpoint .. ':' .. method
+    local endpointLimit = redis.call('HGET', 'endpoint:limits', endpoint .. ':' .. method)
+    if endpointLimit ~= false and not checkRateLimit(endpointKey, tonumber(endpointLimit), 60) then
+      return 0
+    end
+    
+    return 1

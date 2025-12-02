@@ -1,0 +1,174 @@
+# Circuit Breaker Configuration Example
+# Add this to your application.yml files
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        slidingWindowSize: 100
+        slidingWindowType: COUNT_BASED
+        failureRateThreshold: 50
+        waitDurationInOpenState: 60s
+        permittedNumberOfCallsInHalfOpenState: 10
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        recordExceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
+        ignoreExceptions:
+          - java.lang.IllegalArgumentException
+          - java.lang.IllegalStateException
+      payment:
+        slidingWindowSize: 50
+        failureRateThreshold: 30
+        waitDurationInOpenState: 120s
+        permittedNumberOfCallsInHalfOpenState: 5
+        slowCallRateThreshold: 80
+        slowCallDurationThreshold: 5s
+      kyc:
+        slidingWindowType: TIME_BASED
+        slidingWindowSize: 60
+        failureRateThreshold: 40
+        waitDurationInOpenState: 90s
+        permittedNumberOfCallsInHalfOpenState: 8
+        minimumNumberOfCalls: 10
+      notification:
+        slidingWindowSize: 200
+        failureRateThreshold: 70
+        waitDurationInOpenState: 30s
+        permittedNumberOfCallsInHalfOpenState: 20
+    instances:
+      payment-gateway:
+        baseConfig: payment
+      kyc-service:
+        baseConfig: kyc
+      notification-service:
+        baseConfig: notification
+      fraud-detection:
+        baseConfig: default
+      currency-exchange:
+        baseConfig: default
+      bank-integration:
+        baseConfig: payment
+
+  retry:
+    configs:
+      default:
+        maxAttempts: 3
+        waitDuration: 1s
+        intervalFunction: exponential_backoff
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+          - java.net.ConnectException
+        ignoreExceptions:
+          - java.lang.IllegalArgumentException
+      payment:
+        maxAttempts: 5
+        waitDuration: 2s
+        intervalFunction: exponential_backoff
+        exponentialBackoffMultiplier: 1.5
+        exponentialBackoffRandomizationFactor: 0.2
+        maxDuration: 30s
+    instances:
+      payment-retry:
+        baseConfig: payment
+      kyc-retry:
+        baseConfig: default
+      notification-retry:
+        baseConfig: default
+
+  bulkhead:
+    configs:
+      default:
+        maxConcurrentCalls: 25
+        maxWaitDuration: 5s
+      payment:
+        maxConcurrentCalls: 10
+        maxWaitDuration: 10s
+    instances:
+      payment-bulkhead:
+        baseConfig: payment
+      kyc-bulkhead:
+        baseConfig: default
+      notification-bulkhead:
+        baseConfig: default
+
+  ratelimiter:
+    configs:
+      default:
+        limitRefreshPeriod: 1s
+        limitForPeriod: 100
+        timeoutDuration: 5s
+      public-api:
+        limitRefreshPeriod: 1m
+        limitForPeriod: 60
+        timeoutDuration: 10s
+    instances:
+      public-api:
+        baseConfig: public-api
+      payment-api:
+        baseConfig: default
+      kyc-api:
+        baseConfig: default
+
+  timelimiter:
+    configs:
+      default:
+        timeoutDuration: 10s
+        cancelRunningFuture: true
+      payment:
+        timeoutDuration: 30s
+        cancelRunningFuture: false
+    instances:
+      payment-timeout:
+        baseConfig: payment
+      kyc-timeout:
+        baseConfig: default
+      notification-timeout:
+        baseConfig: default
+
+# Monitoring and Health
+management:
+  endpoint:
+    health:
+      show-details: when-authorized
+      show-components: always
+    circuitbreakers:
+      enabled: true
+    retries:
+      enabled: true
+    bulkheads:
+      enabled: true
+    ratelimiters:
+      enabled: true
+  endpoints:
+    web:
+      exposure:
+        include:
+          - health
+          - circuitbreakers
+          - retries
+          - bulkheads
+          - ratelimiters
+          - prometheus
+          - metrics
+
+  health:
+    circuitbreakers:
+      enabled: true
+    ratelimiters:
+      enabled: true
+
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    distribution:
+      percentiles-histogram:
+        resilience4j.circuitbreaker.calls: true
+        resilience4j.retry.calls: true
+        resilience4j.bulkhead.calls: true
+        resilience4j.ratelimiter.calls: true

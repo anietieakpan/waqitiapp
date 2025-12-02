@@ -1,0 +1,274 @@
+# ============================================================================
+# FINCEN BSA E-FILING SYSTEM - PRODUCTION CONFIGURATION
+# ============================================================================
+#
+# CRITICAL REGULATORY INTEGRATION
+# Financial Crimes Enforcement Network (FinCEN) SAR Filing System
+#
+# COMPLIANCE REQUIREMENTS:
+# - Bank Secrecy Act (BSA)
+# - USA PATRIOT Act Section 326
+# - FinCEN SAR Filing Requirements (31 CFR 1020.320)
+#
+# SECURITY REQUIREMENTS:
+# - TLS 1.3 for all communications
+# - Credentials stored in HashiCorp Vault (NOT in this file)
+# - Certificate-based authentication for production
+# - IP whitelisting at FinCEN firewall
+#
+# PENALTIES FOR FAILURE:
+# - Missing SAR filing: $25,000 - $1,000,000 per violation
+# - Late SAR filing: Regulatory sanctions
+# - Incomplete SAR data: Filing rejection + penalties
+#
+# @version 1.0.0
+# @since 2025-11-03
+# ============================================================================
+
+fincen:
+  api:
+    # PRODUCTION: Must be enabled for live environment
+    # ⚠️ CRITICAL: Set to 'true' in production
+    enabled: ${FINCEN_API_ENABLED:true}  # Changed from false to true
+
+    # FinCEN BSA E-Filing System API endpoints
+    # PRODUCTION: https://bsaefiling.fincen.treas.gov/api
+    # STAGING: https://bsaefiling-stage.fincen.treas.gov/api
+    # SANDBOX: https://bsaefiling-sandbox.fincen.treas.gov/api
+    base-url: ${FINCEN_API_BASE_URL:https://bsaefiling.fincen.treas.gov/api}
+
+    # FinCEN credentials (MUST be stored in Vault)
+    # ⚠️ NEVER commit actual credentials to Git
+    # Production values loaded from HashiCorp Vault at runtime
+    username: ${FINCEN_API_USERNAME:#{null}}  # Vault: secret/waqiti/fincen/username
+    password: ${FINCEN_API_PASSWORD:#{null}}  # Vault: secret/waqiti/fincen/password
+    institution-id: ${FINCEN_INSTITUTION_ID:#{null}}  # Vault: secret/waqiti/fincen/institution-id
+
+    # Timeout configuration
+    # FinCEN API can be slow during peak hours (9 AM - 5 PM EST)
+    timeout-seconds: 60  # Increased from 30 to 60 for production
+
+    # Retry configuration
+    # FinCEN recommends max 3 retries with exponential backoff
+    retry-attempts: 3
+    retry-initial-delay-ms: 2000
+    retry-max-delay-ms: 10000
+    retry-multiplier: 2.0
+
+    # TLS/SSL Configuration
+    tls:
+      enabled: true
+      protocol: TLSv1.3
+      # FinCEN certificate validation
+      verify-hostname: true
+      trust-store: ${FINCEN_TRUST_STORE:/etc/ssl/certs/fincen-ca.jks}
+      trust-store-password: ${FINCEN_TRUST_STORE_PASSWORD}
+      # Client certificate for mutual TLS (if required)
+      client-cert: ${FINCEN_CLIENT_CERT:#{null}}
+      client-cert-password: ${FINCEN_CLIENT_CERT_PASSWORD:#{null}}
+
+# ============================================================================
+# RESILIENCE4J CONFIGURATION FOR FINCEN API
+# ============================================================================
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      fincen-api:
+        # Circuit breaker opens after 50% failures in 10 requests
+        failure-rate-threshold: 50
+        slow-call-rate-threshold: 75
+        slow-call-duration-threshold: 45s
+
+        # Sliding window for failure tracking
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+
+        # Wait 2 minutes before attempting to close circuit
+        wait-duration-in-open-state: 120s
+
+        # Test with 3 calls in half-open state
+        permitted-number-of-calls-in-half-open-state: 3
+
+        # Automatic transition from open to half-open
+        automatic-transition-from-open-to-half-open-enabled: true
+
+        # Record these exceptions as failures
+        record-exceptions:
+          - org.springframework.web.reactive.function.client.WebClientResponseException
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
+          - java.io.IOException
+
+        # Ignore these exceptions (don't count as failures)
+        ignore-exceptions:
+          - java.lang.IllegalArgumentException
+          - com.example.compliance.fincen.FincenValidationException
+
+  # Bulkhead pattern - limit concurrent FinCEN API calls
+  bulkhead:
+    instances:
+      fincen-api:
+        max-concurrent-calls: 10  # FinCEN API has rate limits
+        max-wait-duration: 30s
+
+  # Rate limiting - respect FinCEN API quotas
+  ratelimiter:
+    instances:
+      fincen-api:
+        limit-for-period: 100  # Max 100 requests per period
+        limit-refresh-period: 60s  # 1 minute period
+        timeout-duration: 10s  # Wait max 10s for permission
+
+  # Retry configuration
+  retry:
+    instances:
+      fincen-api:
+        max-attempts: 3
+        wait-duration: 2s
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - org.springframework.web.reactive.function.client.WebClientResponseException$ServiceUnavailable
+          - org.springframework.web.reactive.function.client.WebClientResponseException$GatewayTimeout
+          - java.net.SocketTimeoutException
+
+# ============================================================================
+# MONITORING & ALERTING
+# ============================================================================
+
+management:
+  metrics:
+    tags:
+      service: compliance-service
+      integration: fincen-api
+    export:
+      prometheus:
+        enabled: true
+
+  # FinCEN-specific health checks
+  health:
+    fincen:
+      enabled: true
+      # Ping FinCEN API every 5 minutes to check availability
+      check-interval: 300s
+
+# ============================================================================
+# LOGGING CONFIGURATION
+# ============================================================================
+
+logging:
+  level:
+    com.example.compliance.fincen: INFO
+    org.springframework.web.reactive.function.client: INFO
+    io.github.resilience4j: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [FinCEN] %logger{36} - %msg%n"
+  file:
+    name: /var/log/waqiti/fincen-api.log
+    max-size: 100MB
+    max-history: 90  # Retain 90 days for audit
+    total-size-cap: 10GB
+
+# ============================================================================
+# AUDIT TRAIL CONFIGURATION
+# ============================================================================
+
+fincen:
+  audit:
+    enabled: true
+    # Store all SAR submissions for 7 years (regulatory requirement)
+    retention-years: 7
+    # Log PII in audit trail (encrypted at rest)
+    log-pii: true
+    # Archive to cold storage after 2 years
+    archive-after-years: 2
+
+# ============================================================================
+# ALERTING CONFIGURATION
+# ============================================================================
+
+fincen:
+  alerts:
+    # Alert on circuit breaker open
+    circuit-breaker-open:
+      enabled: true
+      channels: [email, slack, pagerduty]
+      severity: CRITICAL
+      recipients:
+        - compliance@example.com
+        - engineering-oncall@example.com
+
+    # Alert on SAR submission failure
+    sar-submission-failure:
+      enabled: true
+      channels: [email, slack, pagerduty]
+      severity: CRITICAL
+      recipients:
+        - compliance@example.com
+
+    # Alert on approaching rate limit
+    rate-limit-threshold:
+      enabled: true
+      threshold: 80  # Alert at 80% of rate limit
+      channels: [slack]
+      severity: WARNING
+
+# ============================================================================
+# FEATURE FLAGS
+# ============================================================================
+
+fincen:
+  features:
+    # Enable SAR amendment functionality
+    amendments-enabled: true
+    # Enable expedited SAR filing
+    expedited-filing-enabled: true
+    # Enable batch SAR submission
+    batch-submission-enabled: false  # Not yet implemented
+
+# ============================================================================
+# PRODUCTION CHECKLIST
+# ============================================================================
+#
+# Before enabling FinCEN integration in production:
+#
+# ✅ 1. Obtain FinCEN BSA E-Filing credentials
+#    - Register institution with FinCEN
+#    - Receive username, password, institution ID
+#
+# ✅ 2. Store credentials in HashiCorp Vault
+#    - vault kv put secret/waqiti/fincen/username value=<username>
+#    - vault kv put secret/waqiti/fincen/password value=<password>
+#    - vault kv put secret/waqiti/fincen/institution-id value=<id>
+#
+# ✅ 3. Configure TLS certificates
+#    - Download FinCEN CA certificate
+#    - Import to truststore: /etc/ssl/certs/fincen-ca.jks
+#    - Set FINCEN_TRUST_STORE_PASSWORD environment variable
+#
+# ✅ 4. IP Whitelisting
+#    - Submit Waqiti production IPs to FinCEN for whitelisting
+#    - Verify connectivity from production environment
+#
+# ✅ 5. Test in sandbox environment
+#    - Set base-url to sandbox: https://bsaefiling-sandbox.fincen.treas.gov/api
+#    - Submit test SARs
+#    - Verify acknowledgments received
+#
+# ✅ 6. Enable monitoring & alerting
+#    - Configure Prometheus metrics collection
+#    - Set up Grafana dashboards
+#    - Test PagerDuty integration
+#
+# ✅ 7. Train compliance team
+#    - Manual filing procedures when API unavailable
+#    - Dashboard access for SAR status monitoring
+#    - Incident response procedures
+#
+# ✅ 8. Set enabled=true
+#    - Update FINCEN_API_ENABLED=true in production env vars
+#    - Deploy to production
+#    - Monitor first 24 hours closely
+#
+# ============================================================================

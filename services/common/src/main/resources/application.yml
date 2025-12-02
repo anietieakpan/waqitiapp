@@ -1,0 +1,297 @@
+# Waqiti Common Module Configuration
+# This provides default values for all conditional properties used throughout the common module
+
+# Observability Configuration
+waqiti:
+  observability:
+    enabled: true
+    controller:
+      enabled: true
+    tracing:
+      enabled: true
+    metrics:
+      prometheus:
+        enabled: true
+      export:
+        enabled: true
+    distributed-tracing:
+      enabled: true
+
+# Tracing Configuration  
+tracing:
+  enabled: true
+  otlp:
+    enabled: false
+    endpoint: http://localhost:4317
+
+# Spring Cloud Vault
+spring:
+  cloud:
+    vault:
+      enabled: false
+  kafka:
+    enabled: false
+  profiles:
+    active: default
+    include: gdpr
+
+
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/waqiti_common
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          time_zone: UTC
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+  mail:
+    host: ${SMTP_HOST:smtp.gmail.com}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USERNAME}
+    password: ${SMTP_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+
+
+# Security Awareness Configuration - merged with the existing security tag - aniix -25th October 2025
+
+
+# DLQ Recovery Configuration
+dlq:
+  recovery:
+    max-retries: 5
+    base-delay-ms: 1000
+    max-delay-ms: 3600000
+
+# Kafka Configuration
+kafka:
+  enabled: false
+  schema-registry:
+    enabled: false
+    url: http://localhost:8081
+
+# Spring Kafka Configuration (when enabled)
+spring:
+  kafka:
+    properties:
+      # P1-009: Schema Registry compatibility mode configuration
+      schema.registry.url: ${SCHEMA_REGISTRY_URL:http://schema-registry:8081}
+      auto.register.schemas: false  # Prevent automatic schema registration
+      use.latest.version: true      # Always use latest compatible schema version
+      schema.registry.compatibility: BACKWARD  # Enforce backward compatibility
+    consumer:
+      properties:
+        schema.registry.url: ${SCHEMA_REGISTRY_URL:http://schema-registry:8081}
+        auto.register.schemas: false
+        use.latest.version: true
+        specific.avro.reader: true  # Use generated Avro classes for type safety
+    producer:
+      properties:
+        schema.registry.url: ${SCHEMA_REGISTRY_URL:http://schema-registry:8081}
+        auto.register.schemas: false
+        use.latest.version: true
+
+# Database Configuration
+database:
+  ssl:
+    enabled: true
+  monitoring:
+    enabled: true
+  optimization:
+    enabled: true
+    monitoring: true
+  connection:
+    optimization:
+      enabled: true
+    read-replica:
+      enabled: false
+    batch:
+      enabled: false
+
+# Security Configuration
+security:
+  ip-whitelist:
+    enabled: false
+    filter:
+      enabled: false
+    api:
+      enabled: false
+  session:
+    timeout:
+      enabled: true
+  password:
+    complexity:
+      enabled: true
+  headers:
+    enabled: true
+
+  awareness:
+    phishing:
+      tracking-domain: phishing-test.example.com
+    training:
+      certificate-storage: s3://waqiti-certificates/
+    assessment:
+      auto-create-quarterly: true
+
+# Keycloak Configuration
+keycloak:
+  enabled: false
+  service-account:
+    enabled: false
+
+# Audit Configuration
+audit:
+  enabled: true
+  cleanup:
+    enabled: true
+
+# CRITICAL SECURITY: Production-Grade Rate Limiting Configuration
+rate-limiting:
+  enabled: ${RATE_LIMITING_ENABLED:true}
+  
+  # Global defaults for all endpoints
+  default:
+    requests: 60
+    window: 1
+    unit: MINUTES
+    key-type: IP
+    priority: MEDIUM
+    burst-allowed: true
+    burst-capacity: 10
+    distributed: true
+    scope: GLOBAL
+  
+  # Redis Configuration for Distributed Rate Limiting
+  redis:
+    enabled: ${RATE_LIMITING_REDIS_ENABLED:true}
+    host: ${REDIS_HOST:redis}
+    port: ${REDIS_PORT:6379}
+    database: ${RATE_LIMITING_REDIS_DB:1}
+    password: ${REDIS_PASSWORD:}
+    timeout: ${RATE_LIMITING_REDIS_TIMEOUT:2000ms}
+    key-prefix: "waqiti:rate-limit:"
+    key-expiration: 3600
+    sentinels: false
+    connection-pool:
+      max-active: 20
+      max-idle: 10
+      min-idle: 5
+      max-wait: 3000ms
+  
+  # Security policies for automatic blocking
+  security:
+    ip-blocking:
+      enabled: true
+      violation-threshold: 50
+      block-duration: 3600
+      whitelist:
+        - "127.0.0.1"
+        - "::1"
+        - "10.0.0.0/8"
+        - "172.16.0.0/12"
+        - "192.168.0.0/16"
+    
+    user-blocking:
+      enabled: true
+      violation-threshold: 30
+      block-duration: 1800
+    
+    progressive-penalties:
+      enabled: true
+      escalation-factor: 2.0
+      max-penalty-duration: 86400
+  
+  # Monitoring and alerting
+  monitoring:
+    enabled: true
+    metrics:
+      enabled: true
+      export-to-prometheus: true
+      export-interval: 30s
+    alerts:
+      enabled: true
+      violation-threshold: 100
+      ip-violation-threshold: 50
+      endpoint-violation-threshold: 200
+    health-check:
+      enabled: true
+      interval: 30s
+
+rate-limit:
+  filter:
+    enabled: true
+
+# Encryption Configuration
+encryption:
+  enable-hsm: false
+
+# Resilience Configuration
+resilience:
+  circuit-breaker:
+    enabled: true
+
+# Management and Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when_authorized
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# Logging Configuration
+logging:
+  level:
+    com.waqiti: DEBUG
+    org.springframework.security: DEBUG
+    io.micrometer: INFO
+    io.opentelemetry: INFO
+  pattern:
+    correlation: "[%X{traceId:-},%X{spanId:-}]"
+
+# Spring Boot Actuator
+endpoints:
+  health:
+    sensitive: false
+  metrics:
+    enabled: true
+
+# Commons Configuration Properties
+commons:
+  text:
+    version: 1.10.0
+
+# BouncyCastle Configuration  
+bouncycastle:
+  version: 1.76
+
+# Lombok and MapStruct versions (for reference)
+lombok:
+  version: 1.18.32
+mapstruct:
+  version: 1.5.5.Final
+
+
+

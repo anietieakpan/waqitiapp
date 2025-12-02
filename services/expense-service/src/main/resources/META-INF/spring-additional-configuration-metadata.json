@@ -1,0 +1,80 @@
+{
+  "properties": [
+    {
+      "name": "expense.tracking.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable expense tracking functionality",
+      "defaultValue": true
+    },
+    {
+      "name": "expense.categorization.auto-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable automatic expense categorization",
+      "defaultValue": true
+    },
+    {
+      "name": "expense.categorization.ml-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable ML-based categorization",
+      "defaultValue": false
+    },
+    {
+      "name": "expense.receipt.ocr-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable OCR for receipt processing",
+      "defaultValue": true
+    },
+    {
+      "name": "expense.receipt.max-file-size",
+      "type": "java.lang.Long",
+      "description": "Maximum receipt file size in bytes",
+      "defaultValue": 10485760
+    },
+    {
+      "name": "expense.budgets.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable budget management",
+      "defaultValue": true
+    },
+    {
+      "name": "expense.budgets.alerts-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable budget alerts",
+      "defaultValue": true
+    },
+    {
+      "name": "expense.budgets.alert-threshold",
+      "type": "java.math.BigDecimal",
+      "description": "Budget alert threshold percentage",
+      "defaultValue": "80.0"
+    },
+    {
+      "name": "expense.export.formats",
+      "type": "java.util.List",
+      "description": "Supported export formats"
+    },
+    {
+      "name": "expense.categories.custom-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable custom expense categories",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "OAuth2 client ID for service",
+      "defaultValue": "expense-service"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "OAuth2 client secret for service"
+    }
+  ]
+}

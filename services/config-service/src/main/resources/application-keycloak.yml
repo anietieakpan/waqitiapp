@@ -1,0 +1,141 @@
+# Keycloak Configuration for Config Service
+
+keycloak:
+  enabled: true
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  ssl-required: external
+  resource: config-service
+  bearer-only: true
+  credentials:
+    secret: ${CONFIG_SERVICE_CLIENT_SECRET}
+  use-resource-role-mappings: true
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# Config Service Security Configuration
+config:
+  security:
+    # Public endpoints that don't require authentication
+    # Service-to-service endpoints
+    # Required roles for config operations
+    required-roles:
+      read:
+        - CONFIG_USER
+        - SERVICE_USER
+      config-read:
+        - CONFIG_USER
+        - CONFIG_READER
+        - SERVICE_USER
+      config-write:
+        - CONFIG_ADMIN
+        - CONFIG_MANAGER
+      refresh:
+        - CONFIG_ADMIN
+        - CONFIG_MANAGER
+        - SERVICE_ADMIN
+      encryption:
+        - CONFIG_ADMIN
+        - ENCRYPTION_OFFICER
+      backup:
+        - CONFIG_ADMIN
+        - BACKUP_OPERATOR
+      management:
+        - CONFIG_MANAGER
+        - CONFIG_OPERATOR
+      admin:
+        - CONFIG_ADMIN
+        - SYSTEM_ADMIN
+    
+    # Required scopes for operations
+    required-scopes:
+      config-read: config:read
+      config-write: config:write
+      config-refresh: config:refresh
+      config-encrypt: config:encrypt
+      config-decrypt: config:decrypt
+      config-backup: config:backup
+      config-restore: config:restore
+      admin: config:admin
+      management: config:manage
+    
+    # Config service security features
+    features:
+      encryption-enabled: true
+      access-logging-enabled: true
+      change-tracking-enabled: true
+      backup-enabled: true
+      version-control-enabled: true
+      audit-trail-enabled: true
+      
+    # Config service limits and thresholds
+    limits:
+      max-config-size-kb: 1024
+      max-configs-per-service: 100
+      max-refresh-requests-per-hour: 60
+      config-cache-ttl-minutes: 30
+      
+    # Security thresholds requiring additional verification
+    verification-thresholds:
+      sensitive-config-change: true
+      production-environment-change: true
+      encryption-key-change: true
+      bulk-config-update: 10
+      
+    # Advanced security features
+    advanced-security:
+      require-approval-sensitive-changes: true
+      require-mfa-production-changes: true
+      automatic-backup-on-change: true
+      change-notification-enabled: true
+      rollback-capability-enabled: true
+      secure-key-management: true
+      
+    # Flat configuration properties expected by Qodana
+    required-roles-refresh: CONFIG_ADMIN,CONFIG_MANAGER,SERVICE_ADMIN
+    public-endpoints: /actuator/health,/actuator/info,/swagger-ui/**,/v3/api-docs/**
+    required-roles-encryption: CONFIG_ADMIN,ENCRYPTION_OFFICER
+    advanced-security-automatic-backup-on-change: true
+    required-roles-config-write: CONFIG_ADMIN,CONFIG_MANAGER
+    limits-max-configs-per-service: 100
+    required-scopes-config-decrypt: config:decrypt
+    features-version-control-enabled: true
+    required-roles-management: CONFIG_MANAGER,CONFIG_OPERATOR
+    verification-thresholds-encryption-key-change: true
+    features-change-tracking-enabled: true
+    verification-thresholds-production-environment-change: true
+    service-endpoints: /internal/config/**
+    required-scopes-config-backup: config:backup
+    required-roles-admin: CONFIG_ADMIN,SYSTEM_ADMIN
+    limits-config-cache-ttl-minutes: 30
+    required-scopes-config-write: config:write
+    required-scopes-admin: config:admin
+    limits-max-refresh-requests-per-hour: 60
+    required-roles-config-read: CONFIG_USER,CONFIG_READER,SERVICE_USER
+    required-scopes-config-restore: config:restore
+    advanced-security-change-notification-enabled: true
+    features-access-logging-enabled: true
+    verification-thresholds-sensitive-config-change: true
+    advanced-security-secure-key-management: true
+    required-scopes-config-read: config:read
+    
+    # Additional missing config-service properties from Qodana
+    advanced-security-rollback-capability-enabled: true
+    required-roles-backup: CONFIG_ADMIN,BACKUP_OPERATOR
+    required-roles-read: CONFIG_USER,SERVICE_USER
+    advanced-security-require-approval-sensitive-changes: true
+    features-encryption-enabled: true
+    features-backup-enabled: true
+    limits-max-config-size-kb: 1024
+    required-scopes-config-refresh: config:refresh
+    features-audit-trail-enabled: true
+    verification-thresholds-bulk-config-update: 10
+    required-scopes-management: config:manage
+    required-scopes-config-encrypt: config:encrypt
+    advanced-security-require-mfa-production-changes: true

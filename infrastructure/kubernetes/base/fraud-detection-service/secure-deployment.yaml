@@ -1,0 +1,537 @@
+# CRITICAL SECURITY: Hardened Fraud Detection Service Deployment
+# Implements comprehensive security controls for ML and graph-based fraud detection
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fraud-detection-service
+  namespace: waqiti
+  labels:
+    app: fraud-detection-service
+    version: v1
+    component: backend
+    security: hardened
+    compliance: sox
+  annotations:
+    security.example.com/review-date: "2024-01-01"
+    security.example.com/data-classification: "sensitive"
+spec:
+  replicas: 3
+  revisionHistoryLimit: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: fraud-detection-service
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: fraud-detection-service
+        version: v1
+        component: backend
+        security: hardened
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/actuator/prometheus"
+        prometheus.io/scheme: "https"
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/role: "fraud-detection-service"
+        container.apparmor.security.beta.kubernetes.io/fraud-detection: runtime/default
+        seccomp.security.alpha.kubernetes.io/pod: runtime/default
+    spec:
+      # CRITICAL: Service account with minimal permissions
+      serviceAccountName: fraud-detection-sa
+      automountServiceAccountToken: false
+      
+      # CRITICAL: Pod-level security context
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10003
+        runAsGroup: 10003
+        fsGroup: 10003
+        fsGroupChangePolicy: "OnRootMismatch"
+        seccompProfile:
+          type: RuntimeDefault
+        supplementalGroups: [10003]
+      
+      # Security settings
+      hostNetwork: false
+      hostPID: false
+      hostIPC: false
+      dnsPolicy: ClusterFirst
+      
+      initContainers:
+      # ML model validation
+      - name: model-validator
+        image: waqiti/ml-model-validator:latest
+        imagePullPolicy: Always
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          echo "Validating ML models..."
+          # Verify model integrity
+          sha256sum -c /app/models/checksums.txt || exit 1
+          # Check for model poisoning indicators
+          python /app/scripts/validate_model.py --model-path /app/models || exit 1
+          echo "ML model validation complete"
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 10003
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
+        resources:
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        volumeMounts:
+        - name: ml-models
+          mountPath: /app/models
+          readOnly: true
+      
+      # Wait for dependencies
+      - name: wait-for-dependencies
+        image: busybox:1.35
+        imagePullPolicy: IfNotPresent
+        command: ['sh', '-c']
+        args:
+        - |
+          until nc -z postgres 5432 && nc -z kafka-0.kafka 9092 && nc -z neo4j 7687; do
+            echo "Waiting for dependencies..."
+            sleep 2
+          done
+          echo "All dependencies ready"
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 10003
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
+            add: ["NET_RAW"]
+        resources:
+          limits:
+            memory: "64Mi"
+            cpu: "50m"
+      
+      containers:
+      - name: fraud-detection-service
+        image: waqiti/fraud-detection-service:v1.0.0
+        imagePullPolicy: Always
+        
+        # CRITICAL: Container security context
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 10003
+          runAsGroup: 10003
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
+          seccompProfile:
+            type: RuntimeDefault
+        
+        ports:
+        - containerPort: 8080
+          name: https
+          protocol: TCP
+        - containerPort: 9090
+          name: metrics
+          protocol: TCP
+        
+        # Environment variables
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "kubernetes,secure,production"
+        - name: JAVA_OPTS
+          value: "-Xms1g -Xmx2g -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -Djava.security.egd=file:/dev/./urandom"
+        - name: SERVER_PORT
+          value: "8080"
+        - name: SERVER_SSL_ENABLED
+          value: "true"
+        - name: MANAGEMENT_SERVER_PORT
+          value: "9090"
+        - name: MANAGEMENT_SERVER_SSL_ENABLED
+          value: "true"
+        - name: SPRING_DATASOURCE_URL
+          value: "jdbc:postgresql://postgres:5432/fraud_db?sslmode=require"
+        - name: NEO4J_URI
+          value: "bolt+s://neo4j:7687"
+        - name: NEO4J_AUTHENTICATION_ENABLED
+          value: "true"
+        - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+          value: "kafka-0.kafka:9092,kafka-1.kafka:9092,kafka-2.kafka:9092"
+        - name: SPRING_KAFKA_SSL_ENABLED
+          value: "true"
+        - name: ML_MODEL_PATH
+          value: "/app/models"
+        - name: ML_MODEL_VALIDATION_ENABLED
+          value: "true"
+        - name: FRAUD_DETECTION_THRESHOLD
+          value: "0.7"
+        - name: GRAPH_ANALYSIS_ENABLED
+          value: "true"
+        - name: SECURITY_INPUT_VALIDATION_ENABLED
+          value: "true"
+        - name: RATE_LIMITING_ENABLED
+          value: "true"
+        - name: AUDIT_LOGGING_ENABLED
+          value: "true"
+        
+        # Secrets from volumes
+        envFrom:
+        - secretRef:
+            name: fraud-detection-env-secrets
+            optional: false
+        
+        # Resource limits (higher for ML processing)
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "750m"
+            ephemeral-storage: "2Gi"
+          limits:
+            memory: "2Gi"
+            cpu: "2000m"
+            ephemeral-storage: "5Gi"
+        
+        # Health checks
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 9090
+            scheme: HTTPS
+          initialDelaySeconds: 120
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 9090
+            scheme: HTTPS
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        startupProbe:
+          httpGet:
+            path: /actuator/health/startup
+            port: 9090
+            scheme: HTTPS
+          initialDelaySeconds: 0
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 40
+        
+        # Volume mounts
+        volumeMounts:
+        - name: config
+          mountPath: /app/config
+          readOnly: true
+        - name: ml-models
+          mountPath: /app/models
+          readOnly: true
+        - name: certs
+          mountPath: /app/certs
+          readOnly: true
+        - name: tmp
+          mountPath: /tmp
+        - name: ml-cache
+          mountPath: /app/ml-cache
+        - name: app-logs
+          mountPath: /var/log/app
+      
+      # Sidecar: ML model monitor
+      - name: ml-monitor
+        image: waqiti/ml-monitor:latest
+        imagePullPolicy: Always
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 10004
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        volumeMounts:
+        - name: ml-models
+          mountPath: /app/models
+          readOnly: true
+        - name: ml-metrics
+          mountPath: /var/log/ml-metrics
+        env:
+        - name: SERVICE_NAME
+          value: "fraud-detection-service"
+        - name: MONITOR_INTERVAL
+          value: "60"
+        - name: DRIFT_DETECTION_ENABLED
+          value: "true"
+      
+      # Volumes
+      volumes:
+      - name: config
+        configMap:
+          name: fraud-detection-config
+          defaultMode: 0400
+      - name: ml-models
+        persistentVolumeClaim:
+          claimName: ml-models-pvc
+          readOnly: true
+      - name: certs
+        secret:
+          secretName: fraud-detection-certs
+          defaultMode: 0400
+      - name: tmp
+        emptyDir:
+          sizeLimit: 500Mi
+          medium: Memory
+      - name: ml-cache
+        emptyDir:
+          sizeLimit: 1Gi
+      - name: app-logs
+        emptyDir:
+          sizeLimit: 2Gi
+      - name: ml-metrics
+        emptyDir:
+          sizeLimit: 1Gi
+      
+      # Image pull secrets
+      imagePullSecrets:
+      - name: registry-credentials
+      
+      # Node selection for ML workloads
+      nodeSelector:
+        kubernetes.io/os: linux
+        workload: ml-processing
+      
+      # Tolerations for ML nodes
+      tolerations:
+      - key: "workload"
+        operator: "Equal"
+        value: "ml-processing"
+        effect: "NoSchedule"
+      
+      # Pod affinity/anti-affinity
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - fraud-detection-service
+            topologyKey: kubernetes.io/hostname
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            preference:
+              matchExpressions:
+              - key: node-type
+                operator: In
+                values:
+                - ml-optimized
+                - gpu-enabled
+      
+      # Priority class
+      priorityClassName: high-priority
+      
+      # Termination settings
+      terminationGracePeriodSeconds: 90
+      
+      # DNS configuration
+      dnsConfig:
+        options:
+        - name: ndots
+          value: "2"
+        - name: edns0
+
+---
+# ServiceAccount
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: fraud-detection-sa
+  namespace: waqiti
+  labels:
+    app: fraud-detection-service
+automountServiceAccountToken: false
+
+---
+# Role with minimal permissions
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: fraud-detection-role
+  namespace: waqiti
+rules:
+- apiGroups: [""]
+  resources: ["configmaps"]
+  resourceNames: ["fraud-detection-config"]
+  verbs: ["get", "watch"]
+- apiGroups: [""]
+  resources: ["secrets"]
+  resourceNames: ["fraud-detection-certs", "fraud-detection-env-secrets", "neo4j-credentials"]
+  verbs: ["get"]
+- apiGroups: [""]
+  resources: ["persistentvolumeclaims"]
+  resourceNames: ["ml-models-pvc"]
+  verbs: ["get"]
+
+---
+# RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: fraud-detection-rolebinding
+  namespace: waqiti
+subjects:
+- kind: ServiceAccount
+  name: fraud-detection-sa
+  namespace: waqiti
+roleRef:
+  kind: Role
+  name: fraud-detection-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# NetworkPolicy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: fraud-detection-netpol
+  namespace: waqiti
+spec:
+  podSelector:
+    matchLabels:
+      app: fraud-detection-service
+  policyTypes:
+  - Ingress
+  - Egress
+  
+  ingress:
+  # Allow from API gateway and payment service
+  - from:
+    - podSelector:
+        matchLabels:
+          app: api-gateway
+    - podSelector:
+        matchLabels:
+          app: payment-service
+    - podSelector:
+        matchLabels:
+          app: wallet-service
+    ports:
+    - protocol: TCP
+      port: 8080
+  
+  # Allow metrics
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    ports:
+    - protocol: TCP
+      port: 9090
+  
+  egress:
+  # Allow DNS
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+  
+  # Allow PostgreSQL
+  - to:
+    - podSelector:
+        matchLabels:
+          app: postgres
+    ports:
+    - protocol: TCP
+      port: 5432
+  
+  # Allow Neo4j
+  - to:
+    - podSelector:
+        matchLabels:
+          app: neo4j
+    ports:
+    - protocol: TCP
+      port: 7687
+    - protocol: TCP
+      port: 7474
+  
+  # Allow Kafka
+  - to:
+    - podSelector:
+        matchLabels:
+          app: kafka
+    ports:
+    - protocol: TCP
+      port: 9092
+  
+  # Allow external ML APIs (restricted)
+  - to:
+    - ipBlock:
+        cidr: 10.0.0.0/8
+        except:
+        - 10.0.1.0/24  # Exclude sensitive subnets
+    ports:
+    - protocol: TCP
+      port: 443
+
+---
+# PersistentVolumeClaim for ML models
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ml-models-pvc
+  namespace: waqiti
+spec:
+  accessModes:
+  - ReadOnlyMany
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: secure-storage
+
+---
+# PriorityClass
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: high-priority
+value: 900
+globalDefault: false
+description: "Priority class for fraud detection services"
+
+---
+# PodDisruptionBudget
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: fraud-detection-pdb
+  namespace: waqiti
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: fraud-detection-service

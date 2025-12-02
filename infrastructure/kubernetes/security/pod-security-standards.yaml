@@ -1,0 +1,397 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Pod Security Standards for Waqiti Financial Platform
+# Implements PCI-DSS compliant security controls for all financial services
+
+resources:
+- namespace-security-policies.yaml
+- pod-security-policies.yaml
+- network-security-policies.yaml
+
+patchesStrategicMerge:
+- security-context-patch.yaml
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: waqiti
+  labels:
+    name: waqiti
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+    security-level: high
+    compliance: pci-dss
+
+---
+apiVersion: v1
+kind: Namespace  
+metadata:
+  name: example-monitoring
+  labels:
+    name: example-monitoring
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/audit: baseline  
+    pod-security.kubernetes.io/warn: baseline
+    security-level: medium
+
+---
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: waqiti-financial-services-psp
+  namespace: waqiti
+  annotations:
+    seccomp.security.alpha.kubernetes.io/allowedProfileNames: 'runtime/default'
+    seccomp.security.alpha.kubernetes.io/defaultProfileName: 'runtime/default'
+spec:
+  # Prevent privilege escalation
+  allowPrivilegeEscalation: false
+  
+  # Require non-root user
+  runAsUser:
+    rule: 'MustRunAsNonRoot'
+    ranges:
+    - min: 10000
+      max: 65535
+  
+  runAsGroup:
+    rule: 'MustRunAs'
+    ranges:
+    - min: 10000
+      max: 65535
+      
+  # Filesystem restrictions  
+  fsGroup:
+    rule: 'MustRunAs'
+    ranges:
+    - min: 10000
+      max: 65535
+      
+  readOnlyRootFilesystem: true
+  
+  # Network restrictions
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+  hostPorts:
+  - min: 0
+    max: 0
+    
+  # Volume restrictions
+  volumes:
+  - 'configMap'
+  - 'downwardAPI'
+  - 'emptyDir'
+  - 'persistentVolumeClaim'
+  - 'projected'
+  - 'secret'
+  
+  # Capability restrictions
+  allowedCapabilities: []
+  defaultAddCapabilities: []
+  requiredDropCapabilities:
+  - ALL
+  
+  # SELinux (if enabled)
+  seLinux:
+    rule: 'RunAsAny'
+    
+  # Seccomp profiles
+  seccompProfiles:
+  - 'runtime/default'
+  
+  # Supplemental groups
+  supplementalGroups:
+    rule: 'MustRunAs'
+    ranges:
+    - min: 10000
+      max: 65535
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: waqiti-psp-user
+rules:
+- apiGroups: ['policy']
+  resources: ['podsecuritypolicies']
+  verbs: ['use']
+  resourceNames:
+  - waqiti-financial-services-psp
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: waqiti-psp-binding
+roleRef:
+  kind: ClusterRole
+  name: waqiti-psp-user
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- kind: ServiceAccount
+  name: payment-service
+  namespace: waqiti
+- kind: ServiceAccount
+  name: wallet-service
+  namespace: waqiti
+- kind: ServiceAccount
+  name: user-service
+  namespace: waqiti
+- kind: ServiceAccount
+  name: fraud-detection-service
+  namespace: waqiti
+- kind: ServiceAccount
+  name: kyc-service
+  namespace: waqiti
+- kind: ServiceAccount
+  name: transaction-service
+  namespace: waqiti
+- kind: ServiceAccount
+  name: ledger-service
+  namespace: waqiti
+- kind: ServiceAccount
+  name: compliance-service
+  namespace: waqiti
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: security-context-template
+  namespace: waqiti
+data:
+  pod-security-context.yaml: |
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 10001
+      runAsGroup: 10001
+      fsGroup: 10001
+      seccompProfile:
+        type: RuntimeDefault
+      sysctls: []
+      
+  container-security-context.yaml: |
+    securityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      runAsNonRoot: true
+      runAsUser: 10001
+      runAsGroup: 10001
+      capabilities:
+        drop:
+          - ALL
+      seccompProfile:
+        type: RuntimeDefault
+        
+  required-volumes.yaml: |
+    volumes:
+    - name: tmp
+      emptyDir:
+        sizeLimit: 256Mi
+    - name: var-cache
+      emptyDir:
+        sizeLimit: 512Mi
+    - name: logs
+      emptyDir:
+        sizeLimit: 1Gi
+        
+  required-volume-mounts.yaml: |
+    volumeMounts:
+    - name: tmp
+      mountPath: /tmp
+    - name: var-cache
+      mountPath: /var/cache/app
+    - name: logs
+      mountPath: /app/logs
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: waqiti-financial-services-netpol
+  namespace: waqiti
+spec:
+  podSelector:
+    matchLabels:
+      component: backend
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: waqiti
+    - namespaceSelector:
+        matchLabels:
+          name: istio-system
+    ports:
+    - protocol: TCP
+      port: 8080  # Application port
+    - protocol: TCP
+      port: 9090  # Metrics port
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: waqiti
+    ports:
+    - protocol: TCP
+      port: 5432  # PostgreSQL
+    - protocol: TCP
+      port: 6379  # Redis
+    - protocol: TCP
+      port: 9092  # Kafka
+    - protocol: TCP
+      port: 8761  # Eureka
+    - protocol: TCP
+      port: 8888  # Config Server
+    - protocol: TCP
+      port: 8200  # Vault
+  - to: []  # DNS
+    ports:
+    - protocol: UDP
+      port: 53
+  - to: []  # HTTPS for external APIs
+    ports:
+    - protocol: TCP
+      port: 443
+
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: waqiti-financial-services-limits
+  namespace: waqiti
+spec:
+  limits:
+  - type: Container
+    default:
+      memory: "1Gi"
+      cpu: "500m"
+      ephemeral-storage: "2Gi"
+    defaultRequest:
+      memory: "512Mi"
+      cpu: "250m"
+      ephemeral-storage: "1Gi"
+    max:
+      memory: "4Gi"
+      cpu: "2000m"
+      ephemeral-storage: "10Gi"
+    min:
+      memory: "256Mi"
+      cpu: "100m"
+      ephemeral-storage: "512Mi"
+  - type: Pod
+    max:
+      memory: "8Gi"
+      cpu: "4000m"
+  - type: PersistentVolumeClaim
+    min:
+      storage: "1Gi"
+    max:
+      storage: "100Gi"
+
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: waqiti-financial-services-quota
+  namespace: waqiti
+spec:
+  hard:
+    requests.cpu: "10"
+    requests.memory: 20Gi
+    requests.storage: 1Ti
+    limits.cpu: "20"
+    limits.memory: 40Gi
+    persistentvolumeclaims: "20"
+    pods: "50"
+    secrets: "50"
+    configmaps: "50"
+    services: "20"
+
+---
+# Monitoring security compliance
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: security-monitoring-config
+  namespace: waqiti
+data:
+  falco-rules.yaml: |
+    - rule: Financial Service Privilege Escalation
+      desc: Detect privilege escalation in financial services
+      condition: >
+        spawned_process and container and
+        k8s_ns=waqiti and
+        proc.name in (su, sudo, setuid) and
+        not trusted_financial_admin
+      output: >
+        Privilege escalation detected in financial service
+        (user=%user.name command=%proc.cmdline pod=%k8s.pod.name)
+      priority: CRITICAL
+      
+    - rule: Financial Service Network Violation
+      desc: Detect unauthorized network access from financial services
+      condition: >
+        inbound_outbound and container and
+        k8s_ns=waqiti and
+        not financial_service_allowed_network
+      output: >
+        Unauthorized network access from financial service
+        (connection=%fd.name pod=%k8s.pod.name)
+      priority: HIGH
+      
+    - rule: Financial Service File System Write
+      desc: Detect writes to read-only filesystem
+      condition: >
+        open_write and container and
+        k8s_ns=waqiti and
+        fd.name startswith / and
+        not fd.name startswith /tmp and
+        not fd.name startswith /var/cache/app and
+        not fd.name startswith /app/logs
+      output: >
+        Write to read-only filesystem in financial service
+        (file=%fd.name pod=%k8s.pod.name)
+      priority: HIGH
+
+  opal-policies.rego: |
+    package waqiti.security
+    
+    # Default deny for all pod creation
+    default allow = false
+    
+    # Allow pods with proper security context
+    allow {
+        input.request.kind.kind == "Pod"
+        input.request.namespace == "waqiti"
+        has_security_context
+        runs_as_non_root
+        read_only_root_filesystem
+        drops_all_capabilities
+    }
+    
+    has_security_context {
+        input.request.object.spec.securityContext
+        input.request.object.spec.containers[_].securityContext
+    }
+    
+    runs_as_non_root {
+        input.request.object.spec.securityContext.runAsNonRoot == true
+        input.request.object.spec.containers[_].securityContext.runAsNonRoot == true
+        input.request.object.spec.containers[_].securityContext.runAsUser >= 10000
+    }
+    
+    read_only_root_filesystem {
+        input.request.object.spec.containers[_].securityContext.readOnlyRootFilesystem == true
+    }
+    
+    drops_all_capabilities {
+        input.request.object.spec.containers[_].securityContext.capabilities.drop[_] == "ALL"
+    }

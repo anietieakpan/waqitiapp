@@ -1,0 +1,170 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: core-banking-config
+  namespace: waqiti
+  labels:
+    app: core-banking-service
+    component: core
+data:
+  application.yml: |
+    server:
+      port: 8080
+      shutdown: graceful
+    
+    management:
+      server:
+        port: 8090
+      endpoints:
+        web:
+          exposure:
+            include: health,info,metrics,prometheus
+      endpoint:
+        health:
+          probes:
+            enabled: true
+          show-details: always
+        metrics:
+          enabled: true
+        prometheus:
+          enabled: true
+      metrics:
+        export:
+          prometheus:
+            enabled: true
+    
+    spring:
+      application:
+        name: core-banking-service
+      datasource:
+        url: ${DATABASE_URL}
+        username: ${DATABASE_USERNAME}
+        password: ${DATABASE_PASSWORD}
+        hikari:
+          maximum-pool-size: 20
+          minimum-idle: 5
+          idle-timeout: 300000
+          max-lifetime: 1200000
+          connection-timeout: 20000
+          validation-timeout: 5000
+          leak-detection-threshold: 60000
+      jpa:
+        hibernate:
+          ddl-auto: validate
+        properties:
+          hibernate:
+            dialect: org.hibernate.dialect.PostgreSQLDialect
+            format_sql: false
+            jdbc:
+              batch_size: 20
+              order_inserts: true
+              order_updates: true
+        show-sql: false
+      data:
+        redis:
+          url: ${REDIS_URL}
+          timeout: 2s
+          lettuce:
+            pool:
+              max-active: 20
+              max-idle: 8
+              min-idle: 2
+      kafka:
+        bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+        producer:
+          key-serializer: org.apache.kafka.common.serialization.StringSerializer
+          value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+          acks: all
+          retries: 3
+          properties:
+            enable.idempotence: true
+        consumer:
+          group-id: core-banking-service
+          key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+          value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+          properties:
+            spring.json.trusted.packages: com.waqiti
+            auto.offset.reset: earliest
+      cloud:
+        vault:
+          enabled: true
+          host: ${VAULT_ENDPOINT}
+          port: 8200
+          scheme: https
+          authentication: token
+          token: ${VAULT_TOKEN}
+          kv:
+            enabled: true
+            backend: secret
+    
+    eureka:
+      client:
+        service-url:
+          defaultZone: ${EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE}
+        fetch-registry: true
+        register-with-eureka: true
+      instance:
+        prefer-ip-address: true
+        lease-renewal-interval-in-seconds: 30
+        lease-expiration-duration-in-seconds: 90
+    
+    logging:
+      level:
+        com.waqiti: INFO
+        org.springframework.kafka: WARN
+        org.hibernate.SQL: WARN
+      pattern:
+        console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+        file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+      file:
+        name: /logs/core-banking-service.log
+    
+    # Core Banking Configuration
+    core-banking:
+      account-number:
+        prefix: "WQT"
+        length: 10
+      transaction:
+        batch-size: 100
+        timeout: 30s
+      ledger:
+        retention-days: 2555  # 7 years
+        archive-enabled: true
+      double-entry:
+        validation-enabled: true
+        auto-balance-check: true
+      system-accounts:
+        fee-income: "SYS_FEE_INCOME"
+        suspense: "SYS_SUSPENSE"
+        float: "SYS_FLOAT"
+      limits:
+        daily-transaction-limit: 10000
+        monthly-transaction-limit: 100000
+        max-transaction-amount: 50000
+    
+    # Distributed Locking
+    distributed-lock:
+      redis-namespace: "core-banking-locks"
+      default-timeout: 30s
+      max-wait-time: 10s
+    
+    # Circuit Breaker Configuration
+    resilience4j:
+      circuitbreaker:
+        instances:
+          database:
+            failure-rate-threshold: 50
+            wait-duration-in-open-state: 30s
+            sliding-window-size: 10
+          external-service:
+            failure-rate-threshold: 60
+            wait-duration-in-open-state: 60s
+            sliding-window-size: 20
+      retry:
+        instances:
+          database:
+            max-attempts: 3
+            wait-duration: 1s
+          external-service:
+            max-attempts: 2
+            wait-duration: 2s

@@ -1,0 +1,247 @@
+# Production Configuration
+spring:
+  profiles:
+    active: prod
+  
+  # Database Configuration
+  datasource:
+    url: jdbc:postgresql://${DATABASE_HOST:localhost}:${DATABASE_PORT:5432}/${DATABASE_NAME:waqiti_ledger}
+    username: ${DATABASE_USERNAME:waqiti_user}
+    password: ${vault.database.password:${VAULT_LEDGER_DB_PASSWORD}}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      pool-name: WaqitiLedgerCP
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      leak-detection-threshold: 60000
+      auto-commit: false
+
+  # JPA Configuration
+  jpa:
+    hibernate:
+      ddl-auto: validate
+      naming:
+        physical-strategy: org.springframework.boot.orm.jpa.hibernate.SpringPhysicalNamingStrategy
+        implicit-strategy: org.springframework.boot.orm.jpa.hibernate.SpringImplicitNamingStrategy
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        show_sql: false
+        format_sql: false
+        use_sql_comments: false
+        jdbc:
+          batch_size: 25
+          time_zone: UTC
+        order_inserts: true
+        order_updates: true
+        generate_statistics: false
+        cache:
+          use_second_level_cache: true
+          use_query_cache: true
+          region:
+            factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
+
+  # Redis Configuration
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: 0
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 20
+          max-idle: 10
+          min-idle: 2
+          max-wait: -1ms
+
+  # Cache Configuration
+  cache:
+    type: redis
+    redis:
+      time-to-live: 3600s
+      cache-null-values: false
+
+  # Security Configuration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${JWT_ISSUER_URI:https://auth.example.com/realms/waqiti}
+          jwk-set-uri: ${JWT_JWK_SET_URI:https://auth.example.com/realms/waqiti/protocol/openid-connect/certs}
+
+  # Jackson Configuration
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    deserialization:
+      fail-on-unknown-properties: false
+    time-zone: UTC
+
+  # Actuator Configuration
+  management:
+    endpoints:
+      web:
+        exposure:
+          include: health,info,metrics,prometheus
+        base-path: /actuator
+    endpoint:
+      health:
+        show-details: when-authorized
+      metrics:
+        enabled: true
+    metrics:
+      export:
+        prometheus:
+          enabled: true
+      tags:
+        application: waqiti-ledger-service
+        environment: production
+
+  # Logging Configuration
+  logging:
+    level:
+      com.waqiti: INFO
+      org.springframework.security: WARN
+      org.hibernate.SQL: WARN
+      org.hibernate.type.descriptor.sql.BasicBinder: WARN
+      root: WARN
+    pattern:
+      console: '%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n'
+      file: '%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n'
+    file:
+      name: /var/log/waqiti/ledger-service.log
+      max-size: 100MB
+      max-history: 30
+
+# Server Configuration
+server:
+  port: ${SERVER_PORT:8080}
+  servlet:
+    context-path: /
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/xml,text/plain
+    min-response-size: 1024
+  http2:
+    enabled: true
+
+# Application Configuration
+waqiti:
+  ledger:
+    # Currency settings
+    default-currency: USD
+    supported-currencies: USD,EUR,GBP,CAD,JPY
+    
+    # Precision settings
+    decimal-places: 4
+    rounding-mode: HALF_UP
+    
+    # Period settings
+    fiscal-year-start-month: 1
+    auto-close-periods: false
+    
+    # Security settings
+    require-approval-threshold: 10000.00
+    max-transaction-amount: 1000000.00
+    
+    # Performance settings
+    batch-size: 100
+    cache-timeout: 3600
+    
+    # Feature flags
+    features:
+      async-processing: true
+      audit-logging: true
+      multi-currency: true
+      advanced-reporting: true
+      automated-reconciliation: true
+
+# Flyway Configuration
+flyway:
+  enabled: true
+  locations: classpath:db/migration
+  baseline-on-migrate: false
+  validate-on-migrate: true
+  out-of-order: false
+
+# OpenAPI Documentation
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    config-url: /v3/api-docs/swagger-config
+    url: /v3/api-docs
+    display-request-duration: true
+    groups-order: DESC
+    operations-sorter: method
+    disable-swagger-default-url: true
+    use-root-path: true
+  show-actuator: true
+  group-configs:
+    - group: ledger-api
+      display-name: Waqiti Ledger API
+      paths-to-match: /api/v1/**
+      
+# Resilience4j Configuration
+resilience4j:
+  circuitbreaker:
+    instances:
+      default:
+        failure-rate-threshold: 50
+        slow-call-rate-threshold: 50
+        slow-call-duration-threshold: 2s
+        permitted-number-of-calls-in-half-open-state: 3
+        sliding-window-size: 10
+        minimum-number-of-calls: 10
+        wait-duration-in-open-state: 10s
+  retry:
+    instances:
+      default:
+        max-attempts: 3
+        wait-duration: 500ms
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - java.sql.SQLException
+          - org.springframework.dao.DataAccessException
+  timelimiter:
+    instances:
+      default:
+        timeout-duration: 5s
+        cancel-running-future: true
+
+# Custom Application Properties
+app:
+  name: Waqiti Ledger Service
+  version: @project.version@
+  description: Production-ready double-entry ledger service
+  contact:
+    name: Waqiti Engineering Team
+    email: engineering@example.com
+  timezone: UTC
+  
+  # External service URLs
+  services:
+    notification-service: ${NOTIFICATION_SERVICE_URL:http://notification-service:8080}
+    user-service: ${USER_SERVICE_URL:http://user-service:8080}
+    audit-service: ${AUDIT_SERVICE_URL:http://audit-service:8080}
+    
+  # Kafka Configuration (if using event-driven architecture)
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      retries: 3
+      batch-size: 16384
+      linger-ms: 5
+      buffer-memory: 33554432
+    consumer:
+      group-id: waqiti-ledger-service
+      auto-offset-reset: earliest
+      enable-auto-commit: false

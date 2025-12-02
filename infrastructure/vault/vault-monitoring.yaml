@@ -1,0 +1,200 @@
+---
+# ServiceMonitor for Prometheus Operator
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: vault
+  namespace: vault-system
+  labels:
+    app: vault
+spec:
+  selector:
+    matchLabels:
+      app: vault
+  endpoints:
+    - port: metrics
+      interval: 30s
+      path: /v1/sys/metrics
+      scheme: https
+      tlsConfig:
+        insecureSkipVerify: true
+      params:
+        format: ['prometheus']
+---
+# PrometheusRule for Vault alerts
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: vault-alerts
+  namespace: vault-system
+  labels:
+    app: vault
+spec:
+  groups:
+    - name: vault.rules
+      interval: 30s
+      rules:
+        # Vault is sealed
+        - alert: VaultSealed
+          expr: vault_core_unsealed == 0
+          for: 5m
+          labels:
+            severity: critical
+            component: vault
+          annotations:
+            summary: "Vault instance is sealed"
+            description: "Vault instance {{ $labels.instance }} has been sealed for more than 5 minutes"
+
+        # Vault is down
+        - alert: VaultDown
+          expr: up{job="vault"} == 0
+          for: 2m
+          labels:
+            severity: critical
+            component: vault
+          annotations:
+            summary: "Vault instance is down"
+            description: "Vault instance {{ $labels.instance }} is down"
+
+        # Raft leader missing
+        - alert: VaultRaftLeaderMissing
+          expr: vault_raft_leader == 0
+          for: 1m
+          labels:
+            severity: critical
+            component: vault
+          annotations:
+            summary: "Vault Raft cluster has no leader"
+            description: "Vault Raft cluster has been without a leader for more than 1 minute"
+
+        # High request latency
+        - alert: VaultHighLatency
+          expr: vault_core_handle_request{quantile="0.99"} > 1000
+          for: 10m
+          labels:
+            severity: warning
+            component: vault
+          annotations:
+            summary: "Vault request latency is high"
+            description: "Vault p99 request latency is {{ $value }}ms (threshold: 1000ms)"
+
+        # Token store capacity warning
+        - alert: VaultTokenStoreCapacityWarning
+          expr: (vault_token_count / vault_token_count_by_policy) > 0.8
+          for: 15m
+          labels:
+            severity: warning
+            component: vault
+          annotations:
+            summary: "Vault token store capacity warning"
+            description: "Vault token store is at {{ $value | humanizePercentage }} capacity"
+
+        # License expiration warning (if using Enterprise)
+        - alert: VaultLicenseExpiringSoon
+          expr: (vault_license_expiration_time_epoch - time()) < 2592000
+          for: 1h
+          labels:
+            severity: warning
+            component: vault
+          annotations:
+            summary: "Vault license expiring soon"
+            description: "Vault license will expire in {{ $value | humanizeDuration }}"
+
+        # Storage backend errors
+        - alert: VaultStorageErrors
+          expr: rate(vault_raft_apply{quantile="0.99"}[5m]) > 0
+          for: 5m
+          labels:
+            severity: warning
+            component: vault
+          annotations:
+            summary: "Vault storage backend errors detected"
+            description: "Vault Raft storage backend is experiencing errors"
+---
+# Grafana Dashboard ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vault-dashboard
+  namespace: vault-system
+  labels:
+    grafana_dashboard: "1"
+data:
+  vault-dashboard.json: |
+    {
+      "dashboard": {
+        "title": "HashiCorp Vault - Waqiti Banking Platform",
+        "tags": ["vault", "security", "banking"],
+        "timezone": "browser",
+        "panels": [
+          {
+            "title": "Vault Status",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "vault_core_unsealed",
+                "legendFormat": "Unsealed"
+              }
+            ]
+          },
+          {
+            "title": "Request Rate",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(vault_core_handle_request_count[5m])",
+                "legendFormat": "Requests/sec"
+              }
+            ]
+          },
+          {
+            "title": "Request Latency (p99)",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "vault_core_handle_request{quantile=\"0.99\"}",
+                "legendFormat": "p99 latency (ms)"
+              }
+            ]
+          },
+          {
+            "title": "Raft Cluster Health",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "vault_raft_peers",
+                "legendFormat": "Peer Count"
+              },
+              {
+                "expr": "vault_raft_leader",
+                "legendFormat": "Has Leader"
+              }
+            ]
+          },
+          {
+            "title": "Token Operations",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(vault_token_create_count[5m])",
+                "legendFormat": "Token Creates"
+              },
+              {
+                "expr": "rate(vault_token_revoke_count[5m])",
+                "legendFormat": "Token Revokes"
+              }
+            ]
+          },
+          {
+            "title": "Storage Operations",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(vault_raft_apply_count[5m])",
+                "legendFormat": "Raft Applies"
+              }
+            ]
+          }
+        ]
+      }
+    }

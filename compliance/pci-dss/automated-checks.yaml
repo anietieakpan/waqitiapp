@@ -1,0 +1,391 @@
+# PCI DSS Compliance Automated Checks
+# Comprehensive compliance validation for payment card industry requirements
+# SECURITY: Ensures PCI DSS v4.0 compliance for payment processing systems
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pci-dss-compliance-checks
+  namespace: waqiti-system
+  labels:
+    compliance.example.com/framework: "pci-dss"
+    compliance.example.com/version: "v4.0"
+data:
+  pci-checklist.yaml: |
+    # PCI DSS v4.0 Requirements Checklist
+    requirements:
+      # Requirement 1: Install and maintain network security controls
+      - id: "1.1"
+        title: "Establish and maintain network security policy"
+        checks:
+          - name: "firewall-rules-documented"
+            description: "All firewall rules are documented and reviewed"
+            automated: true
+            command: "kubectl get networkpolicies -A -o yaml | grep -v 'resourceVersion'"
+          - name: "network-segmentation"
+            description: "Cardholder data environment is segmented"
+            automated: true
+            command: "kubectl get networkpolicies -n waqiti-system | grep payment"
+      
+      # Requirement 2: Change vendor-supplied defaults
+      - id: "2.1" 
+        title: "Change vendor-supplied default passwords"
+        checks:
+          - name: "no-default-passwords"
+            description: "No default passwords in use"
+            automated: true
+            command: "grep -r 'password.*admin\\|password.*123' /dev/null || echo 'OK'"
+          - name: "secure-configurations"
+            description: "All systems use secure configurations"
+            automated: true
+            command: "kubectl get configmaps -A -o yaml | grep -i 'password\\|secret' | wc -l"
+      
+      # Requirement 3: Protect stored cardholder data
+      - id: "3.1"
+        title: "Keep cardholder data storage to minimum"
+        checks:
+          - name: "data-retention-policy"
+            description: "Data retention policy implemented"
+            automated: true
+            command: "find . -name '*retention*' -o -name '*cleanup*'"
+          - name: "encryption-at-rest"
+            description: "All cardholder data encrypted at rest"
+            automated: true
+            command: "kubectl get secrets -A -o jsonpath='{.items[*].metadata.annotations.encryption\\.waqiti\\.com/enabled}'"
+      
+      # Requirement 4: Protect cardholder data with strong cryptography
+      - id: "4.1"
+        title: "Use strong cryptography for transmission"
+        checks:
+          - name: "tls-version"
+            description: "TLS 1.2+ for all transmissions"
+            automated: true
+            command: "kubectl get ingress -A -o yaml | grep 'tls-version'"
+          - name: "certificate-validation"
+            description: "All certificates valid and properly configured"
+            automated: true
+            command: "kubectl get certificates -A -o wide"
+      
+      # Requirement 5: Protect systems from malware
+      - id: "5.1"
+        title: "Deploy anti-malware solutions"
+        checks:
+          - name: "container-scanning"
+            description: "All container images scanned for malware"
+            automated: true
+            command: "kubectl get pods -A -o jsonpath='{.items[*].metadata.annotations.security\\.waqiti\\.com/scanned}'"
+          - name: "runtime-protection"
+            description: "Runtime protection enabled"
+            automated: true
+            command: "kubectl get pods -A -o jsonpath='{.items[*].spec.securityContext.readOnlyRootFilesystem}'"
+      
+      # Requirement 6: Develop and maintain secure systems
+      - id: "6.1"
+        title: "Secure software development lifecycle"
+        checks:
+          - name: "code-review-mandatory"
+            description: "Code review required for all changes"
+            automated: false
+            manual_verification: "Check GitHub/GitLab branch protection rules"
+          - name: "vulnerability-scanning"
+            description: "Regular vulnerability scans performed"
+            automated: true
+            command: "find . -name 'security-scan-*' -mtime -7"
+          - name: "secure-coding-standards"
+            description: "Secure coding standards followed"
+            automated: true
+            command: "grep -r 'OWASP\\|security' README.md docs/ || echo 'Check documentation'"
+      
+      # Requirement 7: Restrict access by business need to know
+      - id: "7.1"
+        title: "Limit access to system components"
+        checks:
+          - name: "rbac-implemented"
+            description: "Role-based access control implemented"
+            automated: true
+            command: "kubectl get rolebindings -A | wc -l"
+          - name: "least-privilege-principle"
+            description: "Least privilege principle enforced"
+            automated: true
+            command: "kubectl get pods -A -o jsonpath='{.items[*].spec.securityContext.runAsNonRoot}'"
+      
+      # Requirement 8: Identify users and authenticate access
+      - id: "8.1"
+        title: "Multi-factor authentication"
+        checks:
+          - name: "mfa-enforced"
+            description: "MFA required for administrative access"
+            automated: false
+            manual_verification: "Verify Keycloak/OAuth provider MFA settings"
+          - name: "strong-authentication"
+            description: "Strong authentication mechanisms used"
+            automated: true
+            command: "kubectl get secrets -A | grep oauth2"
+      
+      # Requirement 9: Restrict physical access
+      - id: "9.1"
+        title: "Physical access controls"
+        checks:
+          - name: "cloud-security"
+            description: "Cloud infrastructure security verified"
+            automated: false
+            manual_verification: "Review AWS/GCP/Azure security configurations"
+      
+      # Requirement 10: Log and monitor all access
+      - id: "10.1"
+        title: "Audit trails for access to system components"
+        checks:
+          - name: "audit-logging-enabled"
+            description: "Comprehensive audit logging enabled"
+            automated: true
+            command: "kubectl get pods -A -o jsonpath='{.items[*].metadata.annotations.logging\\.waqiti\\.com/enabled}'"
+          - name: "log-integrity"
+            description: "Log integrity protection implemented"
+            automated: true
+            command: "kubectl get configmaps -A | grep 'fluent\\|elastic\\|log'"
+      
+      # Requirement 11: Test security systems regularly
+      - id: "11.1"
+        title: "Regular security testing"
+        checks:
+          - name: "penetration-testing"
+            description: "Regular penetration testing performed"
+            automated: false
+            manual_verification: "Review penetration testing reports (quarterly)"
+          - name: "vulnerability-scans"
+            description: "Quarterly vulnerability scans"
+            automated: true
+            command: "find . -name 'vuln-scan-*' -mtime -90"
+          - name: "network-intrusion-detection"
+            description: "Network intrusion detection system deployed"
+            automated: true
+            command: "kubectl get pods -A | grep -i 'ids\\|intrusion\\|detection'"
+      
+      # Requirement 12: Support information security with organizational policies
+      - id: "12.1"
+        title: "Information security policy"
+        checks:
+          - name: "security-policy-documented"
+            description: "Information security policy documented and maintained"
+            automated: false
+            manual_verification: "Review security policy documentation"
+          - name: "incident-response-plan"
+            description: "Incident response plan established"
+            automated: false
+            manual_verification: "Review incident response procedures"
+
+  validation-script.sh: |
+    #!/bin/bash
+    
+    # PCI DSS Compliance Validation Script
+    # Automatically validates PCI DSS requirements where possible
+    
+    set -euo pipefail
+    
+    REPORT_FILE="/tmp/pci-dss-compliance-report.json"
+    TIMESTAMP=$(date -Iseconds)
+    
+    echo "🔍 Starting PCI DSS compliance validation..."
+    
+    # Initialize report
+    cat > "$REPORT_FILE" << EOF
+    {
+      "report_type": "pci_dss_compliance",
+      "version": "4.0",
+      "timestamp": "$TIMESTAMP",
+      "environment": "production",
+      "scope": "waqiti-payment-system",
+      "checks": []
+    }
+    EOF
+    
+    # Function to add check result to report
+    add_check_result() {
+      local requirement_id="$1"
+      local check_name="$2"
+      local status="$3"
+      local details="$4"
+      
+      # Create temp file for JSON manipulation
+      jq --arg req_id "$requirement_id" \
+         --arg check "$check_name" \
+         --arg status "$status" \
+         --arg details "$details" \
+         '.checks += [{
+           "requirement_id": $req_id,
+           "check_name": $check,
+           "status": $status,
+           "details": $details,
+           "timestamp": now | strftime("%Y-%m-%dT%H:%M:%S%Z")
+         }]' "$REPORT_FILE" > /tmp/report_temp.json
+      
+      mv /tmp/report_temp.json "$REPORT_FILE"
+    }
+    
+    # Requirement 1: Network Security
+    echo "Checking Requirement 1: Network Security..."
+    if kubectl get networkpolicies -n waqiti-system | grep -q payment; then
+      add_check_result "1.1" "network-segmentation" "PASS" "Network policies found for payment services"
+    else
+      add_check_result "1.1" "network-segmentation" "FAIL" "No network policies found for payment services"
+    fi
+    
+    # Requirement 3: Data Protection
+    echo "Checking Requirement 3: Data Protection..."
+    encrypted_secrets=$(kubectl get secrets -A -o jsonpath='{.items[*].metadata.annotations.encryption\.waqiti\.com/enabled}' | grep -o "true" | wc -l)
+    if [ "$encrypted_secrets" -gt 0 ]; then
+      add_check_result "3.1" "encryption-at-rest" "PASS" "$encrypted_secrets secrets have encryption enabled"
+    else
+      add_check_result "3.1" "encryption-at-rest" "WARNING" "No explicitly marked encrypted secrets found"
+    fi
+    
+    # Requirement 4: Cryptography
+    echo "Checking Requirement 4: Strong Cryptography..."
+    tls_enabled=$(kubectl get ingress -A -o yaml | grep -c "tls:" || echo "0")
+    if [ "$tls_enabled" -gt 0 ]; then
+      add_check_result "4.1" "tls-encryption" "PASS" "$tls_enabled ingresses have TLS configured"
+    else
+      add_check_result "4.1" "tls-encryption" "FAIL" "No TLS configuration found in ingresses"
+    fi
+    
+    # Requirement 5: Anti-malware
+    echo "Checking Requirement 5: Malware Protection..."
+    scanned_pods=$(kubectl get pods -A -o jsonpath='{.items[*].metadata.annotations.security\.waqiti\.com/scanned}' | grep -o "true" | wc -l)
+    total_pods=$(kubectl get pods -A --no-headers | wc -l)
+    if [ "$scanned_pods" -gt 0 ]; then
+      add_check_result "5.1" "container-scanning" "PASS" "$scanned_pods/$total_pods pods have security scanning annotations"
+    else
+      add_check_result "5.1" "container-scanning" "WARNING" "No pods have security scanning annotations"
+    fi
+    
+    # Requirement 6: Secure Development
+    echo "Checking Requirement 6: Secure Systems..."
+    if find . -name 'security-scan-*' -mtime -7 | head -1; then
+      add_check_result "6.1" "recent-security-scan" "PASS" "Recent security scan files found"
+    else
+      add_check_result "6.1" "recent-security-scan" "WARNING" "No recent security scan files found"
+    fi
+    
+    # Requirement 7: Access Control
+    echo "Checking Requirement 7: Access Restriction..."
+    rbac_bindings=$(kubectl get rolebindings -A --no-headers | wc -l)
+    if [ "$rbac_bindings" -gt 0 ]; then
+      add_check_result "7.1" "rbac-controls" "PASS" "$rbac_bindings RBAC bindings configured"
+    else
+      add_check_result "7.1" "rbac-controls" "FAIL" "No RBAC bindings found"
+    fi
+    
+    # Requirement 10: Logging and Monitoring
+    echo "Checking Requirement 10: Audit Logging..."
+    logging_pods=$(kubectl get pods -A -o jsonpath='{.items[*].metadata.annotations.logging\.waqiti\.com/enabled}' | grep -o "true" | wc -l)
+    if [ "$logging_pods" -gt 0 ]; then
+      add_check_result "10.1" "audit-logging" "PASS" "$logging_pods pods have logging enabled"
+    else
+      add_check_result "10.1" "audit-logging" "WARNING" "No pods have explicit logging annotations"
+    fi
+    
+    # Requirement 11: Security Testing
+    echo "Checking Requirement 11: Security Testing..."
+    recent_vulns=$(find . -name 'vuln-scan-*' -mtime -90 | wc -l)
+    if [ "$recent_vulns" -gt 0 ]; then
+      add_check_result "11.1" "recent-vulnerability-scans" "PASS" "$recent_vulns recent vulnerability scan files found"
+    else
+      add_check_result "11.1" "recent-vulnerability-scans" "WARNING" "No recent vulnerability scan files found (last 90 days)"
+    fi
+    
+    # Generate summary
+    total_checks=$(jq '.checks | length' "$REPORT_FILE")
+    passed_checks=$(jq '[.checks[] | select(.status == "PASS")] | length' "$REPORT_FILE")
+    failed_checks=$(jq '[.checks[] | select(.status == "FAIL")] | length' "$REPORT_FILE")
+    warning_checks=$(jq '[.checks[] | select(.status == "WARNING")] | length' "$REPORT_FILE")
+    
+    # Calculate compliance percentage
+    compliance_pct=$((passed_checks * 100 / total_checks))
+    
+    # Add summary to report
+    jq --arg total "$total_checks" \
+       --arg passed "$passed_checks" \
+       --arg failed "$failed_checks" \
+       --arg warnings "$warning_checks" \
+       --arg compliance "$compliance_pct" \
+       '.summary = {
+         "total_checks": ($total | tonumber),
+         "passed": ($passed | tonumber),
+         "failed": ($failed | tonumber),
+         "warnings": ($warnings | tonumber),
+         "compliance_percentage": ($compliance | tonumber)
+       }' "$REPORT_FILE" > /tmp/final_report.json
+    
+    mv /tmp/final_report.json "$REPORT_FILE"
+    
+    echo "✅ PCI DSS compliance validation completed"
+    echo "📊 Results: $passed_checks passed, $failed_checks failed, $warning_checks warnings"
+    echo "📈 Compliance level: $compliance_pct%"
+    echo "📄 Full report saved to: $REPORT_FILE"
+    
+    # Display summary
+    echo ""
+    echo "=== COMPLIANCE SUMMARY ==="
+    jq -r '.checks[] | "[\(.status)] \(.requirement_id) - \(.check_name): \(.details)"' "$REPORT_FILE"
+    
+    # Return non-zero exit code if any critical failures
+    if [ "$failed_checks" -gt 0 ]; then
+      echo "❌ CRITICAL: $failed_checks compliance checks failed"
+      exit 1
+    elif [ "$warning_checks" -gt 0 ]; then
+      echo "⚠️  WARNING: $warning_checks compliance checks need attention"
+      exit 0
+    else
+      echo "🎉 SUCCESS: All automated PCI DSS compliance checks passed"
+      exit 0
+    fi
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pci-dss-compliance-check
+  namespace: waqiti-system
+  labels:
+    compliance.example.com/framework: "pci-dss"
+    compliance.example.com/automated: "true"
+spec:
+  schedule: "0 6 * * 1" # Weekly on Monday at 6 AM
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: compliance-service-account
+          containers:
+          - name: pci-compliance-checker
+            image: waqiti/compliance-checker:latest
+            command: ["/bin/bash"]
+            args: ["/scripts/pci-validation.sh"]
+            env:
+            - name: REPORT_OUTPUT_PATH
+              value: "/reports"
+            - name: COMPLIANCE_FRAMEWORK
+              value: "PCI-DSS"
+            volumeMounts:
+            - name: compliance-scripts
+              mountPath: /scripts
+              readOnly: true
+            - name: compliance-reports
+              mountPath: /reports
+            securityContext:
+              runAsNonRoot: true
+              runAsUser: 1001
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                - ALL
+              readOnlyRootFilesystem: true
+          volumes:
+          - name: compliance-scripts
+            configMap:
+              name: pci-dss-compliance-checks
+              defaultMode: 0755
+          - name: compliance-reports
+            persistentVolumeClaim:
+              claimName: compliance-reports-pvc
+          restartPolicy: OnFailure

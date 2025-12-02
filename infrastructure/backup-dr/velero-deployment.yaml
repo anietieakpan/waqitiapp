@@ -1,0 +1,617 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: waqiti-backup
+  labels:
+    name: waqiti-backup
+    purpose: backup-disaster-recovery
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cloud-credentials
+  namespace: waqiti-backup
+  labels:
+    app: velero
+    component: backup
+type: Opaque
+data:
+  # AWS credentials (base64 encoded)
+  cloud: "" # Will be injected by Vault
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: backups.velero.io
+spec:
+  group: velero.io
+  versions:
+  - name: v1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+          status:
+            type: object
+  scope: Namespaced
+  names:
+    plural: backups
+    singular: backup
+    kind: Backup
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: velero
+  namespace: waqiti-backup
+  labels:
+    app: velero
+    component: backup
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: velero
+  template:
+    metadata:
+      labels:
+        app: velero
+        component: backup
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8085"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: velero
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        fsGroup: 65532
+      initContainers:
+      - name: velero-plugin-for-aws
+        image: velero/velero-plugin-for-aws:v1.8.0
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+        - mountPath: /target
+          name: plugins
+      containers:
+      - name: velero
+        image: velero/velero:v1.12.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8085
+          name: metrics
+          protocol: TCP
+        command:
+        - /velero
+        args:
+        - server
+        - --log-level=info
+        - --log-format=json
+        - --metrics-bind-address=:8085
+        - --profiler-bind-address=:6060
+        - --plugin-dir=/plugins
+        - --backup-sync-period=60s
+        - --fs-backup-timeout=4h
+        - --default-backup-storage-location=default
+        - --default-volume-snapshot-locations=default
+        - --store-validation-frequency=1h
+        - --uploader-type=restic
+        env:
+        - name: VELERO_SCRATCH_DIR
+          value: /scratch
+        - name: VELERO_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: LD_LIBRARY_PATH
+          value: /plugins
+        - name: AWS_SHARED_CREDENTIALS_FILE
+          value: /credentials/cloud
+        - name: AWS_CONFIG_FILE
+          value: /credentials/config
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /credentials/cloud
+        - name: AZURE_CREDENTIALS_FILE
+          value: /credentials/cloud
+        resources:
+          requests:
+            cpu: 500m
+            memory: 512Mi
+          limits:
+            cpu: 2000m
+            memory: 2Gi
+        livenessProbe:
+          httpGet:
+            path: /metrics
+            port: 8085
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /metrics
+            port: 8085
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        volumeMounts:
+        - name: cloud-credentials
+          mountPath: /credentials
+          readOnly: true
+        - name: plugins
+          mountPath: /plugins
+        - name: scratch
+          mountPath: /scratch
+        - name: backup-storage
+          mountPath: /backups
+      volumes:
+      - name: cloud-credentials
+        secret:
+          secretName: cloud-credentials
+      - name: plugins
+        emptyDir: {}
+      - name: scratch
+        emptyDir:
+          sizeLimit: 10Gi
+      - name: backup-storage
+        persistentVolumeClaim:
+          claimName: velero-backup-storage
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - velero
+              topologyKey: kubernetes.io/hostname
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: velero
+  namespace: waqiti-backup
+  labels:
+    app: velero
+    component: backup
+spec:
+  type: ClusterIP
+  ports:
+  - name: metrics
+    port: 8085
+    targetPort: 8085
+    protocol: TCP
+  selector:
+    app: velero
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: velero-backup-storage
+  namespace: waqiti-backup
+  labels:
+    app: velero
+    component: backup
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: fast-ssd
+  resources:
+    requests:
+      storage: 500Gi
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: velero
+  namespace: waqiti-backup
+  labels:
+    app: velero
+    component: backup
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: velero
+  labels:
+    app: velero
+    component: backup
+rules:
+- apiGroups: [""]
+  resources: ["*"]
+  verbs: ["*"]
+- apiGroups: ["apps"]
+  resources: ["*"]
+  verbs: ["*"]
+- apiGroups: ["extensions"]
+  resources: ["*"]
+  verbs: ["*"]
+- apiGroups: ["networking.k8s.io"]
+  resources: ["*"]
+  verbs: ["*"]
+- apiGroups: ["storage.k8s.io"]
+  resources: ["*"]
+  verbs: ["*"]
+- apiGroups: ["apiextensions.k8s.io"]
+  resources: ["customresourcedefinitions"]
+  verbs: ["*"]
+- apiGroups: ["velero.io"]
+  resources: ["*"]
+  verbs: ["*"]
+- apiGroups: ["snapshot.storage.k8s.io"]
+  resources: ["*"]
+  verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: velero
+  labels:
+    app: velero
+    component: backup
+subjects:
+- kind: ServiceAccount
+  name: velero
+  namespace: waqiti-backup
+roleRef:
+  kind: ClusterRole
+  name: velero
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: velero.io/v1
+kind: BackupStorageLocation
+metadata:
+  name: default
+  namespace: waqiti-backup
+  labels:
+    app: velero
+    component: backup
+spec:
+  provider: aws
+  objectStorage:
+    bucket: waqiti-backups-primary
+    prefix: velero
+  config:
+    region: us-east-1
+    s3ForcePathStyle: "false"
+    s3Url: https://s3.us-east-1.amazonaws.com
+    publicUrl: https://s3.us-east-1.amazonaws.com
+    checksumAlgorithm: CRC32
+    enableSharedConfig: "true"
+    serverSideEncryption: "AES256"
+---
+apiVersion: velero.io/v1
+kind: BackupStorageLocation
+metadata:
+  name: secondary
+  namespace: waqiti-backup
+  labels:
+    app: velero
+    component: backup
+spec:
+  provider: aws
+  objectStorage:
+    bucket: waqiti-backups-secondary
+    prefix: velero
+  config:
+    region: us-west-2
+    s3ForcePathStyle: "false"
+    s3Url: https://s3.us-west-2.amazonaws.com
+    serverSideEncryption: "AES256"
+---
+apiVersion: velero.io/v1
+kind: VolumeSnapshotLocation
+metadata:
+  name: default
+  namespace: waqiti-backup
+  labels:
+    app: velero
+    component: backup
+spec:
+  provider: aws
+  config:
+    region: us-east-1
+    enableSharedConfig: "true"
+---
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: critical-databases-backup
+  namespace: waqiti-backup
+  labels:
+    app: velero
+    component: backup
+    backup-type: critical
+spec:
+  schedule: "0 */2 * * *"  # Every 2 hours
+  template:
+    ttl: 2160h0m0s  # 90 days
+    includedNamespaces:
+    - waqiti
+    includedResources:
+    - persistentvolumeclaims
+    - persistentvolumes
+    labelSelector:
+      matchLabels:
+        backup-priority: critical
+    storageLocation: default
+    volumeSnapshotLocations:
+    - default
+    defaultVolumesToRestic: true
+    hooks:
+      resources:
+      - name: postgres-backup-hook
+        includedNamespaces:
+        - waqiti
+        includedResources:
+        - pods
+        labelSelector:
+          matchLabels:
+            app: postgres
+        pre:
+        - exec:
+            command:
+            - /bin/bash
+            - -c
+            - |
+              echo "Starting database backup preparation"
+              pg_dump --clean --if-exists --verbose --compress=9 --no-owner --no-privileges payment_db > /backup/payment_db_$(date +%Y%m%d_%H%M%S).sql
+              pg_dump --clean --if-exists --verbose --compress=9 --no-owner --no-privileges wallet_db > /backup/wallet_db_$(date +%Y%m%d_%H%M%S).sql
+              pg_dump --clean --if-exists --verbose --compress=9 --no-owner --no-privileges transaction_db > /backup/transaction_db_$(date +%Y%m%d_%H%M%S).sql
+              pg_dump --clean --if-exists --verbose --compress=9 --no-owner --no-privileges ledger_db > /backup/ledger_db_$(date +%Y%m%d_%H%M%S).sql
+              echo "Database backup preparation completed"
+            container: postgres
+        post:
+        - exec:
+            command:
+            - /bin/bash
+            - -c
+            - |
+              echo "Database backup post-processing"
+              find /backup -name "*.sql" -mtime +7 -delete
+              echo "Cleanup completed"
+            container: postgres
+---
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: standard-services-backup
+  namespace: waqiti-backup
+  labels:
+    app: velero
+    component: backup
+    backup-type: standard
+spec:
+  schedule: "0 6 * * *"  # Daily at 6 AM
+  template:
+    ttl: 720h0m0s  # 30 days
+    includedNamespaces:
+    - waqiti
+    - waqiti-monitoring
+    excludedResources:
+    - events
+    - events.events.k8s.io
+    labelSelector:
+      matchExpressions:
+      - key: backup-priority
+        operator: In
+        values: ["high", "medium"]
+    storageLocation: default
+    volumeSnapshotLocations:
+    - default
+    defaultVolumesToRestic: true
+---
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: full-cluster-backup
+  namespace: waqiti-backup
+  labels:
+    app: velero
+    component: backup
+    backup-type: full
+spec:
+  schedule: "0 2 * * 0"  # Weekly on Sunday at 2 AM
+  template:
+    ttl: 2160h0m0s  # 90 days
+    includedNamespaces:
+    - waqiti
+    - waqiti-monitoring
+    - waqiti-backup
+    - kube-system
+    excludedResources:
+    - events
+    - events.events.k8s.io
+    - logs
+    storageLocation: secondary
+    volumeSnapshotLocations:
+    - default
+    defaultVolumesToRestic: true
+    hooks:
+      resources:
+      - name: pre-backup-consistency
+        includedNamespaces:
+        - waqiti
+        pre:
+        - exec:
+            command:
+            - /bin/bash
+            - -c
+            - |
+              echo "Starting pre-backup consistency checks"
+              # Flush Redis to disk
+              redis-cli BGSAVE
+              # Sync Kafka logs
+              kafka-log-dirs.sh --bootstrap-server localhost:9092 --describe --json | jq .
+              echo "Pre-backup preparation completed"
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: backup-verification
+  namespace: waqiti-backup
+  labels:
+    app: backup-verification
+    component: backup
+spec:
+  schedule: "0 8 * * *"  # Daily at 8 AM
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 5
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: backup-verification
+            component: backup
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: backup-verifier
+            image: velero/velero:v1.12.0
+            command:
+            - /bin/bash
+            - -c
+            - |
+              echo "Starting backup verification process"
+              
+              # Get latest backups
+              LATEST_CRITICAL=$(velero backup get --output json | jq -r '.items[] | select(.metadata.labels."backup-type" == "critical") | select(.status.phase == "Completed") | .metadata.name' | head -1)
+              LATEST_STANDARD=$(velero backup get --output json | jq -r '.items[] | select(.metadata.labels."backup-type" == "standard") | select(.status.phase == "Completed") | .metadata.name' | head -1)
+              
+              # Verify backup integrity
+              if [ ! -z "$LATEST_CRITICAL" ]; then
+                echo "Verifying critical backup: $LATEST_CRITICAL"
+                velero backup describe $LATEST_CRITICAL --details
+                if [ $? -ne 0 ]; then
+                  echo "ERROR: Critical backup verification failed"
+                  exit 1
+                fi
+              fi
+              
+              if [ ! -z "$LATEST_STANDARD" ]; then
+                echo "Verifying standard backup: $LATEST_STANDARD"
+                velero backup describe $LATEST_STANDARD --details
+                if [ $? -ne 0 ]; then
+                  echo "ERROR: Standard backup verification failed"
+                  exit 1
+                fi
+              fi
+              
+              # Test partial restore (dry-run)
+              echo "Testing partial restore capability"
+              velero restore create test-restore-$(date +%Y%m%d-%H%M%S) \
+                --from-backup $LATEST_CRITICAL \
+                --include-namespaces waqiti \
+                --include-resources configmaps \
+                --dry-run \
+                --wait
+              
+              if [ $? -ne 0 ]; then
+                echo "ERROR: Restore test failed"
+                exit 1
+              fi
+              
+              echo "Backup verification completed successfully"
+            env:
+            - name: VELERO_NAMESPACE
+              value: "waqiti-backup"
+            resources:
+              requests:
+                cpu: 100m
+                memory: 128Mi
+              limits:
+                cpu: 500m
+                memory: 512Mi
+            volumeMounts:
+            - name: backup-verification-logs
+              mountPath: /logs
+          volumes:
+          - name: backup-verification-logs
+            emptyDir: {}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: velero-monitoring
+  namespace: waqiti-backup
+  labels:
+    app: velero
+    component: monitoring
+spec:
+  selector:
+    matchLabels:
+      app: velero
+  endpoints:
+  - port: metrics
+    path: /metrics
+    interval: 30s
+    scrapeTimeout: 10s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: velero-backup-alerts
+  namespace: waqiti-backup
+  labels:
+    app: velero
+    component: monitoring
+spec:
+  groups:
+  - name: velero.backup.rules
+    rules:
+    - alert: VeleroBackupFailed
+      expr: increase(velero_backup_failure_total[1h]) > 0
+      for: 0m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Velero backup failed"
+        description: "Velero backup has failed. Backup name: {{ $labels.backup_name }}"
+    
+    - alert: VeleroBackupPartialFailure
+      expr: increase(velero_backup_partial_failure_total[1h]) > 0
+      for: 0m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Velero backup partially failed"
+        description: "Velero backup partially failed. Backup name: {{ $labels.backup_name }}"
+    
+    - alert: VeleroBackupDurationHigh
+      expr: velero_backup_duration_seconds > 3600
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Velero backup taking too long"
+        description: "Velero backup duration is {{ $value }} seconds, which exceeds the 1 hour threshold"
+    
+    - alert: VeleroBackupMissing
+      expr: time() - velero_backup_last_successful_timestamp > 10800  # 3 hours
+      for: 0m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Velero backup missing"
+        description: "No successful Velero backup in the last 3 hours"
+    
+    - alert: VeleroRestoreFailed
+      expr: increase(velero_restore_failed_total[1h]) > 0
+      for: 0m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Velero restore failed"
+        description: "Velero restore has failed. Restore name: {{ $labels.restore_name }}"

@@ -1,0 +1,366 @@
+# Comprehensive Prometheus Alerting Rules for Waqiti P2P Platform
+# Production-grade alerting with multi-level severity classification
+
+groups:
+# 🚨 CRITICAL BUSINESS ALERTS
+- name: waqiti.business.critical
+  interval: 30s
+  rules:
+  - alert: WaqitiPaymentSystemDown
+    expr: up{job="payment-service"} == 0
+    for: 2m
+    labels:
+      severity: critical
+      service: payment-service
+      business_impact: high
+      team: platform
+      runbook_url: https://docs.example.com/runbooks/payment-system-down
+    annotations:
+      summary: "🚨 CRITICAL: Payment system is completely down"
+      description: "Payment service has been down for {{ $value }}. This is a business-critical system failure affecting all payment processing."
+      impact: "All payment processing is stopped. Revenue impact: HIGH"
+      action_required: "Immediate escalation to on-call engineer and product team"
+      dashboard_url: "https://grafana.example.com/d/waqiti-production-dashboard"
+
+  - alert: WaqitiHighTransactionFailureRate
+    expr: |
+      (
+        sum(rate(waqiti_transactions_total{status="failed"}[5m])) /
+        sum(rate(waqiti_transactions_total[5m]))
+      ) * 100 > 5
+    for: 3m
+    labels:
+      severity: critical
+      service: payment-processing
+      business_impact: high
+      team: platform
+    annotations:
+      summary: "🚨 High transaction failure rate: {{ $value }}%"
+      description: "Transaction failure rate is {{ $value }}% over the last 5 minutes, exceeding the 5% threshold"
+      impact: "Customer payment experience degraded, potential revenue loss"
+      action_required: "Investigate payment gateway issues, database connectivity, and external service dependencies"
+
+  - alert: WaqitiWalletBalanceInconsistency
+    expr: abs(waqiti_wallet_balance_ledger_diff) > 0.01
+    for: 1m
+    labels:
+      severity: critical
+      service: wallet-service
+      business_impact: high
+      team: platform
+    annotations:
+      summary: "💰 CRITICAL: Wallet balance inconsistency detected"
+      description: "Wallet balance differs from ledger by ${{ $value }}. This indicates potential financial discrepancy."
+      impact: "Financial integrity compromised - immediate audit required"
+      action_required: "Stop all wallet operations, initiate financial audit, notify compliance team"
+
+  - alert: WaqitiSecurityBreachDetected
+    expr: waqiti_security_events_total{threat_level="critical"} > 0
+    for: 0s
+    labels:
+      severity: critical
+      service: security-monitoring
+      business_impact: high
+      team: security
+    annotations:
+      summary: "🛡️ CRITICAL SECURITY BREACH DETECTED"
+      description: "Critical security event detected: {{ $labels.event_type }} from {{ $labels.source_ip }}"
+      impact: "Potential data breach or system compromise"
+      action_required: "Immediate security team escalation, incident response protocol activation"
+
+# ⚠️ HIGH PRIORITY ALERTS
+- name: waqiti.system.high
+  interval: 60s
+  rules:
+  - alert: WaqitiHighErrorRate
+    expr: |
+      (
+        sum(rate(http_requests_total{status_code=~"5.."}[5m])) /
+        sum(rate(http_requests_total[5m]))
+      ) * 100 > 2
+    for: 5m
+    labels:
+      severity: high
+      team: platform
+    annotations:
+      summary: "⚠️ High error rate: {{ $value }}%"
+      description: "HTTP 5xx error rate is {{ $value }}% over the last 5 minutes"
+      action_required: "Check application logs, database connectivity, and external dependencies"
+
+  - alert: WaqitiHighResponseTime
+    expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, service)) > 2
+    for: 5m
+    labels:
+      severity: high
+      team: platform
+    annotations:
+      summary: "🐌 High response time: P95 = {{ $value }}s"
+      description: "95th percentile response time for {{ $labels.service }} is {{ $value }}s"
+      action_required: "Performance investigation required - check database queries, external API calls"
+
+  - alert: WaqitiDatabaseConnectionPoolExhaustion
+    expr: pg_stat_database_numbackends / pg_settings_max_connections > 0.8
+    for: 3m
+    labels:
+      severity: high
+      service: database
+      team: platform
+    annotations:
+      summary: "🗄️ Database connection pool near exhaustion: {{ $value }}%"
+      description: "Database connection pool usage is at {{ $value }}% of maximum capacity"
+      action_required: "Scale database connections or investigate connection leaks"
+
+  - alert: WaqitiRedisMemoryHigh
+    expr: (redis_memory_used_bytes / redis_memory_max_bytes) * 100 > 85
+    for: 5m
+    labels:
+      severity: high
+      service: redis
+      team: platform
+    annotations:
+      summary: "🚀 Redis memory usage high: {{ $value }}%"
+      description: "Redis memory usage is {{ $value }}% of maximum capacity"
+      action_required: "Check for memory leaks, consider scaling Redis or implementing LRU eviction"
+
+  - alert: WaqitiKafkaConsumerLag
+    expr: kafka_consumer_lag_sum > 10000
+    for: 5m
+    labels:
+      severity: high
+      service: kafka
+      team: platform
+    annotations:
+      summary: "📨 High Kafka consumer lag: {{ $value }} messages"
+      description: "Kafka consumer lag is {{ $value }} messages for {{ $labels.topic }}"
+      action_required: "Scale consumers or investigate processing bottlenecks"
+
+  - alert: WaqitiCertificateExpiringSoon
+    expr: (x509_cert_not_after - time()) / 86400 < 30
+    for: 1h
+    labels:
+      severity: high
+      service: tls
+      team: platform
+    annotations:
+      summary: "🔒 TLS certificate expiring in {{ $value }} days"
+      description: "Certificate for {{ $labels.subject }} expires in {{ $value }} days"
+      action_required: "Renew TLS certificate before expiration"
+
+# 🔔 MEDIUM PRIORITY ALERTS
+- name: waqiti.system.medium
+  interval: 2m
+  rules:
+  - alert: WaqitiHighCPUUsage
+    expr: (100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)) > 80
+    for: 10m
+    labels:
+      severity: medium
+      team: platform
+    annotations:
+      summary: "🖥️ High CPU usage: {{ $value }}%"
+      description: "CPU usage on {{ $labels.instance }} is {{ $value }}%"
+      action_required: "Monitor system performance and consider scaling"
+
+  - alert: WaqitiHighMemoryUsage
+    expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+    for: 10m
+    labels:
+      severity: medium
+      team: platform
+    annotations:
+      summary: "🧠 High memory usage: {{ $value }}%"
+      description: "Memory usage on {{ $labels.instance }} is {{ $value }}%"
+      action_required: "Check for memory leaks and consider scaling"
+
+  - alert: WaqitiDiskSpaceLow
+    expr: (1 - (node_filesystem_avail_bytes{fstype!="tmpfs"} / node_filesystem_size_bytes)) * 100 > 85
+    for: 5m
+    labels:
+      severity: medium
+      team: platform
+    annotations:
+      summary: "💿 Low disk space: {{ $value }}% used"
+      description: "Disk usage on {{ $labels.instance }}:{{ $labels.mountpoint }} is {{ $value }}%"
+      action_required: "Clean up logs, temporary files, or add storage capacity"
+
+  - alert: WaqitiUnusualTrafficSpike
+    expr: |
+      (
+        sum(rate(http_requests_total[5m])) - 
+        sum(rate(http_requests_total[5m] offset 1h))
+      ) / sum(rate(http_requests_total[5m] offset 1h)) * 100 > 200
+    for: 5m
+    labels:
+      severity: medium
+      team: platform
+    annotations:
+      summary: "📈 Unusual traffic spike: {{ $value }}% increase"
+      description: "Request rate has increased by {{ $value }}% compared to 1 hour ago"
+      action_required: "Monitor system capacity and investigate potential DDoS or viral content"
+
+# 🔍 SECURITY ALERTS
+- name: waqiti.security
+  interval: 30s
+  rules:
+  - alert: WaqitiBruteForceAttack
+    expr: rate(waqiti_security_events_total{event_type="login_failure"}[5m]) > 5
+    for: 2m
+    labels:
+      severity: high
+      service: security
+      team: security
+    annotations:
+      summary: "🛡️ Potential brute force attack detected"
+      description: "{{ $value }} failed login attempts per second from {{ $labels.source_ip }}"
+      action_required: "Block suspicious IP addresses, notify security team"
+
+  - alert: WaqitiSuspiciousUserBehavior
+    expr: waqiti_security_user_risk_score > 0.8
+    for: 1m
+    labels:
+      severity: medium
+      service: security
+      team: security
+    annotations:
+      summary: "👤 Suspicious user behavior detected"
+      description: "User {{ $labels.user_id }} has risk score {{ $value }}"
+      action_required: "Review user activity, consider additional authentication"
+
+  - alert: WaqitiAnomalousDataAccess
+    expr: waqiti_security_events_total{event_type="data_access", sensitive="true"} > 100
+    for: 5m
+    labels:
+      severity: high
+      service: security
+      team: security
+    annotations:
+      summary: "🔍 Anomalous sensitive data access"
+      description: "{{ $value }} sensitive data access events in 5 minutes"
+      action_required: "Investigate data access patterns, potential data exfiltration"
+
+# 📊 BUSINESS METRICS ALERTS
+- name: waqiti.business.metrics
+  interval: 5m
+  rules:
+  - alert: WaqitiLowDailyTransactionVolume
+    expr: |
+      sum(increase(waqiti_payment_total_amount_sum[24h])) < 50000
+    for: 1h
+    labels:
+      severity: medium
+      service: business-metrics
+      team: product
+    annotations:
+      summary: "📉 Low daily transaction volume: ${{ $value }}"
+      description: "Daily transaction volume is ${{ $value }}, below expected threshold"
+      action_required: "Investigate user engagement, system issues, or market conditions"
+
+  - alert: WaqitiHighTransactionFees
+    expr: |
+      (
+        sum(rate(waqiti_transaction_fees_total[1h])) / 
+        sum(rate(waqiti_transactions_total[1h]))
+      ) > 0.05
+    for: 30m
+    labels:
+      severity: medium
+      service: business-metrics
+      team: product
+    annotations:
+      summary: "💰 High average transaction fee: {{ $value }}"
+      description: "Average transaction fee is {{ $value }}, which may impact user adoption"
+      action_required: "Review fee structure and competitive positioning"
+
+# 🏥 HEALTH CHECK ALERTS
+- name: waqiti.health
+  interval: 30s
+  rules:
+  - alert: WaqitiServiceUnhealthy
+    expr: up{job=~".*waqiti.*"} == 0
+    for: 2m
+    labels:
+      severity: high
+      team: platform
+    annotations:
+      summary: "❌ Service {{ $labels.job }} is down"
+      description: "Service {{ $labels.job }} on {{ $labels.instance }} has been down for 2 minutes"
+      action_required: "Check service logs, restart if necessary, investigate root cause"
+
+  - alert: WaqitiLoadBalancerDown
+    expr: up{job="load-balancer"} == 0
+    for: 1m
+    labels:
+      severity: critical
+      team: platform
+    annotations:
+      summary: "🚨 Load balancer is down"
+      description: "Load balancer {{ $labels.instance }} is not responding"
+      action_required: "Immediate failover to backup load balancer, investigate primary"
+
+# 📈 CAPACITY PLANNING ALERTS
+- name: waqiti.capacity
+  interval: 10m
+  rules:
+  - alert: WaqitiHighPodCPUUsage
+    expr: |
+      (
+        sum(rate(container_cpu_usage_seconds_total{namespace="waqiti"}[5m])) by (pod) /
+        sum(container_spec_cpu_quota{namespace="waqiti"} / container_spec_cpu_period{namespace="waqiti"}) by (pod)
+      ) * 100 > 80
+    for: 15m
+    labels:
+      severity: medium
+      team: platform
+    annotations:
+      summary: "📈 Pod {{ $labels.pod }} high CPU usage: {{ $value }}%"
+      description: "Pod CPU usage is {{ $value }}% of requested resources"
+      action_required: "Consider increasing CPU limits or horizontal scaling"
+
+  - alert: WaqitiHighPodMemoryUsage
+    expr: |
+      (
+        sum(container_memory_usage_bytes{namespace="waqiti"}) by (pod) /
+        sum(container_spec_memory_limit_bytes{namespace="waqiti"}) by (pod)
+      ) * 100 > 85
+    for: 15m
+    labels:
+      severity: medium
+      team: platform
+    annotations:
+      summary: "🧠 Pod {{ $labels.pod }} high memory usage: {{ $value }}%"
+      description: "Pod memory usage is {{ $value }}% of limit"
+      action_required: "Consider increasing memory limits or investigating memory leaks"
+
+# 🔄 SLA MONITORING
+- name: waqiti.sla
+  interval: 1m
+  rules:
+  - alert: WaqitiSLAViolation
+    expr: |
+      (
+        (
+          sum(rate(http_requests_total{status_code!~"5.."}[5m])) /
+          sum(rate(http_requests_total[5m]))
+        ) * 100
+      ) < 99.9
+    for: 5m
+    labels:
+      severity: high
+      service: sla-monitoring
+      team: platform
+    annotations:
+      summary: "📊 SLA violation: {{ $value }}% availability"
+      description: "System availability is {{ $value }}%, below 99.9% SLA target"
+      action_required: "Immediate investigation required to restore SLA compliance"
+
+  - alert: WaqitiResponseTimeSLAViolation
+    expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 1.0
+    for: 10m
+    labels:
+      severity: high
+      service: sla-monitoring
+      team: platform
+    annotations:
+      summary: "⚡ Response time SLA violation: P95 = {{ $value }}s"
+      description: "95th percentile response time is {{ $value }}s, exceeding 1.0s SLA"
+      action_required: "Performance optimization required to meet SLA targets"

@@ -1,0 +1,161 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reporting-service
+  namespace: waqiti
+  labels:
+    app: reporting-service
+    component: reporting
+    tier: backend
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: reporting-service
+  template:
+    metadata:
+      labels:
+        app: reporting-service
+        component: reporting
+        tier: backend
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8090"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      serviceAccountName: reporting-service
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+      - name: reporting-service
+        image: waqiti/reporting-service:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        - containerPort: 8090
+          name: management
+          protocol: TCP
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "kubernetes,production"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: reporting-database-url
+        - name: DATABASE_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: reporting-database-username
+        - name: DATABASE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: reporting-database-password
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: redis-secret
+              key: redis-url
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          valueFrom:
+            secretKeyRef:
+              name: kafka-secret
+              key: bootstrap-servers
+        - name: VAULT_ENDPOINT
+          valueFrom:
+            secretKeyRef:
+              name: vault-secret
+              key: vault-endpoint
+        - name: VAULT_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: vault-secret
+              key: vault-token
+        - name: EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE
+          value: "http://discovery-service.example.svc.cluster.local:8761/eureka"
+        - name: JAVA_OPTS
+          value: "-Xms768m -Xmx2g -XX:+UseG1GC -XX:+ExitOnOutOfMemoryError"
+        volumeMounts:
+        - name: config-volume
+          mountPath: /app/config
+          readOnly: true
+        - name: logs-volume
+          mountPath: /logs
+        - name: reports-volume
+          mountPath: /reports
+        - name: temp-volume
+          mountPath: /tmp
+        resources:
+          requests:
+            memory: "768Mi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8090
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8090
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8090
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 12
+      volumes:
+      - name: config-volume
+        configMap:
+          name: reporting-config
+      - name: logs-volume
+        emptyDir: {}
+      - name: reports-volume
+        persistentVolumeClaim:
+          claimName: reporting-storage-pvc
+      - name: temp-volume
+        emptyDir: {}
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      nodeSelector:
+        node-type: application
+      tolerations:
+      - key: "application-workload"
+        operator: "Equal"
+        value: "true"
+        effect: "NoSchedule"
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - reporting-service
+              topologyKey: kubernetes.io/hostname

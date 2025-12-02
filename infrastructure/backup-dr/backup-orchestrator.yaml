@@ -1,0 +1,493 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backup-config
+  namespace: waqiti-system
+data:
+  backup-schedule.yaml: |
+    schedules:
+      # Critical databases - multiple daily backups
+      postgresql-critical:
+        frequency: "0 */4 * * *"  # Every 4 hours
+        retention: 30d
+        priority: critical
+        encryption: true
+        compression: true
+        
+      # Redis cache - daily backup
+      redis-backup:
+        frequency: "0 2 * * *"   # Daily at 2 AM
+        retention: 7d
+        priority: high
+        encryption: true
+        
+      # Application logs - daily backup
+      logs-backup:
+        frequency: "0 3 * * *"   # Daily at 3 AM
+        retention: 90d
+        priority: medium
+        compression: true
+        
+      # Vault secrets - weekly backup
+      vault-backup:
+        frequency: "0 4 * * 0"   # Weekly on Sunday at 4 AM
+        retention: 180d
+        priority: critical
+        encryption: true
+        
+      # Configuration files - weekly backup
+      config-backup:
+        frequency: "0 5 * * 0"   # Weekly on Sunday at 5 AM
+        retention: 60d
+        priority: medium
+        
+      # Full system snapshot - monthly
+      full-system-backup:
+        frequency: "0 6 1 * *"   # Monthly on 1st day at 6 AM
+        retention: 365d
+        priority: critical
+        encryption: true
+        compression: true
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgresql-backup
+  namespace: waqiti-system
+spec:
+  schedule: "0 */4 * * *"
+  successfulJobsHistoryLimit: 5
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+          - name: postgres-backup
+            image: postgres:15-alpine
+            env:
+            - name: PGHOST
+              value: "postgres-service"
+            - name: PGPORT
+              value: "5432"
+            - name: PGUSER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: username
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: password
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: access-key-id
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: secret-access-key
+            - name: BACKUP_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: backup-encryption
+                  key: encryption-key
+            command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              
+              TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+              BACKUP_DIR="/backup"
+              mkdir -p $BACKUP_DIR
+              
+              echo "Starting PostgreSQL backup at $(date)"
+              
+              # Create backup for each database
+              for DB in waqiti_users waqiti_payments waqiti_transactions waqiti_notifications waqiti_audit; do
+                echo "Backing up database: $DB"
+                
+                BACKUP_FILE="${BACKUP_DIR}/${DB}_${TIMESTAMP}.sql"
+                
+                # Create database dump with compression
+                pg_dump -h $PGHOST -p $PGPORT -U $PGUSER -d $DB \
+                  --verbose \
+                  --clean \
+                  --if-exists \
+                  --create \
+                  --format=custom \
+                  --compress=9 \
+                  --file=$BACKUP_FILE
+                
+                # Encrypt backup
+                ENCRYPTED_FILE="${BACKUP_FILE}.enc"
+                openssl enc -aes-256-cbc -salt -in $BACKUP_FILE -out $ENCRYPTED_FILE -k $BACKUP_ENCRYPTION_KEY
+                rm $BACKUP_FILE
+                
+                # Upload to S3 with metadata
+                aws s3 cp $ENCRYPTED_FILE s3://waqiti-backups/postgresql/$DB/ \
+                  --metadata "backup-type=postgresql,database=$DB,timestamp=$TIMESTAMP,encryption=aes-256-cbc" \
+                  --storage-class STANDARD_IA
+                
+                # Verify backup integrity
+                aws s3api head-object --bucket waqiti-backups --key "postgresql/$DB/$(basename $ENCRYPTED_FILE)" > /dev/null
+                
+                echo "Backup completed for $DB: $(basename $ENCRYPTED_FILE)"
+                rm $ENCRYPTED_FILE
+              done
+              
+              # Create backup manifest
+              MANIFEST_FILE="${BACKUP_DIR}/manifest_${TIMESTAMP}.json"
+              cat > $MANIFEST_FILE << EOF
+              {
+                "backup_type": "postgresql",
+                "timestamp": "$TIMESTAMP",
+                "databases": ["waqiti_users", "waqiti_payments", "waqiti_transactions", "waqiti_notifications", "waqiti_audit"],
+                "encryption": "aes-256-cbc",
+                "compression": "gzip-9",
+                "retention_days": 30,
+                "backup_size_mb": $(du -sm $BACKUP_DIR | cut -f1),
+                "status": "completed"
+              }
+              EOF
+              
+              aws s3 cp $MANIFEST_FILE s3://waqiti-backups/manifests/postgresql/
+              
+              echo "PostgreSQL backup completed successfully at $(date)"
+            volumeMounts:
+            - name: backup-storage
+              mountPath: /backup
+          volumes:
+          - name: backup-storage
+            emptyDir:
+              sizeLimit: 10Gi
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: redis-backup
+  namespace: waqiti-system
+spec:
+  schedule: "0 2 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+          - name: redis-backup
+            image: redis:7-alpine
+            env:
+            - name: REDIS_HOST
+              value: "redis-service"
+            - name: REDIS_PORT
+              value: "6379"
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis-credentials
+                  key: password
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: access-key-id
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: secret-access-key
+            command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              
+              TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+              BACKUP_DIR="/backup"
+              mkdir -p $BACKUP_DIR
+              
+              echo "Starting Redis backup at $(date)"
+              
+              # Create Redis dump
+              BACKUP_FILE="${BACKUP_DIR}/redis_${TIMESTAMP}.rdb"
+              
+              # Use BGSAVE for non-blocking backup
+              redis-cli -h $REDIS_HOST -p $REDIS_PORT -a $REDIS_PASSWORD BGSAVE
+              
+              # Wait for background save to complete
+              while [ $(redis-cli -h $REDIS_HOST -p $REDIS_PORT -a $REDIS_PASSWORD LASTSAVE) -eq $(redis-cli -h $REDIS_HOST -p $REDIS_PORT -a $REDIS_PASSWORD LASTSAVE) ]; do
+                sleep 5
+              done
+              
+              # Copy RDB file
+              redis-cli -h $REDIS_HOST -p $REDIS_PORT -a $REDIS_PASSWORD --rdb $BACKUP_FILE
+              
+              # Compress backup
+              gzip $BACKUP_FILE
+              COMPRESSED_FILE="${BACKUP_FILE}.gz"
+              
+              # Upload to S3
+              aws s3 cp $COMPRESSED_FILE s3://waqiti-backups/redis/ \
+                --metadata "backup-type=redis,timestamp=$TIMESTAMP,compression=gzip" \
+                --storage-class STANDARD_IA
+              
+              echo "Redis backup completed: $(basename $COMPRESSED_FILE)"
+            volumeMounts:
+            - name: backup-storage
+              mountPath: /backup
+          volumes:
+          - name: backup-storage
+            emptyDir:
+              sizeLimit: 5Gi
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: vault-backup
+  namespace: waqiti-system
+spec:
+  schedule: "0 4 * * 0"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+          serviceAccountName: vault-backup-sa
+          containers:
+          - name: vault-backup
+            image: vault:1.15.0
+            env:
+            - name: VAULT_ADDR
+              value: "http://vault-service:8200"
+            - name: VAULT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: vault-backup-token
+                  key: token
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: access-key-id
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: secret-access-key
+            - name: BACKUP_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: backup-encryption
+                  key: encryption-key
+            command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              
+              TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+              BACKUP_DIR="/backup"
+              mkdir -p $BACKUP_DIR
+              
+              echo "Starting Vault backup at $(date)"
+              
+              # Create Vault snapshot
+              SNAPSHOT_FILE="${BACKUP_DIR}/vault_snapshot_${TIMESTAMP}.snap"
+              vault operator raft snapshot save $SNAPSHOT_FILE
+              
+              # Export all secrets (for disaster recovery)
+              SECRETS_FILE="${BACKUP_DIR}/vault_secrets_${TIMESTAMP}.json"
+              vault kv export -format=json secret/ > $SECRETS_FILE
+              
+              # Create backup archive
+              ARCHIVE_FILE="${BACKUP_DIR}/vault_backup_${TIMESTAMP}.tar.gz"
+              tar -czf $ARCHIVE_FILE -C $BACKUP_DIR vault_snapshot_${TIMESTAMP}.snap vault_secrets_${TIMESTAMP}.json
+              
+              # Encrypt archive
+              ENCRYPTED_FILE="${ARCHIVE_FILE}.enc"
+              openssl enc -aes-256-cbc -salt -in $ARCHIVE_FILE -out $ENCRYPTED_FILE -k $BACKUP_ENCRYPTION_KEY
+              
+              # Upload to S3
+              aws s3 cp $ENCRYPTED_FILE s3://waqiti-backups/vault/ \
+                --metadata "backup-type=vault,timestamp=$TIMESTAMP,encryption=aes-256-cbc" \
+                --storage-class STANDARD_IA
+              
+              echo "Vault backup completed: $(basename $ENCRYPTED_FILE)"
+            volumeMounts:
+            - name: backup-storage
+              mountPath: /backup
+          volumes:
+          - name: backup-storage
+            emptyDir:
+              sizeLimit: 2Gi
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: logs-backup
+  namespace: waqiti-system
+spec:
+  schedule: "0 3 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+          - name: logs-backup
+            image: curlimages/curl:latest
+            env:
+            - name: ELASTICSEARCH_HOST
+              value: "elasticsearch-service:9200"
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: access-key-id
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: secret-access-key
+            command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              
+              TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+              BACKUP_DIR="/backup"
+              mkdir -p $BACKUP_DIR
+              
+              echo "Starting logs backup at $(date)"
+              
+              # Get yesterday's date for log backup
+              YESTERDAY=$(date -d "yesterday" +%Y.%m.%d)
+              
+              # Export Elasticsearch indices for yesterday
+              INDICES=$(curl -s "http://${ELASTICSEARCH_HOST}/_cat/indices/waqiti-*-${YESTERDAY}?h=index" | tr '\n' ',')
+              
+              if [ ! -z "$INDICES" ]; then
+                # Create snapshot repository if not exists
+                curl -X PUT "http://${ELASTICSEARCH_HOST}/_snapshot/waqiti_backup" \
+                  -H 'Content-Type: application/json' \
+                  -d '{
+                    "type": "s3",
+                    "settings": {
+                      "bucket": "waqiti-backups",
+                      "base_path": "elasticsearch",
+                      "compress": true
+                    }
+                  }'
+                
+                # Create snapshot
+                SNAPSHOT_NAME="logs_${YESTERDAY}_${TIMESTAMP}"
+                curl -X PUT "http://${ELASTICSEARCH_HOST}/_snapshot/waqiti_backup/${SNAPSHOT_NAME}" \
+                  -H 'Content-Type: application/json' \
+                  -d "{
+                    \"indices\": \"${INDICES%,}\",
+                    \"ignore_unavailable\": true,
+                    \"include_global_state\": false,
+                    \"metadata\": {
+                      \"backup_date\": \"${YESTERDAY}\",
+                      \"timestamp\": \"${TIMESTAMP}\"
+                    }
+                  }"
+                
+                echo "Logs backup snapshot created: $SNAPSHOT_NAME"
+              else
+                echo "No log indices found for $YESTERDAY"
+              fi
+            volumeMounts:
+            - name: backup-storage
+              mountPath: /backup
+          volumes:
+          - name: backup-storage
+            emptyDir:
+              sizeLimit: 1Gi
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cleanup-old-backups
+  namespace: waqiti-system
+spec:
+  schedule: "0 6 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+          - name: backup-cleanup
+            image: amazon/aws-cli:latest
+            env:
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: access-key-id
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: secret-access-key
+            command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              
+              echo "Starting backup cleanup at $(date)"
+              
+              # Cleanup PostgreSQL backups older than 30 days
+              CUTOFF_DATE=$(date -d "30 days ago" +%Y%m%d)
+              aws s3 ls s3://waqiti-backups/postgresql/ --recursive | \
+                awk '{print $4}' | \
+                grep -E "_[0-9]{8}_" | \
+                while read backup; do
+                  BACKUP_DATE=$(echo $backup | grep -oE "[0-9]{8}" | head -1)
+                  if [ "$BACKUP_DATE" -lt "$CUTOFF_DATE" ]; then
+                    echo "Deleting old backup: $backup"
+                    aws s3 rm "s3://waqiti-backups/$backup"
+                  fi
+                done
+              
+              # Cleanup Redis backups older than 7 days
+              CUTOFF_DATE=$(date -d "7 days ago" +%Y%m%d)
+              aws s3 ls s3://waqiti-backups/redis/ --recursive | \
+                awk '{print $4}' | \
+                grep -E "_[0-9]{8}_" | \
+                while read backup; do
+                  BACKUP_DATE=$(echo $backup | grep -oE "[0-9]{8}" | head -1)
+                  if [ "$BACKUP_DATE" -lt "$CUTOFF_DATE" ]; then
+                    echo "Deleting old Redis backup: $backup"
+                    aws s3 rm "s3://waqiti-backups/$backup"
+                  fi
+                done
+              
+              # Cleanup Vault backups older than 180 days
+              CUTOFF_DATE=$(date -d "180 days ago" +%Y%m%d)
+              aws s3 ls s3://waqiti-backups/vault/ --recursive | \
+                awk '{print $4}' | \
+                grep -E "_[0-9]{8}_" | \
+                while read backup; do
+                  BACKUP_DATE=$(echo $backup | grep -oE "[0-9]{8}" | head -1)
+                  if [ "$BACKUP_DATE" -lt "$CUTOFF_DATE" ]; then
+                    echo "Deleting old Vault backup: $backup"
+                    aws s3 rm "s3://waqiti-backups/$backup"
+                  fi
+                done
+              
+              echo "Backup cleanup completed at $(date)"

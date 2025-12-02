@@ -1,0 +1,1738 @@
+{
+  "summary": {
+    "total_issues": 9378,
+    "critical": 8849,
+    "errors": 0,
+    "warnings": 529,
+    "circular_dependencies": 48,
+    "services_affected": 81,
+    "classes_scanned": 11795
+  },
+  "by_category": {
+    "broken_imports": 8099,
+    "broken_method_calls": 1220,
+    "missing_beans": 59,
+    "broken_feign_clients": 0
+  },
+  "critical_issues": [
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/dto/TransactionDTOs.java",
+      "line": 4,
+      "type": "IMPORT",
+      "target": "com.waqiti.corebanking.domain.Ledger",
+      "expected": "Class com.waqiti.corebanking.domain.Ledger should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.waqiti.corebanking.domain.Ledger"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/repository/LedgerRepository.java",
+      "line": 3,
+      "type": "IMPORT",
+      "target": "com.waqiti.corebanking.domain.Ledger",
+      "expected": "Class com.waqiti.corebanking.domain.Ledger should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.waqiti.corebanking.domain.Ledger"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/repository/BankAccountRepository.java",
+      "line": 4,
+      "type": "IMPORT",
+      "target": "com.waqiti.corebanking.domain.BankAccount.BankAccountStatus",
+      "expected": "Class com.waqiti.corebanking.domain.BankAccount.BankAccountStatus should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.waqiti.corebanking.domain.BankAccount.BankAccountStatus"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/repository/BankAccountRepository.java",
+      "line": 5,
+      "type": "IMPORT",
+      "target": "com.waqiti.corebanking.domain.BankAccount.BankAccountType",
+      "expected": "Class com.waqiti.corebanking.domain.BankAccount.BankAccountType should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.waqiti.corebanking.domain.BankAccount.BankAccountType"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/kafka/ClearingHouseEventConsumer.java",
+      "line": 6,
+      "type": "IMPORT",
+      "target": "com.waqiti.corebanking.service.ClearingHouseService",
+      "expected": "Class com.waqiti.corebanking.service.ClearingHouseService should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.waqiti.corebanking.service.ClearingHouseService"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/kafka/ClearingHouseEventConsumer.java",
+      "line": 7,
+      "type": "IMPORT",
+      "target": "com.waqiti.corebanking.service.SwiftIntegrationService",
+      "expected": "Class com.waqiti.corebanking.service.SwiftIntegrationService should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.waqiti.corebanking.service.SwiftIntegrationService"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/kafka/ClearingHouseEventConsumer.java",
+      "line": 9,
+      "type": "IMPORT",
+      "target": "com.waqiti.corebanking.service.RegulatoryReportingService",
+      "expected": "Class com.waqiti.corebanking.service.RegulatoryReportingService should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.waqiti.corebanking.service.RegulatoryReportingService"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/kafka/ClearingHouseEventConsumer.java",
+      "line": 10,
+      "type": "IMPORT",
+      "target": "com.waqiti.corebanking.entity.ClearingTransaction",
+      "expected": "Class com.waqiti.corebanking.entity.ClearingTransaction should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.waqiti.corebanking.entity.ClearingTransaction"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/kafka/ClearingHouseEventConsumer.java",
+      "line": 11,
+      "type": "IMPORT",
+      "target": "com.waqiti.corebanking.entity.SwiftMessage",
+      "expected": "Class com.waqiti.corebanking.entity.SwiftMessage should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.waqiti.corebanking.entity.SwiftMessage"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/kafka/CoreBankingAccountDlqConsumer.java",
+      "line": 3,
+      "type": "IMPORT",
+      "target": "com.example.common.dlq.BaseDlqConsumer",
+      "expected": "Class com.example.common.dlq.BaseDlqConsumer should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.example.common.dlq.BaseDlqConsumer"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/kafka/CoreBankingAccountDlqConsumer.java",
+      "line": 6,
+      "type": "IMPORT",
+      "target": "com.example.common.notification.NotificationService",
+      "expected": "Class com.example.common.notification.NotificationService should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.example.common.notification.NotificationService"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/kafka/CoreBankingAccountDlqConsumer.java",
+      "line": 7,
+      "type": "IMPORT",
+      "target": "com.waqiti.corebanking.service.CoreBankingService",
+      "expected": "Class com.waqiti.corebanking.service.CoreBankingService should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.waqiti.corebanking.service.CoreBankingService"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/kafka/CoreBankingAccountDlqConsumer.java",
+      "line": 8,
+      "type": "IMPORT",
+      "target": "com.waqiti.corebanking.service.AccountIntegrityService",
+      "expected": "Class com.waqiti.corebanking.service.AccountIntegrityService should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.waqiti.corebanking.service.AccountIntegrityService"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/kafka/CoreBankingAccountDlqConsumer.java",
+      "line": 9,
+      "type": "IMPORT",
+      "target": "com.waqiti.corebanking.repository.CoreBankingAccountRepository",
+      "expected": "Class com.waqiti.corebanking.repository.CoreBankingAccountRepository should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.waqiti.corebanking.repository.CoreBankingAccountRepository"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/kafka/CoreBankingTransactionDlqConsumer.java",
+      "line": 3,
+      "type": "IMPORT",
+      "target": "com.example.common.dlq.BaseDlqConsumer",
+      "expected": "Class com.example.common.dlq.BaseDlqConsumer should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.example.common.dlq.BaseDlqConsumer"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/kafka/CoreBankingTransactionDlqConsumer.java",
+      "line": 6,
+      "type": "IMPORT",
+      "target": "com.example.common.notification.NotificationService",
+      "expected": "Class com.example.common.notification.NotificationService should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.example.common.notification.NotificationService"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/kafka/CoreBankingTransactionDlqConsumer.java",
+      "line": 7,
+      "type": "IMPORT",
+      "target": "com.waqiti.corebanking.service.CoreBankingService",
+      "expected": "Class com.waqiti.corebanking.service.CoreBankingService should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.waqiti.corebanking.service.CoreBankingService"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/kafka/CoreBankingTransactionDlqConsumer.java",
+      "line": 8,
+      "type": "IMPORT",
+      "target": "com.waqiti.corebanking.service.TransactionValidationService",
+      "expected": "Class com.waqiti.corebanking.service.TransactionValidationService should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.waqiti.corebanking.service.TransactionValidationService"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/kafka/CoreBankingTransactionDlqConsumer.java",
+      "line": 9,
+      "type": "IMPORT",
+      "target": "com.waqiti.corebanking.repository.CoreBankingTransactionRepository",
+      "expected": "Class com.waqiti.corebanking.repository.CoreBankingTransactionRepository should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.waqiti.corebanking.repository.CoreBankingTransactionRepository"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/kafka/ClearingHouseEventConsumerDlqHandler.java",
+      "line": 3,
+      "type": "IMPORT",
+      "target": "com.example.common.kafka.BaseDlqConsumer",
+      "expected": "Class com.example.common.kafka.BaseDlqConsumer should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.example.common.kafka.BaseDlqConsumer"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/api/StatementController.java",
+      "line": 4,
+      "type": "IMPORT",
+      "target": "com.waqiti.corebanking.service.StatementGenerationService.StatementFormat",
+      "expected": "Class com.waqiti.corebanking.service.StatementGenerationService.StatementFormat should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.waqiti.corebanking.service.StatementGenerationService.StatementFormat"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/api/StatementController.java",
+      "line": 5,
+      "type": "IMPORT",
+      "target": "com.waqiti.corebanking.service.StatementGenerationService.StatementResult",
+      "expected": "Class com.waqiti.corebanking.service.StatementGenerationService.StatementResult should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.waqiti.corebanking.service.StatementGenerationService.StatementResult"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/api/StatementController.java",
+      "line": 6,
+      "type": "IMPORT",
+      "target": "com.waqiti.corebanking.service.StatementGenerationService.StatementPeriod",
+      "expected": "Class com.waqiti.corebanking.service.StatementGenerationService.StatementPeriod should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.waqiti.corebanking.service.StatementGenerationService.StatementPeriod"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/api/InterestController.java",
+      "line": 5,
+      "type": "IMPORT",
+      "target": "com.waqiti.corebanking.repository.AccountRepository",
+      "expected": "Class com.waqiti.corebanking.repository.AccountRepository should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.waqiti.corebanking.repository.AccountRepository"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/api/TransactionController.java",
+      "line": 6,
+      "type": "IMPORT",
+      "target": "com.example.common.security.SecurityContextUtil",
+      "expected": "Class com.example.common.security.SecurityContextUtil should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.example.common.security.SecurityContextUtil"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/api/FeeManagementController.java",
+      "line": 7,
+      "type": "IMPORT",
+      "target": "com.waqiti.corebanking.repository.FeeScheduleRepository",
+      "expected": "Class com.waqiti.corebanking.repository.FeeScheduleRepository should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.waqiti.corebanking.repository.FeeScheduleRepository"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/api/FeeManagementController.java",
+      "line": 8,
+      "type": "IMPORT",
+      "target": "com.waqiti.corebanking.repository.AccountRepository",
+      "expected": "Class com.waqiti.corebanking.repository.AccountRepository should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.waqiti.corebanking.repository.AccountRepository"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/api/CurrencyExchangeController.java",
+      "line": 4,
+      "type": "IMPORT",
+      "target": "com.waqiti.corebanking.service.CurrencyExchangeService.CurrencyConversionResult",
+      "expected": "Class com.waqiti.corebanking.service.CurrencyExchangeService.CurrencyConversionResult should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.waqiti.corebanking.service.CurrencyExchangeService.CurrencyConversionResult"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/api/CurrencyExchangeController.java",
+      "line": 5,
+      "type": "IMPORT",
+      "target": "com.waqiti.corebanking.service.CurrencyExchangeService.ExchangeServiceHealthStatus",
+      "expected": "Class com.waqiti.corebanking.service.CurrencyExchangeService.ExchangeServiceHealthStatus should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.waqiti.corebanking.service.CurrencyExchangeService.ExchangeServiceHealthStatus"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/service/ProductionFundReservationService.java",
+      "line": 5,
+      "type": "IMPORT",
+      "target": "com.waqiti.corebanking.exception.InsufficientFundsException",
+      "expected": "Class com.waqiti.corebanking.exception.InsufficientFundsException should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.waqiti.corebanking.exception.InsufficientFundsException"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/service/ProductionFundReservationService.java",
+      "line": 6,
+      "type": "IMPORT",
+      "target": "com.waqiti.corebanking.exception.ReservationNotFoundException",
+      "expected": "Class com.waqiti.corebanking.exception.ReservationNotFoundException should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.waqiti.corebanking.exception.ReservationNotFoundException"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/service/ProductionFundReservationService.java",
+      "line": 7,
+      "type": "IMPORT",
+      "target": "com.waqiti.corebanking.exception.ReservationExpiredException",
+      "expected": "Class com.waqiti.corebanking.exception.ReservationExpiredException should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.waqiti.corebanking.exception.ReservationExpiredException"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/service/AccountManagementService.java",
+      "line": 5,
+      "type": "IMPORT",
+      "target": "com.waqiti.corebanking.repository.AccountRepository",
+      "expected": "Class com.waqiti.corebanking.repository.AccountRepository should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.waqiti.corebanking.repository.AccountRepository"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/service/AccountService.java",
+      "line": 4,
+      "type": "IMPORT",
+      "target": "com.waqiti.corebanking.repository.AccountRepository",
+      "expected": "Class com.waqiti.corebanking.repository.AccountRepository should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.waqiti.corebanking.repository.AccountRepository"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/service/InterestCalculationService.java",
+      "line": 5,
+      "type": "IMPORT",
+      "target": "com.waqiti.corebanking.repository.AccountRepository",
+      "expected": "Class com.waqiti.corebanking.repository.AccountRepository should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.waqiti.corebanking.repository.AccountRepository"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/service/InterestCalculationService.java",
+      "line": 6,
+      "type": "IMPORT",
+      "target": "com.waqiti.corebanking.repository.TransactionRepository",
+      "expected": "Class com.waqiti.corebanking.repository.TransactionRepository should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.waqiti.corebanking.repository.TransactionRepository"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/service/SecureAccountService.java",
+      "line": 7,
+      "type": "IMPORT",
+      "target": "com.waqiti.corebanking.exception.InsufficientFundsException",
+      "expected": "Class com.waqiti.corebanking.exception.InsufficientFundsException should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.waqiti.corebanking.exception.InsufficientFundsException"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/service/SecureAccountService.java",
+      "line": 8,
+      "type": "IMPORT",
+      "target": "com.waqiti.corebanking.repository.AccountRepository",
+      "expected": "Class com.waqiti.corebanking.repository.AccountRepository should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.waqiti.corebanking.repository.AccountRepository"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/service/PdfGenerationService.java",
+      "line": 5,
+      "type": "IMPORT",
+      "target": "com.waqiti.corebanking.service.StatementGenerationService.StatementSummary",
+      "expected": "Class com.waqiti.corebanking.service.StatementGenerationService.StatementSummary should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.waqiti.corebanking.service.StatementGenerationService.StatementSummary"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/service/DoubleEntryBookkeepingService.java",
+      "line": 6,
+      "type": "IMPORT",
+      "target": "com.waqiti.corebanking.repository.AccountRepository",
+      "expected": "Class com.waqiti.corebanking.repository.AccountRepository should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.waqiti.corebanking.repository.AccountRepository"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/service/DoubleEntryBookkeepingService.java",
+      "line": 7,
+      "type": "IMPORT",
+      "target": "com.waqiti.corebanking.repository.LedgerEntryRepository",
+      "expected": "Class com.waqiti.corebanking.repository.LedgerEntryRepository should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.waqiti.corebanking.repository.LedgerEntryRepository"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/service/DoubleEntryBookkeepingService.java",
+      "line": 8,
+      "type": "IMPORT",
+      "target": "com.waqiti.corebanking.repository.TransactionRepository",
+      "expected": "Class com.waqiti.corebanking.repository.TransactionRepository should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.waqiti.corebanking.repository.TransactionRepository"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/service/DoubleEntryBookkeepingService.java",
+      "line": 10,
+      "type": "IMPORT",
+      "target": "com.waqiti.corebanking.exception.InsufficientFundsException",
+      "expected": "Class com.waqiti.corebanking.exception.InsufficientFundsException should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.waqiti.corebanking.exception.InsufficientFundsException"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/service/DoubleEntryBookkeepingService.java",
+      "line": 11,
+      "type": "IMPORT",
+      "target": "com.waqiti.corebanking.exception.TransactionProcessingException",
+      "expected": "Class com.waqiti.corebanking.exception.TransactionProcessingException should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.waqiti.corebanking.exception.TransactionProcessingException"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/service/StatementGenerationService.java",
+      "line": 5,
+      "type": "IMPORT",
+      "target": "com.waqiti.corebanking.repository.AccountRepository",
+      "expected": "Class com.waqiti.corebanking.repository.AccountRepository should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.waqiti.corebanking.repository.AccountRepository"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/service/StatementGenerationService.java",
+      "line": 6,
+      "type": "IMPORT",
+      "target": "com.waqiti.corebanking.repository.TransactionRepository",
+      "expected": "Class com.waqiti.corebanking.repository.TransactionRepository should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.waqiti.corebanking.repository.TransactionRepository"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/service/TransactionProcessingService.java",
+      "line": 6,
+      "type": "IMPORT",
+      "target": "com.waqiti.corebanking.repository.AccountRepository",
+      "expected": "Class com.waqiti.corebanking.repository.AccountRepository should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.waqiti.corebanking.repository.AccountRepository"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/service/TransactionProcessingService.java",
+      "line": 7,
+      "type": "IMPORT",
+      "target": "com.waqiti.corebanking.repository.TransactionRepository",
+      "expected": "Class com.waqiti.corebanking.repository.TransactionRepository should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.waqiti.corebanking.repository.TransactionRepository"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/service/TransactionProcessingService.java",
+      "line": 34,
+      "type": "IMPORT",
+      "target": "com.waqiti.corebanking.exception.TransactionNotFoundException",
+      "expected": "Class com.waqiti.corebanking.exception.TransactionNotFoundException should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.waqiti.corebanking.exception.TransactionNotFoundException"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/service/TransactionProcessingService.java",
+      "line": 35,
+      "type": "IMPORT",
+      "target": "com.waqiti.corebanking.exception.TransactionRetrievalException",
+      "expected": "Class com.waqiti.corebanking.exception.TransactionRetrievalException should exist",
+      "actual": "Class not found in codebase",
+      "impact": "Compilation will fail",
+      "fix": "Remove import or create class com.waqiti.corebanking.exception.TransactionRetrievalException"
+    }
+  ],
+  "errors": [],
+  "warnings": [
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/config/CoreBankingKeycloakSecurityConfig.java",
+      "line": 3,
+      "type": "IMPORT",
+      "target": "com.example.common.security.keycloak.BaseKeycloakSecurityConfig",
+      "expected": "Class com.example.common.security.keycloak.BaseKeycloakSecurityConfig should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/kafka/ClearingHouseEventConsumer.java",
+      "line": 5,
+      "type": "IMPORT",
+      "target": "com.example.common.kafka.BaseKafkaConsumer",
+      "expected": "Class com.example.common.kafka.BaseKafkaConsumer should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/api/AccountController.java",
+      "line": 5,
+      "type": "IMPORT",
+      "target": "com.example.common.tracing.Traced",
+      "expected": "Class com.example.common.tracing.Traced should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/api/TransactionController.java",
+      "line": 5,
+      "type": "IMPORT",
+      "target": "com.example.common.tracing.Traced",
+      "expected": "Class com.example.common.tracing.Traced should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/service/AccountManagementService.java",
+      "line": 9,
+      "type": "IMPORT",
+      "target": "com.example.common.tracing.Traced",
+      "expected": "Class com.example.common.tracing.Traced should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/service/StatementJobScheduler.java",
+      "line": 5,
+      "type": "IMPORT",
+      "target": "com.example.common.tracing.Traced",
+      "expected": "Class com.example.common.tracing.Traced should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/service/StatementJobService.java",
+      "line": 7,
+      "type": "IMPORT",
+      "target": "com.example.common.tracing.Traced",
+      "expected": "Class com.example.common.tracing.Traced should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/service/TransactionProcessingService.java",
+      "line": 11,
+      "type": "IMPORT",
+      "target": "com.example.common.tracing.Traced",
+      "expected": "Class com.example.common.tracing.Traced should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/bnpl-service/src/main/java/com/waqiti/bnpl/config/BnplKeycloakSecurityConfig.java",
+      "line": 3,
+      "type": "IMPORT",
+      "target": "com.example.common.security.keycloak.BaseKeycloakSecurityConfig",
+      "expected": "Class com.example.common.security.keycloak.BaseKeycloakSecurityConfig should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/bnpl-service/src/main/java/com/waqiti/bnpl/controller/BnplPaymentController.java",
+      "line": 10,
+      "type": "IMPORT",
+      "target": "com.example.common.ratelimit.RateLimited",
+      "expected": "Class com.example.common.ratelimit.RateLimited should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/bnpl-service/src/main/java/com/waqiti/bnpl/service/BnplApplicationService.java",
+      "line": 20,
+      "type": "IMPORT",
+      "target": "com.example.common.kyc.annotation.RequireKYCVerification",
+      "expected": "Class com.example.common.kyc.annotation.RequireKYCVerification should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/social-service/src/main/java/com/waqiti/social/config/SocialKeycloakSecurityConfig.java",
+      "line": 3,
+      "type": "IMPORT",
+      "target": "com.example.common.security.keycloak.BaseKeycloakSecurityConfig",
+      "expected": "Class com.example.common.security.keycloak.BaseKeycloakSecurityConfig should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/international-service/src/main/java/com/waqiti/international/kafka/SanctionsScreeningEventConsumer.java",
+      "line": 5,
+      "type": "IMPORT",
+      "target": "com.example.common.kafka.BaseKafkaConsumer",
+      "expected": "Class com.example.common.kafka.BaseKafkaConsumer should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/international-service/src/main/java/com/waqiti/international/kafka/ForeignExchangeEventConsumer.java",
+      "line": 5,
+      "type": "IMPORT",
+      "target": "com.example.common.kafka.BaseKafkaConsumer",
+      "expected": "Class com.example.common.kafka.BaseKafkaConsumer should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/international-service/src/main/java/com/waqiti/international/kafka/InternationalWireTransferEventConsumer.java",
+      "line": 5,
+      "type": "IMPORT",
+      "target": "com.example.common.kafka.BaseKafkaConsumer",
+      "expected": "Class com.example.common.kafka.BaseKafkaConsumer should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/international-service/src/main/java/com/waqiti/international/kafka/CrossBorderComplianceEventConsumer.java",
+      "line": 5,
+      "type": "IMPORT",
+      "target": "com.example.common.kafka.BaseKafkaConsumer",
+      "expected": "Class com.example.common.kafka.BaseKafkaConsumer should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/international-service/src/main/java/com/waqiti/international/kafka/RemittanceProcessingEventConsumer.java",
+      "line": 5,
+      "type": "IMPORT",
+      "target": "com.example.common.kafka.BaseKafkaConsumer",
+      "expected": "Class com.example.common.kafka.BaseKafkaConsumer should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/international-service/src/main/java/com/waqiti/international/kafka/CurrencyReportingEventConsumer.java",
+      "line": 5,
+      "type": "IMPORT",
+      "target": "com.example.common.kafka.BaseKafkaConsumer",
+      "expected": "Class com.example.common.kafka.BaseKafkaConsumer should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/international-service/src/main/java/com/waqiti/international/kafka/CorrespondentBankingEventConsumer.java",
+      "line": 5,
+      "type": "IMPORT",
+      "target": "com.example.common.kafka.BaseKafkaConsumer",
+      "expected": "Class com.example.common.kafka.BaseKafkaConsumer should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/messaging-service/src/main/java/com/waqiti/messaging/config/MessagingKeycloakSecurityConfig.java",
+      "line": 3,
+      "type": "IMPORT",
+      "target": "com.example.common.security.keycloak.BaseKeycloakSecurityConfig",
+      "expected": "Class com.example.common.security.keycloak.BaseKeycloakSecurityConfig should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/messaging-service/src/main/java/com/waqiti/messaging/service/AuthenticationService.java",
+      "line": 4,
+      "type": "IMPORT",
+      "target": "com.example.common.security.SecurityConstants",
+      "expected": "Class com.example.common.security.SecurityConstants should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/fraud-detection-service/src/main/java/com/waqiti/frauddetection/config/FraudDetectionKeycloakSecurityConfig.java",
+      "line": 3,
+      "type": "IMPORT",
+      "target": "com.example.common.security.keycloak.BaseKeycloakSecurityConfig",
+      "expected": "Class com.example.common.security.keycloak.BaseKeycloakSecurityConfig should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/fraud-detection-service/src/main/java/com/waqiti/frauddetection/ml/FraudDetectionMLService.java",
+      "line": 24,
+      "type": "IMPORT",
+      "target": "com.example.common.resilience.AnalyticsResilience",
+      "expected": "Class com.example.common.resilience.AnalyticsResilience should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/fraud-detection-service/src/main/java/com/waqiti/frauddetection/ml/FraudMLModel.java",
+      "line": 5,
+      "type": "IMPORT",
+      "target": "com.example.common.math.MoneyMath",
+      "expected": "Class com.example.common.math.MoneyMath should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/fraud-detection-service/src/main/java/com/waqiti/frauddetection/kafka/FraudDetectionConsumer.java",
+      "line": 7,
+      "type": "IMPORT",
+      "target": "com.example.common.math.MoneyMath",
+      "expected": "Class com.example.common.math.MoneyMath should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/fraud-detection-service/src/main/java/com/waqiti/frauddetection/kafka/RiskScoresEventsConsumer.java",
+      "line": 8,
+      "type": "IMPORT",
+      "target": "com.example.common.math.MoneyMath",
+      "expected": "Class com.example.common.math.MoneyMath should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/fraud-detection-service/src/main/java/com/waqiti/frauddetection/kafka/CardFraudDetectionConsumer.java",
+      "line": 6,
+      "type": "IMPORT",
+      "target": "com.example.common.math.MoneyMath",
+      "expected": "Class com.example.common.math.MoneyMath should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/fraud-detection-service/src/main/java/com/waqiti/frauddetection/kafka/PatternAnalysisConsumer.java",
+      "line": 7,
+      "type": "IMPORT",
+      "target": "com.example.common.math.MoneyMath",
+      "expected": "Class com.example.common.math.MoneyMath should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/fraud-detection-service/src/main/java/com/waqiti/frauddetection/kafka/MerchantRiskScoringConsumer.java",
+      "line": 7,
+      "type": "IMPORT",
+      "target": "com.example.common.math.MoneyMath",
+      "expected": "Class com.example.common.math.MoneyMath should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/fraud-detection-service/src/main/java/com/waqiti/frauddetection/kafka/FraudDetectionTriggerConsumer.java",
+      "line": 8,
+      "type": "IMPORT",
+      "target": "com.example.common.kafka.KafkaTopics",
+      "expected": "Class com.example.common.kafka.KafkaTopics should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/fraud-detection-service/src/main/java/com/waqiti/frauddetection/kafka/ATMWithdrawalRequestedConsumer.java",
+      "line": 6,
+      "type": "IMPORT",
+      "target": "com.example.common.kafka.BaseKafkaConsumer",
+      "expected": "Class com.example.common.kafka.BaseKafkaConsumer should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/fraud-detection-service/src/main/java/com/waqiti/frauddetection/kafka/FraudActivityLogsDlqConsumer.java",
+      "line": 6,
+      "type": "IMPORT",
+      "target": "com.example.common.math.MoneyMath",
+      "expected": "Class com.example.common.math.MoneyMath should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/fraud-detection-service/src/main/java/com/waqiti/frauddetection/kafka/VelocityMonitoringConsumer.java",
+      "line": 7,
+      "type": "IMPORT",
+      "target": "com.example.common.math.MoneyMath",
+      "expected": "Class com.example.common.math.MoneyMath should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/fraud-detection-service/src/main/java/com/waqiti/frauddetection/kafka/RiskAssessmentEventsConsumer.java",
+      "line": 8,
+      "type": "IMPORT",
+      "target": "com.example.common.math.MoneyMath",
+      "expected": "Class com.example.common.math.MoneyMath should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/fraud-detection-service/src/main/java/com/waqiti/frauddetection/kafka/SuspiciousTransactionConsumer.java",
+      "line": 5,
+      "type": "IMPORT",
+      "target": "com.example.common.kafka.BaseKafkaConsumer",
+      "expected": "Class com.example.common.kafka.BaseKafkaConsumer should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/fraud-detection-service/src/main/java/com/waqiti/frauddetection/rules/FraudRulesEngine.java",
+      "line": 7,
+      "type": "IMPORT",
+      "target": "com.example.common.math.MoneyMath",
+      "expected": "Class com.example.common.math.MoneyMath should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/fraud-detection-service/src/main/java/com/waqiti/frauddetection/device/DeviceRiskScoringService.java",
+      "line": 5,
+      "type": "IMPORT",
+      "target": "com.example.common.math.MoneyMath",
+      "expected": "Class com.example.common.math.MoneyMath should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/fraud-detection-service/src/main/java/com/waqiti/frauddetection/consumer/FraudAlertConsumer.java",
+      "line": 10,
+      "type": "IMPORT",
+      "target": "com.example.common.math.MoneyMath",
+      "expected": "Class com.example.common.math.MoneyMath should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/fraud-detection-service/src/main/java/com/waqiti/frauddetection/service/FeatureEngineeringService.java",
+      "line": 8,
+      "type": "IMPORT",
+      "target": "com.example.common.math.MoneyMath",
+      "expected": "Class com.example.common.math.MoneyMath should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/fraud-detection-service/src/main/java/com/waqiti/frauddetection/service/VelocityProfileService.java",
+      "line": 3,
+      "type": "IMPORT",
+      "target": "com.example.common.math.MoneyMath",
+      "expected": "Class com.example.common.math.MoneyMath should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/fraud-detection-service/src/main/java/com/waqiti/frauddetection/service/BlacklistService.java",
+      "line": 6,
+      "type": "IMPORT",
+      "target": "com.example.common.tracing.Traced",
+      "expected": "Class com.example.common.tracing.Traced should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/fraud-detection-service/src/main/java/com/waqiti/frauddetection/service/FraudAnalysisService.java",
+      "line": 5,
+      "type": "IMPORT",
+      "target": "com.example.common.math.MoneyMath",
+      "expected": "Class com.example.common.math.MoneyMath should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/fraud-detection-service/src/main/java/com/waqiti/frauddetection/service/SecureVelocityCheckService.java",
+      "line": 6,
+      "type": "IMPORT",
+      "target": "com.example.common.math.MoneyMath",
+      "expected": "Class com.example.common.math.MoneyMath should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/fraud-detection-service/src/main/java/com/waqiti/frauddetection/service/GraphBasedFraudDetectionService.java",
+      "line": 6,
+      "type": "IMPORT",
+      "target": "com.example.common.math.MoneyMath",
+      "expected": "Class com.example.common.math.MoneyMath should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/fraud-detection-service/src/main/java/com/waqiti/frauddetection/service/RiskScoringService.java",
+      "line": 5,
+      "type": "IMPORT",
+      "target": "com.example.common.math.MoneyMath",
+      "expected": "Class com.example.common.math.MoneyMath should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/fraud-detection-service/src/main/java/com/waqiti/frauddetection/service/FraudDetectionService.java",
+      "line": 15,
+      "type": "IMPORT",
+      "target": "com.example.common.math.MoneyMath",
+      "expected": "Class com.example.common.math.MoneyMath should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/fraud-detection-service/src/main/java/com/waqiti/frauddetection/events/consumers/FraudAlertsConsumer.java",
+      "line": 16,
+      "type": "IMPORT",
+      "target": "com.example.common.math.MoneyMath",
+      "expected": "Class com.example.common.math.MoneyMath should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/security-service/src/main/java/com/waqiti/security/config/SecurityServiceKeycloakConfig.java",
+      "line": 3,
+      "type": "IMPORT",
+      "target": "com.example.common.security.keycloak.BaseKeycloakSecurityConfig",
+      "expected": "Class com.example.common.security.keycloak.BaseKeycloakSecurityConfig should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/security-service/src/main/java/com/waqiti/security/kafka/AuthenticationEventConsumer.java",
+      "line": 5,
+      "type": "IMPORT",
+      "target": "com.example.common.kafka.BaseKafkaConsumer",
+      "expected": "Class com.example.common.kafka.BaseKafkaConsumer should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/security-service/src/main/java/com/waqiti/security/api/FraudDetectionController.java",
+      "line": 7,
+      "type": "IMPORT",
+      "target": "com.example.common.ratelimit.RateLimited",
+      "expected": "Class com.example.common.ratelimit.RateLimited should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/security-service/src/main/java/com/waqiti/security/kafka/mobile/MobileBankingSessionEventConsumer.java",
+      "line": 5,
+      "type": "IMPORT",
+      "target": "com.example.common.kafka.BaseKafkaConsumer",
+      "expected": "Class com.example.common.kafka.BaseKafkaConsumer should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/bill-payment-service/src/main/java/com/waqiti/billpayment/config/BillPaymentKeycloakSecurityConfig.java",
+      "line": 3,
+      "type": "IMPORT",
+      "target": "com.example.common.security.keycloak.BaseKeycloakSecurityConfig",
+      "expected": "Class com.example.common.security.keycloak.BaseKeycloakSecurityConfig should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/payment-commons/src/main/java/com/waqiti/payment/commons/dto/PaymentResponse.java",
+      "line": 4,
+      "type": "IMPORT",
+      "target": "com.waqiti.payment.commons.domain.Money",
+      "expected": "Class com.waqiti.payment.commons.domain.Money should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/payment-commons/src/main/java/com/waqiti/payment/commons/dto/PaymentRequest.java",
+      "line": 7,
+      "type": "IMPORT",
+      "target": "com.waqiti.payment.commons.domain.Money",
+      "expected": "Class com.waqiti.payment.commons.domain.Money should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/payment-commons/src/main/java/com/waqiti/payment/commons/util/CurrencyConverter.java",
+      "line": 3,
+      "type": "IMPORT",
+      "target": "com.waqiti.payment.commons.domain.Money",
+      "expected": "Class com.waqiti.payment.commons.domain.Money should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/payment-commons/src/main/java/com/waqiti/payment/commons/util/PaymentValidator.java",
+      "line": 3,
+      "type": "IMPORT",
+      "target": "com.waqiti.payment.commons.domain.Money",
+      "expected": "Class com.waqiti.payment.commons.domain.Money should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/user-service/src/main/java/com/waqiti/user/config/UserKeycloakSecurityConfig.java",
+      "line": 3,
+      "type": "IMPORT",
+      "target": "com.example.common.security.keycloak.BaseKeycloakSecurityConfig",
+      "expected": "Class com.example.common.security.keycloak.BaseKeycloakSecurityConfig should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/user-service/src/main/java/com/waqiti/user/controller/BiometricAuthenticationController.java",
+      "line": 7,
+      "type": "IMPORT",
+      "target": "com.example.common.security.CurrentUser",
+      "expected": "Class com.example.common.security.CurrentUser should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/user-service/src/main/java/com/waqiti/user/controller/BiometricAuthenticationController.java",
+      "line": 9,
+      "type": "IMPORT",
+      "target": "com.example.common.ratelimit.RateLimited",
+      "expected": "Class com.example.common.ratelimit.RateLimited should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/user-service/src/main/java/com/waqiti/user/controller/CriticalAuthController.java",
+      "line": 4,
+      "type": "IMPORT",
+      "target": "com.example.common.ratelimit.RateLimit",
+      "expected": "Class com.example.common.ratelimit.RateLimit should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/user-service/src/main/java/com/waqiti/user/kafka/PasswordResetEventsConsumer.java",
+      "line": 18,
+      "type": "IMPORT",
+      "target": "com.example.common.exception.ValidationException",
+      "expected": "Class com.example.common.exception.ValidationException should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/user-service/src/main/java/com/waqiti/user/kafka/TwoFactorAuthEventsConsumer.java",
+      "line": 19,
+      "type": "IMPORT",
+      "target": "com.example.common.exception.ValidationException",
+      "expected": "Class com.example.common.exception.ValidationException should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/user-service/src/main/java/com/waqiti/user/kafka/UserSessionEventsConsumer.java",
+      "line": 17,
+      "type": "IMPORT",
+      "target": "com.example.common.exception.ValidationException",
+      "expected": "Class com.example.common.exception.ValidationException should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/user-service/src/main/java/com/waqiti/user/kafka/LoginAttemptTrackingConsumer.java",
+      "line": 16,
+      "type": "IMPORT",
+      "target": "com.example.common.exception.ValidationException",
+      "expected": "Class com.example.common.exception.ValidationException should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/user-service/src/main/java/com/waqiti/user/api/AdminController.java",
+      "line": 5,
+      "type": "IMPORT",
+      "target": "com.example.common.ratelimit.RateLimited",
+      "expected": "Class com.example.common.ratelimit.RateLimited should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/user-service/src/main/java/com/waqiti/user/api/AuthController.java",
+      "line": 3,
+      "type": "IMPORT",
+      "target": "com.example.common.ratelimit.RateLimited",
+      "expected": "Class com.example.common.ratelimit.RateLimited should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/user-service/src/main/java/com/waqiti/user/api/MfaController.java",
+      "line": 4,
+      "type": "IMPORT",
+      "target": "com.example.common.ratelimit.RateLimited",
+      "expected": "Class com.example.common.ratelimit.RateLimited should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/user-service/src/main/java/com/waqiti/user/api/UserController.java",
+      "line": 4,
+      "type": "IMPORT",
+      "target": "com.example.common.ratelimit.RateLimited",
+      "expected": "Class com.example.common.ratelimit.RateLimited should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/user-service/src/main/java/com/waqiti/user/service/AuditedUserService.java",
+      "line": 3,
+      "type": "IMPORT",
+      "target": "com.example.common.audit.annotation.AuditLogged",
+      "expected": "Class com.example.common.audit.annotation.AuditLogged should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/user-service/src/main/java/com/waqiti/user/domain/User.java",
+      "line": 4,
+      "type": "IMPORT",
+      "target": "com.example.common.security.FieldEncryption",
+      "expected": "Class com.example.common.security.FieldEncryption should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/infrastructure-service/src/main/java/com/waqiti/infrastructure/controller/InfrastructureController.java",
+      "line": 6,
+      "type": "IMPORT",
+      "target": "com.example.common.tracing.Traced",
+      "expected": "Class com.example.common.tracing.Traced should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/infrastructure-service/src/main/java/com/waqiti/infrastructure/service/InfrastructureService.java",
+      "line": 6,
+      "type": "IMPORT",
+      "target": "com.example.common.tracing.Traced",
+      "expected": "Class com.example.common.tracing.Traced should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/reporting-service/src/main/java/com/waqiti/reporting/config/ReportingKeycloakSecurityConfig.java",
+      "line": 3,
+      "type": "IMPORT",
+      "target": "com.example.common.security.keycloak.BaseKeycloakSecurityConfig",
+      "expected": "Class com.example.common.security.keycloak.BaseKeycloakSecurityConfig should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/reporting-service/src/main/java/com/waqiti/reporting/kafka/ExecutiveReportingEventsConsumer.java",
+      "line": 5,
+      "type": "IMPORT",
+      "target": "com.example.common.kafka.BaseKafkaConsumer",
+      "expected": "Class com.example.common.kafka.BaseKafkaConsumer should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/reporting-service/src/main/java/com/waqiti/reporting/kafka/RegulatoryReportingEventsConsumer.java",
+      "line": 5,
+      "type": "IMPORT",
+      "target": "com.example.common.kafka.BaseKafkaConsumer",
+      "expected": "Class com.example.common.kafka.BaseKafkaConsumer should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/reporting-service/src/main/java/com/waqiti/reporting/kafka/ReportingGenerationEventsConsumer.java",
+      "line": 5,
+      "type": "IMPORT",
+      "target": "com.example.common.kafka.BaseKafkaConsumer",
+      "expected": "Class com.example.common.kafka.BaseKafkaConsumer should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/reporting-service/src/main/java/com/waqiti/reporting/kafka/FinancialReportingEventsConsumer.java",
+      "line": 5,
+      "type": "IMPORT",
+      "target": "com.example.common.kafka.BaseKafkaConsumer",
+      "expected": "Class com.example.common.kafka.BaseKafkaConsumer should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/reporting-service/src/main/java/com/waqiti/reporting/kafka/BusinessIntelligenceEventsConsumer.java",
+      "line": 5,
+      "type": "IMPORT",
+      "target": "com.example.common.kafka.BaseKafkaConsumer",
+      "expected": "Class com.example.common.kafka.BaseKafkaConsumer should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/audit-service/src/main/java/com/waqiti/audit/config/AuditKeycloakSecurityConfig.java",
+      "line": 3,
+      "type": "IMPORT",
+      "target": "com.example.common.security.keycloak.BaseKeycloakSecurityConfig",
+      "expected": "Class com.example.common.security.keycloak.BaseKeycloakSecurityConfig should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/audit-service/src/main/java/com/waqiti/audit/kafka/AuditTrailDlqConsumer.java",
+      "line": 5,
+      "type": "IMPORT",
+      "target": "com.example.common.kafka.BaseKafkaConsumer",
+      "expected": "Class com.example.common.kafka.BaseKafkaConsumer should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/dispute-resolution-service/src/main/java/com/waqiti/disputeresolution/config/DisputeResolutionKeycloakSecurityConfig.java",
+      "line": 3,
+      "type": "IMPORT",
+      "target": "com.example.common.security.keycloak.BaseKeycloakSecurityConfig",
+      "expected": "Class com.example.common.security.keycloak.BaseKeycloakSecurityConfig should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/dispute-resolution-service/src/main/java/com/waqiti/disputeresolution/config/KeycloakSecurityConfig.java",
+      "line": 3,
+      "type": "IMPORT",
+      "target": "com.example.common.security.keycloak.BaseKeycloakSecurityConfig",
+      "expected": "Class com.example.common.security.keycloak.BaseKeycloakSecurityConfig should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/gdpr-service/src/main/java/com/waqiti/gdpr/config/GdprKeycloakSecurityConfig.java",
+      "line": 3,
+      "type": "IMPORT",
+      "target": "com.example.common.security.keycloak.BaseKeycloakSecurityConfig",
+      "expected": "Class com.example.common.security.keycloak.BaseKeycloakSecurityConfig should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/sms-banking-service/src/main/java/com/waqiti/smsbanking/service/SmsBankingMfaService.java",
+      "line": 3,
+      "type": "IMPORT",
+      "target": "com.example.common.ratelimit.RateLimited",
+      "expected": "Class com.example.common.ratelimit.RateLimited should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/transaction-service/src/main/java/com/waqiti/transaction/config/TransactionKeycloakSecurityConfig.java",
+      "line": 3,
+      "type": "IMPORT",
+      "target": "com.example.common.security.keycloak.BaseKeycloakSecurityConfig",
+      "expected": "Class com.example.common.security.keycloak.BaseKeycloakSecurityConfig should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/transaction-service/src/main/java/com/waqiti/transaction/controller/TransactionController.java",
+      "line": 7,
+      "type": "IMPORT",
+      "target": "com.example.common.ratelimit.RateLimited",
+      "expected": "Class com.example.common.ratelimit.RateLimited should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/transaction-service/src/main/java/com/waqiti/transaction/kafka/TransactionEventsDlqConsumer.java",
+      "line": 5,
+      "type": "IMPORT",
+      "target": "com.example.common.kafka.BaseKafkaConsumer",
+      "expected": "Class com.example.common.kafka.BaseKafkaConsumer should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/transaction-service/src/main/java/com/waqiti/transaction/service/TransactionValidationService.java",
+      "line": 5,
+      "type": "IMPORT",
+      "target": "com.example.common.exception.ValidationException",
+      "expected": "Class com.example.common.exception.ValidationException should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/transaction-service/src/main/java/com/waqiti/transaction/service/TransactionProcessingService.java",
+      "line": 10,
+      "type": "IMPORT",
+      "target": "com.example.common.kyc.annotation.RequireKYCVerification",
+      "expected": "Class com.example.common.kyc.annotation.RequireKYCVerification should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/websocket-service/src/main/java/com/waqiti/websocket/config/WebSocketKeycloakSecurityConfig.java",
+      "line": 3,
+      "type": "IMPORT",
+      "target": "com.example.common.security.keycloak.BaseKeycloakSecurityConfig",
+      "expected": "Class com.example.common.security.keycloak.BaseKeycloakSecurityConfig should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/savings-service/src/main/java/com/waqiti/savings/config/SavingsKeycloakSecurityConfig.java",
+      "line": 3,
+      "type": "IMPORT",
+      "target": "com.example.common.security.keycloak.BaseKeycloakSecurityConfig",
+      "expected": "Class com.example.common.security.keycloak.BaseKeycloakSecurityConfig should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/savings-service/src/main/java/com/waqiti/savings/service/SavingsGoalsService.java",
+      "line": 13,
+      "type": "IMPORT",
+      "target": "com.example.common.kyc.annotation.RequireKYCVerification",
+      "expected": "Class com.example.common.kyc.annotation.RequireKYCVerification should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/financial-wellness-service/src/main/java/com/waqiti/wellness/config/FinancialWellnessKeycloakSecurityConfig.java",
+      "line": 3,
+      "type": "IMPORT",
+      "target": "com.example.common.security.keycloak.BaseKeycloakSecurityConfig",
+      "expected": "Class com.example.common.security.keycloak.BaseKeycloakSecurityConfig should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/virtual-card-service/src/main/java/com/waqiti/virtualcard/validator/CardValidator.java",
+      "line": 6,
+      "type": "IMPORT",
+      "target": "com.example.common.exception.ValidationException",
+      "expected": "Class com.example.common.exception.ValidationException should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/virtual-card-service/src/main/java/com/waqiti/virtualcard/config/VirtualCardKeycloakSecurityConfig.java",
+      "line": 3,
+      "type": "IMPORT",
+      "target": "com.example.common.security.keycloak.BaseKeycloakSecurityConfig",
+      "expected": "Class com.example.common.security.keycloak.BaseKeycloakSecurityConfig should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/virtual-card-service/src/main/java/com/waqiti/virtualcard/controller/PhysicalCardController.java",
+      "line": 6,
+      "type": "IMPORT",
+      "target": "com.example.common.validation.ValidUUID",
+      "expected": "Class com.example.common.validation.ValidUUID should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/virtual-card-service/src/main/java/com/waqiti/virtualcard/controller/VirtualCardController.java",
+      "line": 3,
+      "type": "IMPORT",
+      "target": "com.example.common.ratelimit.RateLimited",
+      "expected": "Class com.example.common.ratelimit.RateLimited should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/virtual-card-service/src/main/java/com/waqiti/virtualcard/controller/VirtualCardController.java",
+      "line": 9,
+      "type": "IMPORT",
+      "target": "com.example.common.validation.ValidUUID",
+      "expected": "Class com.example.common.validation.ValidUUID should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/virtual-card-service/src/main/java/com/waqiti/virtualcard/service/VirtualCardService.java",
+      "line": 13,
+      "type": "IMPORT",
+      "target": "com.example.common.kyc.annotation.RequireKYCVerification",
+      "expected": "Class com.example.common.kyc.annotation.RequireKYCVerification should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    },
+    {
+      "source": "/Users/anietieakpan/git/waqiti-app/services/virtual-card-service/src/main/java/com/waqiti/virtualcard/service/PhysicalCardService.java",
+      "line": 13,
+      "type": "IMPORT",
+      "target": "com.example.common.kyc.annotation.RequireKYCVerification",
+      "expected": "Class com.example.common.kyc.annotation.RequireKYCVerification should be public",
+      "actual": "Class is not public",
+      "impact": "May cause compilation issues",
+      "fix": "Make class public or adjust visibility"
+    }
+  ],
+  "circular_dependencies": [
+    {
+      "class_a": "com.waqiti.frauddetection.repository.FraudAlertRepository",
+      "class_b": "com.waqiti.frauddetection.alert.FraudAlertService"
+    },
+    {
+      "class_a": "com.waqiti.frauddetection.entity.FraudAlert",
+      "class_b": "com.waqiti.frauddetection.alert.FraudAlertService"
+    },
+    {
+      "class_a": "com.waqiti.frauddetection.alert.FraudAlertService",
+      "class_b": "com.waqiti.frauddetection.repository.FraudAlertRepository"
+    },
+    {
+      "class_a": "com.waqiti.frauddetection.alert.FraudAlertService",
+      "class_b": "com.waqiti.frauddetection.entity.FraudAlert"
+    },
+    {
+      "class_a": "com.waqiti.payment.client.NotificationServiceClient",
+      "class_b": "com.waqiti.payment.client.fallback.NotificationServiceFallback"
+    },
+    {
+      "class_a": "com.waqiti.payment.client.FraudDetectionClient",
+      "class_b": "com.waqiti.payment.client.fallback.FraudDetectionFallback"
+    },
+    {
+      "class_a": "com.waqiti.payment.client.UnifiedWalletServiceClient",
+      "class_b": "com.waqiti.payment.client.fallback.WalletServiceFallback"
+    },
+    {
+      "class_a": "com.waqiti.payment.client.RealTimePaymentNetworkClient",
+      "class_b": "com.waqiti.payment.client.fallback.RealTimePaymentNetworkFallback"
+    },
+    {
+      "class_a": "com.waqiti.payment.client.fallback.FraudDetectionFallback",
+      "class_b": "com.waqiti.payment.client.FraudDetectionClient"
+    },
+    {
+      "class_a": "com.waqiti.payment.client.fallback.WalletServiceFallback",
+      "class_b": "com.waqiti.payment.client.UnifiedWalletServiceClient"
+    },
+    {
+      "class_a": "com.waqiti.payment.client.fallback.RealTimePaymentNetworkFallback",
+      "class_b": "com.waqiti.payment.client.RealTimePaymentNetworkClient"
+    },
+    {
+      "class_a": "com.waqiti.payment.client.fallback.NotificationServiceFallback",
+      "class_b": "com.waqiti.payment.client.NotificationServiceClient"
+    },
+    {
+      "class_a": "com.waqiti.transaction.service.FraudDetectionService",
+      "class_b": "com.waqiti.transaction.client.FraudDetectionServiceClient"
+    },
+    {
+      "class_a": "com.waqiti.transaction.client.FraudDetectionServiceClient",
+      "class_b": "com.waqiti.transaction.service.FraudDetectionService"
+    },
+    {
+      "class_a": "com.example.common.kafka.KafkaDlqConfiguration",
+      "class_b": "com.example.common.monitoring.MetricsService"
+    },
+    {
+      "class_a": "com.example.common.monitoring.MetricsService",
+      "class_b": "com.example.common.kafka.KafkaDlqConfiguration"
+    },
+    {
+      "class_a": "com.example.common.validation.constraints.ValidWalletOwnership",
+      "class_b": "com.example.common.validation.validators.WalletOwnershipValidator"
+    },
+    {
+      "class_a": "com.example.common.validation.constraints.ValidIPAddress",
+      "class_b": "com.example.common.validation.validators.IPAddressValidator"
+    },
+    {
+      "class_a": "com.example.common.validation.constraints.ValidPaymentLimit",
+      "class_b": "com.example.common.validation.validators.PaymentLimitValidator"
+    },
+    {
+      "class_a": "com.example.common.validation.constraints.ValidCountryCode",
+      "class_b": "com.example.common.validation.validators.CountryCodeValidator"
+    },
+    {
+      "class_a": "com.example.common.validation.constraints.ValidEmail",
+      "class_b": "com.example.common.validation.validators.EmailValidator"
+    },
+    {
+      "class_a": "com.example.common.validation.validators.WalletOwnershipValidator",
+      "class_b": "com.example.common.validation.constraints.ValidWalletOwnership"
+    },
+    {
+      "class_a": "com.example.common.validation.validators.IPAddressValidator",
+      "class_b": "com.example.common.validation.constraints.ValidIPAddress"
+    },
+    {
+      "class_a": "com.example.common.validation.validators.EmailValidator",
+      "class_b": "com.example.common.validation.constraints.ValidEmail"
+    },
+    {
+      "class_a": "com.example.common.validation.validators.CountryCodeValidator",
+      "class_b": "com.example.common.validation.constraints.ValidCountryCode"
+    },
+    {
+      "class_a": "com.example.common.validation.validators.PaymentLimitValidator",
+      "class_b": "com.example.common.validation.constraints.ValidPaymentLimit"
+    },
+    {
+      "class_a": "com.waqiti.validation.CurrencyValidator",
+      "class_b": "com.waqiti.validation.annotation.ValidCurrency"
+    },
+    {
+      "class_a": "com.waqiti.validation.MoneyAmountValidator",
+      "class_b": "com.waqiti.validation.annotation.ValidMoneyAmount"
+    },
+    {
+      "class_a": "com.waqiti.validation.FinancialAmountValidator",
+      "class_b": "com.waqiti.validation.annotation.ValidFinancialAmount"
+    },
+    {
+      "class_a": "com.waqiti.validation.annotation.ValidCurrency",
+      "class_b": "com.waqiti.validation.CurrencyValidator"
+    },
+    {
+      "class_a": "com.waqiti.validation.annotation.ValidMoneyAmount",
+      "class_b": "com.waqiti.validation.MoneyAmountValidator"
+    },
+    {
+      "class_a": "com.waqiti.validation.annotation.ValidFinancialAmount",
+      "class_b": "com.waqiti.validation.FinancialAmountValidator"
+    },
+    {
+      "class_a": "com.waqiti.kyc.dto.AdverseMediaResult",
+      "class_b": "com.waqiti.kyc.service.AdverseMediaService"
+    },
+    {
+      "class_a": "com.waqiti.kyc.dto.CriminalRecordResult",
+      "class_b": "com.waqiti.kyc.service.CriminalRecordService"
+    },
+    {
+      "class_a": "com.waqiti.kyc.service.AdverseMediaService",
+      "class_b": "com.waqiti.kyc.dto.AdverseMediaResult"
+    },
+    {
+      "class_a": "com.waqiti.kyc.service.KYCDocumentVerificationService",
+      "class_b": "com.waqiti.kyc.integration.ocr.OCRService"
+    },
+    {
+      "class_a": "com.waqiti.kyc.service.CriminalRecordService",
+      "class_b": "com.waqiti.kyc.dto.CriminalRecordResult"
+    },
+    {
+      "class_a": "com.waqiti.kyc.integration.ocr.OCRService",
+      "class_b": "com.waqiti.kyc.service.KYCDocumentVerificationService"
+    },
+    {
+      "class_a": "com.waqiti.payment.checkdeposit.dto.CheckImageMetadata",
+      "class_b": "com.waqiti.payment.checkdeposit.service.S3ImageStorageService"
+    },
+    {
+      "class_a": "com.waqiti.payment.checkdeposit.service.S3ImageStorageService",
+      "class_b": "com.waqiti.payment.checkdeposit.dto.CheckImageMetadata"
+    },
+    {
+      "class_a": "com.waqiti.notification.client.AnalyticsServiceClient",
+      "class_b": "com.waqiti.notification.client.fallback.AnalyticsServiceClientFallback"
+    },
+    {
+      "class_a": "com.waqiti.notification.client.PaymentServiceClient",
+      "class_b": "com.waqiti.notification.client.fallback.PaymentServiceClientFallback"
+    },
+    {
+      "class_a": "com.waqiti.notification.client.UserServiceClient",
+      "class_b": "com.waqiti.notification.client.fallback.UserServiceClientFallback"
+    },
+    {
+      "class_a": "com.waqiti.notification.client.WalletServiceClient",
+      "class_b": "com.waqiti.notification.client.fallback.WalletServiceClientFallback"
+    },
+    {
+      "class_a": "com.waqiti.notification.client.fallback.PaymentServiceClientFallback",
+      "class_b": "com.waqiti.notification.client.PaymentServiceClient"
+    },
+    {
+      "class_a": "com.waqiti.notification.client.fallback.AnalyticsServiceClientFallback",
+      "class_b": "com.waqiti.notification.client.AnalyticsServiceClient"
+    },
+    {
+      "class_a": "com.waqiti.notification.client.fallback.WalletServiceClientFallback",
+      "class_b": "com.waqiti.notification.client.WalletServiceClient"
+    },
+    {
+      "class_a": "com.waqiti.notification.client.fallback.UserServiceClientFallback",
+      "class_b": "com.waqiti.notification.client.UserServiceClient"
+    }
+  ],
+  "services_affected": {
+    "payment-service": 1807,
+    "compliance-service": 744,
+    "user-service": 493,
+    "wallet-service": 465,
+    "fraud-detection-service": 440,
+    "account-service": 373,
+    "security-service": 371,
+    "monitoring-service": 250,
+    "lending-service": 244,
+    "common": 231,
+    "crypto-service": 229,
+    "notification-service": 221,
+    "customer-service": 214,
+    "merchant-service": 211,
+    "kyc-service": 202,
+    "investment-service": 188,
+    "ledger-service": 170,
+    "international-service": 168,
+    "risk-service": 150,
+    "transaction-service": 147
+  }
+}

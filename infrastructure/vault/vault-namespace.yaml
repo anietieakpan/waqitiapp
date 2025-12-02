@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: vault-system
+  labels:
+    name: vault-system
+    app: hashicorp-vault
+    security: critical

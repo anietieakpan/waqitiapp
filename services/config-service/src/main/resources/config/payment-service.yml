@@ -1,0 +1,116 @@
+# Payment Service specific configuration
+server:
+  port: 8082
+
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/waqiti_payments
+    username: ${DB_USERNAME:payment_service}
+    password: ${DB_PASSWORD:paymentpass}
+  kafka:
+    topics:
+          payment-initiated: payment.initiated
+          payment-processing: payment.processing
+          payment-completed: payment.completed
+          payment-failed: payment.failed
+          payment-refunded: payment.refunded
+          fraud-detected: payment.fraud.detected
+
+
+# Payment service specific settings
+payment:
+  # Payment processing
+  processing:
+    timeout: 30000  # 30 seconds
+    retry-attempts: 3
+    batch-size: 50
+    
+  # Payment providers
+  providers:
+    stripe:
+      enabled: true
+      public-key: ${STRIPE_PUBLIC_KEY:?Stripe public key must be provided via STRIPE_PUBLIC_KEY environment variable}
+      secret-key: ${STRIPE_SECRET_KEY:?Stripe secret key must be provided via STRIPE_SECRET_KEY environment variable}
+      webhook-secret: ${STRIPE_WEBHOOK_SECRET:?Stripe webhook secret must be provided via STRIPE_WEBHOOK_SECRET environment variable}
+      api-version: "2023-10-16"
+      
+    paypal:
+      enabled: true
+      client-id: ${PAYPAL_CLIENT_ID:}
+      client-secret: ${PAYPAL_CLIENT_SECRET:}
+      mode: ${PAYPAL_MODE:sandbox}  # sandbox or live
+      
+    plaid:
+      enabled: true
+      client-id: ${PLAID_CLIENT_ID:}
+      secret: ${PLAID_SECRET:}
+      environment: ${PLAID_ENVIRONMENT:sandbox}  # sandbox, development, production
+      
+    square:
+      enabled: true
+      access-token: ${SQUARE_ACCESS_TOKEN:}
+      application-id: ${SQUARE_APPLICATION_ID:}
+      environment: ${SQUARE_ENVIRONMENT:production}  # sandbox or production
+      webhook-secret: ${SQUARE_WEBHOOK_SECRET:}
+      
+    braintree:
+      enabled: true
+      merchant-id: ${BRAINTREE_MERCHANT_ID:}
+      public-key: ${BRAINTREE_PUBLIC_KEY:}
+      private-key: ${BRAINTREE_PRIVATE_KEY:}
+      environment: ${BRAINTREE_ENVIRONMENT:production}  # sandbox or production
+      
+    adyen:
+      enabled: true
+      api-key: ${ADYEN_API_KEY:}
+      merchant-account: ${ADYEN_MERCHANT_ACCOUNT:}
+      environment: ${ADYEN_ENVIRONMENT:live}  # test or live
+      webhook-hmac-key: ${ADYEN_WEBHOOK_HMAC_KEY:}
+      
+    dwolla:
+      enabled: true
+      key: ${DWOLLA_KEY:}
+      secret: ${DWOLLA_SECRET:}
+      environment: ${DWOLLA_ENVIRONMENT:production}  # sandbox or production
+      webhook-secret: ${DWOLLA_WEBHOOK_SECRET:}
+      
+  # Payment limits
+  limits:
+    daily-send-limit: 25000
+    weekly-send-limit: 100000
+    monthly-send-limit: 500000
+    single-transaction-limit: 25000
+    
+  # Fraud detection
+  fraud:
+    enabled: true
+    velocity-check: true
+    amount-threshold: 10000
+    suspicious-pattern-detection: true
+    
+# Service specific Kafka topics
+# External service configurations
+feign:
+  client:
+    config:
+      stripe:
+        connectTimeout: 5000
+        readTimeout: 10000
+      paypal:
+        connectTimeout: 5000
+        readTimeout: 15000
+      plaid:
+        connectTimeout: 5000
+        readTimeout: 10000
+      square:
+        connectTimeout: 5000
+        readTimeout: 10000
+      braintree:
+        connectTimeout: 8000
+        readTimeout: 15000
+      adyen:
+        connectTimeout: 5000
+        readTimeout: 12000
+      dwolla:
+        connectTimeout: 8000
+        readTimeout: 20000

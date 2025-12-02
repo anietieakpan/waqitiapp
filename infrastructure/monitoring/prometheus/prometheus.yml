@@ -1,0 +1,297 @@
+# Prometheus Configuration for Waqiti Banking Platform
+# Comprehensive monitoring setup for all microservices
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'waqiti-banking'
+    environment: 'production'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+# Rules for alerting
+rule_files:
+  - "/etc/prometheus/rules/*.yml"
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Service discovery for Kubernetes
+  - job_name: 'kubernetes-nodes'
+    kubernetes_sd_configs:
+      - role: node
+    relabel_configs:
+      - source_labels: [__address__]
+        regex: '(.*):10250'
+        target_label: __address__
+        replacement: '${1}:9100'
+
+  # Core Banking Service
+  - job_name: 'core-banking-service'
+    static_configs:
+      - targets: 
+          - 'core-banking-service:8082'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+    scrape_timeout: 5s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'core-banking-service'
+      - target_label: service
+        replacement: 'core-banking'
+
+  # User Service
+  - job_name: 'user-service'
+    static_configs:
+      - targets: 
+          - 'user-service:8081'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+    relabel_configs:
+      - target_label: service
+        replacement: 'user-service'
+
+  # Transaction Service
+  - job_name: 'transaction-service'
+    static_configs:
+      - targets: 
+          - 'transaction-service:8083'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 5s  # More frequent for transaction monitoring
+    relabel_configs:
+      - target_label: service
+        replacement: 'transaction-service'
+
+  # Payment Service
+  - job_name: 'payment-service'
+    static_configs:
+      - targets: 
+          - 'payment-service:8084'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+    relabel_configs:
+      - target_label: service
+        replacement: 'payment-service'
+
+  # Wallet Service
+  - job_name: 'wallet-service'
+    static_configs:
+      - targets: 
+          - 'wallet-service:8085'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+    relabel_configs:
+      - target_label: service
+        replacement: 'wallet-service'
+
+  # ML Service
+  - job_name: 'ml-service'
+    static_configs:
+      - targets: 
+          - 'ml-service:8086'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 15s
+    relabel_configs:
+      - target_label: service
+        replacement: 'ml-service'
+
+  # Saga Orchestration Service
+  - job_name: 'saga-orchestration-service'
+    static_configs:
+      - targets: 
+          - 'saga-orchestration-service:8087'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+    relabel_configs:
+      - target_label: service
+        replacement: 'saga-orchestration'
+
+  # Event Sourcing Service
+  - job_name: 'event-sourcing-service'
+    static_configs:
+      - targets: 
+          - 'event-sourcing-service:8088'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 15s
+    relabel_configs:
+      - target_label: service
+        replacement: 'event-sourcing'
+
+  # Ledger Service
+  - job_name: 'ledger-service'
+    static_configs:
+      - targets: 
+          - 'ledger-service:8089'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+    relabel_configs:
+      - target_label: service
+        replacement: 'ledger-service'
+
+  # Integration Service
+  - job_name: 'integration-service'
+    static_configs:
+      - targets: 
+          - 'integration-service:8090'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+    relabel_configs:
+      - target_label: service
+        replacement: 'integration-service'
+
+  # API Gateway
+  - job_name: 'api-gateway'
+    static_configs:
+      - targets: 
+          - 'api-gateway:8080'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 5s  # More frequent for gateway monitoring
+    relabel_configs:
+      - target_label: service
+        replacement: 'api-gateway'
+
+  # Notification Service
+  - job_name: 'notification-service'
+    static_configs:
+      - targets: 
+          - 'notification-service:8091'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 15s
+    relabel_configs:
+      - target_label: service
+        replacement: 'notification-service'
+
+  # Analytics Service
+  - job_name: 'analytics-service'
+    static_configs:
+      - targets: 
+          - 'analytics-service:8092'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 30s
+    relabel_configs:
+      - target_label: service
+        replacement: 'analytics-service'
+
+  # Audit Service
+  - job_name: 'audit-service'
+    static_configs:
+      - targets: 
+          - 'audit-service:8093'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 15s
+    relabel_configs:
+      - target_label: service
+        replacement: 'audit-service'
+
+  # Discovery Service (Eureka)
+  - job_name: 'discovery-service'
+    static_configs:
+      - targets: 
+          - 'discovery-service:8761'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 30s
+    relabel_configs:
+      - target_label: service
+        replacement: 'discovery-service'
+
+  # Config Service
+  - job_name: 'config-service'
+    static_configs:
+      - targets: 
+          - 'config-service:8888'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 30s
+    relabel_configs:
+      - target_label: service
+        replacement: 'config-service'
+
+  # Security Service
+  - job_name: 'security-service'
+    static_configs:
+      - targets: 
+          - 'security-service:8094'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+    relabel_configs:
+      - target_label: service
+        replacement: 'security-service'
+
+  # Infrastructure Services
+  - job_name: 'postgresql'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+    relabel_configs:
+      - target_label: service
+        replacement: 'postgresql'
+
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+    relabel_configs:
+      - target_label: service
+        replacement: 'redis'
+
+  - job_name: 'kafka'
+    static_configs:
+      - targets: ['kafka-exporter:9308']
+    relabel_configs:
+      - target_label: service
+        replacement: 'kafka'
+
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: 
+          - 'node-exporter:9100'
+    relabel_configs:
+      - target_label: service
+        replacement: 'system'
+
+  # Blackbox monitoring for external dependencies
+  - job_name: 'blackbox'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+          - https://api.example.com/health  # External API dependency
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
+  # Custom business metrics
+  - job_name: 'business-metrics'
+    static_configs:
+      - targets: ['business-metrics-exporter:9200']
+    scrape_interval: 60s
+    relabel_configs:
+      - target_label: service
+        replacement: 'business-metrics'
+
+# Remote write configuration for long-term storage
+remote_write:
+  - url: "http://cortex:9009/api/prom/push"
+    queue_config:
+      max_samples_per_send: 1000
+      max_shards: 200
+      capacity: 2500
+
+# Storage configuration
+storage:
+  tsdb:
+    retention: "15d"
+    wal-compression: true

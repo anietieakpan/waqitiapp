@@ -1,0 +1,111 @@
+# Keycloak Configuration for Purchase Protection Service
+
+keycloak:
+  enabled: true
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  ssl-required: external
+  resource: purchase-protection-service
+  bearer-only: true
+  credentials:
+    secret: ${PURCHASE_PROTECTION_SERVICE_CLIENT_SECRET}
+  use-resource-role-mappings: true
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# Purchase Protection Service Security Configuration
+purchase-protection:
+  security:
+    # Public endpoints that don't require authentication
+    public-endpoints:
+      - /actuator/health
+      - /actuator/info
+      - /api/v1/protection/terms/public
+      - /swagger-ui/**
+      - /v3/api-docs/**
+    
+    # Service-to-service endpoints
+    service-endpoints:
+      - /internal/purchase-protection/**
+    
+    # Required roles for purchase protection operations
+    required-roles:
+      read:
+        - USER
+        - PROTECTION_USER
+      claim-create:
+        - USER
+        - PROTECTION_USER
+      claim-read:
+        - USER
+        - PROTECTION_USER
+        - CLAIM_PROCESSOR
+      claim-investigation:
+        - CLAIM_INVESTIGATOR
+        - PROTECTION_ANALYST
+      claim-approval:
+        - CLAIM_APPROVER
+        - PROTECTION_MANAGER
+      fraud-investigation:
+        - FRAUD_INVESTIGATOR
+        - SECURITY_ANALYST
+      underwriting:
+        - UNDERWRITER
+        - PROTECTION_UNDERWRITER
+      management:
+        - PROTECTION_MANAGER
+        - PROTECTION_OPERATOR
+      admin:
+        - PROTECTION_ADMIN
+        - SYSTEM_ADMIN
+    
+    # Required scopes for operations
+    required-scopes:
+      claim-read: protection:claim:read
+      claim-write: protection:claim:write
+      investigation: protection:investigation
+      approval: protection:approval
+      fraud-detection: protection:fraud:detection
+      underwriting: protection:underwriting
+      refund-processing: protection:refund:processing
+      coverage-analysis: protection:coverage:analysis
+      admin: protection:admin
+      management: protection:manage
+    
+    # Purchase protection security features
+    features:
+      fraud-detection-enabled: true
+      claim-validation-enabled: true
+      merchant-verification-enabled: true
+      purchase-verification-enabled: true
+      automated-underwriting-enabled: true
+      risk-assessment-enabled: true
+      
+    # Purchase protection limits and thresholds
+    limits:
+      max-claim-amount: 10000.00
+      max-claims-per-user-per-year: 5
+      claim-filing-window-days: 60
+      investigation-period-days: 30
+      
+    # Security thresholds requiring investigation
+    investigation-thresholds:
+      high-value-claim: 2000.00
+      suspicious-merchant-pattern: 3
+      repeated-claims-from-user: 2
+      fraud-indicators-count: 2
+      
+    # Advanced security features
+    advanced-security:
+      require-purchase-verification: true
+      automatic-merchant-screening: true
+      ml-based-fraud-detection: true
+      transaction-pattern-analysis: true
+      merchant-risk-scoring: true
+      claim-authenticity-verification: true

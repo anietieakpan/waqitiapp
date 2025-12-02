@@ -1,0 +1,386 @@
+# Docker Compose SSL/HTTPS Override Configuration
+# This file configures all services to use HTTPS and secure communications
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.ssl.yml up
+
+version: '3.8'
+
+services:
+  # Eureka Service Discovery with HTTPS
+  eureka-server:
+    environment:
+      - SPRING_PROFILES_ACTIVE=ssl,production
+      - SERVER_PORT=8761
+      - SSL_KEYSTORE_PATH=/ssl/waqiti-keystore.p12
+      - SSL_KEYSTORE_PASSWORD=${SSL_KEYSTORE_PASSWORD}
+      - SSL_TRUSTSTORE_PATH=/ssl/waqiti-truststore.p12
+      - SSL_TRUSTSTORE_PASSWORD=${SSL_TRUSTSTORE_PASSWORD}
+      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=https://eureka-server:8761/eureka
+      - EUREKA_INSTANCE_SECURE_PORT_ENABLED=true
+      - EUREKA_INSTANCE_SECURE_PORT=8761
+      - EUREKA_INSTANCE_NON_SECURE_PORT_ENABLED=false
+    ports:
+      - "8761:8761"
+    volumes:
+      - ./docker/ssl:/ssl:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-k", "https://localhost:8761/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Config Service with HTTPS
+  config-service:
+    environment:
+      - SPRING_PROFILES_ACTIVE=ssl,production
+      - SERVER_PORT=8888
+      - SSL_KEYSTORE_PATH=/ssl/waqiti-keystore.p12
+      - SSL_KEYSTORE_PASSWORD=${SSL_KEYSTORE_PASSWORD}
+      - SSL_TRUSTSTORE_PATH=/ssl/waqiti-truststore.p12
+      - SSL_TRUSTSTORE_PASSWORD=${SSL_TRUSTSTORE_PASSWORD}
+      - EUREKA_SERVER_URL=https://eureka-server:8761/eureka
+      - VAULT_SCHEME=https
+      - VAULT_URI=https://vault:8200
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./docker/ssl:/ssl:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-k", "https://localhost:8888/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # API Gateway with HTTPS
+  api-gateway:
+    environment:
+      - SPRING_PROFILES_ACTIVE=ssl,production
+      - SERVER_PORT=8443
+      - SSL_KEYSTORE_PATH=/ssl/waqiti-keystore.p12
+      - SSL_KEYSTORE_PASSWORD=${SSL_KEYSTORE_PASSWORD}
+      - SSL_TRUSTSTORE_PATH=/ssl/waqiti-truststore.p12
+      - SSL_TRUSTSTORE_PASSWORD=${SSL_TRUSTSTORE_PASSWORD}
+      - EUREKA_URI=https://eureka-server:8761/eureka
+      - CONFIG_SERVER_URL=https://config-service:8888
+      - KEYCLOAK_AUTH_SERVER_URL=https://keycloak:8080
+      - ALLOWED_ORIGINS=https://app.example.com,https://admin.example.com,https://dashboard.example.com
+    ports:
+      - "8443:8443"
+      - "8080:8080"  # HTTP redirect port
+    volumes:
+      - ./docker/ssl:/ssl:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-k", "https://localhost:8443/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # User Service with HTTPS
+  user-service:
+    environment:
+      - SPRING_PROFILES_ACTIVE=ssl,production
+      - SERVER_PORT=8443
+      - SSL_KEYSTORE_PATH=/ssl/waqiti-keystore.p12
+      - SSL_KEYSTORE_PASSWORD=${SSL_KEYSTORE_PASSWORD}
+      - SSL_TRUSTSTORE_PATH=/ssl/waqiti-truststore.p12
+      - SSL_TRUSTSTORE_PASSWORD=${SSL_TRUSTSTORE_PASSWORD}
+      - EUREKA_URI=https://eureka-server:8761/eureka
+      - CONFIG_SERVER_URL=https://config-service:8888
+      - KEYCLOAK_AUTH_SERVER_URL=https://keycloak:8080
+    ports:
+      - "8081:8443"
+    volumes:
+      - ./docker/ssl:/ssl:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-k", "https://localhost:8443/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Wallet Service with HTTPS
+  wallet-service:
+    environment:
+      - SPRING_PROFILES_ACTIVE=ssl,production
+      - SERVER_PORT=8443
+      - SSL_KEYSTORE_PATH=/ssl/waqiti-keystore.p12
+      - SSL_KEYSTORE_PASSWORD=${SSL_KEYSTORE_PASSWORD}
+      - SSL_TRUSTSTORE_PATH=/ssl/waqiti-truststore.p12
+      - SSL_TRUSTSTORE_PASSWORD=${SSL_TRUSTSTORE_PASSWORD}
+      - EUREKA_URI=https://eureka-server:8761/eureka
+      - CONFIG_SERVER_URL=https://config-service:8888
+      - KEYCLOAK_AUTH_SERVER_URL=https://keycloak:8080
+    ports:
+      - "8082:8443"
+    volumes:
+      - ./docker/ssl:/ssl:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-k", "https://localhost:8443/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Payment Service with HTTPS
+  payment-service:
+    environment:
+      - SPRING_PROFILES_ACTIVE=ssl,production
+      - SERVER_PORT=8443
+      - SSL_KEYSTORE_PATH=/ssl/waqiti-keystore.p12
+      - SSL_KEYSTORE_PASSWORD=${SSL_KEYSTORE_PASSWORD}
+      - SSL_TRUSTSTORE_PATH=/ssl/waqiti-truststore.p12
+      - SSL_TRUSTSTORE_PASSWORD=${SSL_TRUSTSTORE_PASSWORD}
+      - EUREKA_URI=https://eureka-server:8761/eureka
+      - CONFIG_SERVER_URL=https://config-service:8888
+      - KEYCLOAK_AUTH_SERVER_URL=https://keycloak:8080
+    ports:
+      - "8083:8443"
+    volumes:
+      - ./docker/ssl:/ssl:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-k", "https://localhost:8443/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Notification Service with HTTPS
+  notification-service:
+    environment:
+      - SPRING_PROFILES_ACTIVE=ssl,production
+      - SERVER_PORT=8443
+      - SSL_KEYSTORE_PATH=/ssl/waqiti-keystore.p12
+      - SSL_KEYSTORE_PASSWORD=${SSL_KEYSTORE_PASSWORD}
+      - SSL_TRUSTSTORE_PATH=/ssl/waqiti-truststore.p12
+      - SSL_TRUSTSTORE_PASSWORD=${SSL_TRUSTSTORE_PASSWORD}
+      - EUREKA_URI=https://eureka-server:8761/eureka
+      - CONFIG_SERVER_URL=https://config-service:8888
+      - KEYCLOAK_AUTH_SERVER_URL=https://keycloak:8080
+    ports:
+      - "8084:8443"
+    volumes:
+      - ./docker/ssl:/ssl:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-k", "https://localhost:8443/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Compliance Service with HTTPS
+  compliance-service:
+    environment:
+      - SPRING_PROFILES_ACTIVE=ssl,production
+      - SERVER_PORT=8443
+      - SSL_KEYSTORE_PATH=/ssl/waqiti-keystore.p12
+      - SSL_KEYSTORE_PASSWORD=${SSL_KEYSTORE_PASSWORD}
+      - SSL_TRUSTSTORE_PATH=/ssl/waqiti-truststore.p12
+      - SSL_TRUSTSTORE_PASSWORD=${SSL_TRUSTSTORE_PASSWORD}
+      - EUREKA_URI=https://eureka-server:8761/eureka
+      - CONFIG_SERVER_URL=https://config-service:8888
+      - KEYCLOAK_AUTH_SERVER_URL=https://keycloak:8080
+    ports:
+      - "8085:8443"
+    volumes:
+      - ./docker/ssl:/ssl:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-k", "https://localhost:8443/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Security Service with HTTPS
+  security-service:
+    environment:
+      - SPRING_PROFILES_ACTIVE=ssl,production
+      - SERVER_PORT=8443
+      - SSL_KEYSTORE_PATH=/ssl/waqiti-keystore.p12
+      - SSL_KEYSTORE_PASSWORD=${SSL_KEYSTORE_PASSWORD}
+      - SSL_TRUSTSTORE_PATH=/ssl/waqiti-truststore.p12
+      - SSL_TRUSTSTORE_PASSWORD=${SSL_TRUSTSTORE_PASSWORD}
+      - EUREKA_URI=https://eureka-server:8761/eureka
+      - CONFIG_SERVER_URL=https://config-service:8888
+      - KEYCLOAK_AUTH_SERVER_URL=https://keycloak:8080
+    ports:
+      - "8086:8443"
+    volumes:
+      - ./docker/ssl:/ssl:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-k", "https://localhost:8443/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # KYC Service with HTTPS
+  kyc-service:
+    environment:
+      - SPRING_PROFILES_ACTIVE=ssl,production
+      - SERVER_PORT=8443
+      - SSL_KEYSTORE_PATH=/ssl/waqiti-keystore.p12
+      - SSL_KEYSTORE_PASSWORD=${SSL_KEYSTORE_PASSWORD}
+      - SSL_TRUSTSTORE_PATH=/ssl/waqiti-truststore.p12
+      - SSL_TRUSTSTORE_PASSWORD=${SSL_TRUSTSTORE_PASSWORD}
+      - EUREKA_URI=https://eureka-server:8761/eureka
+      - CONFIG_SERVER_URL=https://config-service:8888
+      - KEYCLOAK_AUTH_SERVER_URL=https://keycloak:8080
+    ports:
+      - "8087:8443"
+    volumes:
+      - ./docker/ssl:/ssl:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-k", "https://localhost:8443/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Analytics Service with HTTPS
+  analytics-service:
+    environment:
+      - SPRING_PROFILES_ACTIVE=ssl,production
+      - SERVER_PORT=8443
+      - SSL_KEYSTORE_PATH=/ssl/waqiti-keystore.p12
+      - SSL_KEYSTORE_PASSWORD=${SSL_KEYSTORE_PASSWORD}
+      - SSL_TRUSTSTORE_PATH=/ssl/waqiti-truststore.p12
+      - SSL_TRUSTSTORE_PASSWORD=${SSL_TRUSTSTORE_PASSWORD}
+      - EUREKA_URI=https://eureka-server:8761/eureka
+      - CONFIG_SERVER_URL=https://config-service:8888
+      - KEYCLOAK_AUTH_SERVER_URL=https://keycloak:8080
+    ports:
+      - "8088:8443"
+    volumes:
+      - ./docker/ssl:/ssl:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-k", "https://localhost:8443/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Database with SSL
+  postgres:
+    environment:
+      - POSTGRES_DB=waqiti
+      - POSTGRES_USER=waqiti_user
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_SSL_MODE=require
+    volumes:
+      - ./docker/ssl:/ssl:ro
+      - postgres_data:/var/lib/postgresql/data
+    command: >
+      postgres
+      -c ssl=on
+      -c ssl_cert_file=/ssl/waqiti-ca-cert.pem
+      -c ssl_key_file=/ssl/waqiti-ca-key.pem
+      -c ssl_ca_file=/ssl/waqiti-ca-cert.pem
+
+  # Redis with SSL
+  redis:
+    environment:
+      - REDIS_TLS_ENABLED=yes
+      - REDIS_TLS_PORT=6380
+      - REDIS_TLS_CERT_FILE=/ssl/waqiti-ca-cert.pem
+      - REDIS_TLS_KEY_FILE=/ssl/waqiti-ca-key.pem
+      - REDIS_TLS_CA_CERT_FILE=/ssl/waqiti-ca-cert.pem
+    ports:
+      - "6380:6380"
+    volumes:
+      - ./docker/ssl:/ssl:ro
+    command: >
+      redis-server
+      --tls-port 6380
+      --port 0
+      --tls-cert-file /ssl/waqiti-ca-cert.pem
+      --tls-key-file /ssl/waqiti-ca-key.pem
+      --tls-ca-cert-file /ssl/waqiti-ca-cert.pem
+
+  # Kafka with SSL
+  kafka:
+    environment:
+      - KAFKA_SSL_ENABLED=true
+      - KAFKA_SSL_KEYSTORE_LOCATION=/ssl/kafka-keystore.jks
+      - KAFKA_SSL_KEYSTORE_PASSWORD=${KAFKA_SSL_KEYSTORE_PASSWORD}
+      - KAFKA_SSL_TRUSTSTORE_LOCATION=/ssl/kafka-truststore.jks
+      - KAFKA_SSL_TRUSTSTORE_PASSWORD=${KAFKA_SSL_TRUSTSTORE_PASSWORD}
+      - KAFKA_SECURITY_PROTOCOL=SSL
+      - KAFKA_SSL_CLIENT_AUTH=required
+      - KAFKA_LISTENERS=SSL://0.0.0.0:9093
+      - KAFKA_ADVERTISED_LISTENERS=SSL://kafka:9093
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=SSL:SSL
+      - KAFKA_INTER_BROKER_LISTENER_NAME=SSL
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./docker/ssl:/ssl:ro
+
+  # Vault with HTTPS
+  vault:
+    environment:
+      - VAULT_ADDR=https://vault:8200
+      - VAULT_API_ADDR=https://vault:8200
+      - VAULT_TLS_CERT_FILE=/ssl/waqiti-ca-cert.pem
+      - VAULT_TLS_KEY_FILE=/ssl/waqiti-ca-key.pem
+    ports:
+      - "8200:8200"
+    volumes:
+      - ./docker/ssl:/ssl:ro
+      - vault_data:/vault/data
+    cap_add:
+      - IPC_LOCK
+    command: >
+      vault server
+      -config=/vault/config/vault.hcl
+      -log-level=info
+
+  # Keycloak with HTTPS
+  keycloak:
+    environment:
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD}
+      - KC_HTTPS_CERTIFICATE_FILE=/ssl/waqiti-ca-cert.pem
+      - KC_HTTPS_CERTIFICATE_KEY_FILE=/ssl/waqiti-ca-key.pem
+      - KC_HOSTNAME=keycloak.example.com
+      - KC_HOSTNAME_STRICT=false
+      - KC_HTTPS_PORT=8080
+      - KC_HTTP_ENABLED=false
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./docker/ssl:/ssl:ro
+    command: >
+      start --optimized
+      --https-certificate-file=/ssl/waqiti-ca-cert.pem
+      --https-certificate-key-file=/ssl/waqiti-ca-key.pem
+
+  # Prometheus with HTTPS
+  prometheus:
+    volumes:
+      - ./docker/ssl:/ssl:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+      - '--web.listen-address=:9090'
+      - '--web.config.file=/ssl/prometheus-web.yml'
+
+  # Grafana with HTTPS
+  grafana:
+    environment:
+      - GF_SERVER_PROTOCOL=https
+      - GF_SERVER_CERT_FILE=/ssl/waqiti-ca-cert.pem
+      - GF_SERVER_CERT_KEY=/ssl/waqiti-ca-key.pem
+      - GF_SERVER_ROOT_URL=https://grafana.example.com:3000
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./docker/ssl:/ssl:ro
+      - grafana_data:/var/lib/grafana
+
+volumes:
+  postgres_data:
+  vault_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  default:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

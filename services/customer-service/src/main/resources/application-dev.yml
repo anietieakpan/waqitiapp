@@ -1,0 +1,58 @@
+spring:
+  # Development Profile Configuration
+  datasource:
+    url: jdbc:postgresql://localhost:5432/waqiti_customer_dev
+    username: waqiti_dev
+    password: ${VAULT_DB_PASSWORD:}
+    hikari:
+      maximum-pool-size: 5
+
+  jpa:
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: customer-service-dev-group
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8080/realms/waqiti
+          jwk-set-uri: http://localhost:8080/realms/waqiti/protocol/openid-connect/certs
+
+server:
+  port: 8086
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    instance-id: ${spring.application.name}:${server.port}
+
+logging:
+  level:
+    root: INFO
+    com.waqiti.customer: DEBUG
+    com.example.common: DEBUG
+    org.springframework.web: DEBUG
+    org.springframework.kafka: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    io.github.resilience4j: DEBUG
+
+# Disable security for local development (optional - comment out for full security testing)
+# management:
+#   security:
+#     enabled: false

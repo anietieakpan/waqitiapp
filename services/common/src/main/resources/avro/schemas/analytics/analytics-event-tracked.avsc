@@ -1,0 +1,95 @@
+{
+  "type": "record",
+  "name": "AnalyticsEventTrackedEvent",
+  "namespace": "com.waqiti.events.v1",
+  "doc": "Event published for analytics tracking",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "Unique event identifier (UUID)"
+    },
+    {
+      "name": "eventType",
+      "type": "string",
+      "default": "analytics-event-tracked",
+      "doc": "Type of event"
+    },
+    {
+      "name": "timestamp",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "Event timestamp in epoch milliseconds"
+    },
+    {
+      "name": "correlationId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Correlation ID for distributed tracing"
+    },
+    {
+      "name": "version",
+      "type": "string",
+      "default": "1.0",
+      "doc": "Schema version"
+    },
+    {
+      "name": "userId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "User ID (UUID)"
+    },
+    {
+      "name": "sessionId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Session ID"
+    },
+    {
+      "name": "eventName",
+      "type": "string",
+      "doc": "Name of the tracked event"
+    },
+    {
+      "name": "eventCategory",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Event category"
+    },
+    {
+      "name": "platform",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Platform (web, ios, android)"
+    },
+    {
+      "name": "deviceInfo",
+      "type": ["null", {
+        "type": "map",
+        "values": "string"
+      }],
+      "default": null,
+      "doc": "Device information"
+    },
+    {
+      "name": "properties",
+      "type": ["null", {
+        "type": "map",
+        "values": "string"
+      }],
+      "default": null,
+      "doc": "Event properties"
+    },
+    {
+      "name": "metadata",
+      "type": ["null", {
+        "type": "map",
+        "values": "string"
+      }],
+      "default": null,
+      "doc": "Additional metadata"
+    }
+  ]
+}

@@ -1,0 +1,65 @@
+# Production database configuration with optimized connection pooling
+spring:
+  datasource:
+    hikari:
+      enabled: true
+      # Production-optimized pool settings for user service
+      maximum-pool-size: 50           # Max connections in pool
+      minimum-idle: 15                # Minimum idle connections
+      connection-timeout: 20000       # 20 seconds to get connection
+      idle-timeout: 600000           # 10 minutes idle timeout
+      max-lifetime: 1800000          # 30 minutes max connection lifetime
+      validation-timeout: 5000       # 5 seconds validation timeout
+      leak-detection-threshold: 60000 # 1 minute leak detection
+      
+      # Connection pool monitoring
+      register-mbeans: true
+      
+  jpa:
+    # Production JPA settings
+    hibernate:
+      ddl-auto: validate              # Never auto-create in production
+    properties:
+      hibernate:
+        # Query optimization
+        jdbc.batch_size: 25
+        order_inserts: true
+        order_updates: true
+        jdbc.batch_versioned_data: true
+        
+        # Connection provider optimizations
+        connection.provider_disables_autocommit: true
+        
+        # SQL logging disabled in production
+        show_sql: false
+        format_sql: false
+        
+        # Cache settings
+        cache.use_second_level_cache: true
+        cache.use_query_cache: true
+        cache.region.factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
+        javax.cache.provider: org.ehcache.jsr107.EhcacheCachingProvider
+        
+        # Statistics for monitoring
+        generate_statistics: true
+
+# Actuator endpoints for monitoring connection pool
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics,hikaricp
+  endpoint:
+    health:
+      show-details: when-authorized
+    hikaricp:
+      enabled: true
+
+# Logging configuration for production
+logging:
+  level:
+    com.zaxxer.hikari: INFO
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+    com.waqiti: INFO
+    root: INFO

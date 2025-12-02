@@ -1,0 +1,289 @@
+# Bitcoin and Lightning Network Configuration for Waqiti Crypto Service
+
+# Bitcoin Core Node Configuration
+waqiti:
+  bitcoin:
+    # Network selection (mainnet, testnet, regtest)
+    network: ${BITCOIN_NETWORK:testnet}
+    
+    # Bitcoin Core RPC connection
+    node-host: ${BITCOIN_NODE_HOST:bitcoin-core}
+    node-port: ${BITCOIN_NODE_PORT:8332}
+    rpc-user: ${BITCOIN_RPC_USER:waqiti}
+    rpc-password: ${BITCOIN_RPC_PASSWORD}
+    
+    # Connection timeouts
+    connection-timeout: ${BITCOIN_CONNECTION_TIMEOUT:30000}
+    read-timeout: ${BITCOIN_READ_TIMEOUT:60000}
+    
+    # SSL/TLS settings
+    enable-ssl: ${BITCOIN_ENABLE_SSL:false}
+    ssl-cert-path: ${BITCOIN_SSL_CERT_PATH:/etc/ssl/certs/bitcoin.pem}
+    
+    # ZMQ (ZeroMQ) settings for real-time notifications
+    zmq-host: ${BITCOIN_ZMQ_HOST:bitcoin-core}
+    zmq-block-port: ${BITCOIN_ZMQ_BLOCK_PORT:28332}
+    zmq-tx-port: ${BITCOIN_ZMQ_TX_PORT:28333}
+    
+    # Wallet configuration
+    wallet-name: ${BITCOIN_WALLET_NAME:waqiti-wallet}
+    create-wallet-if-not-exists: ${BITCOIN_CREATE_WALLET:true}
+    
+    # Fee estimation (sat/byte)
+    default-fee-rate: ${BITCOIN_DEFAULT_FEE_RATE:1.0}
+    economy-fee-rate: ${BITCOIN_ECONOMY_FEE_RATE:0.5}
+    priority-fee-rate: ${BITCOIN_PRIORITY_FEE_RATE:10.0}
+    
+    # Transaction confirmation settings
+    min-confirmations: ${BITCOIN_MIN_CONFIRMATIONS:3}
+    max-confirmations: ${BITCOIN_MAX_CONFIRMATIONS:6}
+    
+    # Lightning Network integration
+    enable-lightning: ${BITCOIN_ENABLE_LIGHTNING:true}
+
+  # Lightning Network Daemon (LND) Configuration  
+  lightning:
+    # LND gRPC connection
+    node-host: ${LND_NODE_HOST:lnd}
+    grpc-port: ${LND_GRPC_PORT:10009}
+    rest-port: ${LND_REST_PORT:8080}
+    
+    # TLS and Macaroon authentication
+    tls-cert-path: ${LND_TLS_CERT_PATH:/shared/tls.cert}
+    macaroon-path: ${LND_MACAROON_PATH:/shared/admin.macaroon}
+    
+    # Connection settings
+    connection-timeout-seconds: ${LND_CONNECTION_TIMEOUT:30}
+    call-timeout-seconds: ${LND_CALL_TIMEOUT:60}
+    max-inbound-message-size: ${LND_MAX_MESSAGE_SIZE:52428800} # 50MB
+    max-inbound-metadata-size: ${LND_MAX_METADATA_SIZE:8192}
+    
+    # Node identity
+    node-alias: ${LND_NODE_ALIAS:Waqiti-Lightning-Node}
+    node-color: ${LND_NODE_COLOR:#3399FF}
+    
+    # Channel management
+    min-channel-size: ${LND_MIN_CHANNEL_SIZE:100000}  # 100k sats
+    max-channel-size: ${LND_MAX_CHANNEL_SIZE:16777215} # Max Lightning channel size
+    auto-accept-channels: ${LND_AUTO_ACCEPT_CHANNELS:false}
+    
+    # Fee policy
+    base-fee: ${LND_BASE_FEE:1000}        # Base fee in millisats
+    fee-rate: ${LND_FEE_RATE:1}           # Fee rate per million
+    time-lock-delta: ${LND_TIME_LOCK_DELTA:144} # ~24 hours
+    
+    # Payment settings
+    max-payment-sat: ${LND_MAX_PAYMENT_SAT:1000000}  # 1M sats max
+    max-payment-attempts: ${LND_MAX_PAYMENT_ATTEMPTS:3}
+    payment-timeout-seconds: ${LND_PAYMENT_TIMEOUT:300}  # 5 minutes
+    
+    # Routing configuration
+    max-routing-hops: ${LND_MAX_ROUTING_HOPS:20}
+    routing-budget: ${LND_ROUTING_BUDGET:0.01}  # 1% of payment for routing fees
+    
+    # Security settings
+    require-macaroon: ${LND_REQUIRE_MACAROON:true}
+    require-tls: ${LND_REQUIRE_TLS:true}
+    
+    # Monitoring and health checks
+    enable-metrics: ${LND_ENABLE_METRICS:true}
+    enable-health-checks: ${LND_ENABLE_HEALTH_CHECKS:true}
+    health-check-interval-seconds: ${LND_HEALTH_CHECK_INTERVAL:30}
+
+# Spring Boot Configuration for Bitcoin integration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+      show-components: always
+    metrics:
+      enabled: true
+    prometheus:
+      enabled: true
+  health:
+    # Custom health indicators for Bitcoin infrastructure
+    bitcoin:
+      enabled: true
+    lightning:
+      enabled: true
+  metrics:
+    tags:
+      service: crypto-service
+      network: ${waqiti.bitcoin.network}
+      
+# Micrometer metrics configuration
+micrometer:
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+        descriptions: true
+        step: 10s
+      simple:
+        enabled: false
+    distribution:
+      percentiles:
+        bitcoin.rpc.call: 0.5,0.95,0.99
+        lightning.payment.duration: 0.5,0.95,0.99
+        lightning.channel.balance: 0.5,0.95,0.99
+
+# Logging configuration for Bitcoin operations
+logging:
+  level:
+    com.waqiti.crypto.bitcoin: ${BITCOIN_LOG_LEVEL:INFO}
+    com.waqiti.crypto.lightning: ${LIGHTNING_LOG_LEVEL:INFO}
+    org.bitcoinj: ${BITCOINJ_LOG_LEVEL:WARN}
+    io.grpc: ${GRPC_LOG_LEVEL:WARN}
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%X{traceId},%X{spanId}] %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%X{traceId},%X{spanId}] %logger{36} - %msg%n"
+
+# Circuit breaker configuration for Bitcoin/Lightning calls
+resilience4j:
+  circuitbreaker:
+    instances:
+      bitcoin-rpc:
+        register-health-indicator: true
+        sliding-window-size: 10
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        wait-duration-in-open-state: 5s
+        failure-rate-threshold: 50
+        minimum-number-of-calls: 5
+        slow-call-rate-threshold: 50
+        slow-call-duration-threshold: 2s
+      lightning-node:
+        register-health-indicator: true
+        sliding-window-size: 10
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        wait-duration-in-open-state: 10s
+        failure-rate-threshold: 50
+        minimum-number-of-calls: 5
+        slow-call-rate-threshold: 50
+        slow-call-duration-threshold: 5s
+      lightning-payments:
+        register-health-indicator: true
+        sliding-window-size: 20
+        permitted-number-of-calls-in-half-open-state: 5
+        automatic-transition-from-open-to-half-open-enabled: true
+        wait-duration-in-open-state: 30s
+        failure-rate-threshold: 30
+        minimum-number-of-calls: 10
+        slow-call-rate-threshold: 30
+        slow-call-duration-threshold: 10s
+
+  # Rate limiting for Lightning operations
+  ratelimiter:
+    instances:
+      lightning-operations:
+        limit-for-period: 100
+        limit-refresh-period: 1m
+        timeout-duration: 5s
+        register-health-indicator: true
+      channel-operations:
+        limit-for-period: 10
+        limit-refresh-period: 1m
+        timeout-duration: 10s
+        register-health-indicator: true
+      swap-operations:
+        limit-for-period: 5
+        limit-refresh-period: 1m
+        timeout-duration: 15s
+        register-health-indicator: true
+
+  # Retry configuration
+  retry:
+    instances:
+      lightning-payments:
+        max-attempts: 3
+        wait-duration: 2s
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+        ignore-exceptions:
+          - com.example.common.exception.BusinessException
+
+# Caching configuration for Bitcoin/Lightning data
+spring:
+  cache:
+    type: caffeine
+    caffeine:
+      spec: maximumSize=10000,expireAfterWrite=5m
+    cache-names:
+      - bitcoin-blocks
+      - bitcoin-transactions  
+      - lightning-invoices
+      - lightning-payments
+      - lightning-channels
+      - node-info
+      - lightning-stats
+
+# Task scheduling for Lightning operations
+  task:
+    scheduling:
+      pool:
+        size: 10
+      thread-name-prefix: lightning-scheduler-
+
+# Security configuration for Bitcoin operations
+security:
+  bitcoin:
+    encrypt-wallet-data: true
+    backup-encryption-key: ${BITCOIN_BACKUP_ENCRYPTION_KEY}
+  lightning:
+    encrypt-channel-backups: true
+    channel-backup-key: ${LIGHTNING_CHANNEL_BACKUP_KEY}
+
+# Database configuration for Lightning data persistence
+  datasource:
+    lightning:
+      driver-class-name: org.postgresql.Driver
+      url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${LIGHTNING_DB_NAME:waqiti_lightning}?ssl=${DB_SSL:false}&sslfactory=org.postgresql.ssl.NonValidatingFactory
+      username: ${LIGHTNING_DB_USER:waqiti_lightning}
+      password: ${LIGHTNING_DB_PASSWORD}
+      hikari:
+        maximum-pool-size: ${LIGHTNING_DB_POOL_SIZE:20}
+        minimum-idle: ${LIGHTNING_DB_MIN_IDLE:5}
+        idle-timeout: 300000
+        max-lifetime: 600000
+        connection-timeout: 10000
+        validation-timeout: 5000
+        leak-detection-threshold: 60000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: ${HIBERNATE_FORMAT_SQL:false}
+        show_sql: ${HIBERNATE_SHOW_SQL:false}
+        generate_statistics: ${HIBERNATE_STATS:false}
+        jdbc:
+          batch_size: 25
+          order_inserts: true
+          order_updates: true
+        cache:
+          use_second_level_cache: true
+          use_query_cache: true
+          region:
+            factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
+
+# OpenTelemetry configuration for distributed tracing
+otel:
+  traces:
+    exporter: prometheus
+  metrics:
+    exporter: prometheus
+  resource:
+    attributes:
+      service.name: waqiti-crypto-service
+      service.version: ${APPLICATION_VERSION:unknown}
+      bitcoin.network: ${waqiti.bitcoin.network}
+      lightning.node.alias: ${waqiti.lightning.node-alias}

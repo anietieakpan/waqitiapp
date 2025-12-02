@@ -1,0 +1,351 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: postgres-restore-job
+  namespace: database
+  labels:
+    app: postgres-restore
+    type: manual
+spec:
+  template:
+    spec:
+      serviceAccountName: postgres-backup-sa
+      containers:
+      - name: postgres-restore
+        image: postgres:15-alpine
+        command:
+        - /bin/bash
+        - -c
+        - |
+          set -e
+          echo "Starting PostgreSQL database restore"
+          
+          # Validation
+          if [ -z "$BACKUP_FILE" ]; then
+            echo "ERROR: BACKUP_FILE environment variable is required"
+            exit 1
+          fi
+          
+          if [ -z "$TARGET_DATABASE" ]; then
+            echo "ERROR: TARGET_DATABASE environment variable is required"
+            exit 1
+          fi
+          
+          echo "Downloading backup file: $BACKUP_FILE"
+          aws s3 cp s3://$S3_BUCKET/$BACKUP_FILE /tmp/restore.backup
+          
+          # Verify backup file integrity
+          if [ ! -f /tmp/restore.backup ]; then
+            echo "ERROR: Failed to download backup file"
+            exit 1
+          fi
+          
+          # Check if it's a compressed SQL dump or pg_dump format
+          file_type=$(file /tmp/restore.backup)
+          
+          if [[ $file_type == *"gzip"* ]]; then
+            echo "Detected gzipped SQL dump, extracting..."
+            gunzip /tmp/restore.backup
+            mv /tmp/restore /tmp/restore.sql
+            RESTORE_CMD="psql -h $POSTGRES_HOST -U $POSTGRES_USER -d $TARGET_DATABASE -f /tmp/restore.sql"
+          elif [[ $file_type == *"PostgreSQL"* ]]; then
+            echo "Detected pg_dump format, using pg_restore..."
+            RESTORE_CMD="pg_restore -h $POSTGRES_HOST -U $POSTGRES_USER -d $TARGET_DATABASE --clean --if-exists --no-owner --no-privileges /tmp/restore.backup"
+          else
+            echo "ERROR: Unknown backup file format"
+            exit 1
+          fi
+          
+          # Create target database if it doesn't exist
+          echo "Creating target database if not exists: $TARGET_DATABASE"
+          createdb -h $POSTGRES_HOST -U $POSTGRES_USER $TARGET_DATABASE || echo "Database already exists or creation failed"
+          
+          # Perform restore
+          echo "Starting database restore..."
+          eval $RESTORE_CMD
+          
+          # Verify restore
+          echo "Verifying restore..."
+          table_count=$(psql -h $POSTGRES_HOST -U $POSTGRES_USER -d $TARGET_DATABASE -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" | xargs)
+          
+          if [ "$table_count" -gt 0 ]; then
+            echo "Restore completed successfully. Found $table_count tables in database."
+          else
+            echo "WARNING: Restore completed but no tables found in target database"
+          fi
+          
+          # Log restore completion
+          echo "Database restore completed at $(date)"
+        env:
+        - name: POSTGRES_HOST
+          value: "waqiti-postgres-primary.database.svc.cluster.local"
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: username
+        - name: PGPASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: password
+        - name: S3_BUCKET
+          value: "waqiti-postgres-backups"
+        - name: AWS_DEFAULT_REGION
+          value: "us-west-2"
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: backup-credentials
+              key: ACCESS_KEY_ID
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: backup-credentials
+              key: SECRET_ACCESS_KEY
+        # These would be provided when creating the job
+        - name: BACKUP_FILE
+          value: ""  # e.g., "full-backups/waqiti_full_backup_20241201_020000.sql.gz"
+        - name: TARGET_DATABASE
+          value: ""  # e.g., "waqiti_restored"
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+      restartPolicy: Never
+  backoffLimit: 2
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: redis-backup-job
+  namespace: database
+  labels:
+    app: redis-backup
+    type: manual
+spec:
+  template:
+    spec:
+      serviceAccountName: postgres-backup-sa
+      containers:
+      - name: redis-backup
+        image: redis:7-alpine
+        command:
+        - /bin/bash
+        - -c
+        - |
+          set -e
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          BACKUP_NAME="waqiti_redis_backup_${TIMESTAMP}"
+          
+          echo "Starting Redis cluster backup: ${BACKUP_NAME}"
+          
+          # Create backup directory
+          mkdir -p /tmp/redis-backup
+          
+          # Get all Redis nodes
+          REDIS_NODES=$(redis-cli --no-auth-warning -a $REDIS_PASSWORD -h redis-cluster.database.svc.cluster.local cluster nodes | awk '{print $2}' | cut -d'@' -f1)
+          
+          echo "Found Redis nodes: $REDIS_NODES"
+          
+          # Backup each node
+          node_count=0
+          for node in $REDIS_NODES; do
+            node_ip=$(echo $node | cut -d':' -f1)
+            node_port=$(echo $node | cut -d':' -f2)
+            
+            echo "Backing up Redis node: $node_ip:$node_port"
+            
+            # Trigger BGSAVE on each node
+            redis-cli --no-auth-warning -a $REDIS_PASSWORD -h $node_ip -p $node_port BGSAVE
+            
+            # Wait for backup to complete
+            while [ "$(redis-cli --no-auth-warning -a $REDIS_PASSWORD -h $node_ip -p $node_port LASTSAVE)" = "$(redis-cli --no-auth-warning -a $REDIS_PASSWORD -h $node_ip -p $node_port LASTSAVE)" ]; do
+              sleep 1
+            done
+            
+            # Copy RDB file (this would need to be adapted for actual pod access)
+            echo "Node $node_ip:$node_port backup completed"
+            node_count=$((node_count + 1))
+          done
+          
+          echo "Completed backup of $node_count Redis nodes"
+          
+          # Create cluster configuration backup
+          redis-cli --no-auth-warning -a $REDIS_PASSWORD -h redis-cluster.database.svc.cluster.local cluster nodes > /tmp/redis-backup/cluster_config_${TIMESTAMP}.txt
+          
+          # Compress and upload to S3
+          tar -czf /tmp/${BACKUP_NAME}.tar.gz -C /tmp redis-backup/
+          
+          aws s3 cp /tmp/${BACKUP_NAME}.tar.gz s3://$S3_BUCKET/redis-backups/${BACKUP_NAME}.tar.gz \
+            --server-side-encryption AES256 \
+            --metadata "backup-type=redis-cluster,timestamp=${TIMESTAMP},nodes=${node_count}"
+          
+          echo "Redis cluster backup uploaded: ${BACKUP_NAME}"
+        env:
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-credentials
+              key: password
+        - name: S3_BUCKET
+          value: "waqiti-postgres-backups"  # Using same bucket with different prefix
+        - name: AWS_DEFAULT_REGION
+          value: "us-west-2"
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: backup-credentials
+              key: ACCESS_KEY_ID
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: backup-credentials
+              key: SECRET_ACCESS_KEY
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+      restartPolicy: Never
+  backoffLimit: 2
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: backup-validation-job
+  namespace: database
+  labels:
+    app: backup-validation
+    type: verification
+spec:
+  template:
+    spec:
+      serviceAccountName: postgres-backup-sa
+      containers:
+      - name: backup-validator
+        image: postgres:15-alpine
+        command:
+        - /bin/bash
+        - -c
+        - |
+          set -e
+          echo "Starting backup validation process"
+          
+          # Validate PostgreSQL backups
+          echo "Validating PostgreSQL backups..."
+          
+          # Check recent full backups
+          RECENT_FULL_BACKUPS=$(aws s3 ls s3://$S3_BUCKET/full-backups/ --recursive | tail -n 3)
+          if [ -z "$RECENT_FULL_BACKUPS" ]; then
+            echo "ERROR: No recent full backups found"
+            exit 1
+          fi
+          
+          echo "Recent full backups found:"
+          echo "$RECENT_FULL_BACKUPS"
+          
+          # Check recent incremental backups
+          RECENT_INCREMENTAL_BACKUPS=$(aws s3 ls s3://$S3_BUCKET/incremental-backups/ --recursive | tail -n 10)
+          if [ -z "$RECENT_INCREMENTAL_BACKUPS" ]; then
+            echo "WARNING: No recent incremental backups found"
+          else
+            echo "Recent incremental backups found:"
+            echo "$RECENT_INCREMENTAL_BACKUPS"
+          fi
+          
+          # Test restore of latest backup (dry run)
+          LATEST_BACKUP=$(aws s3 ls s3://$S3_BUCKET/full-backups/ | tail -n 1 | awk '{print $4}')
+          if [ ! -z "$LATEST_BACKUP" ]; then
+            echo "Testing restore of latest backup: $LATEST_BACKUP"
+            
+            # Download and test backup file integrity
+            aws s3 cp s3://$S3_BUCKET/full-backups/$LATEST_BACKUP /tmp/test_backup.sql.gz
+            
+            # Verify gzip integrity
+            if gzip -t /tmp/test_backup.sql.gz; then
+              echo "✓ Backup file integrity verified: $LATEST_BACKUP"
+            else
+              echo "✗ Backup file corrupted: $LATEST_BACKUP"
+              exit 1
+            fi
+            
+            # Check file size (should be > 100KB for real data)
+            BACKUP_SIZE=$(stat -f%z /tmp/test_backup.sql.gz 2>/dev/null || stat -c%s /tmp/test_backup.sql.gz)
+            if [ "$BACKUP_SIZE" -gt 100000 ]; then
+              echo "✓ Backup file size acceptable: ${BACKUP_SIZE} bytes"
+            else
+              echo "⚠ Backup file size unusually small: ${BACKUP_SIZE} bytes"
+            fi
+          fi
+          
+          # Check backup retention policy compliance
+          BACKUP_COUNT=$(aws s3 ls s3://$S3_BUCKET/full-backups/ | wc -l)
+          echo "Total full backups: $BACKUP_COUNT"
+          
+          if [ "$BACKUP_COUNT" -gt 10 ]; then
+            echo "⚠ Too many backups retained, cleanup may be needed"
+          fi
+          
+          # Validate Redis backups
+          echo "Validating Redis backups..."
+          REDIS_BACKUP_COUNT=$(aws s3 ls s3://$S3_BUCKET/redis-backups/ | wc -l)
+          echo "Total Redis backups: $REDIS_BACKUP_COUNT"
+          
+          # Check database connectivity
+          echo "Testing database connectivity..."
+          if psql -h $POSTGRES_HOST -U $POSTGRES_USER -c "SELECT version();" > /dev/null 2>&1; then
+            echo "✓ PostgreSQL primary connection successful"
+          else
+            echo "✗ PostgreSQL primary connection failed"
+            exit 1
+          fi
+          
+          if psql -h waqiti-postgres-replica.database.svc.cluster.local -U $POSTGRES_USER -c "SELECT version();" > /dev/null 2>&1; then
+            echo "✓ PostgreSQL replica connection successful"
+          else
+            echo "⚠ PostgreSQL replica connection failed"
+          fi
+          
+          echo "Backup validation completed successfully"
+        env:
+        - name: POSTGRES_HOST
+          value: "waqiti-postgres-primary.database.svc.cluster.local"
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: username
+        - name: PGPASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: password
+        - name: S3_BUCKET
+          value: "waqiti-postgres-backups"
+        - name: AWS_DEFAULT_REGION
+          value: "us-west-2"
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: backup-credentials
+              key: ACCESS_KEY_ID
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: backup-credentials
+              key: SECRET_ACCESS_KEY
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "200m"
+      restartPolicy: Never
+  backoffLimit: 1

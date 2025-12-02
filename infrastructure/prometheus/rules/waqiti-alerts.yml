@@ -1,0 +1,205 @@
+groups:
+  - name: waqiti_critical_alerts
+    interval: 30s
+    rules:
+      # High transaction failure rate
+      - alert: HighTransactionFailureRate
+        expr: |
+          (
+            rate(transactions_processed_total{status="failed"}[5m])
+            /
+            rate(transactions_processed_total[5m])
+          ) * 100 > 5
+        for: 2m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "High transaction failure rate detected"
+          description: "Transaction failure rate is {{ $value | humanizePercentage }} (threshold: 5%)"
+
+      # Payment processing latency too high
+      - alert: HighPaymentLatency
+        expr: |
+          histogram_quantile(0.95,
+            rate(payment_processing_duration_bucket[5m])
+          ) > 500
+        for: 3m
+        labels:
+          severity: critical
+          team: payments
+        annotations:
+          summary: "Payment processing latency too high"
+          description: "P95 payment latency is {{ $value }}ms (threshold: 500ms)"
+
+      # Database connection pool exhaustion
+      - alert: DatabaseConnectionPoolExhaustion
+        expr: |
+          (
+            hikaricp_connections_active
+            /
+            hikaricp_connections_max
+          ) * 100 > 90
+        for: 2m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Database connection pool near exhaustion"
+          description: "Connection pool usage is {{ $value | humanizePercentage }} (threshold: 90%)"
+
+      # Kafka consumer lag too high
+      - alert: HighKafkaConsumerLag
+        expr: kafka_consumer_lag > 10000
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High Kafka consumer lag detected"
+          description: "Consumer lag for {{ $labels.topic }} partition {{ $labels.partition }} is {{ $value }}"
+
+      # Circuit breaker open
+      - alert: CircuitBreakerOpen
+        expr: resilience4j_circuitbreaker_state{state="open"} == 1
+        for: 1m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Circuit breaker {{ $labels.name }} is OPEN"
+          description: "Circuit breaker {{ $labels.name }} has opened due to failures"
+
+      # Dead letter queue accumulation
+      - alert: HighDLQVolume
+        expr: dlq_messages_total > 500
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High volume of messages in dead letter queue"
+          description: "DLQ has {{ $value }} messages (threshold: 500)"
+
+      # Fraud detection rate spike
+      - alert: FraudDetectionSpike
+        expr: |
+          rate(fraud_detections_total[5m]) > 50
+        for: 2m
+        labels:
+          severity: critical
+          team: security
+        annotations:
+          summary: "Unusual spike in fraud detections"
+          description: "Fraud detection rate is {{ $value }}/min (threshold: 50/min)"
+
+      # Service instance down
+      - alert: ServiceInstanceDown
+        expr: up{job=~".*-service"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Service instance {{ $labels.job }} is down"
+          description: "Instance {{ $labels.instance }} of {{ $labels.job }} is not responding"
+
+      # High memory usage
+      - alert: HighMemoryUsage
+        expr: |
+          (
+            jvm_memory_used_bytes{area="heap"}
+            /
+            jvm_memory_max_bytes{area="heap"}
+          ) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High memory usage in {{ $labels.service }}"
+          description: "Heap usage is {{ $value | humanizePercentage }} (threshold: 85%)"
+
+      # Saga compensation rate anomaly
+      - alert: HighSagaCompensationRate
+        expr: |
+          rate(saga_compensations_total[5m]) > 10
+        for: 3m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High rate of saga compensations"
+          description: "Saga compensation rate is {{ $value }}/min (threshold: 10/min)"
+
+  - name: waqiti_compliance_alerts
+    interval: 60s
+    rules:
+      # Travel Rule violations
+      - alert: TravelRuleViolation
+        expr: increase(travel_rule_violations_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          team: compliance
+        annotations:
+          summary: "Travel Rule violation detected"
+          description: "{{ $value }} Travel Rule violations in the last 5 minutes"
+
+      # KYC verification backlog
+      - alert: KYCVerificationBacklog
+        expr: kyc_pending_verifications > 1000
+        for: 10m
+        labels:
+          severity: warning
+          team: compliance
+        annotations:
+          summary: "KYC verification backlog"
+          description: "{{ $value }} pending KYC verifications (threshold: 1000)"
+
+      # AML screening failures
+      - alert: AMLScreeningFailures
+        expr: |
+          rate(aml_screening_errors_total[5m]) > 5
+        for: 3m
+        labels:
+          severity: critical
+          team: compliance
+        annotations:
+          summary: "AML screening failures detected"
+          description: "AML screening error rate is {{ $value }}/min"
+
+  - name: waqiti_performance_alerts
+    interval: 30s
+    rules:
+      # Low cache hit rate
+      - alert: LowCacheHitRate
+        expr: |
+          (
+            rate(cache_hits_total[5m])
+            /
+            (rate(cache_hits_total[5m]) + rate(cache_misses_total[5m]))
+          ) * 100 < 70
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Low cache hit rate"
+          description: "Cache hit rate is {{ $value | humanizePercentage }} (threshold: 70%)"
+
+      # High API gateway error rate
+      - alert: HighAPIErrorRate
+        expr: |
+          (
+            rate(http_server_requests_seconds_count{status=~"5.."}[5m])
+            /
+            rate(http_server_requests_seconds_count[5m])
+          ) * 100 > 1
+        for: 3m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High API gateway error rate"
+          description: "API error rate is {{ $value | humanizePercentage }} (threshold: 1%)"

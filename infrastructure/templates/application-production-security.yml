@@ -1,0 +1,392 @@
+# Production Security Configuration Template
+# Apply this configuration to all Spring Boot services for production security
+
+server:
+  port: 8443
+  ssl:
+    enabled: true
+    key-store: classpath:keystore/waqiti-keystore.p12
+    key-store-password: ${SSL_KEYSTORE_PASSWORD}
+    key-store-type: PKCS12
+    key-alias: waqiti
+    key-password: ${SSL_KEY_PASSWORD}
+    protocol: TLS
+    enabled-protocols: TLSv1.2,TLSv1.3
+    ciphers: ECDHE-RSA-AES256-GCM-SHA512,DHE-RSA-AES256-GCM-SHA512,ECDHE-RSA-AES256-GCM-SHA384,DHE-RSA-AES256-GCM-SHA384
+    client-auth: want
+    trust-store: classpath:keystore/waqiti-truststore.p12
+    trust-store-password: ${SSL_TRUSTSTORE_PASSWORD}
+    trust-store-type: PKCS12
+  http2:
+    enabled: true
+  compression:
+    enabled: true
+    mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json,application/xml
+    min-response-size: 1024
+  error:
+    include-message: never
+    include-binding-errors: never
+    include-stacktrace: never
+    include-exception: false
+  tomcat:
+    max-connections: 8192
+    max-threads: 200
+    min-spare-threads: 10
+    connection-timeout: 20000
+    max-http-header-size: 8KB
+    max-http-post-size: 2MB
+    accesslog:
+      enabled: true
+      directory: /var/log/tomcat
+      file-date-format: .yyyy-MM-dd
+      pattern: "%h %l %u %t \"%r\" %s %b \"%{Referer}i\" \"%{User-Agent}i\" %D"
+      prefix: access_log
+      suffix: .log
+    remoteip:
+      remote-ip-header: X-Forwarded-For
+      protocol-header: X-Forwarded-Proto
+      internal-proxies: 10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}|192\\.168\\.\\d{1,3}\\.\\d{1,3}|169\\.254\\.\\d{1,3}\\.\\d{1,3}|127\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}|172\\.1[6-9]{1}\\.\\d{1,3}\\.\\d{1,3}|172\\.2[0-9]{1}\\.\\d{1,3}\\.\\d{1,3}|172\\.3[0-1]{1}\\.\\d{1,3}\\.\\d{1,3}
+
+spring:
+  profiles:
+    active: production
+  
+  # Security Configuration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI}
+          cache-duration: PT5M
+        require-ssl: true
+    filter:
+      order: -100
+    headers:
+      frame-options: DENY
+      content-type-options: nosniff
+      xss-protection: "1; mode=block"
+      referrer-policy: strict-origin-when-cross-origin
+      content-security-policy: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-src 'none'; object-src 'none'"
+      permissions-policy: "camera=(), microphone=(), geolocation=(), payment=(self)"
+    
+  # Session Management
+  session:
+    store-type: redis
+    redis:
+      namespace: "waqiti:session"
+      cleanup-cron: "0 * * * * *"
+    timeout: PT30M
+    cookie:
+      name: JSESSIONID
+      domain: .example.com
+      path: /
+      http-only: true
+      secure: true
+      same-site: strict
+      max-age: PT30M
+
+  # Data Source Security
+  datasource:
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      idle-timeout: 300000
+      connection-timeout: 20000
+      leak-detection-threshold: 60000
+      max-lifetime: 1800000
+    url: ${DATABASE_URL}
+    username: ${DATABASE_USERNAME}
+    password: ${DATABASE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    type: com.zaxxer.hikari.HikariDataSource
+
+  # JPA Security
+  jpa:
+    open-in-view: false
+    show-sql: false
+    hibernate:
+      ddl-auto: validate
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          batch_size: 20
+          order_inserts: true
+          order_updates: true
+        cache:
+          use_second_level_cache: true
+          use_query_cache: true
+          region:
+            factory_class: org.hibernate.cache.jcache.internal.JCacheRegionFactory
+        connection:
+          provider_disables_autocommit: true
+        query:
+          plan_cache_max_size: 4096
+          plan_parameter_metadata_max_size: 128
+          fail_on_pagination_over_collection_fetch: true
+          in_clause_parameter_padding: true
+
+  # Redis Security
+  redis:
+    ssl: true
+    host: ${REDIS_HOST}
+    port: ${REDIS_PORT:6380}
+    password: ${REDIS_PASSWORD}
+    timeout: 2000ms
+    lettuce:
+      pool:
+        max-active: 8
+        max-wait: -1ms
+        max-idle: 8
+        min-idle: 0
+
+  # Jackson Security
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: true
+      fail-on-ignored-properties: true
+      fail-on-invalid-subtype: true
+    serialization:
+      fail-on-empty-beans: false
+      write-dates-as-timestamps: false
+    default-property-inclusion: NON_NULL
+    mapper:
+      accept-case-insensitive-enums: false
+
+  # Actuator Security
+  management:
+    endpoints:
+      web:
+        exposure:
+          include: health,info,metrics,prometheus
+        base-path: /actuator
+        cors:
+          allowed-origins: https://monitoring.example.com
+          allowed-methods: GET
+          allowed-headers: "*"
+          allow-credentials: false
+    endpoint:
+      health:
+        show-details: when-authorized
+        roles: ADMIN,ACTUATOR
+        probes:
+          enabled: true
+      info:
+        enabled: true
+      metrics:
+        enabled: true
+    security:
+      enabled: true
+      roles: ADMIN,ACTUATOR
+
+  # WebFlux Security (for reactive services)
+  webflux:
+    cors:
+      # Use single origin for credential-bearing requests for security
+      allowed-origins: https://app.example.com
+      allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+      allowed-headers: Authorization,Content-Type,X-Requested-With,X-Request-ID
+      allow-credentials: true
+      max-age: 3600
+      # Admin endpoints use separate configuration without credentials
+      admin:
+        allowed-origins: https://admin.example.com
+        allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+        allowed-headers: Authorization,Content-Type,X-Requested-With,X-Request-ID
+        allow-credentials: false
+        max-age: 3600
+
+# Application Security Configuration
+app:
+  security:
+    cors:
+      # Primary application CORS with credentials
+      main:
+        allowed-origins: https://app.example.com
+        allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+        allow-credentials: true
+      # Admin CORS without credentials for security
+      admin:
+        allowed-origins: https://admin.example.com
+        allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+        allow-credentials: false
+      # Common headers for both configurations
+      allowed-headers: Authorization,Content-Type,X-Requested-With,X-Request-ID,X-API-Version
+      exposed-headers: X-Request-ID,X-RateLimit-Remaining,X-RateLimit-Reset
+      max-age: 3600
+    
+    rate-limiting:
+      enabled: true
+      global-limit: 1000
+      global-window: PT1M
+      endpoints:
+        "/api/v1/auth/login":
+          limit: 5
+          window: PT1M
+        "/api/v1/auth/register":
+          limit: 3
+          window: PT5M
+        "/api/v1/payments/**":
+          limit: 50
+          window: PT1M
+        "/api/v1/crypto/**":
+          limit: 100
+          window: PT1M
+    
+    encryption:
+      key-derivation:
+        iterations: 100000
+        salt-length: 32
+      aes:
+        key-length: 256
+        transformation: AES/GCM/NoPadding
+        
+    jwt:
+      secret: ${JWT_SECRET}
+      expiration: PT15M
+      refresh-expiration: PT7D
+      issuer: example.com
+      audience: waqiti-app
+
+    content-security-policy:
+      default-src: "'self'"
+      script-src: "'self' 'unsafe-inline' https://cdnjs.cloudflare.com"
+      style-src: "'self' 'unsafe-inline' https://fonts.googleapis.com"
+      font-src: "'self' https://fonts.gstatic.com"
+      img-src: "'self' data: https://*.example.com"
+      connect-src: "'self' https://*.example.com wss://*.example.com"
+      frame-src: "'none'"
+      object-src: "'none'"
+      media-src: "'self'"
+      child-src: "'none'"
+      worker-src: "'self'"
+      manifest-src: "'self'"
+      base-uri: "'self'"
+      form-action: "'self'"
+      frame-ancestors: "'none'"
+      upgrade-insecure-requests: true
+      block-all-mixed-content: true
+      report-uri: "https://waqiti.report-uri.com/r/d/csp/enforce"
+
+# Logging Security
+logging:
+  level:
+    com.waqiti: INFO
+    org.springframework.security: WARN
+    org.springframework.web: WARN
+    org.hibernate: WARN
+    com.zaxxer.hikari: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%X{traceId},%X{spanId}] %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%X{traceId},%X{spanId}] %logger{36} - %msg%n"
+  file:
+    name: /var/log/waqiti/${spring.application.name}.log
+    max-size: 100MB
+    max-history: 30
+    total-size-cap: 3GB
+
+# Micrometer/Prometheus
+management:
+  metrics:
+    tags:
+      application: ${spring.application.name}
+      environment: production
+    export:
+      prometheus:
+        enabled: true
+      cloudwatch:
+        enabled: true
+        namespace: Waqiti/Services
+        batch-size: 20
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      percentiles:
+        http.server.requests: 0.5,0.95,0.99
+      sla:
+        http.server.requests: 10ms,50ms,100ms,200ms,500ms
+
+# Encryption and Vault
+vault:
+  enabled: true
+  host: ${VAULT_HOST}
+  port: ${VAULT_PORT:8200}
+  scheme: https
+  authentication: KUBERNETES
+  kubernetes:
+    role: ${VAULT_KUBERNETES_ROLE}
+    service-account-token-file: /var/run/secrets/kubernetes.io/serviceaccount/token
+  kv:
+    enabled: true
+    backend: secret
+    default-context: ${spring.application.name}
+  ssl:
+    trust-store: classpath:vault/vault-truststore.jks
+    trust-store-password: ${VAULT_TRUSTSTORE_PASSWORD}
+
+# Database Connection Security
+datasource:
+  hikari:
+    connection-test-query: SELECT 1
+    validation-timeout: 3000
+    leak-detection-threshold: 60000
+    connection-init-sql: SET search_path TO waqiti_${spring.application.name}
+  postgresql:
+    ssl-mode: require
+    ssl-cert: classpath:ssl/postgresql-client.crt
+    ssl-key: classpath:ssl/postgresql-client.key
+    ssl-root-cert: classpath:ssl/postgresql-ca.crt
+
+# Feign Client Security
+feign:
+  client:
+    config:
+      default:
+        connect-timeout: 5000
+        read-timeout: 10000
+        logger-level: basic
+        request-interceptors:
+          - com.example.common.security.AuthorizationRequestInterceptor
+          - com.example.common.logging.RequestLoggingInterceptor
+        decode404: false
+        encoder: com.example.common.encoding.SecurityAwareEncoder
+        decoder: com.example.common.encoding.SecurityAwareDecoder
+        error-decoder: com.example.common.error.SecurityAwareErrorDecoder
+
+# Circuit Breaker Configuration
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        slow-call-rate-threshold: 50
+        slow-call-duration-threshold: 2s
+        permitted-number-of-calls-in-half-open-state: 3
+        max-wait-duration-in-half-open-state: 10s
+        sliding-window-type: count_based
+        record-exceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+        ignore-exceptions:
+          - com.example.common.exception.BusinessException
+  retry:
+    configs:
+      default:
+        max-attempts: 3
+        wait-duration: 1s
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+  ratelimiter:
+    configs:
+      default:
+        limit-for-period: 100
+        limit-refresh-period: PT1M
+        timeout-duration: 0s

@@ -1,0 +1,328 @@
+# ============================================================================
+# WAQITI DEVELOPMENT CONFIGURATION
+# ============================================================================
+#
+# Development-friendly configuration for local development
+# Vault is OPTIONAL - can use environment variables or local defaults
+#
+# Security Trade-offs for Development:
+# - Vault not required (can use .env file)
+# - Lenient password requirements
+# - Debug logging enabled
+# - Swagger UI enabled
+# - H2 console enabled (if using H2)
+#
+# WARNING: NEVER use this profile in production!
+# ============================================================================
+
+spring:
+  profiles:
+    active: dev
+
+  # Vault is OPTIONAL in development
+  cloud:
+    vault:
+      enabled: ${VAULT_ENABLED:false}  # Disabled by default for local dev
+      fail-fast: false  # Don't fail if Vault unavailable
+
+      # If Vault is enabled in dev, use simpler authentication
+      uri: ${VAULT_URI:http://localhost:8200}
+      scheme: ${VAULT_SCHEME:http}  # HTTP OK for local Vault
+      authentication: ${VAULT_AUTH_METHOD:TOKEN}
+      token: ${VAULT_TOKEN:dev-token}
+
+      database:
+        enabled: ${VAULT_DB_ENABLED:false}
+      kv:
+        enabled: ${VAULT_KV_ENABLED:false}
+
+  # Database configuration - lenient for development
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:waqiti_dev}
+    username: ${DB_USERNAME:waqiti_dev_user}
+    password: ${DB_PASSWORD:waqiti_dev_password}  # Dev default OK
+    driver-class-name: org.postgresql.Driver
+
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:10}  # Smaller pool for dev
+      minimum-idle: ${DB_POOL_MIN_IDLE:2}
+      connection-timeout: 20000
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      leak-detection-threshold: 60000
+      pool-name: ${spring.application.name}-dev-pool
+
+  # JPA/Hibernate - development settings
+  jpa:
+    hibernate:
+      ddl-auto: update  # Auto-update schema in dev (convenient)
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.SnakeCasePhysicalNamingStrategy
+    properties:
+      hibernate:
+        dialect: org.postgresql.dialect.PostgreSQLDialect
+        format_sql: true  # Format SQL for readability
+        show_sql: ${HIBERNATE_SHOW_SQL:false}  # Can enable for debugging
+        use_sql_comments: true
+        jdbc:
+          batch_size: 20
+          order_inserts: true
+          order_updates: true
+    show-sql: ${JPA_SHOW_SQL:false}
+
+  # Flyway - development settings
+  flyway:
+    enabled: ${FLYWAY_ENABLED:true}
+    clean-on-validation-error: true  # Auto-clean on error (dev only!)
+    baseline-on-migrate: true
+
+  # Redis configuration - lenient for development
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}  # Empty OK for local Redis without auth
+      timeout: ${REDIS_TIMEOUT:2000ms}
+      database: ${REDIS_DATABASE:0}
+
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
+        shutdown-timeout: 100ms
+
+  # Kafka configuration - local development
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+    # No security for local Kafka
+    properties:
+      security.protocol: ${KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
+
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: 1  # Single broker ack (faster for dev)
+      retries: 1
+      properties:
+        enable.idempotence: false  # Simpler for dev
+
+    consumer:
+      group-id: ${spring.application.name}-dev
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      auto-offset-reset: latest  # Don't reprocess old messages in dev
+      enable-auto-commit: true   # Simpler for dev
+      properties:
+        spring.json.trusted.packages: com.waqiti
+
+  # Cache configuration - development
+  cache:
+    type: ${CACHE_TYPE:redis}
+    cache-names: vault-secrets,vault-certificates,vault-database-credentials
+    caffeine:
+      spec: maximumSize=100,expireAfterWrite=10m  # Longer TTL for dev convenience
+
+# Server configuration - development
+server:
+  port: ${SERVER_PORT:8080}
+
+  # Compression
+  compression:
+    enabled: true
+
+  # HTTP/2
+  http2:
+    enabled: false  # Simpler for dev
+
+  # No SSL in development
+  ssl:
+    enabled: false
+
+  # Error pages with full stack traces
+  error:
+    include-stacktrace: always
+    include-message: always
+    include-binding-errors: always
+
+  # Shutdown
+  shutdown: graceful
+
+# Management/Actuator - development (more permissive)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"  # Expose all endpoints in dev
+      base-path: /actuator
+
+  endpoint:
+    health:
+      show-details: always  # Always show details in dev
+      probes:
+        enabled: true
+
+  health:
+    circuitbreakers:
+      enabled: true
+    db:
+      enabled: true
+    redis:
+      enabled: true
+    vault:
+      enabled: ${vault.enabled:false}
+    diskspace:
+      enabled: true
+
+  # Metrics
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+
+# Logging configuration - development (verbose)
+logging:
+  level:
+    root: INFO
+    com.waqiti: DEBUG  # Verbose application logs
+    org.springframework.security: DEBUG
+    org.springframework.vault: DEBUG
+    org.springframework.cloud.vault: DEBUG
+    org.springframework.kafka: INFO
+    org.hibernate.SQL: ${HIBERNATE_LOG_LEVEL:INFO}
+    org.hibernate.type.descriptor.sql.BasicBinder: ${HIBERNATE_BIND_LOG_LEVEL:INFO}
+    org.springframework.transaction: DEBUG
+
+  pattern:
+    console: "%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(${LOG_LEVEL_PATTERN:-%5p}) %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n${LOG_EXCEPTION_CONVERSION_WORD:-%wEx}"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} ${LOG_LEVEL_PATTERN:-%5p} [%t] %-40.40logger{39} : %m%n${LOG_EXCEPTION_CONVERSION_WORD:-%wEx}"
+
+  file:
+    name: ${LOG_FILE_PATH:logs}/${spring.application.name}-dev.log
+    max-size: 10MB
+    max-history: 7  # Keep only 7 days in dev
+
+# Waqiti application configuration - development
+waqiti:
+  # Financial settings
+  financial:
+    decimal-places: 4
+    rounding-mode: HALF_UP
+    default-currency: USD
+
+  # Security settings - lenient for development
+  security:
+    encryption:
+      enabled: ${ENCRYPTION_ENABLED:false}  # Disabled by default in dev
+      provider: LOCAL  # Use local encryption, not Vault Transit
+
+    # JWT configuration - development
+    jwt:
+      secret: ${JWT_SECRET:dev-jwt-secret-key-for-local-development-only-min-32-chars}
+      expiration: 86400000  # 24 hours (longer for dev convenience)
+      refresh-expiration: 2592000000  # 30 days
+
+  # Monitoring - development
+  monitoring:
+    enabled: true
+    detailed-metrics: true
+
+  # External services - development
+  external-services:
+    timeout: ${EXTERNAL_SERVICE_TIMEOUT:60s}  # Longer timeout for debugging
+    retry-attempts: ${EXTERNAL_SERVICE_RETRIES:1}  # Fewer retries in dev
+
+# Resilience4j - development (lenient)
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 70  # Higher threshold (more lenient)
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
+
+  retry:
+    configs:
+      default:
+        maxAttempts: 2  # Fewer retries for faster feedback
+        waitDuration: 500ms
+
+  timelimiter:
+    configs:
+      default:
+        timeoutDuration: 60s  # Longer timeout for debugging
+        cancelRunningFuture: true
+
+# OpenAPI/Swagger - development (enabled)
+springdoc:
+  api-docs:
+    enabled: true
+    path: /api-docs
+
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    operationsSorter: method
+    tagsSorter: alpha
+    tryItOutEnabled: true
+
+  show-actuator: true
+
+# Distributed tracing - development (sample everything)
+management.tracing.sampling.probability: ${TRACING_SAMPLE_RATE:1.0}  # 100% sampling in dev
+management.zipkin.tracing.endpoint: ${ZIPKIN_BASE_URL:http://localhost:9411}/api/v2/spans
+
+# ============================================================================
+# DEVELOPMENT ENVIRONMENT VARIABLES (.env file)
+# ============================================================================
+#
+# Create a .env file in the service root with these variables:
+#
+# # Database
+# DB_HOST=localhost
+# DB_PORT=5432
+# DB_NAME=waqiti_dev
+# DB_USERNAME=waqiti_dev_user
+# DB_PASSWORD=waqiti_dev_password
+#
+# # Redis
+# REDIS_HOST=localhost
+# REDIS_PORT=6379
+# REDIS_PASSWORD=
+#
+# # Kafka
+# KAFKA_BOOTSTRAP_SERVERS=localhost:9092
+#
+# # Vault (optional)
+# VAULT_ENABLED=false
+#
+# # JWT
+# JWT_SECRET=your-dev-jwt-secret-min-32-characters
+#
+# # Logging
+# HIBERNATE_SHOW_SQL=false
+# JPA_SHOW_SQL=false
+#
+# ============================================================================
+
+# ============================================================================
+# DOCKER COMPOSE FOR LOCAL DEVELOPMENT
+# ============================================================================
+#
+# Use docker-compose to run dependencies locally:
+#
+# docker-compose -f docker-compose.dev.yml up -d
+#
+# This will start:
+# - PostgreSQL (port 5432)
+# - Redis (port 6379)
+# - Kafka + Zookeeper (port 9092)
+# - Vault (port 8200) - optional
+# - Zipkin (port 9411) - optional
+#
+# ============================================================================

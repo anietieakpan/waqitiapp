@@ -1,0 +1,165 @@
+{
+  "type": "record",
+  "name": "PaymentCompletedEvent",
+  "namespace": "com.waqiti.events.v1",
+  "doc": "Event published when a payment is successfully completed",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "Unique event identifier (UUID)"
+    },
+    {
+      "name": "eventType",
+      "type": "string",
+      "default": "payment-completed",
+      "doc": "Type of event"
+    },
+    {
+      "name": "timestamp",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "Event timestamp in epoch milliseconds"
+    },
+    {
+      "name": "correlationId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Correlation ID for distributed tracing"
+    },
+    {
+      "name": "version",
+      "type": "string",
+      "default": "1.0",
+      "doc": "Schema version"
+    },
+    {
+      "name": "transactionId",
+      "type": "string",
+      "doc": "Unique transaction identifier (UUID)"
+    },
+    {
+      "name": "paymentType",
+      "type": {
+        "type": "enum",
+        "name": "PaymentType",
+        "symbols": ["TRANSFER", "DEPOSIT", "WITHDRAWAL", "PAYMENT", "FEE", "REFUND", "CHARGEBACK"]
+      },
+      "doc": "Type of payment transaction"
+    },
+    {
+      "name": "amount",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 19,
+        "scale": 4
+      },
+      "doc": "Payment amount as decimal"
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "default": "USD",
+      "doc": "Currency code (ISO 4217)"
+    },
+    {
+      "name": "fromUserId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Source user ID (payer, UUID)"
+    },
+    {
+      "name": "fromWalletId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Source wallet ID (UUID)"
+    },
+    {
+      "name": "toUserId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Destination user ID (payee, UUID)"
+    },
+    {
+      "name": "toWalletId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Destination wallet ID (UUID)"
+    },
+    {
+      "name": "merchantId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Merchant ID for merchant payments (UUID)"
+    },
+    {
+      "name": "paymentMethodId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Payment method identifier (UUID)"
+    },
+    {
+      "name": "feeAmount",
+      "type": ["null", {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 19,
+        "scale": 4
+      }],
+      "default": null,
+      "doc": "Transaction fee amount"
+    },
+    {
+      "name": "feeCurrency",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Fee currency code if different from transaction currency"
+    },
+    {
+      "name": "description",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Payment description or memo"
+    },
+    {
+      "name": "referenceNumber",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Payment reference number"
+    },
+    {
+      "name": "externalTransactionId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "External transaction ID from payment processor"
+    },
+    {
+      "name": "paymentProcessor",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Payment processor name (e.g., STRIPE, PAYPAL, SQUARE)"
+    },
+    {
+      "name": "status",
+      "type": {
+        "type": "enum",
+        "name": "PaymentStatus",
+        "symbols": ["COMPLETED", "PENDING", "FAILED", "CANCELLED", "REFUNDED"]
+      },
+      "default": "COMPLETED",
+      "doc": "Payment status"
+    },
+    {
+      "name": "metadata",
+      "type": ["null", {
+        "type": "map",
+        "values": "string"
+      }],
+      "default": null,
+      "doc": "Additional metadata as key-value pairs"
+    }
+  ]
+}

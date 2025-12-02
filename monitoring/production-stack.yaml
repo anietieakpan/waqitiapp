@@ -1,0 +1,808 @@
+# Waqiti Production Monitoring Stack
+# Comprehensive observability for production environment
+
+---
+# Prometheus Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: waqiti-monitoring
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 30s
+      scrape_timeout: 10s
+      evaluation_interval: 30s
+      external_labels:
+        cluster: 'waqiti-production'
+        environment: 'production'
+        region: 'us-west-2'
+    
+    # Alerting configuration
+    alerting:
+      alertmanagers:
+      - static_configs:
+        - targets:
+          - alertmanager:9093
+    
+    # Rule files
+    rule_files:
+      - '/etc/prometheus/rules/*.yml'
+    
+    # Service discovery and scraping
+    scrape_configs:
+      # Kubernetes API server
+      - job_name: 'kubernetes-apiservers'
+        kubernetes_sd_configs:
+        - role: endpoints
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        relabel_configs:
+        - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+          action: keep
+          regex: default;kubernetes;https
+      
+      # Kubernetes nodes
+      - job_name: 'kubernetes-nodes'
+        kubernetes_sd_configs:
+        - role: node
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        relabel_configs:
+        - action: labelmap
+          regex: __meta_kubernetes_node_label_(.+)
+      
+      # Waqiti services
+      - job_name: 'waqiti-services'
+        kubernetes_sd_configs:
+        - role: pod
+          namespaces:
+            names:
+            - waqiti-production
+        relabel_configs:
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+          action: keep
+          regex: true
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+          action: replace
+          target_label: __metrics_path__
+          regex: (.+)
+        - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+          action: replace
+          regex: ([^:]+)(?::\d+)?;(\d+)
+          replacement: $1:$2
+          target_label: __address__
+        - action: labelmap
+          regex: __meta_kubernetes_pod_label_(.+)
+        - source_labels: [__meta_kubernetes_namespace]
+          action: replace
+          target_label: kubernetes_namespace
+        - source_labels: [__meta_kubernetes_pod_name]
+          action: replace
+          target_label: kubernetes_pod_name
+      
+      # PostgreSQL
+      - job_name: 'postgresql'
+        static_configs:
+        - targets:
+          - 'postgresql-primary:9187'
+          - 'postgresql-replica-1:9187'
+          - 'postgresql-replica-2:9187'
+        relabel_configs:
+        - source_labels: [__address__]
+          target_label: instance
+          regex: '([^:]+).*'
+      
+      # Redis
+      - job_name: 'redis'
+        static_configs:
+        - targets:
+          - 'redis-master:9121'
+          - 'redis-slave-1:9121'
+          - 'redis-slave-2:9121'
+      
+      # Kafka
+      - job_name: 'kafka'
+        static_configs:
+        - targets:
+          - 'kafka-broker-1:9308'
+          - 'kafka-broker-2:9308'
+          - 'kafka-broker-3:9308'
+      
+      # NGINX Ingress
+      - job_name: 'nginx-ingress'
+        kubernetes_sd_configs:
+        - role: pod
+          namespaces:
+            names:
+            - ingress-nginx
+        relabel_configs:
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+          action: keep
+          regex: true
+      
+      # Node Exporter
+      - job_name: 'node-exporter'
+        kubernetes_sd_configs:
+        - role: node
+        relabel_configs:
+        - source_labels: [__address__]
+          regex: '(.*):10250'
+          replacement: '${1}:9100'
+          target_label: __address__
+      
+      # Blackbox Exporter for endpoint monitoring
+      - job_name: 'blackbox'
+        metrics_path: /probe
+        params:
+          module: [http_2xx]
+        static_configs:
+        - targets:
+          - https://api.example.com/health
+          - https://app.example.com
+          - https://admin.example.com
+        relabel_configs:
+        - source_labels: [__address__]
+          target_label: __param_target
+        - source_labels: [__param_target]
+          target_label: instance
+        - target_label: __address__
+          replacement: blackbox-exporter:9115
+
+---
+# Prometheus Rules
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-rules
+  namespace: waqiti-monitoring
+data:
+  alerts.yml: |
+    groups:
+    - name: waqiti_production_alerts
+      interval: 30s
+      rules:
+      # Service Health
+      - alert: ServiceDown
+        expr: up{job="waqiti-services"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Service {{ $labels.kubernetes_pod_name }} is down"
+          description: "{{ $labels.kubernetes_pod_name }} has been down for more than 2 minutes"
+      
+      # API Performance
+      - alert: HighAPILatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "High API latency detected"
+          description: "95th percentile latency is {{ $value }}s (threshold: 0.5s)"
+      
+      - alert: APIErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "High API error rate"
+          description: "Error rate is {{ $value | humanizePercentage }}"
+      
+      # Database Performance
+      - alert: DatabaseConnectionPoolExhausted
+        expr: pg_stat_database_numbackends / pg_settings_max_connections > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          team: database
+        annotations:
+          summary: "Database connection pool near exhaustion"
+          description: "{{ $value | humanizePercentage }} of connections used"
+      
+      - alert: DatabaseSlowQueries
+        expr: rate(pg_stat_statements_mean_exec_time_seconds[5m]) > 1
+        for: 10m
+        labels:
+          severity: warning
+          team: database
+        annotations:
+          summary: "Database slow queries detected"
+          description: "Average query time is {{ $value }}s"
+      
+      - alert: DatabaseReplicationLag
+        expr: pg_replication_lag > 10
+        for: 5m
+        labels:
+          severity: critical
+          team: database
+        annotations:
+          summary: "High database replication lag"
+          description: "Replication lag is {{ $value }}s"
+      
+      # Resource Utilization
+      - alert: HighCPUUsage
+        expr: rate(container_cpu_usage_seconds_total[5m]) > 0.8
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High CPU usage on {{ $labels.pod }}"
+          description: "CPU usage is {{ $value | humanizePercentage }}"
+      
+      - alert: HighMemoryUsage
+        expr: container_memory_usage_bytes / container_memory_limit_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High memory usage on {{ $labels.pod }}"
+          description: "Memory usage is {{ $value | humanizePercentage }}"
+      
+      - alert: DiskSpaceLow
+        expr: node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"} < 0.1
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Low disk space on {{ $labels.instance }}"
+          description: "Only {{ $value | humanizePercentage }} disk space remaining"
+      
+      # Business Metrics
+      - alert: PaymentProcessingFailures
+        expr: rate(payment_failures_total[5m]) > 0.01
+        for: 5m
+        labels:
+          severity: critical
+          team: payments
+        annotations:
+          summary: "High payment failure rate"
+          description: "Payment failure rate is {{ $value | humanizePercentage }}"
+      
+      - alert: FraudDetectionAnomaly
+        expr: rate(fraud_detections_total[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+          team: security
+        annotations:
+          summary: "Unusual fraud detection rate"
+          description: "Fraud detection rate is {{ $value | humanizePercentage }}"
+      
+      - alert: LowTransactionVolume
+        expr: rate(transactions_total[1h]) < 100
+        for: 30m
+        labels:
+          severity: warning
+          team: business
+        annotations:
+          summary: "Unusually low transaction volume"
+          description: "Transaction rate is {{ $value }} per hour"
+      
+      # Kafka
+      - alert: KafkaConsumerLag
+        expr: kafka_consumer_lag > 1000
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High Kafka consumer lag"
+          description: "Consumer lag is {{ $value }} messages"
+      
+      # Redis
+      - alert: RedisMemoryHigh
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Redis memory usage high"
+          description: "Redis memory usage is {{ $value | humanizePercentage }}"
+      
+      # Certificate Expiry
+      - alert: CertificateExpiringSoon
+        expr: certmanager_certificate_expiration_timestamp_seconds - time() < 7 * 24 * 60 * 60
+        for: 1h
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Certificate expiring soon"
+          description: "Certificate {{ $labels.name }} expires in {{ $value | humanizeDuration }}"
+
+---
+# Grafana Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-config
+  namespace: waqiti-monitoring
+data:
+  grafana.ini: |
+    [server]
+    domain = monitoring.example.com
+    root_url = https://monitoring.example.com
+    
+    [security]
+    admin_user = admin
+    admin_password = ${GRAFANA_ADMIN_PASSWORD}
+    secret_key = ${GRAFANA_SECRET_KEY}
+    disable_gravatar = true
+    cookie_secure = true
+    cookie_samesite = strict
+    strict_transport_security = true
+    strict_transport_security_max_age_seconds = 31536000
+    strict_transport_security_preload = true
+    strict_transport_security_subdomains = true
+    x_content_type_options = true
+    x_xss_protection = true
+    
+    [auth]
+    disable_login_form = false
+    
+    [auth.generic_oauth]
+    enabled = true
+    name = Keycloak
+    allow_sign_up = true
+    client_id = grafana
+    client_secret = ${OAUTH_CLIENT_SECRET}
+    scopes = openid profile email
+    auth_url = https://auth.example.com/auth/realms/waqiti/protocol/openid-connect/auth
+    token_url = https://auth.example.com/auth/realms/waqiti/protocol/openid-connect/token
+    api_url = https://auth.example.com/auth/realms/waqiti/protocol/openid-connect/userinfo
+    
+    [database]
+    type = postgres
+    host = postgresql-primary:5432
+    name = grafana
+    user = grafana
+    password = ${DB_PASSWORD}
+    ssl_mode = require
+    
+    [analytics]
+    reporting_enabled = false
+    check_for_updates = false
+    
+    [log]
+    mode = console
+    level = warn
+    
+    [metrics]
+    enabled = true
+    interval_seconds = 30
+    
+    [alerting]
+    enabled = true
+    execute_alerts = true
+
+---
+# Loki Configuration for Log Aggregation
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: loki-config
+  namespace: waqiti-monitoring
+data:
+  loki.yaml: |
+    auth_enabled: false
+    
+    server:
+      http_listen_port: 3100
+      grpc_listen_port: 9096
+      log_level: warn
+    
+    common:
+      path_prefix: /loki
+      storage:
+        filesystem:
+          chunks_directory: /loki/chunks
+          rules_directory: /loki/rules
+      replication_factor: 3
+      ring:
+        instance_addr: 127.0.0.1
+        kvstore:
+          store: inmemory
+    
+    schema_config:
+      configs:
+      - from: 2023-01-01
+        store: boltdb-shipper
+        object_store: s3
+        schema: v11
+        index:
+          prefix: index_
+          period: 24h
+    
+    storage_config:
+      boltdb_shipper:
+        active_index_directory: /loki/boltdb-shipper-active
+        cache_location: /loki/boltdb-shipper-cache
+        cache_ttl: 24h
+        shared_store: s3
+      aws:
+        s3: s3://us-west-2/waqiti-loki-logs
+        s3forcepathstyle: true
+    
+    compactor:
+      working_directory: /loki/compactor
+      shared_store: s3
+      retention_enabled: true
+      retention_delete_delay: 2h
+      retention_delete_worker_count: 150
+    
+    limits_config:
+      enforce_metric_name: false
+      reject_old_samples: true
+      reject_old_samples_max_age: 168h
+      ingestion_rate_mb: 50
+      ingestion_burst_size_mb: 100
+      retention_period: 30d
+    
+    chunk_store_config:
+      max_look_back_period: 30d
+    
+    table_manager:
+      retention_deletes_enabled: true
+      retention_period: 30d
+    
+    ruler:
+      storage:
+        type: s3
+        s3:
+          bucketnames: waqiti-loki-ruler
+      rule_path: /loki/rules-temp
+      alertmanager_url: http://alertmanager:9093
+      ring:
+        kvstore:
+          store: inmemory
+      enable_api: true
+
+---
+# Jaeger Configuration for Distributed Tracing
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jaeger-config
+  namespace: waqiti-monitoring
+data:
+  collector.yaml: |
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp, jaeger]
+          processors: [batch, memory_limiter]
+          exporters: [jaeger, prometheus]
+    
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+      
+      jaeger:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:14250
+          thrift_http:
+            endpoint: 0.0.0.0:14268
+          thrift_compact:
+            endpoint: 0.0.0.0:6831
+          thrift_binary:
+            endpoint: 0.0.0.0:6832
+    
+    processors:
+      batch:
+        timeout: 1s
+        send_batch_size: 1024
+      
+      memory_limiter:
+        check_interval: 1s
+        limit_mib: 2000
+        spike_limit_mib: 500
+      
+      attributes:
+        actions:
+          - key: environment
+            value: production
+            action: insert
+          - key: service.namespace
+            value: waqiti
+            action: insert
+    
+    exporters:
+      jaeger:
+        endpoint: jaeger-collector:14250
+        tls:
+          insecure: false
+      
+      prometheus:
+        endpoint: 0.0.0.0:8889
+        resource_to_telemetry_conversion:
+          enabled: true
+    
+    extensions:
+      health_check:
+        endpoint: 0.0.0.0:13133
+      pprof:
+        endpoint: 0.0.0.0:1777
+      zpages:
+        endpoint: 0.0.0.0:55679
+
+---
+# AlertManager Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config
+  namespace: waqiti-monitoring
+data:
+  alertmanager.yml: |
+    global:
+      resolve_timeout: 5m
+      smtp_from: 'alerts@example.com'
+      smtp_smarthost: 'smtp.sendgrid.net:587'
+      smtp_auth_username: 'apikey'
+      smtp_auth_password: '${SMTP_PASSWORD}'
+      slack_api_url: '${SLACK_WEBHOOK}'
+      pagerduty_url: 'https://events.pagerduty.com/v2/enqueue'
+    
+    templates:
+    - '/etc/alertmanager/templates/*.tmpl'
+    
+    route:
+      group_by: ['alertname', 'cluster', 'service']
+      group_wait: 10s
+      group_interval: 10s
+      repeat_interval: 12h
+      receiver: 'default'
+      
+      routes:
+      - match:
+          severity: critical
+        receiver: 'critical'
+        continue: true
+      
+      - match:
+          severity: warning
+        receiver: 'warning'
+        continue: true
+      
+      - match:
+          team: payments
+        receiver: 'payments-team'
+      
+      - match:
+          team: security
+        receiver: 'security-team'
+      
+      - match:
+          team: platform
+        receiver: 'platform-team'
+    
+    receivers:
+    - name: 'default'
+      webhook_configs:
+      - url: 'http://webhook-receiver:8080/default'
+    
+    - name: 'critical'
+      email_configs:
+      - to: 'oncall@example.com'
+        headers:
+          Subject: '🔴 CRITICAL: {{ .GroupLabels.alertname }}'
+      pagerduty_configs:
+      - service_key: '${PAGERDUTY_KEY}'
+        severity: 'critical'
+      slack_configs:
+      - channel: '#alerts-critical'
+        title: '🔴 Critical Alert'
+        text: '{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+    
+    - name: 'warning'
+      slack_configs:
+      - channel: '#alerts-warning'
+        title: '⚠️ Warning Alert'
+        text: '{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+    
+    - name: 'payments-team'
+      email_configs:
+      - to: 'payments-team@example.com'
+      slack_configs:
+      - channel: '#payments-alerts'
+    
+    - name: 'security-team'
+      email_configs:
+      - to: 'security@example.com'
+      slack_configs:
+      - channel: '#security-alerts'
+      pagerduty_configs:
+      - service_key: '${PAGERDUTY_SECURITY_KEY}'
+    
+    - name: 'platform-team'
+      email_configs:
+      - to: 'platform-team@example.com'
+      slack_configs:
+      - channel: '#platform-alerts'
+    
+    inhibit_rules:
+    - source_match:
+        severity: 'critical'
+      target_match:
+        severity: 'warning'
+      equal: ['alertname', 'cluster', 'service']
+
+---
+# Custom Dashboards
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: waqiti-monitoring
+data:
+  payment-dashboard.json: |
+    {
+      "dashboard": {
+        "title": "Waqiti Payment Processing",
+        "panels": [
+          {
+            "title": "Payment Success Rate",
+            "targets": [
+              {
+                "expr": "sum(rate(payment_success_total[5m])) / sum(rate(payment_total[5m])) * 100"
+              }
+            ]
+          },
+          {
+            "title": "Payment Volume",
+            "targets": [
+              {
+                "expr": "sum(increase(payment_amount_total[1h]))"
+              }
+            ]
+          },
+          {
+            "title": "Average Payment Processing Time",
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.95, rate(payment_duration_seconds_bucket[5m]))"
+              }
+            ]
+          },
+          {
+            "title": "Payment Methods Distribution",
+            "targets": [
+              {
+                "expr": "sum by (method) (rate(payment_total[5m]))"
+              }
+            ]
+          }
+        ]
+      }
+    }
+
+---
+# SLO Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: slo-config
+  namespace: waqiti-monitoring
+data:
+  slos.yaml: |
+    slos:
+      - name: payment-availability
+        description: Payment service availability
+        target: 99.95
+        window: 30d
+        query: |
+          sum(rate(payment_success_total[5m])) / 
+          sum(rate(payment_total[5m]))
+      
+      - name: api-latency
+        description: API latency P95
+        target: 200ms
+        window: 7d
+        query: |
+          histogram_quantile(0.95, 
+            rate(http_request_duration_seconds_bucket[5m])
+          )
+      
+      - name: transaction-success
+        description: Transaction success rate
+        target: 99.9
+        window: 30d
+        query: |
+          sum(rate(transaction_success_total[5m])) / 
+          sum(rate(transaction_total[5m]))
+      
+      - name: uptime
+        description: Overall system uptime
+        target: 99.99
+        window: 30d
+        query: |
+          avg(up{job="waqiti-services"})
+      
+      - name: error-budget
+        description: Error budget consumption
+        target: 0.05
+        window: 30d
+        query: |
+          1 - (sum(rate(http_requests_total{status!~"5.."}[5m])) / 
+               sum(rate(http_requests_total[5m])))
+
+---
+# Monitoring Deployment
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: prometheus
+  namespace: waqiti-monitoring
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      serviceAccountName: prometheus
+      containers:
+      - name: prometheus
+        image: prom/prometheus:v2.45.0
+        args:
+          - '--config.file=/etc/prometheus/prometheus.yml'
+          - '--storage.tsdb.path=/prometheus'
+          - '--storage.tsdb.retention.time=30d'
+          - '--storage.tsdb.retention.size=50GB'
+          - '--web.enable-lifecycle'
+          - '--web.enable-admin-api'
+        ports:
+        - containerPort: 9090
+        resources:
+          requests:
+            memory: 4Gi
+            cpu: 2000m
+          limits:
+            memory: 8Gi
+            cpu: 4000m
+        volumeMounts:
+        - name: config
+          mountPath: /etc/prometheus
+        - name: rules
+          mountPath: /etc/prometheus/rules
+        - name: storage
+          mountPath: /prometheus
+      volumes:
+      - name: config
+        configMap:
+          name: prometheus-config
+      - name: rules
+        configMap:
+          name: prometheus-rules
+  volumeClaimTemplates:
+  - metadata:
+      name: storage
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      storageClassName: fast-ssd
+      resources:
+        requests:
+          storage: 100Gi

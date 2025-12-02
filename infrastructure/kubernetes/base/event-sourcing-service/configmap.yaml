@@ -1,0 +1,182 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: event-sourcing-config
+  namespace: waqiti-system
+  labels:
+    app: event-sourcing-service
+    component: backend
+    tier: application
+data:
+  # Database Configuration
+  redis-host: "redis-service.waqiti-system.svc.cluster.local"
+  
+  # Kafka Configuration
+  kafka-bootstrap-servers: "kafka-service.waqiti-system.svc.cluster.local:9092"
+  
+  # Service Discovery
+  eureka-service-url: "http://discovery-service.waqiti-system.svc.cluster.local:8761/eureka/"
+  
+  # External Services
+  saga-service-url: "http://saga-orchestration-service.waqiti-system.svc.cluster.local:8097"
+  notification-service-url: "http://notification-service.waqiti-system.svc.cluster.local:8093"
+  audit-service-url: "http://audit-service.waqiti-system.svc.cluster.local:8098"
+  
+  # CORS Configuration
+  cors-allowed-origins: "https://app.example.com,https://admin.example.com"
+  
+  # Application Configuration
+  application.yml: |
+    spring:
+      application:
+        name: event-sourcing-service
+      profiles:
+        active: production
+      
+      kafka:
+        topics:
+          transaction-events: transaction-events
+          user-events: user-events
+          wallet-events: wallet-events
+          payment-events: payment-events
+          saga-events: saga-events
+    
+    axon:
+      eventhandling:
+        processors:
+          transaction-projection:
+            mode: tracking
+            source: eventStore
+            batch-size: 200
+            thread-count: 8
+            max-claim-duration: 30s
+          user-projection:
+            mode: tracking
+            source: eventStore
+            batch-size: 300
+            thread-count: 4
+            max-claim-duration: 20s
+          wallet-projection:
+            mode: tracking
+            source: eventStore
+            batch-size: 250
+            thread-count: 6
+            max-claim-duration: 25s
+          saga-processor:
+            mode: tracking
+            source: eventStore
+            batch-size: 100
+            thread-count: 4
+            max-claim-duration: 60s
+      
+      serializer:
+        general: jackson
+        events: jackson
+        messages: jackson
+      
+      kafka:
+        clientid: event-sourcing-service
+        default-topic: event-sourcing-events
+        producer:
+          confirmation-mode: transactional
+        consumer:
+          group-id: event-sourcing-consumers
+          max-poll-records: 500
+          auto-offset-reset: earliest
+      
+      metrics:
+        auto-configuration:
+          enabled: true
+        micrometer:
+          dimensional: true
+    
+    event-sourcing:
+      event-store:
+        enabled: true
+        type: postgres
+        snapshot:
+          enabled: true
+          threshold: 500
+          trigger-type: event-count
+      
+      projections:
+        enabled: true
+        parallel-processing: true
+        batch-size: 500
+        error-handling: retry
+        max-retries: 3
+        retry-delay: 5s
+      
+      sagas:
+        enabled: true
+        timeout: 300s
+        max-retries: 5
+        retry-delay: 10s
+      
+      replay:
+        enabled: true
+        batch-size: 5000
+        parallel-threads: 8
+        max-events-per-batch: 50000
+      
+      archival:
+        enabled: true
+        retention-days: 365
+        compression: gzip
+      
+      monitoring:
+        enabled: true
+        health-check-interval: 30s
+        stream-monitoring: true
+        performance-tracking: true
+    
+    security:
+      enabled: true
+      rate-limiting:
+        enabled: true
+        requests-per-minute: 10000
+        burst-capacity: 1000
+      command-authorization:
+        enabled: true
+        require-authentication: true
+      query-authorization:
+        enabled: true
+        require-authentication: false
+    
+    async:
+      core-pool-size: 10
+      max-pool-size: 50
+      queue-capacity: 2000
+      thread-name-prefix: event-sourcing-async-
+      keep-alive-seconds: 60
+    
+    cache:
+      projections:
+        enabled: true
+        ttl: 300s
+      snapshots:
+        enabled: true
+        ttl: 3600s
+    
+    management:
+      endpoints:
+        web:
+          exposure:
+            include: health,info,metrics,prometheus,loggers
+          base-path: /actuator
+      endpoint:
+        health:
+          show-details: always
+      metrics:
+        export:
+          prometheus:
+            enabled: true
+    
+    logging:
+      level:
+        com.waqiti.eventsourcing: INFO
+        org.axonframework: INFO
+        org.springframework.kafka: WARN
+        org.hibernate: WARN
+      file:
+        name: /app/logs/event-sourcing-service.log

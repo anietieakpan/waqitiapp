@@ -1,0 +1,88 @@
+# CSRF Protection Configuration Template
+# Include this configuration in each microservice's application.yml
+
+security:
+  csrf:
+    enabled: true
+    token-validity-seconds: 3600  # 1 hour
+    secure-cookie: true
+    same-site: Strict
+  
+  cors:
+    allowed-origins:
+      - https://app.example.com
+      - https://admin.example.com
+      - https://mobile.example.com
+    allowed-methods:
+      - GET
+      - POST
+      - PUT
+      - DELETE
+      - OPTIONS
+    allowed-headers:
+      - Authorization
+      - Content-Type
+      - X-CSRF-TOKEN
+      - X-XSRF-TOKEN
+      - X-Requested-With
+    exposed-headers:
+      - X-CSRF-TOKEN
+      - Authorization
+    allow-credentials: true
+    max-age: 3600
+
+# CSRF Secret Key - MUST be set via environment variable or Vault
+csrf:
+  secret-key: ${CSRF_SECRET_KEY:${vault.security.csrf.secret-key:}}
+  token-validity-seconds: ${CSRF_TOKEN_VALIDITY:3600}
+  enabled: ${CSRF_ENABLED:true}
+  secure-cookie: ${CSRF_SECURE_COOKIE:true}
+
+# Application Domain for Origin Validation
+app:
+  domain: ${APP_DOMAIN:example.com}
+
+# Redis Configuration for CSRF Token Storage
+spring:
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+      database: ${REDIS_DATABASE:0}
+
+---
+# Development Profile
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+security:
+  csrf:
+    enabled: true
+    secure-cookie: false  # Allow HTTP in development
+  cors:
+    allowed-origins:
+      - http://localhost:3000
+      - http://localhost:3001
+      - http://localhost:8080
+
+---
+# Production Profile
+spring:
+  config:
+    activate:
+      on-profile: production
+
+security:
+  csrf:
+    enabled: true
+    secure-cookie: true
+    same-site: Strict
+  cors:
+    allowed-origins:
+      - https://app.example.com
+      - https://admin.example.com
+      - https://mobile.example.com

@@ -1,0 +1,585 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: database
+  labels:
+    name: database
+    environment: production
+    
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-config
+  namespace: database
+data:
+  postgresql.conf: |
+    # PostgreSQL Configuration for High Availability
+    
+    # Connection Settings
+    listen_addresses = '*'
+    port = 5432
+    max_connections = 200
+    
+    # Memory Settings
+    shared_buffers = 256MB
+    effective_cache_size = 1GB
+    work_mem = 4MB
+    maintenance_work_mem = 64MB
+    
+    # WAL Settings for Replication
+    wal_level = replica
+    max_wal_senders = 10
+    max_replication_slots = 10
+    wal_keep_size = 1GB
+    
+    # Archiving
+    archive_mode = on
+    archive_command = 'cp %p /var/lib/postgresql/wal_archive/%f'
+    
+    # Hot Standby
+    hot_standby = on
+    hot_standby_feedback = on
+    
+    # Logging
+    log_destination = 'stderr'
+    logging_collector = on
+    log_directory = 'log'
+    log_filename = 'postgresql-%Y-%m-%d_%H%M%S.log'
+    log_statement = 'mod'
+    log_min_duration_statement = 1000
+    log_checkpoints = on
+    log_connections = on
+    log_disconnections = on
+    log_lock_waits = on
+    
+    # Performance
+    checkpoint_completion_target = 0.9
+    wal_buffers = 16MB
+    
+    # Security
+    ssl = on
+    ssl_cert_file = '/var/lib/postgresql/ssl/server.crt'
+    ssl_key_file = '/var/lib/postgresql/ssl/server.key'
+    
+  pg_hba.conf: |
+    # PostgreSQL Client Authentication Configuration
+    
+    # TYPE  DATABASE        USER            ADDRESS                 METHOD
+    
+    # Local connections
+    local   all             all                                     md5
+    
+    # IPv4 local connections
+    host    all             all             127.0.0.1/32            md5
+    
+    # IPv6 local connections
+    host    all             all             ::1/128                 md5
+    
+    # Allow replication connections from standby servers
+    host    replication     replicator      10.0.0.0/8             md5
+    host    replication     replicator      172.16.0.0/12          md5
+    host    replication     replicator      192.168.0.0/16         md5
+    
+    # Allow connections from application pods
+    host    all             all             10.0.0.0/8             md5
+    host    all             all             172.16.0.0/12          md5
+    host    all             all             192.168.0.0/16         md5
+
+  init-primary.sh: |
+    #!/bin/bash
+    set -e
+    
+    # Initialize primary PostgreSQL instance
+    echo "Initializing primary PostgreSQL instance..."
+    
+    # Create replication user
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
+        CREATE USER replicator WITH REPLICATION PASSWORD '$REPLICATION_PASSWORD';
+    EOSQL
+    
+    # Create application databases
+    DATABASES=(
+      "waqiti_core"
+      "waqiti_payments"
+      "waqiti_transactions"
+      "waqiti_users"
+      "waqiti_kyc"
+      "waqiti_compliance"
+      "waqiti_analytics"
+      "waqiti_audit"
+    )
+    
+    for db in "${DATABASES[@]}"; do
+      echo "Creating database: $db"
+      psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
+          CREATE DATABASE $db;
+          GRANT ALL PRIVILEGES ON DATABASE $db TO $POSTGRES_USER;
+      EOSQL
+    done
+    
+    echo "Primary initialization completed"
+
+  init-standby.sh: |
+    #!/bin/bash
+    set -e
+    
+    # Initialize standby PostgreSQL instance
+    echo "Initializing standby PostgreSQL instance..."
+    
+    # Wait for primary to be ready
+    until pg_isready -h postgres-primary.database -p 5432 -U postgres; do
+      echo "Waiting for primary to be ready..."
+      sleep 5
+    done
+    
+    # Remove existing data directory
+    rm -rf /var/lib/postgresql/data/*
+    
+    # Create base backup from primary
+    pg_basebackup -h postgres-primary.database -p 5432 -U replicator -D /var/lib/postgresql/data -W -v -P -x
+    
+    # Create standby.signal file
+    touch /var/lib/postgresql/data/standby.signal
+    
+    # Configure recovery
+    cat >> /var/lib/postgresql/data/postgresql.conf <<EOF
+    # Standby configuration
+    primary_conninfo = 'host=postgres-primary.database port=5432 user=replicator password=$REPLICATION_PASSWORD'
+    restore_command = 'cp /var/lib/postgresql/wal_archive/%f %p'
+    recovery_target_timeline = 'latest'
+    EOF
+    
+    echo "Standby initialization completed"
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres-primary
+  namespace: database
+spec:
+  serviceName: postgres-primary
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-primary
+      role: primary
+  template:
+    metadata:
+      labels:
+        app: postgres-primary
+        role: primary
+    spec:
+      securityContext:
+        fsGroup: 999
+      containers:
+      - name: postgres
+        image: postgres:15
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 5432
+          name: postgres
+        env:
+        - name: POSTGRES_DB
+          value: "waqiti"
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: username
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: password
+        - name: REPLICATION_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: replication-password
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/postgresql/data
+        - name: postgres-config
+          mountPath: /etc/postgresql
+        - name: postgres-init
+          mountPath: /docker-entrypoint-initdb.d
+        - name: wal-archive
+          mountPath: /var/lib/postgresql/wal_archive
+        livenessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - postgres
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - postgres
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 5
+      volumes:
+      - name: postgres-config
+        configMap:
+          name: postgres-config
+      - name: postgres-init
+        configMap:
+          name: postgres-config
+          defaultMode: 0755
+      - name: wal-archive
+        persistentVolumeClaim:
+          claimName: wal-archive-pvc
+  volumeClaimTemplates:
+  - metadata:
+      name: postgres-data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      storageClassName: gp3
+      resources:
+        requests:
+          storage: 200Gi
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres-standby
+  namespace: database
+spec:
+  serviceName: postgres-standby
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-standby
+      role: standby
+  template:
+    metadata:
+      labels:
+        app: postgres-standby
+        role: standby
+    spec:
+      securityContext:
+        fsGroup: 999
+      initContainers:
+      - name: init-standby
+        image: postgres:15
+        command: ["/bin/bash", "/scripts/init-standby.sh"]
+        env:
+        - name: REPLICATION_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: replication-password
+        volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/postgresql/data
+        - name: postgres-init
+          mountPath: /scripts
+        - name: wal-archive
+          mountPath: /var/lib/postgresql/wal_archive
+      containers:
+      - name: postgres
+        image: postgres:15
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 5432
+          name: postgres
+        env:
+        - name: POSTGRES_DB
+          value: "waqiti"
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: username
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: password
+        - name: REPLICATION_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: replication-password
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/postgresql/data
+        - name: postgres-config
+          mountPath: /etc/postgresql
+        - name: wal-archive
+          mountPath: /var/lib/postgresql/wal_archive
+        livenessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - postgres
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - postgres
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 5
+      volumes:
+      - name: postgres-config
+        configMap:
+          name: postgres-config
+      - name: postgres-init
+        configMap:
+          name: postgres-config
+          defaultMode: 0755
+      - name: wal-archive
+        persistentVolumeClaim:
+          claimName: wal-archive-pvc
+  volumeClaimTemplates:
+  - metadata:
+      name: postgres-data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      storageClassName: gp3
+      resources:
+        requests:
+          storage: 200Gi
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: wal-archive-pvc
+  namespace: database
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: efs
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-primary
+  namespace: database
+  labels:
+    app: postgres-primary
+    role: primary
+spec:
+  type: ClusterIP
+  ports:
+  - port: 5432
+    targetPort: 5432
+    name: postgres
+  selector:
+    app: postgres-primary
+    role: primary
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-standby
+  namespace: database
+  labels:
+    app: postgres-standby
+    role: standby
+spec:
+  type: ClusterIP
+  ports:
+  - port: 5432
+    targetPort: 5432
+    name: postgres
+  selector:
+    app: postgres-standby
+    role: standby
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-read-only
+  namespace: database
+  labels:
+    app: postgres
+    role: read-only
+spec:
+  type: ClusterIP
+  ports:
+  - port: 5432
+    targetPort: 5432
+    name: postgres
+  selector:
+    role: standby
+
+---
+# SECURITY: This Secret should be managed by external-secrets-operator with Vault
+# For production deployment, see: infrastructure/terraform/vault-secrets.tf
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: postgres-secret
+  namespace: database
+  labels:
+    app: postgres
+    security.example.com/managed-by: vault
+spec:
+  refreshInterval: 15m
+  secretStoreRef:
+    name: vault-backend
+    kind: ClusterSecretStore
+  target:
+    name: postgres-secret
+    creationPolicy: Owner
+  data:
+    - secretKey: username
+      remoteRef:
+        key: secret/database/postgres
+        property: username
+    - secretKey: password
+      remoteRef:
+        key: secret/database/postgres
+        property: password
+    - secretKey: replication-password
+      remoteRef:
+        key: secret/database/postgres
+        property: replication_password
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: postgres-monitoring
+  namespace: database
+spec:
+  selector:
+    matchLabels:
+      app: postgres-exporter
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /metrics
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-exporter
+  namespace: database
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-exporter
+  template:
+    metadata:
+      labels:
+        app: postgres-exporter
+    spec:
+      containers:
+      - name: postgres-exporter
+        image: quay.io/prometheuscommunity/postgres-exporter:v0.15.0
+        ports:
+        - containerPort: 9187
+          name: metrics
+        env:
+        - name: DATA_SOURCE_USER
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: username
+        - name: DATA_SOURCE_PASS
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: password
+        - name: DATA_SOURCE_URI
+          value: "postgres-primary.database:5432/waqiti?sslmode=require"
+        - name: DATA_SOURCE_NAME
+          value: "postgresql://$(DATA_SOURCE_USER):$(DATA_SOURCE_PASS)@$(DATA_SOURCE_URI)"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 10000
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-exporter
+  namespace: database
+  labels:
+    app: postgres-exporter
+spec:
+  ports:
+  - port: 9187
+    targetPort: 9187
+    name: metrics
+  selector:
+    app: postgres-exporter
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: postgres-primary-pdb
+  namespace: database
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: postgres-primary
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: postgres-standby-pdb
+  namespace: database
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: postgres-standby

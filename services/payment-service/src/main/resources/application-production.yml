@@ -1,0 +1,61 @@
+# Production database configuration for payment service (higher load)
+spring:
+  datasource:
+    hikari:
+      enabled: true
+      # Higher capacity for payment service (critical path)
+      maximum-pool-size: 80           # Higher max for payment processing
+      minimum-idle: 20                # Higher minimum for quick response
+      connection-timeout: 15000       # Faster timeout for payments
+      idle-timeout: 300000           # 5 minutes idle (shorter for payments)
+      max-lifetime: 1200000          # 20 minutes lifetime
+      validation-timeout: 3000       # 3 seconds validation
+      leak-detection-threshold: 30000 # 30 seconds leak detection
+      
+      # Performance monitoring
+      register-mbeans: true
+      
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        # Optimized for high-frequency payment operations
+        jdbc.batch_size: 50           # Larger batch for payment processing
+        order_inserts: true
+        order_updates: true
+        jdbc.batch_versioned_data: true
+        connection.provider_disables_autocommit: true
+        
+        # Cache configuration for payment data
+        cache.use_second_level_cache: true
+        cache.use_query_cache: true
+        cache.region.factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
+        
+        # Transaction optimization
+        connection.autocommit: false
+        
+        # Statistics enabled for payment monitoring
+        generate_statistics: true
+
+# Enhanced monitoring for payment service
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics,hikaricp,transactions
+  endpoint:
+    health:
+      show-details: when-authorized
+    hikaricp:
+      enabled: true
+    transactions:
+      enabled: true
+
+# Payment service specific logging
+logging:
+  level:
+    com.zaxxer.hikari: INFO
+    com.waqiti.payment: DEBUG        # More detailed logging for payments
+    org.springframework.transaction: INFO
+    root: INFO

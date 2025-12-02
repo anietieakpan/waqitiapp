@@ -1,0 +1,356 @@
+# Prometheus Configuration for Waqiti Security Monitoring
+# Collects metrics from all services for security and performance monitoring
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'waqiti-security'
+    environment: 'production'
+    compliance: 'pci-dss'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+      scheme: http
+      timeout: 10s
+      api_version: v2
+
+# Load rules files
+rule_files:
+  - "/etc/prometheus/rules/*.yml"
+  - "/etc/prometheus/rules/security/*.yml"
+  - "/etc/prometheus/rules/performance/*.yml"
+  - "/etc/prometheus/rules/compliance/*.yml"
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+    metrics_path: /metrics
+
+  # Payment Service monitoring
+  - job_name: 'payment-service'
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+            - payment
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+        action: keep
+        regex: true
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+        action: replace
+        target_label: __metrics_path__
+        regex: (.+)
+      - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+        action: replace
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        target_label: __address__
+      - action: labelmap
+        regex: __meta_kubernetes_pod_label_(.+)
+      - source_labels: [__meta_kubernetes_namespace]
+        action: replace
+        target_label: kubernetes_namespace
+      - source_labels: [__meta_kubernetes_pod_name]
+        action: replace
+        target_label: kubernetes_pod_name
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: '(payment_transactions_total|payment_failures_total|payment_processing_duration_seconds|payment_amount_total)'
+        action: keep
+
+  # Wallet Service monitoring
+  - job_name: 'wallet-service'
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+            - wallet
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+        action: keep
+        regex: true
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+        action: replace
+        target_label: __metrics_path__
+        regex: (.+)
+      - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+        action: replace
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        target_label: __address__
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: '(wallet_operations_total|wallet_balance_changes|wallet_errors_total|wallet_address_changes_total)'
+        action: keep
+
+  # Transaction Service monitoring
+  - job_name: 'transaction-service'
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+            - transaction
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+        action: keep
+        regex: true
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: '(transaction_volume_total|transaction_latency_seconds|transaction_errors_total)'
+        action: keep
+
+  # API Gateway monitoring
+  - job_name: 'api-gateway'
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+            - api-gateway
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+        action: keep
+        regex: true
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: '(http_requests_total|http_request_duration_seconds|http_request_size_bytes|rate_limit_exceeded_total)'
+        action: keep
+
+  # Security metrics from applications
+  - job_name: 'security-metrics'
+    static_configs:
+      - targets:
+          - 'payment-service:8080'
+          - 'wallet-service:8080'
+          - 'transaction-service:8080'
+        labels:
+          group: 'security'
+    metrics_path: /metrics/security
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: '(authentication_attempts_total|authentication_failures_total|authorization_denied_total|encryption_operations_total|fraud_detections_total|security_violations_total)'
+        action: keep
+
+  # Fraud detection metrics
+  - job_name: 'fraud-detection'
+    static_configs:
+      - targets:
+          - 'fraud-engine:9090'
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: '(fraud_score|fraud_alerts_total|ml_model_predictions_total|velocity_checks_failed_total|graph_anomalies_detected_total)'
+        action: keep
+
+  # Node Exporter for system metrics
+  - job_name: 'node-exporter'
+    kubernetes_sd_configs:
+      - role: node
+    relabel_configs:
+      - action: labelmap
+        regex: __meta_kubernetes_node_label_(.+)
+      - target_label: __address__
+        replacement: kubernetes.default.svc:443
+      - source_labels: [__meta_kubernetes_node_name]
+        regex: (.+)
+        target_label: __metrics_path__
+        replacement: /api/v1/nodes/${1}/proxy/metrics
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: '(node_cpu_seconds_total|node_memory_MemAvailable_bytes|node_filesystem_avail_bytes|node_network_receive_bytes_total|node_disk_io_time_seconds_total)'
+        action: keep
+
+  # Kubernetes metrics
+  - job_name: 'kubernetes-apiservers'
+    kubernetes_sd_configs:
+      - role: endpoints
+    scheme: https
+    tls_config:
+      ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+        action: keep
+        regex: default;kubernetes;https
+
+  # Kubernetes Cadvisor
+  - job_name: 'kubernetes-cadvisor'
+    kubernetes_sd_configs:
+      - role: node
+    scheme: https
+    tls_config:
+      ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+    relabel_configs:
+      - action: labelmap
+        regex: __meta_kubernetes_node_label_(.+)
+      - target_label: __address__
+        replacement: kubernetes.default.svc:443
+      - source_labels: [__meta_kubernetes_node_name]
+        regex: (.+)
+        target_label: __metrics_path__
+        replacement: /api/v1/nodes/${1}/proxy/metrics/cadvisor
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: '(container_cpu_usage_seconds_total|container_memory_working_set_bytes|container_network_receive_bytes_total|container_fs_usage_bytes)'
+        action: keep
+
+  # Elasticsearch monitoring
+  - job_name: 'elasticsearch'
+    static_configs:
+      - targets: ['elasticsearch:9200']
+    metrics_path: /_prometheus/metrics
+    scheme: https
+    tls_config:
+      ca_file: /etc/prometheus/certs/ca.crt
+    basic_auth:
+      username: 'elastic'
+      password: '${ELASTIC_PASSWORD}'
+
+  # Logstash monitoring
+  - job_name: 'logstash'
+    static_configs:
+      - targets: ['logstash:9600']
+    metrics_path: /metrics
+
+  # Kafka monitoring via JMX Exporter
+  - job_name: 'kafka'
+    static_configs:
+      - targets:
+          - 'kafka-1:9308'
+          - 'kafka-2:9308'
+          - 'kafka-3:9308'
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: '(kafka_server_BrokerTopicMetrics_MessagesInPerSec|kafka_server_BrokerTopicMetrics_BytesInPerSec|kafka_server_BrokerTopicMetrics_BytesOutPerSec|kafka_controller_KafkaController_OfflinePartitionsCount|kafka_server_ReplicaManager_UnderReplicatedPartitions)'
+        action: keep
+
+  # PostgreSQL monitoring
+  - job_name: 'postgresql'
+    static_configs:
+      - targets:
+          - 'postgres-exporter:9187'
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: '(pg_stat_database_tup_inserted|pg_stat_database_tup_updated|pg_stat_database_tup_deleted|pg_stat_database_conflicts|pg_stat_database_deadlocks|pg_locks_count)'
+        action: keep
+
+  # Redis monitoring
+  - job_name: 'redis'
+    static_configs:
+      - targets:
+          - 'redis-exporter:9121'
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: '(redis_connected_clients|redis_blocked_clients|redis_rejected_connections_total|redis_commands_processed_total|redis_keyspace_hits_total|redis_keyspace_misses_total)'
+        action: keep
+
+  # Istio Service Mesh monitoring
+  - job_name: 'istio-mesh'
+    kubernetes_sd_configs:
+      - role: endpoints
+        namespaces:
+          names:
+            - istio-system
+            - payment
+            - wallet
+            - transaction
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+        action: keep
+        regex: prometheus;prometheus
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: '(istio_request_duration_milliseconds|istio_request_bytes|istio_response_bytes|istio_tcp_connections_opened_total|istio_tcp_connections_closed_total)'
+        action: keep
+
+  # Blackbox Exporter for endpoint monitoring
+  - job_name: 'blackbox'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+          - https://api.example.com
+          - https://payment.example.com
+          - https://wallet.example.com
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
+  # Grafana monitoring
+  - job_name: 'grafana'
+    static_configs:
+      - targets: ['grafana:3000']
+    metrics_path: /metrics
+
+  # Wazuh monitoring
+  - job_name: 'wazuh'
+    static_configs:
+      - targets: ['wazuh-manager:55000']
+    metrics_path: /metrics
+    scheme: https
+    tls_config:
+      ca_file: /etc/prometheus/certs/ca.crt
+    basic_auth:
+      username: 'wazuh-api'
+      password: '${WAZUH_API_PASSWORD}'
+
+  # Custom application metrics
+  - job_name: 'application-metrics'
+    file_sd_configs:
+      - files:
+          - /etc/prometheus/targets/*.json
+        refresh_interval: 30s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+      - source_labels: [__meta_service]
+        target_label: service
+      - source_labels: [__meta_environment]
+        target_label: environment
+
+# Remote write configuration for long-term storage
+remote_write:
+  - url: "https://prometheus-long-term-storage.example.com/api/v1/write"
+    remote_timeout: 30s
+    queue_config:
+      capacity: 10000
+      max_shards: 100
+      min_shards: 1
+      max_samples_per_send: 1000
+      batch_send_deadline: 5s
+      min_backoff: 30ms
+      max_backoff: 100ms
+    tls_config:
+      ca_file: /etc/prometheus/certs/ca.crt
+      cert_file: /etc/prometheus/certs/prometheus.crt
+      key_file: /etc/prometheus/certs/prometheus.key
+    basic_auth:
+      username: '${REMOTE_WRITE_USERNAME}'
+      password: '${REMOTE_WRITE_PASSWORD}'
+    write_relabel_configs:
+      # Only write security-relevant metrics to long-term storage
+      - source_labels: [__name__]
+        regex: '.*(security|fraud|authentication|authorization|compliance|audit|violation|attack|threat).*'
+        action: keep
+
+# Storage configuration
+storage:
+  tsdb:
+    path: /prometheus
+    retention:
+      time: 30d
+      size: 50GB
+    wal_compression: true

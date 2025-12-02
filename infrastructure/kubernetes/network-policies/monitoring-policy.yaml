@@ -1,0 +1,84 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: monitoring-network-policy
+  namespace: monitoring
+spec:
+  podSelector:
+    matchLabels:
+      app: prometheus
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Allow Grafana access
+  - from:
+    - podSelector:
+        matchLabels:
+          app: grafana
+    ports:
+    - protocol: TCP
+      port: 9090
+  # Allow external access through ingress
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 9090
+  egress:
+  # Allow scraping all services
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          monitoring: enabled
+    ports:
+    - protocol: TCP
+  # Allow DNS
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grafana-network-policy
+  namespace: monitoring
+spec:
+  podSelector:
+    matchLabels:
+      app: grafana
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Allow external access through ingress
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 3000
+  egress:
+  # Allow access to Prometheus
+  - to:
+    - podSelector:
+        matchLabels:
+          app: prometheus
+    ports:
+    - protocol: TCP
+      port: 9090
+  # Allow access to Elasticsearch for logs
+  - to:
+    - podSelector:
+        matchLabels:
+          app: elasticsearch
+    ports:
+    - protocol: TCP
+      port: 9200

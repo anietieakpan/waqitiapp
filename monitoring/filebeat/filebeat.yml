@@ -1,0 +1,161 @@
+filebeat.inputs:
+  # Spring Boot application logs
+  - type: log
+    enabled: true
+    paths:
+      - /opt/waqiti/logs/payment-service/*.log
+      - /opt/waqiti/logs/user-service/*.log
+      - /opt/waqiti/logs/transaction-service/*.log
+      - /opt/waqiti/logs/security-service/*.log
+      - /opt/waqiti/logs/fraud-service/*.log
+      - /opt/waqiti/logs/gateway-service/*.log
+      - /opt/waqiti/logs/notification-service/*.log
+    fields:
+      service_type: spring-boot
+      environment: production
+    fields_under_root: true
+    multiline.pattern: '^\d{4}-\d{2}-\d{2}'
+    multiline.negate: true
+    multiline.match: after
+    processors:
+      - add_docker_metadata:
+          host: "unix:///var/run/docker.sock"
+
+  # Docker container logs
+  - type: container
+    enabled: true
+    paths:
+      - '/var/lib/docker/containers/*/*.log'
+    processors:
+      - add_docker_metadata:
+          host: "unix:///var/run/docker.sock"
+      - decode_json_fields:
+          fields: ["message"]
+          target: ""
+          overwrite_keys: true
+
+  # Nginx access logs
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/nginx/access.log
+      - /var/log/nginx/error.log
+    fields:
+      service_name: nginx
+      log_type: web_server
+    fields_under_root: true
+
+  # System logs
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/syslog
+      - /var/log/auth.log
+    fields:
+      service_name: system
+      log_type: system
+    fields_under_root: true
+
+  # Database logs
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/postgresql/*.log
+    fields:
+      service_name: postgresql
+      log_type: database
+    fields_under_root: true
+
+# Output configuration
+output.logstash:
+  hosts: ["logstash:5044"]
+  compression_level: 3
+  bulk_max_size: 2048
+  worker: 2
+
+# Processors
+processors:
+  - add_host_metadata:
+      when.not.contains.tags: forwarded
+  - add_fields:
+      target: ""
+      fields:
+        environment: production
+        platform: waqiti
+        
+  # Extract service name from file path
+  - script:
+      lang: javascript
+      id: extract_service_name
+      source: >
+        function process(event) {
+          var source = event.Get("log.file.path");
+          if (source) {
+            var matches = source.match(/\/([^\/]+)-service\//);
+            if (matches && matches[1]) {
+              event.Put("service_name", matches[1] + "-service");
+            }
+          }
+        }
+
+  # Drop debug logs in production
+  - drop_event:
+      when:
+        and:
+          - contains:
+              message: "DEBUG"
+          - not:
+              contains:
+                tags: "debug_enabled"
+
+# Logging configuration
+logging.level: info
+logging.to_files: true
+logging.files:
+  path: /var/log/filebeat
+  name: filebeat
+  keepfiles: 7
+  permissions: 0644
+
+# Monitoring
+monitoring.enabled: true
+
+# Autodiscover for Docker containers
+filebeat.autodiscover:
+  providers:
+    - type: docker
+      hints.enabled: true
+      hints.default_config:
+        type: container
+        paths:
+          - /var/lib/docker/containers/${data.docker.container.id}/*.log
+      templates:
+        - condition:
+            contains:
+              docker.container.image: "waqiti"
+          config:
+            - type: container
+              paths:
+                - /var/lib/docker/containers/${data.docker.container.id}/*.log
+              fields:
+                service_name: "${data.docker.container.labels.service_name}"
+                environment: production
+              fields_under_root: true
+
+# ILM (Index Lifecycle Management)
+setup.ilm.enabled: true
+setup.ilm.rollover_alias: "waqiti-logs"
+setup.ilm.pattern: "waqiti-logs-*"
+setup.ilm.policy: "waqiti-logs-policy"
+
+# Template settings
+setup.template.settings:
+  index.number_of_shards: 1
+  index.number_of_replicas: 0
+  index.refresh_interval: 30s
+
+# Queue settings
+queue.mem:
+  events: 4096
+  flush.min_events: 512
+  flush.timeout: 1s

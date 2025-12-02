@@ -1,0 +1,92 @@
+keycloak:
+  enabled: true
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  resource: account-service
+  auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}
+  ssl-required: ${KEYCLOAK_SSL_REQUIRED:external}
+  public-client: false
+  credentials:
+    secret: ${KEYCLOAK_CLIENT_SECRET:${vault.keycloak.account-service.client-secret}}
+  use-resource-role-mappings: true
+  bearer-only: true
+  autodetect-bearer-only: true
+  enable-cors: true
+  cors-allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+  cors-allowed-headers: Authorization,Content-Type,X-Requested-With,X-Request-ID
+  cors-exposed-headers: X-Request-ID
+  cors-max-age: 3600
+  
+  # Service-specific scopes
+  scopes:
+    - account:create
+    - account:read
+    - account:update
+    - account:delete
+    - account:close
+    - account:deactivate
+    - account:reactivate
+    - account:balance:read
+    - account:transactions:read
+    - account:statements:read
+    - account:limits:manage
+    - account:controls:manage
+    - account:link:manage
+    - account:external:manage
+    - account:beneficiaries:manage
+    - account:kyc:manage
+    - account:verification:manage
+    - account:admin:freeze
+    - account:admin:unfreeze
+    - account:admin:audit
+    - account:admin:reports
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8080/realms/waqiti}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:https://auth.example.com/realms/waqiti/protocol/openid-connect/certs}
+      client:
+        registration:
+          account-service:
+            client-id: account-service
+            client-secret: ${KEYCLOAK_CLIENT_SECRET:${vault.keycloak.account-service.client-secret}}
+            authorization-grant-type: client_credentials
+            scope: openid
+        provider:
+          keycloak:
+            issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8080/realms/waqiti}
+
+# Security headers
+security:
+  headers:
+    frame-options: DENY
+    xss-protection: 1; mode=block
+    content-type-options: nosniff
+    referrer-policy: strict-origin-when-cross-origin
+    permissions-policy: geolocation=(), microphone=(), camera=()
+    content-security-policy: default-src 'self'; frame-ancestors 'none';
+
+# CORS configuration
+cors:
+  allowed-origins:
+    - ${FRONTEND_URL:http://localhost:3000}
+    - ${MOBILE_APP_URL:http://localhost:19006}
+  allowed-methods:
+    - GET
+    - POST
+    - PUT
+    - DELETE
+    - OPTIONS
+  allowed-headers:
+    - Authorization
+    - Content-Type
+    - X-Requested-With
+    - X-Request-ID
+    - X-Trace-ID
+  exposed-headers:
+    - X-Request-ID
+    - X-Trace-ID
+  allow-credentials: true
+  max-age: 3600

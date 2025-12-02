@@ -1,0 +1,328 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Waqiti P2P Platform - Technical Metrics",
+    "tags": ["waqiti", "technical", "infrastructure"],
+    "style": "dark",
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "API Response Times (p95)",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"waqiti-services\"}[5m])) by (le, service))",
+            "refId": "A",
+            "legendFormat": "{{service}} - 95th percentile"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "linear",
+              "barAlignment": 0,
+              "lineWidth": 1,
+              "fillOpacity": 10,
+              "gradientMode": "none",
+              "spanNulls": false,
+              "insertNulls": false,
+              "showPoints": "never",
+              "pointSize": 5,
+              "stacking": {
+                "mode": "none",
+                "group": "A"
+              },
+              "axisPlacement": "auto",
+              "axisLabel": "",
+              "scaleDistribution": {
+                "type": "linear"
+              }
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "Request Rate (RPS)",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "sum(rate(http_requests_total{job=\"waqiti-services\"}[5m])) by (service)",
+            "refId": "A",
+            "legendFormat": "{{service}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps",
+            "color": {
+              "mode": "palette-classic"
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "Error Rate by Service",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "sum(rate(http_requests_total{status=~\"5..\",job=\"waqiti-services\"}[5m])) by (service) / sum(rate(http_requests_total{job=\"waqiti-services\"}[5m])) by (service) * 100",
+            "refId": "A",
+            "legendFormat": "{{service}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 1},
+                {"color": "red", "value": 5}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+      },
+      {
+        "id": 4,
+        "title": "Database Connection Pool Usage",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "hikaricp_connections_active{job=\"waqiti-services\"}",
+            "refId": "A",
+            "legendFormat": "{{service}} - Active"
+          },
+          {
+            "expr": "hikaricp_connections_max{job=\"waqiti-services\"}",
+            "refId": "B",
+            "legendFormat": "{{service}} - Max"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "color": {
+              "mode": "palette-classic"
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+      },
+      {
+        "id": 5,
+        "title": "JVM Memory Usage",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "jvm_memory_used_bytes{job=\"waqiti-services\",area=\"heap\"} / jvm_memory_max_bytes{job=\"waqiti-services\",area=\"heap\"} * 100",
+            "refId": "A",
+            "legendFormat": "{{service}} - Heap Usage %"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 70},
+                {"color": "red", "value": 90}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16}
+      },
+      {
+        "id": 6,
+        "title": "Garbage Collection Rate",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "rate(jvm_gc_collection_seconds_sum{job=\"waqiti-services\"}[5m])",
+            "refId": "A",
+            "legendFormat": "{{service}} - GC Time/sec"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "color": {
+              "mode": "palette-classic"
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16}
+      },
+      {
+        "id": 7,
+        "title": "Kafka Consumer Lag",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "kafka_consumer_lag_max{job=\"kafka\"}",
+            "refId": "A",
+            "legendFormat": "{{topic}} - {{consumer_group}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 1000},
+                {"color": "red", "value": 10000}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24}
+      },
+      {
+        "id": 8,
+        "title": "Redis Operations Rate",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "rate(redis_commands_processed_total{job=\"redis\"}[5m])",
+            "refId": "A",
+            "legendFormat": "Redis Commands/sec"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ops",
+            "color": {
+              "mode": "palette-classic"
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24}
+      },
+      {
+        "id": 9,
+        "title": "CPU Usage by Pod",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"waqiti\",container!=\"POD\",container!=\"\"}[5m])) by (pod) * 100",
+            "refId": "A",
+            "legendFormat": "{{pod}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "color": {
+              "mode": "palette-classic"
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 32}
+      },
+      {
+        "id": 10,
+        "title": "Memory Usage by Pod",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "sum(container_memory_working_set_bytes{namespace=\"waqiti\",container!=\"POD\",container!=\"\"}) by (pod) / 1024 / 1024",
+            "refId": "A",
+            "legendFormat": "{{pod}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "decbytes",
+            "color": {
+              "mode": "palette-classic"
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 32}
+      },
+      {
+        "id": 11,
+        "title": "Network I/O by Pod",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "sum(rate(container_network_receive_bytes_total{namespace=\"waqiti\"}[5m])) by (pod)",
+            "refId": "A",
+            "legendFormat": "{{pod}} - RX"
+          },
+          {
+            "expr": "sum(rate(container_network_transmit_bytes_total{namespace=\"waqiti\"}[5m])) by (pod)",
+            "refId": "B",
+            "legendFormat": "{{pod}} - TX"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "binBps",
+            "color": {
+              "mode": "palette-classic"
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 40}
+      },
+      {
+        "id": 12,
+        "title": "Disk I/O by Pod",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "sum(rate(container_fs_reads_bytes_total{namespace=\"waqiti\"}[5m])) by (pod)",
+            "refId": "A",
+            "legendFormat": "{{pod}} - Read"
+          },
+          {
+            "expr": "sum(rate(container_fs_writes_bytes_total{namespace=\"waqiti\"}[5m])) by (pod)",
+            "refId": "B",
+            "legendFormat": "{{pod}} - Write"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "binBps",
+            "color": {
+              "mode": "palette-classic"
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 40}
+      }
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "refresh": "30s",
+    "version": 1
+  }
+}

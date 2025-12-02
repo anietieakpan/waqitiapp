@@ -1,0 +1,41 @@
+spring:
+  datasource:
+    hikari:
+      maximum-pool-size: 50
+      minimum-idle: 10
+      leak-detection-threshold: 30000
+
+  jpa:
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+        use_sql_comments: false
+
+  kafka:
+    listener:
+      concurrency: 5
+
+logging:
+  level:
+    root: WARN
+    com.waqiti.lending: INFO
+    org.springframework.web: INFO
+    org.springframework.security: WARN
+    org.hibernate.SQL: WARN
+
+management:
+  endpoint:
+    health:
+      show-details: never
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        slidingWindowSize: 200
+        failureRateThreshold: 40

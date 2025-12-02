@@ -1,0 +1,122 @@
+# Keycloak Configuration for WebSocket Service
+
+keycloak:
+  enabled: true
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  ssl-required: external
+  resource: websocket-service
+  bearer-only: true
+  credentials:
+    secret: ${WEBSOCKET_SERVICE_CLIENT_SECRET}
+  use-resource-role-mappings: true
+  cors: true
+  cors-allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+  cors-allowed-headers: Authorization,Content-Type,X-Requested-With
+  cors-max-age: 3600
+  public-client: false
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+      client:
+        registration:
+          keycloak:
+            client-id: websocket-service
+            client-secret: ${WEBSOCKET_SERVICE_CLIENT_SECRET}
+            authorization-grant-type: client_credentials
+            scope: openid,profile,email
+        provider:
+          keycloak:
+            issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+            token-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}/protocol/openid-connect/token
+            authorization-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}/protocol/openid-connect/auth
+            userinfo-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}/protocol/openid-connect/userinfo
+            jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# WebSocket Service Security Configuration
+websocket:
+  security:
+    # Public endpoints that don't require authentication
+    public-endpoints:
+      - /actuator/health
+      - /actuator/info
+      - /api/v1/websocket/public/**
+      - /swagger-ui/**
+      - /v3/api-docs/**
+    
+    # WebSocket connection endpoints
+    websocket-endpoints:
+      - /ws/**
+      - /websocket/**
+      - /stomp/**
+    
+    # Required roles for websocket operations
+    required-roles:
+      connect:
+        - WEBSOCKET_USER
+        - USER
+      subscribe:
+        - WEBSOCKET_USER
+        - USER
+      publish:
+        - WEBSOCKET_USER
+        - USER
+      broadcast:
+        - WEBSOCKET_BROADCASTER
+        - ADMIN
+      admin:
+        - WEBSOCKET_ADMIN
+        - SYSTEM_ADMIN
+    
+    # Required scopes for operations
+    required-scopes:
+      connect: websocket:connect
+      subscribe: websocket:subscribe
+      publish: websocket:publish
+      presence: websocket:presence
+      notifications: websocket:notifications
+      real-time: websocket:realtime
+      broadcast: websocket:broadcast
+      admin: websocket:admin
+    
+    # WebSocket security features
+    features:
+      auth-required: true
+      session-validation: true
+      message-filtering: true
+      rate-limiting: true
+      presence-tracking: true
+      connection-logging: true
+      
+    # Connection limits and thresholds
+    limits:
+      max-connections-per-user: 5
+      max-subscriptions-per-connection: 20
+      max-message-size: 1048576  # 1MB
+      max-messages-per-second: 100
+      
+    # Security thresholds
+    thresholds:
+      connection-timeout: 300000  # 5 minutes
+      idle-timeout: 600000       # 10 minutes
+      heartbeat-interval: 30000  # 30 seconds
+      
+    # Advanced security features
+    advanced-security:
+      message-encryption: false
+      origin-validation: true
+      csrf-protection: true
+      xss-protection: true
+      content-security-policy: true
+
+# Service-to-Service Authentication
+service:
+  auth:
+    enabled: true
+    client-id: websocket-service
+    client-secret: ${WEBSOCKET_SERVICE_CLIENT_SECRET}

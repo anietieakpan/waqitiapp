@@ -1,0 +1,86 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: microservices-network-policy
+  namespace: waqiti
+spec:
+  podSelector:
+    matchLabels:
+      tier: microservice
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Allow traffic from API Gateway
+  - from:
+    - podSelector:
+        matchLabels:
+          app: api-gateway
+    ports:
+    - protocol: TCP
+  # Allow inter-service communication
+  - from:
+    - podSelector:
+        matchLabels:
+          tier: microservice
+    ports:
+    - protocol: TCP
+  # Allow Prometheus scraping
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    - podSelector:
+        matchLabels:
+          app: prometheus
+    ports:
+    - protocol: TCP
+      port: 8080
+  egress:
+  # Allow access to other microservices
+  - to:
+    - podSelector:
+        matchLabels:
+          tier: microservice
+    ports:
+    - protocol: TCP
+  # Allow access to databases
+  - to:
+    - podSelector:
+        matchLabels:
+          tier: database
+    ports:
+    - protocol: TCP
+      port: 5432  # PostgreSQL
+    - protocol: TCP
+      port: 6379  # Redis
+  # Allow access to Kafka
+  - to:
+    - podSelector:
+        matchLabels:
+          app: kafka
+    ports:
+    - protocol: TCP
+      port: 9092
+  # Allow access to discovery service
+  - to:
+    - podSelector:
+        matchLabels:
+          app: discovery-service
+    ports:
+    - protocol: TCP
+      port: 8761
+  # Allow access to config service
+  - to:
+    - podSelector:
+        matchLabels:
+          app: config-service
+    ports:
+    - protocol: TCP
+      port: 8888
+  # Allow access to external payment APIs
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: TCP
+      port: 443

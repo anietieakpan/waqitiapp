@@ -1,0 +1,452 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: example-monitoring
+  labels:
+    app: prometheus
+    component: monitoring
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+      external_labels:
+        cluster: 'waqiti-production'
+        environment: 'kubernetes'
+
+    rule_files:
+      - "/etc/prometheus/rules/*.yml"
+
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets:
+              - alertmanager:9093
+
+    scrape_configs:
+      # Kubernetes API Server
+      - job_name: 'kubernetes-apiservers'
+        kubernetes_sd_configs:
+          - role: endpoints
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+            action: keep
+            regex: default;kubernetes;https
+
+      # Kubernetes Nodes
+      - job_name: 'kubernetes-nodes'
+        kubernetes_sd_configs:
+          - role: node
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        relabel_configs:
+          - action: labelmap
+            regex: __meta_kubernetes_node_label_(.+)
+          - target_label: __address__
+            replacement: kubernetes.default.svc:443
+          - source_labels: [__meta_kubernetes_node_name]
+            regex: (.+)
+            target_label: __metrics_path__
+            replacement: /api/v1/nodes/${1}/proxy/metrics
+
+      # Kubernetes Pods
+      - job_name: 'kubernetes-pods'
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            target_label: __address__
+          - action: labelmap
+            regex: __meta_kubernetes_pod_label_(.+)
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: kubernetes_namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: kubernetes_pod_name
+
+      # Waqiti Services
+      - job_name: 'waqiti-services'
+        kubernetes_sd_configs:
+          - role: endpoints
+            namespaces:
+              names:
+                - waqiti
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+          - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scheme]
+            action: replace
+            target_label: __scheme__
+            regex: (https?)
+          - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          - source_labels: [__address__, __meta_kubernetes_service_annotation_prometheus_io_port]
+            action: replace
+            target_label: __address__
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+          - action: labelmap
+            regex: __meta_kubernetes_service_label_(.+)
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: kubernetes_namespace
+          - source_labels: [__meta_kubernetes_service_name]
+            action: replace
+            target_label: kubernetes_name
+
+      # Redis
+      - job_name: 'redis'
+        static_configs:
+          - targets: ['redis-exporter:9121']
+        scrape_interval: 30s
+
+      # PostgreSQL
+      - job_name: 'postgresql'
+        static_configs:
+          - targets: ['postgres-exporter:9187']
+        scrape_interval: 30s
+
+      # Kafka
+      - job_name: 'kafka'
+        static_configs:
+          - targets: ['kafka-exporter:9308']
+        scrape_interval: 30s
+
+      # Vault
+      - job_name: 'vault'
+        static_configs:
+          - targets: ['vault:8200']
+        metrics_path: /v1/sys/metrics
+        params:
+          format: ['prometheus']
+        scrape_interval: 30s
+
+  alerts.yml: |
+    groups:
+      - name: waqiti-services
+        rules:
+          - alert: ServiceDown
+            expr: up{job=~"waqiti-services"} == 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Waqiti service {{ $labels.kubernetes_name }} is down"
+              description: "Service {{ $labels.kubernetes_name }} in namespace {{ $labels.kubernetes_namespace }} has been down for more than 1 minute."
+
+          - alert: HighErrorRate
+            expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.05
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High error rate on {{ $labels.kubernetes_name }}"
+              description: "Service {{ $labels.kubernetes_name }} has error rate above 5% for 5 minutes."
+
+          - alert: HighLatency
+            expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 1
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High latency on {{ $labels.kubernetes_name }}"
+              description: "95th percentile latency is above 1s for {{ $labels.kubernetes_name }}."
+
+          - alert: DatabaseConnectionHigh
+            expr: hikaricp_connections_active / hikaricp_connections_max > 0.8
+            for: 2m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High database connection usage"
+              description: "Database connection pool usage is above 80% for {{ $labels.kubernetes_name }}."
+
+          - alert: PaymentProcessingFailed
+            expr: increase(payment_processing_failed_total[5m]) > 10
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Payment processing failures detected"
+              description: "More than 10 payment processing failures in the last 5 minutes."
+
+          - alert: TransactionVolumeAnomaly
+            expr: rate(transactions_total[5m]) > 1000 or rate(transactions_total[5m]) < 10
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Unusual transaction volume"
+              description: "Transaction volume is outside normal range: {{ $value }} TPS."
+
+          - alert: FraudDetectionHigh
+            expr: rate(fraud_detections_total[5m]) > 50
+            for: 2m
+            labels:
+              severity: critical
+            annotations:
+              summary: "High fraud detection rate"
+              description: "Fraud detection rate is abnormally high: {{ $value }} detections per second."
+
+          - alert: VaultSealStatus
+            expr: vault_core_unsealed == 0
+            for: 0s
+            labels:
+              severity: critical
+            annotations:
+              summary: "Vault is sealed"
+              description: "Vault instance is sealed and unavailable."
+
+      - name: waqiti-business-alerts
+        rules:
+          - alert: PaymentSuccessRateLow
+            expr: (sum(rate(waqiti_payment_success_total[15m])) / sum(rate(waqiti_payment_total[15m]))) * 100 < 95
+            for: 5m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Payment success rate below 95%"
+              description: "Payment success rate has been below 95% for 5 minutes: {{ $value }}%"
+
+          - alert: BNPL_ApplicationVolumeHigh
+            expr: rate(waqiti_bnpl_applications_total[5m]) > 100
+            for: 2m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Unusually high BNPL application volume"
+              description: "BNPL application rate is {{ $value }} applications per second, which is unusually high."
+
+          - alert: BNPL_ApprovalRateLow
+            expr: (sum(rate(waqiti_bnpl_approved_total[30m])) / sum(rate(waqiti_bnpl_applications_total[30m]))) * 100 < 30
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              summary: "BNPL approval rate is low"
+              description: "BNPL approval rate has been below 30% for 10 minutes: {{ $value }}%"
+
+          - alert: CryptocurrencyTradingDown
+            expr: sum(rate(waqiti_crypto_trades_total[5m])) == 0
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "No cryptocurrency trading activity"
+              description: "No cryptocurrency trades have been processed in the last 5 minutes."
+
+          - alert: InvestmentPortfolioLossesHigh
+            expr: sum(rate(waqiti_investment_losses_total[30m])) > sum(rate(waqiti_investment_gains_total[30m])) * 2
+            for: 15m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High investment portfolio losses"
+              description: "Investment losses are significantly higher than gains over the last 30 minutes."
+
+          - alert: PhysicalCardTransactionsDown
+            expr: sum(rate(waqiti_physical_card_transactions_total[10m])) == 0
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              summary: "No physical card transactions"
+              description: "No physical card transactions processed in the last 10 minutes."
+
+          - alert: RewardsAccrualStopped
+            expr: sum(rate(waqiti_rewards_accrued_total[15m])) == 0
+            for: 15m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Rewards accrual has stopped"
+              description: "No rewards have been accrued in the last 15 minutes."
+
+          - alert: WalletBalanceNegative
+            expr: waqiti_wallet_balance < 0
+            for: 0s
+            labels:
+              severity: critical
+            annotations:
+              summary: "Negative wallet balance detected"
+              description: "Wallet {{ $labels.user_id }} has negative balance: {{ $value }}"
+
+      - name: waqiti-security-alerts
+        rules:
+          - alert: SuspiciousLoginAttempts
+            expr: sum(rate(waqiti_auth_attempts_total{result="failed"}[5m])) by (ip_address) > 10
+            for: 2m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Suspicious login attempts from IP {{ $labels.ip_address }}"
+              description: "IP {{ $labels.ip_address }} has {{ $value }} failed login attempts per second."
+
+          - alert: AccountLockoutRateHigh
+            expr: rate(waqiti_account_lockouts_total[5m]) > 1
+            for: 3m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High account lockout rate"
+              description: "Account lockout rate is {{ $value }} per second, indicating potential attack."
+
+          - alert: FraudScoreVeryHigh
+            expr: waqiti_fraud_score > 90
+            for: 0s
+            labels:
+              severity: critical
+            annotations:
+              summary: "Very high fraud score detected"
+              description: "Transaction or user has fraud score of {{ $value }}, requires immediate review."
+
+          - alert: KYC_VerificationBacklog
+            expr: waqiti_kyc_pending_verifications > 1000
+            for: 30m
+            labels:
+              severity: warning
+            annotations:
+              summary: "KYC verification backlog"
+              description: "{{ $value }} KYC verifications are pending for more than 30 minutes."
+
+          - alert: SuspiciousDeviceActivity
+            expr: sum(rate(waqiti_device_risk_high_total[5m])) > 5
+            for: 2m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High-risk device activity"
+              description: "{{ $value }} high-risk device events per second detected."
+
+          - alert: AML_ComplianceViolation
+            expr: waqiti_aml_compliance_violations_total > 0
+            for: 0s
+            labels:
+              severity: critical
+            annotations:
+              summary: "AML compliance violation detected"
+              description: "{{ $value }} AML compliance violations require immediate attention."
+
+          - alert: UnauthorizedAPIAccess
+            expr: sum(rate(waqiti_api_unauthorized_total[5m])) > 20
+            for: 2m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High rate of unauthorized API access"
+              description: "{{ $value }} unauthorized API requests per second detected."
+
+          - alert: DataBreachIndicators
+            expr: sum(rate(waqiti_data_access_anomaly_total[5m])) > 10
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Potential data breach indicators"
+              description: "{{ $value }} data access anomalies per second detected - potential breach."
+
+      - name: waqiti-real-time-analytics
+        rules:
+          - alert: AnalyticsProcessingLag
+            expr: waqiti_analytics_processing_lag_seconds > 60
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Analytics processing lag high"
+              description: "Analytics processing lag is {{ $value }} seconds, affecting real-time insights."
+
+          - alert: EventStreamingDown
+            expr: sum(rate(waqiti_events_processed_total[5m])) == 0
+            for: 3m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Event streaming has stopped"
+              description: "No events have been processed in the last 5 minutes."
+
+          - alert: MachineLearningModelDrift
+            expr: waqiti_ml_model_accuracy < 0.85
+            for: 15m
+            labels:
+              severity: warning
+            annotations:
+              summary: "ML model accuracy degraded"
+              description: "Machine learning model accuracy has dropped to {{ $value }}, retraining may be needed."
+
+      - name: infrastructure
+        rules:
+          - alert: KubernetesNodeNotReady
+            expr: kube_node_status_condition{condition="Ready",status="true"} == 0
+            for: 5m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Kubernetes Node not ready"
+              description: "Node {{ $labels.node }} has been not ready for more than 5 minutes."
+
+          - alert: KubernetesPodCrashLooping
+            expr: rate(kube_pod_container_status_restarts_total[15m]) > 0
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Pod is crash looping"
+              description: "Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} is crash looping."
+
+          - alert: KubernetesDeploymentReplicasMismatch
+            expr: kube_deployment_spec_replicas != kube_deployment_status_available_replicas
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Deployment replicas mismatch"
+              description: "Deployment {{ $labels.deployment }} has {{ $labels.kube_deployment_spec_replicas }} desired but {{ $labels.kube_deployment_status_available_replicas }} available replicas."
+
+          - alert: HighCPUUsage
+            expr: (100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)) > 85
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High CPU usage"
+              description: "CPU usage is above 85% on {{ $labels.instance }}."
+
+          - alert: HighMemoryUsage
+            expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 90
+            for: 5m
+            labels:
+              severity: critical
+            annotations:
+              summary: "High memory usage"
+              description: "Memory usage is above 90% on {{ $labels.instance }}."
+
+          - alert: DiskSpaceLow
+            expr: (1 - (node_filesystem_avail_bytes / node_filesystem_size_bytes)) * 100 > 85
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Disk space low"
+              description: "Disk usage is above 85% on {{ $labels.instance }}."

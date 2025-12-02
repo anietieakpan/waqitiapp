@@ -1,0 +1,517 @@
+---
+# ============================================================================
+# PAYMENT SERVICE NETWORK POLICY
+# ============================================================================
+# Controls ingress/egress for the Payment Service
+#
+# Security Level: CRITICAL (PCI-DSS Scope)
+# Handles: Payment processing, gateway integrations, chargebacks
+# ============================================================================
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: payment-service-policy
+  namespace: example-production
+  labels:
+    app.kubernetes.io/name: network-policy
+    app.kubernetes.io/component: payment-service
+    security.example.com/tier: critical
+    security.example.com/pci-scope: "true"
+    compliance: pci-dss
+  annotations:
+    description: "Payment Service network policy - PCI-DSS compliant isolation"
+    security.example.com/last-reviewed: "2025-10-25"
+    pci-dss.requirements: "1.2.1, 1.3.1, 1.3.2, 1.3.4"
+spec:
+  podSelector:
+    matchLabels:
+      app: payment-service
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress:
+    # Allow ingress from API Gateway
+    - from:
+        - podSelector:
+            matchLabels:
+              app: api-gateway
+      ports:
+        - protocol: TCP
+          port: 8083
+
+    # Allow ingress from Transaction Service (for payment initiation)
+    - from:
+        - podSelector:
+            matchLabels:
+              app: transaction-service
+      ports:
+        - protocol: TCP
+          port: 8083
+
+    # Allow ingress from Wallet Service (for payment completion)
+    - from:
+        - podSelector:
+            matchLabels:
+              app: wallet-service
+      ports:
+        - protocol: TCP
+          port: 8083
+
+    # Allow ingress from Integration Service (for webhook callbacks)
+    - from:
+        - podSelector:
+            matchLabels:
+              app: integration-service
+      ports:
+        - protocol: TCP
+          port: 8083
+
+    # Allow ingress from Prometheus for metrics
+    - from:
+        - podSelector:
+            matchLabels:
+              app: prometheus
+      ports:
+        - protocol: TCP
+          port: 9090
+
+  egress:
+    # DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+    # PostgreSQL database
+    - to:
+        - podSelector:
+            matchLabels:
+              app: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+
+    # Kafka for event publishing
+    - to:
+        - podSelector:
+            matchLabels:
+              app: kafka
+      ports:
+        - protocol: TCP
+          port: 9092
+        - protocol: TCP
+          port: 29092
+
+    # Redis for caching and idempotency
+    - to:
+        - podSelector:
+            matchLabels:
+              app: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+
+    # User Service (for user validation)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: user-service
+      ports:
+        - protocol: TCP
+          port: 8081
+
+    # Wallet Service (for balance checks)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: wallet-service
+      ports:
+        - protocol: TCP
+          port: 8082
+
+    # Fraud Detection Service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: fraud-detection-service
+      ports:
+        - protocol: TCP
+          port: 8088
+
+    # Notification Service (for payment notifications)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: notification-service
+      ports:
+        - protocol: TCP
+          port: 8084
+
+    # Discovery Service (Eureka)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: discovery-service
+      ports:
+        - protocol: TCP
+          port: 8761
+
+    # Config Service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: config-service
+      ports:
+        - protocol: TCP
+          port: 8888
+
+    # Zipkin for tracing
+    - to:
+        - podSelector:
+            matchLabels:
+              app: zipkin
+      ports:
+        - protocol: TCP
+          port: 9411
+
+    # Allow egress to external payment gateways (HTTPS only)
+    # Stripe, PayPal, Flutterwave, Paystack, etc.
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443
+
+---
+# ============================================================================
+# WALLET SERVICE NETWORK POLICY
+# ============================================================================
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: wallet-service-policy
+  namespace: example-production
+  labels:
+    app.kubernetes.io/name: network-policy
+    app.kubernetes.io/component: wallet-service
+    security.example.com/tier: critical
+    compliance: pci-dss
+  annotations:
+    description: "Wallet Service network policy - critical financial operations"
+    security.example.com/last-reviewed: "2025-10-25"
+spec:
+  podSelector:
+    matchLabels:
+      app: wallet-service
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress:
+    # Allow ingress from API Gateway
+    - from:
+        - podSelector:
+            matchLabels:
+              app: api-gateway
+      ports:
+        - protocol: TCP
+          port: 8082
+
+    # Allow ingress from Payment Service
+    - from:
+        - podSelector:
+            matchLabels:
+              app: payment-service
+      ports:
+        - protocol: TCP
+          port: 8082
+
+    # Allow ingress from Transaction Service
+    - from:
+        - podSelector:
+            matchLabels:
+              app: transaction-service
+      ports:
+        - protocol: TCP
+          port: 8082
+
+    # Allow ingress from Prometheus for metrics
+    - from:
+        - podSelector:
+            matchLabels:
+              app: prometheus
+      ports:
+        - protocol: TCP
+          port: 9090
+
+  egress:
+    # DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+    # PostgreSQL database
+    - to:
+        - podSelector:
+            matchLabels:
+              app: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+
+    # Kafka for event publishing
+    - to:
+        - podSelector:
+            matchLabels:
+              app: kafka
+      ports:
+        - protocol: TCP
+          port: 9092
+        - protocol: TCP
+          port: 29092
+
+    # Redis for distributed locking and caching
+    - to:
+        - podSelector:
+            matchLabels:
+              app: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+
+    # Integration Service (for external wallet integrations)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: integration-service
+      ports:
+        - protocol: TCP
+          port: 8085
+
+    # Notification Service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: notification-service
+      ports:
+        - protocol: TCP
+          port: 8084
+
+    # Discovery Service (Eureka)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: discovery-service
+      ports:
+        - protocol: TCP
+          port: 8761
+
+    # Config Service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: config-service
+      ports:
+        - protocol: TCP
+          port: 8888
+
+    # Zipkin for tracing
+    - to:
+        - podSelector:
+            matchLabels:
+              app: zipkin
+      ports:
+        - protocol: TCP
+          port: 9411
+
+---
+# ============================================================================
+# TRANSACTION SERVICE NETWORK POLICY
+# ============================================================================
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: transaction-service-policy
+  namespace: example-production
+  labels:
+    app.kubernetes.io/name: network-policy
+    app.kubernetes.io/component: transaction-service
+    security.example.com/tier: critical
+    compliance: pci-dss
+  annotations:
+    description: "Transaction Service network policy - ledger and ACID compliance"
+    security.example.com/last-reviewed: "2025-10-25"
+spec:
+  podSelector:
+    matchLabels:
+      app: transaction-service
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress:
+    # Allow ingress from API Gateway
+    - from:
+        - podSelector:
+            matchLabels:
+              app: api-gateway
+      ports:
+        - protocol: TCP
+          port: 8086
+
+    # Allow ingress from Payment Service
+    - from:
+        - podSelector:
+            matchLabels:
+              app: payment-service
+      ports:
+        - protocol: TCP
+          port: 8086
+
+    # Allow ingress from Wallet Service
+    - from:
+        - podSelector:
+            matchLabels:
+              app: wallet-service
+      ports:
+        - protocol: TCP
+          port: 8086
+
+    # Allow ingress from Prometheus for metrics
+    - from:
+        - podSelector:
+            matchLabels:
+              app: prometheus
+      ports:
+        - protocol: TCP
+          port: 9090
+
+  egress:
+    # DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+    # PostgreSQL database (primary ledger)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+
+    # ClickHouse for analytics
+    - to:
+        - podSelector:
+            matchLabels:
+              app: clickhouse
+      ports:
+        - protocol: TCP
+          port: 9000
+        - protocol: TCP
+          port: 8123
+
+    # Kafka for event sourcing
+    - to:
+        - podSelector:
+            matchLabels:
+              app: kafka
+      ports:
+        - protocol: TCP
+          port: 9092
+        - protocol: TCP
+          port: 29092
+
+    # Redis for caching
+    - to:
+        - podSelector:
+            matchLabels:
+              app: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+
+    # Payment Service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: payment-service
+      ports:
+        - protocol: TCP
+          port: 8083
+
+    # Wallet Service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: wallet-service
+      ports:
+        - protocol: TCP
+          port: 8082
+
+    # Fraud Detection Service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: fraud-detection-service
+      ports:
+        - protocol: TCP
+          port: 8088
+
+    # Notification Service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: notification-service
+      ports:
+        - protocol: TCP
+          port: 8084
+
+    # Discovery Service (Eureka)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: discovery-service
+      ports:
+        - protocol: TCP
+          port: 8761
+
+    # Config Service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: config-service
+      ports:
+        - protocol: TCP
+          port: 8888
+
+    # Zipkin for tracing
+    - to:
+        - podSelector:
+            matchLabels:
+              app: zipkin
+      ports:
+        - protocol: TCP
+          port: 9411

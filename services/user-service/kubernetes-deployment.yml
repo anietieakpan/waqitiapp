@@ -1,0 +1,194 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+  namespace: waqiti
+  labels:
+    app: user-service
+    tier: backend
+    component: microservice
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+        tier: backend
+        component: microservice
+    spec:
+      serviceAccountName: user-service
+
+      # Init containers for database migration
+      initContainers:
+        - name: wait-for-database
+          image: busybox:1.35
+          command: ['sh', '-c', 'until nc -z postgres-user 5432; do echo waiting for database; sleep 2; done;']
+
+      containers:
+        - name: user-service
+          image: waqiti/user-service:${VERSION}
+          imagePullPolicy: Always
+
+          ports:
+            - name: http
+              containerPort: 8081
+              protocol: TCP
+            - name: actuator
+              containerPort: 8081
+              protocol: TCP
+
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "production"
+            - name: DB_HOST
+              value: "postgres-user"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: "waqiti_users"
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: user-service-secrets
+                  key: db-username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: user-service-secrets
+                  key: db-password
+            - name: KEYCLOAK_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: user-service-secrets
+                  key: keycloak-client-secret
+
+          # STARTUP PROBE
+          # Gives application time to start (up to 5 minutes)
+          # Used for slow-starting applications
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8081
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 30  # 10s * 30 = 5 minutes max startup time
+
+          # LIVENESS PROBE
+          # Detects if application is deadlocked or hung
+          # Kubernetes will restart pod if this fails
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8081
+              scheme: HTTP
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 3  # Restart after 30s of failures
+
+          # READINESS PROBE
+          # Determines if pod is ready to receive traffic
+          # Kubernetes removes from service endpoints if this fails
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8081
+              scheme: HTTP
+            initialDelaySeconds: 30
+            periodSeconds: 5
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 3  # Remove from load balancer after 15s of failures
+
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: 2000m
+              memory: 2Gi
+
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: logs
+              mountPath: /var/log/user-service
+
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: logs
+          emptyDir: {}
+
+      # Pod Disruption Budget for high availability
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - user-service
+                topologyKey: kubernetes.io/hostname
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+  namespace: waqiti
+  labels:
+    app: user-service
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8081
+      targetPort: 8081
+      protocol: TCP
+  selector:
+    app: user-service
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: user-service-pdb
+  namespace: waqiti
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: user-service
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: user-service
+  namespace: waqiti

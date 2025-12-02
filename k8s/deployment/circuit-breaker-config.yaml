@@ -1,0 +1,474 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: circuit-breaker-config
+  namespace: default
+  labels:
+    app: circuit-breaker
+    component: resilience
+data:
+  application.yml: |
+    resilience4j:
+      circuitbreaker:
+        configs:
+          default:
+            register-health-indicator: true
+            sliding-window-size: 100
+            minimum-number-of-calls: 20
+            permitted-number-of-calls-in-half-open-state: 10
+            automatic-transition-from-open-to-half-open-enabled: true
+            wait-duration-in-open-state: 60s
+            failure-rate-threshold: 50
+            slow-call-rate-threshold: 50
+            slow-call-duration-threshold: 2s
+            record-exceptions:
+              - org.springframework.web.client.HttpServerErrorException
+              - java.net.ConnectException
+              - java.net.SocketTimeoutException
+              - java.util.concurrent.TimeoutException
+            ignore-exceptions:
+              - java.lang.IllegalArgumentException
+              - org.springframework.security.access.AccessDeniedException
+        instances:
+          # Payment Service Circuit Breakers
+          payment-processor:
+            base-config: default
+            failure-rate-threshold: 30
+            slow-call-duration-threshold: 1s
+            wait-duration-in-open-state: 30s
+            
+          external-payment-provider:
+            base-config: default
+            failure-rate-threshold: 40
+            slow-call-duration-threshold: 5s
+            wait-duration-in-open-state: 120s
+            sliding-window-size: 50
+            
+          # Database Circuit Breakers
+          database-primary:
+            base-config: default
+            failure-rate-threshold: 20
+            slow-call-duration-threshold: 3s
+            wait-duration-in-open-state: 45s
+            
+          database-replica:
+            base-config: default
+            failure-rate-threshold: 30
+            slow-call-duration-threshold: 5s
+            wait-duration-in-open-state: 30s
+            
+          # External Service Circuit Breakers
+          fraud-detection-api:
+            base-config: default
+            failure-rate-threshold: 35
+            slow-call-duration-threshold: 2s
+            wait-duration-in-open-state: 60s
+            permitted-number-of-calls-in-half-open-state: 5
+            
+          kyc-verification-service:
+            base-config: default
+            failure-rate-threshold: 40
+            slow-call-duration-threshold: 10s
+            wait-duration-in-open-state: 180s
+            sliding-window-size: 30
+            
+          notification-service:
+            base-config: default
+            failure-rate-threshold: 60
+            slow-call-duration-threshold: 3s
+            wait-duration-in-open-state: 90s
+            
+      # Retry Configuration
+      retry:
+        configs:
+          default:
+            max-attempts: 3
+            wait-duration: 1s
+            exponential-backoff-multiplier: 2
+            retry-exceptions:
+              - org.springframework.web.client.HttpServerErrorException
+              - java.net.ConnectException
+              - java.net.SocketTimeoutException
+            ignore-exceptions:
+              - java.lang.IllegalArgumentException
+              - org.springframework.web.client.HttpClientErrorException.BadRequest
+        instances:
+          payment-retry:
+            base-config: default
+            max-attempts: 5
+            wait-duration: 500ms
+            
+          database-retry:
+            base-config: default
+            max-attempts: 3
+            wait-duration: 2s
+            
+          external-api-retry:
+            base-config: default
+            max-attempts: 4
+            wait-duration: 1s
+            exponential-backoff-multiplier: 1.5
+            
+      # Bulkhead Configuration
+      bulkhead:
+        configs:
+          default:
+            max-concurrent-calls: 100
+            max-wait-duration: 5s
+        instances:
+          payment-processing:
+            max-concurrent-calls: 50
+            max-wait-duration: 3s
+            
+          database-operations:
+            max-concurrent-calls: 30
+            max-wait-duration: 2s
+            
+          external-api-calls:
+            max-concurrent-calls: 20
+            max-wait-duration: 1s
+            
+      # Rate Limiter Configuration
+      ratelimiter:
+        configs:
+          default:
+            limit-for-period: 100
+            limit-refresh-period: 1s
+            timeout-duration: 0
+        instances:
+          api-rate-limiter:
+            limit-for-period: 1000
+            limit-refresh-period: 1s
+            
+          payment-rate-limiter:
+            limit-for-period: 50
+            limit-refresh-period: 1s
+            timeout-duration: 100ms
+            
+          external-service-limiter:
+            limit-for-period: 20
+            limit-refresh-period: 1s
+            timeout-duration: 500ms
+    
+    # Monitoring Configuration
+    management:
+      endpoints:
+        web:
+          exposure:
+            include: health,info,metrics,prometheus,circuitbreakers,ratelimiters
+      endpoint:
+        health:
+          show-details: always
+          show-components: always
+      metrics:
+        tags:
+          application: "${spring.application.name}"
+          instance: "${HOSTNAME:unknown}"
+        export:
+          prometheus:
+            enabled: true
+            descriptions: true
+            step: 30s
+      health:
+        circuitbreakers:
+          enabled: true
+        ratelimiters:
+          enabled: true
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: resilience-monitor
+  namespace: default
+  labels:
+    app: resilience-monitor
+    component: observability
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: resilience-monitor
+  template:
+    metadata:
+      labels:
+        app: resilience-monitor
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      containers:
+      - name: resilience-monitor
+        image: waqiti/resilience-monitor:latest
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "production"
+        - name: PROMETHEUS_URL
+          value: "http://prometheus.monitoring.svc.cluster.local:9090"
+        - name: CIRCUIT_BREAKER_CONFIG
+          valueFrom:
+            configMapKeyRef:
+              name: circuit-breaker-config
+              key: application.yml
+        command:
+        - /bin/bash
+        - -c
+        - |
+          cat > /app/monitor.sh << 'EOF'
+          #!/bin/bash
+          set -e
+          
+          PROMETHEUS_URL="${PROMETHEUS_URL:-http://prometheus.monitoring.svc.cluster.local:9090}"
+          
+          echo "Starting Circuit Breaker Monitor..."
+          
+          # Monitor circuit breaker states
+          monitor_circuit_breakers() {
+            echo "Checking circuit breaker states..."
+            
+            # Query Prometheus for circuit breaker metrics
+            CB_STATES=$(curl -s "${PROMETHEUS_URL}/api/v1/query" \
+              --data-urlencode "query=resilience4j_circuitbreaker_state" \
+              | jq -r '.data.result[] | "\(.metric.name): \(.metric.state)"')
+            
+            if [ ! -z "$CB_STATES" ]; then
+              echo "Circuit Breaker States:"
+              echo "$CB_STATES"
+              
+              # Check for open circuit breakers
+              OPEN_CBS=$(echo "$CB_STATES" | grep -c "open" || echo "0")
+              if [ "$OPEN_CBS" -gt 0 ]; then
+                echo "⚠ WARNING: $OPEN_CBS circuit breaker(s) are open"
+                
+                # Send alert for critical services
+                CRITICAL_OPEN=$(echo "$CB_STATES" | grep -E "(payment-processor|database-primary).*open" || echo "")
+                if [ ! -z "$CRITICAL_OPEN" ]; then
+                  echo "🚨 CRITICAL: Critical service circuit breakers are open"
+                  send_alert "CRITICAL" "Critical service circuit breakers open: $CRITICAL_OPEN"
+                fi
+              fi
+            fi
+          }
+          
+          # Monitor failure rates
+          monitor_failure_rates() {
+            echo "Checking service failure rates..."
+            
+            FAILURE_RATES=$(curl -s "${PROMETHEUS_URL}/api/v1/query" \
+              --data-urlencode "query=resilience4j_circuitbreaker_failure_rate" \
+              | jq -r '.data.result[] | "\(.metric.name): \(.value[1])"')
+            
+            if [ ! -z "$FAILURE_RATES" ]; then
+              echo "Service Failure Rates:"
+              echo "$FAILURE_RATES"
+              
+              # Check for high failure rates
+              while IFS= read -r line; do
+                CB_NAME=$(echo "$line" | cut -d':' -f1)
+                FAILURE_RATE=$(echo "$line" | cut -d':' -f2 | tr -d ' ')
+                
+                if (( $(echo "$FAILURE_RATE > 25.0" | bc -l) )); then
+                  echo "⚠ HIGH FAILURE RATE: $CB_NAME at ${FAILURE_RATE}%"
+                fi
+              done <<< "$FAILURE_RATES"
+            fi
+          }
+          
+          # Send alert function
+          send_alert() {
+            local severity=$1
+            local message=$2
+            
+            if [ ! -z "$SLACK_WEBHOOK_URL" ]; then
+              curl -X POST "$SLACK_WEBHOOK_URL" \
+                -H "Content-Type: application/json" \
+                -d "{
+                  \"text\": \"🔧 Circuit Breaker Alert\",
+                  \"attachments\": [{
+                    \"color\": \"$([ "$severity" == "CRITICAL" ] && echo "danger" || echo "warning")\",
+                    \"fields\": [{
+                      \"title\": \"Severity\",
+                      \"value\": \"$severity\",
+                      \"short\": true
+                    }, {
+                      \"title\": \"Message\",
+                      \"value\": \"$message\",
+                      \"short\": false
+                    }]
+                  }]
+                }"
+            fi
+          }
+          
+          # Main monitoring loop
+          while true; do
+            monitor_circuit_breakers
+            monitor_failure_rates
+            echo "---"
+            sleep 60
+          done
+          EOF
+          
+          chmod +x /app/monitor.sh
+          /app/monitor.sh
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        volumeMounts:
+        - name: config
+          mountPath: /app/config
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8080
+          initialDelaySeconds: 20
+          periodSeconds: 5
+      volumes:
+      - name: config
+        configMap:
+          name: circuit-breaker-config
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: circuit-breaker-alerts
+  namespace: default
+  labels:
+    app: circuit-breaker-monitoring
+    prometheus: kube-prometheus
+spec:
+  groups:
+  - name: circuit-breaker-alerts
+    interval: 30s
+    rules:
+    - alert: CircuitBreakerOpen
+      expr: resilience4j_circuitbreaker_state{state="open"} == 1
+      for: 1m
+      labels:
+        severity: critical
+        component: circuit-breaker
+      annotations:
+        summary: "Circuit breaker {{ $labels.name }} is open"
+        description: "Circuit breaker {{ $labels.name }} has been open for more than 1 minute"
+        runbook_url: "https://runbook.example.com/circuit-breaker-open"
+        
+    - alert: CircuitBreakerHighFailureRate
+      expr: resilience4j_circuitbreaker_failure_rate > 25
+      for: 2m
+      labels:
+        severity: warning
+        component: circuit-breaker
+      annotations:
+        summary: "Circuit breaker {{ $labels.name }} has high failure rate"
+        description: "Circuit breaker {{ $labels.name }} failure rate is {{ $value }}%"
+        
+    - alert: CircuitBreakerSlowCalls
+      expr: resilience4j_circuitbreaker_slow_call_rate > 50
+      for: 3m
+      labels:
+        severity: warning
+        component: circuit-breaker
+      annotations:
+        summary: "Circuit breaker {{ $labels.name }} has high slow call rate"
+        description: "Circuit breaker {{ $labels.name }} slow call rate is {{ $value }}%"
+        
+    - alert: BulkheadRejected
+      expr: rate(resilience4j_bulkhead_rejected_calls_total[5m]) > 0
+      for: 1m
+      labels:
+        severity: warning
+        component: bulkhead
+      annotations:
+        summary: "Bulkhead {{ $labels.name }} is rejecting calls"
+        description: "Bulkhead {{ $labels.name }} rejected {{ $value }} calls/sec in the last 5 minutes"
+        
+    - alert: RateLimiterRejected
+      expr: rate(resilience4j_ratelimiter_rejected_calls_total[5m]) > 10
+      for: 1m
+      labels:
+        severity: warning
+        component: rate-limiter
+      annotations:
+        summary: "Rate limiter {{ $labels.name }} is rejecting many calls"
+        description: "Rate limiter {{ $labels.name }} rejected {{ $value }} calls/sec in the last 5 minutes"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: resilience-monitor
+  namespace: default
+  labels:
+    app: resilience-monitor
+spec:
+  selector:
+    app: resilience-monitor
+  ports:
+  - port: 8080
+    targetPort: 8080
+    name: http
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: payment-service-circuit-breaker
+  namespace: default
+spec:
+  host: payment-service.default.svc.cluster.local
+  trafficPolicy:
+    outlierDetection:
+      consecutive5xxErrors: 5
+      interval: 30s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+      minHealthPercent: 30
+    connectionPool:
+      tcp:
+        maxConnections: 100
+        connectTimeout: 10s
+        tcpKeepalive:
+          time: 7200s
+          interval: 75s
+      http:
+        http1MaxPendingRequests: 64
+        http2MaxRequests: 1000
+        maxRequestsPerConnection: 10
+        maxRetries: 3
+        consecutiveGatewayErrors: 5
+        h2UpgradePolicy: UPGRADE
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: payment-service-retry
+  namespace: default
+spec:
+  hosts:
+  - payment-service.default.svc.cluster.local
+  http:
+  - fault:
+      delay:
+        percentage:
+          value: 0.1
+        fixedDelay: 5s
+    retries:
+      attempts: 3
+      perTryTimeout: 30s
+      retryOn: 5xx,gateway-error,connect-failure,refused-stream
+      retryRemoteLocalities: true
+    route:
+    - destination:
+        host: payment-service.default.svc.cluster.local
+    timeout: 60s

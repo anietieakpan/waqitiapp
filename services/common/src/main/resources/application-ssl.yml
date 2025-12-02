@@ -1,0 +1,373 @@
+# Production SSL/TLS Configuration for Waqiti Financial Services
+# This configuration enforces HTTPS across all services and communications
+
+# Core Server SSL Configuration
+server:
+  port: 8443  # HTTPS port
+  ssl:
+    enabled: true
+    key-store: ${SSL_KEYSTORE_PATH:classpath:ssl/waqiti-keystore.p12}
+    key-store-password: ${SSL_KEYSTORE_PASSWORD}
+    key-store-type: PKCS12
+    key-alias: waqiti-service
+    
+    # Trust Store Configuration for mutual TLS
+    trust-store: ${SSL_TRUSTSTORE_PATH:classpath:ssl/waqiti-truststore.p12}
+    trust-store-password: ${SSL_TRUSTSTORE_PASSWORD}
+    trust-store-type: PKCS12
+    
+    # TLS Protocol Configuration - Only allow secure protocols
+    protocol: TLS
+    enabled-protocols: TLSv1.3,TLSv1.2
+    
+    # Cipher Suite Configuration - Only strong ciphers
+    ciphers:
+      - TLS_AES_256_GCM_SHA384
+      - TLS_CHACHA20_POLY1305_SHA256
+      - TLS_AES_128_GCM_SHA256
+      - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+      - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+      - TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
+    
+    # Client Authentication for mutual TLS
+    client-auth: ${SSL_CLIENT_AUTH:want}  # want, need, or none
+    
+  # HTTP/2 Support
+  http2:
+    enabled: true
+
+# Additional HTTP connector for redirect (optional)
+http:
+  port: 8080
+  redirect-to-https: true
+
+# Waqiti TLS Security Configuration
+waqiti:
+  security:
+    tls:
+      enabled: true
+      enforce-https: true
+      mutual-tls-enabled: ${MUTUAL_TLS_ENABLED:false}
+      
+      # Keystore Configuration
+      keystore-path: ${SSL_KEYSTORE_PATH:classpath:ssl/waqiti-keystore.p12}
+      keystore-password: ${SSL_KEYSTORE_PASSWORD}
+      keystore-type: PKCS12
+      
+      # Truststore Configuration
+      truststore-path: ${SSL_TRUSTSTORE_PATH:classpath:ssl/waqiti-truststore.p12}
+      truststore-password: ${SSL_TRUSTSTORE_PASSWORD}
+      truststore-type: PKCS12
+      
+      # Protocol and Cipher Configuration
+      enabled-protocols: 
+        - TLSv1.3
+        - TLSv1.2
+      enabled-cipher-suites:
+        - TLS_AES_256_GCM_SHA384
+        - TLS_CHACHA20_POLY1305_SHA256
+        - TLS_AES_128_GCM_SHA256
+        - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+        - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+        - TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
+      
+      # Certificate Pinning (for external services)
+      certificate-pinning-enabled: ${CERT_PINNING_ENABLED:false}
+      pinned-certificates:
+        - sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA= # Example - replace with actual pins
+      
+      # HSTS Configuration
+      hsts-max-age: 31536000  # 1 year
+      hsts-include-subdomains: true
+      hsts-preload: true
+
+    # Security Headers Configuration
+    headers:
+      enabled: true
+      
+      # HSTS (HTTP Strict Transport Security)
+      hsts:
+        enabled: true
+        max-age-in-seconds: 31536000  # 1 year
+        include-subdomains: true
+        preload: true
+      
+      # Content Security Policy
+      csp:
+        enabled: true
+        policy: "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+        report-only: false
+        report-uri: ${CSP_REPORT_URI:}
+      
+      # Frame Options
+      frame-options:
+        enabled: true
+        policy: DENY
+      
+      # Content Type Options
+      content-type-options:
+        enabled: true
+      
+      # XSS Protection
+      xss-protection:
+        enabled: true
+        mode: "1; mode=block"
+      
+      # Referrer Policy
+      referrer-policy:
+        enabled: true
+        policy: strict-origin-when-cross-origin
+      
+      # Feature Policy / Permissions Policy
+      feature-policy:
+        enabled: true
+        policy: "camera 'none'; microphone 'none'; geolocation 'self'; payment 'self'"
+      
+      # Allowed Origins for CORS
+      allowed-origins:
+        - https://app.example.com
+        - https://admin.example.com
+        - https://dashboard.example.com
+
+    # Session Security
+    session:
+      secure: true
+      http-only: true
+      same-site: Strict
+      timeout: 3600  # 1 hour
+
+  # Service Communication Security
+  services:
+    security:
+      enabled: true
+      https-only: true
+      mutual-tls-enabled: ${SERVICE_MUTUAL_TLS:false}
+      service-auth-token: ${SERVICE_AUTH_TOKEN:}
+      connection-timeout: 30000
+      read-timeout: 60000
+      max-connections: 100
+      max-connections-per-route: 20
+      enable-tracing: true
+      
+      # Service-specific authentication tokens
+      service-tokens:
+        user-service: ${USER_SERVICE_TOKEN:}
+        wallet-service: ${WALLET_SERVICE_TOKEN:}
+        payment-service: ${PAYMENT_SERVICE_TOKEN:}
+        compliance-service: ${COMPLIANCE_SERVICE_TOKEN:}
+        security-service: ${SECURITY_SERVICE_TOKEN:}
+    
+    # Secure Service URLs
+    urls:
+      user-service: ${USER_SERVICE_URL:https://user-service:8443}
+      wallet-service: ${WALLET_SERVICE_URL:https://wallet-service:8443}
+      payment-service: ${PAYMENT_SERVICE_URL:https://payment-service:8443}
+      notification-service: ${NOTIFICATION_SERVICE_URL:https://notification-service:8443}
+      compliance-service: ${COMPLIANCE_SERVICE_URL:https://compliance-service:8443}
+      security-service: ${SECURITY_SERVICE_URL:https://security-service:8443}
+      kyc-service: ${KYC_SERVICE_URL:https://kyc-service:8443}
+      analytics-service: ${ANALYTICS_SERVICE_URL:https://analytics-service:8443}
+      reporting-service: ${REPORTING_SERVICE_URL:https://reporting-service:8443}
+      transaction-service: ${TRANSACTION_SERVICE_URL:https://transaction-service:8443}
+      eureka-server: ${EUREKA_SERVER_URL:https://eureka-server:8761/eureka}
+      config-server: ${CONFIG_SERVER_URL:https://config-service:8888}
+      api-gateway: ${API_GATEWAY_URL:https://api-gateway:8443}
+
+# Spring Security Configuration for HTTPS
+spring:
+  security:
+    require-ssl: true
+    
+  # OAuth2 with HTTPS endpoints
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://keycloak.example.com}/realms/waqiti
+          jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://keycloak.example.com}/realms/waqiti/protocol/openid-connect/certs
+      client:
+        provider:
+          keycloak:
+            issuer-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://keycloak.example.com}/realms/waqiti
+            authorization-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://keycloak.example.com}/realms/waqiti/protocol/openid-connect/auth
+            token-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://keycloak.example.com}/realms/waqiti/protocol/openid-connect/token
+            user-info-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://keycloak.example.com}/realms/waqiti/protocol/openid-connect/userinfo
+            jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://keycloak.example.com}/realms/waqiti/protocol/openid-connect/certs
+
+# Eureka Client Configuration with HTTPS
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:https://eureka-server:8761/eureka}
+    secure-port-enabled: true
+    secure-port: 8443
+    non-secure-port-enabled: false
+  instance:
+    secure-port-enabled: true
+    secure-port: 8443
+    non-secure-port-enabled: false
+    secure-virtual-host-name: ${spring.application.name}
+    status-page-url: https://${eureka.instance.hostname}:${server.port}/actuator/info
+    health-check-url: https://${eureka.instance.hostname}:${server.port}/actuator/health
+
+# Management Endpoints with HTTPS
+management:
+  server:
+    port: ${server.port}
+    ssl:
+      enabled: true
+  endpoints:
+    web:
+      base-path: /actuator
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+  security:
+    enabled: true
+
+# Database SSL Configuration (if applicable)
+spring:
+  datasource:
+    # PostgreSQL SSL
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/waqiti?sslmode=require&sslcert=client-cert.pem&sslkey=client-key.pk8&sslrootcert=ca-cert.pem}
+    hikari:
+      connection-test-query: SELECT 1
+      ssl: true
+      
+  # Redis SSL Configuration
+  data:
+    redis:
+      ssl:
+        enabled: ${REDIS_SSL_ENABLED:true}
+      url: ${REDIS_URL:rediss://localhost:6380}
+
+# Kafka SSL Configuration
+spring:
+  kafka:
+    ssl:
+      enabled: ${KAFKA_SSL_ENABLED:true}
+      protocol: TLS
+      trust-store-location: ${KAFKA_TRUSTSTORE_PATH:classpath:ssl/kafka-truststore.jks}
+      trust-store-password: ${KAFKA_TRUSTSTORE_PASSWORD:}
+      key-store-location: ${KAFKA_KEYSTORE_PATH:classpath:ssl/kafka-keystore.jks}
+      key-store-password: ${KAFKA_KEYSTORE_PASSWORD:}
+    security:
+      protocol: SASL_SSL
+    properties:
+      security.protocol: SASL_SSL
+      sasl.mechanism: PLAIN
+      sasl.jaas.config: org.apache.kafka.common.security.plain.PlainLoginModule required username="${KAFKA_USERNAME:}" password="${KAFKA_PASSWORD:}";
+
+# Vault Configuration with HTTPS
+spring:
+  cloud:
+    vault:
+      uri: ${VAULT_URI:https://vault.example.com:8200}
+      ssl:
+        enabled: true
+        trust-store: ${VAULT_TRUSTSTORE_PATH:classpath:ssl/vault-truststore.jks}
+        trust-store-password: ${VAULT_TRUSTSTORE_PASSWORD:}
+
+# External Service SSL Configuration
+external-services:
+  # Payment Providers
+  stripe:
+    base-url: https://api.stripe.com
+    webhook-endpoint-secret: ${STRIPE_WEBHOOK_SECRET:}
+  
+  paypal:
+    base-url: https://api-m.paypal.com  # Production
+    # base-url: https://api-m.sandbox.paypal.com  # Sandbox
+  
+  dwolla:
+    base-url: https://api.dwolla.com  # Production
+    # base-url: https://api-sandbox.dwolla.com  # Sandbox
+  
+  wise:
+    base-url: https://api.wise.com
+  
+  # KYC Providers
+  jumio:
+    base-url: https://netverify.com
+  
+  # Compliance Services
+  chainalysis:
+    base-url: https://api.chainalysis.com
+
+# Logging Configuration for SSL
+logging:
+  level:
+    javax.net.ssl: ${SSL_DEBUG_LEVEL:INFO}
+    org.springframework.security: INFO
+    com.example.common.config: DEBUG
+    
+---
+# Development Profile (with relaxed SSL for local development)
+spring:
+  config:
+    activate:
+      on-profile: development
+
+waqiti:
+  security:
+    tls:
+      enabled: true
+      enforce-https: false  # Allow HTTP for local dev
+      
+  services:
+    security:
+      https-only: false  # Allow HTTP for local dev
+    urls:
+      user-service: http://localhost:8081
+      wallet-service: http://localhost:8082
+      payment-service: http://localhost:8083
+      notification-service: http://localhost:8084
+      compliance-service: http://localhost:8085
+      security-service: http://localhost:8086
+      eureka-server: http://localhost:8761/eureka
+
+# Development SSL trust all certificates
+spring:
+  security:
+    require-ssl: false
+
+---
+# Production Profile (strict SSL enforcement)
+spring:
+  config:
+    activate:
+      on-profile: production
+
+waqiti:
+  security:
+    tls:
+      enabled: true
+      enforce-https: true
+      mutual-tls-enabled: true
+      certificate-pinning-enabled: true
+      
+  services:
+    security:
+      https-only: true
+      mutual-tls-enabled: true
+
+# Production requires SSL
+spring:
+  security:
+    require-ssl: true
+
+# Production database with SSL
+spring:
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://prod-db.example.com:5432/waqiti?sslmode=require}
+
+# Production external endpoints
+external-services:
+  stripe:
+    base-url: https://api.stripe.com
+  paypal:
+    base-url: https://api-m.paypal.com
+  dwolla:
+    base-url: https://api.dwolla.com

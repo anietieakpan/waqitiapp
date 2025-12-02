@@ -1,0 +1,94 @@
+# Keycloak Configuration for Recurring Payment Service
+
+keycloak:
+  enabled: true
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  ssl-required: external
+  resource: recurring-payment-service
+  bearer-only: true
+  credentials:
+    secret: ${RECURRING_PAYMENT_SERVICE_CLIENT_SECRET:CHANGE_ME_SECURE_SECRET_REQUIRED}
+  use-resource-role-mappings: true
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# Recurring Payment Service Security Configuration
+recurring-payment:
+  security:
+    # Public endpoints that don't require authentication
+    public-endpoints:
+      - /actuator/health
+      - /actuator/info
+      - /api/v1/recurring-payments/webhook/**
+      - /swagger-ui/**
+      - /v3/api-docs/**
+    
+    # Service-to-service endpoints
+    service-endpoints:
+      - /internal/recurring-payments/**
+    
+    # Required roles for recurring payment operations
+    required-roles:
+      read:
+        - RECURRING_PAYMENT_USER
+        - RECURRING_PAYMENT_VIEWER
+      write:
+        - RECURRING_PAYMENT_USER
+        - RECURRING_PAYMENT_MANAGER
+      management:
+        - RECURRING_PAYMENT_MANAGER
+        - RECURRING_PAYMENT_OPERATOR
+      admin:
+        - RECURRING_PAYMENT_ADMIN
+        - SYSTEM_ADMIN
+    
+    # Required scopes for operations
+    required-scopes:
+      read: recurring-payment:read
+      write: recurring-payment:write
+      create: recurring-payment:create
+      update: recurring-payment:update
+      cancel: recurring-payment:cancel
+      pause: recurring-payment:pause
+      resume: recurring-payment:resume
+      schedule: recurring-payment:schedule
+      execute: recurring-payment:execute
+      history: recurring-payment:history
+      analytics: recurring-payment:analytics
+    
+    # Recurring payment security features
+    features:
+      payment-verification-enabled: true
+      schedule-validation-enabled: true
+      failure-handling-enabled: true
+      fraud-detection-enabled: true
+      audit-logging-enabled: true
+      encryption-enabled: true
+      
+    # Recurring payment limits and thresholds
+    limits:
+      max-payment-amount: 50000.00
+      max-frequency-per-day: 4
+      max-active-subscriptions: 100
+      max-retry-attempts: 3
+      
+    # Security thresholds requiring additional verification
+    verification-thresholds:
+      high-value-recurring-payment: 10000.00
+      frequent-payment-threshold: 24  # per day
+      failed-payment-threshold: 3
+      
+    # Advanced security features
+    advanced-security:
+      require-confirmation-high-value: true
+      automatic-fraud-detection: true
+      payment-method-validation: true
+      schedule-anomaly-detection: true
+      compliance-monitoring: true

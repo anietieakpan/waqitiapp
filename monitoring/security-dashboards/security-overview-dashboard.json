@@ -1,0 +1,375 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Waqiti Security Overview Dashboard",
+    "tags": ["security", "waqiti", "fintech"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Security Score",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "waqiti_security_score",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 80},
+                {"color": "green", "value": 95}
+              ]
+            },
+            "min": 0,
+            "max": 100,
+            "unit": "short"
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "Critical Vulnerabilities",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "waqiti_critical_vulnerabilities",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 1},
+                {"color": "red", "value": 5}
+              ]
+            },
+            "min": 0
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 6, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "Rate Limit Violations (Last 1h)",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(increase(rate_limit_exceeded[1h]))",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 100},
+                {"color": "red", "value": 1000}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 12, "y": 0}
+      },
+      {
+        "id": 4,
+        "title": "Failed Authentication Attempts",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(increase(auth_failures[1h]))",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 50},
+                {"color": "red", "value": 200}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 18, "y": 0}
+      },
+      {
+        "id": 5,
+        "title": "Security Events Timeline",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(security_events_total[5m])",
+            "legendFormat": "{{event_type}}",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 9, "w": 12, "x": 0, "y": 8},
+        "yAxes": [
+          {"label": "Events/sec"},
+          {"show": false}
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Financial Transaction Security",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(financial_transaction_success[5m])",
+            "legendFormat": "Successful",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(financial_transaction_failure[5m])",
+            "legendFormat": "Failed",
+            "refId": "B"
+          }
+        ],
+        "gridPos": {"h": 9, "w": 12, "x": 12, "y": 8}
+      },
+      {
+        "id": 7,
+        "title": "Vault Health Status",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "vault_up",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "green", "value": 1}
+              ]
+            },
+            "mappings": [
+              {"value": 0, "text": "DOWN"},
+              {"value": 1, "text": "UP"}
+            ]
+          }
+        },
+        "gridPos": {"h": 4, "w": 4, "x": 0, "y": 17}
+      },
+      {
+        "id": 8,
+        "title": "Database Connection Security",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(pg_up)",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "green", "value": 1}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 4, "w": 4, "x": 4, "y": 17}
+      },
+      {
+        "id": 9,
+        "title": "Redis Security Status",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "redis_up",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "green", "value": 1}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 4, "w": 4, "x": 8, "y": 17}
+      },
+      {
+        "id": 10,
+        "title": "SSL Certificate Expiry",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "ssl_certificate_expiry_days",
+            "legendFormat": "{{instance}}",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 12, "x": 12, "y": 17},
+        "yAxes": [
+          {"label": "Days", "min": 0},
+          {"show": false}
+        ],
+        "alert": {
+          "conditions": [
+            {
+              "query": {"queryType": "", "refId": "A"},
+              "reducer": {"params": [], "type": "min"},
+              "evaluator": {"params": [30], "type": "lt"}
+            }
+          ],
+          "executionErrorState": "alerting",
+          "for": "5m",
+          "frequency": "10s",
+          "handler": 1,
+          "name": "SSL Certificate Expiry Warning",
+          "noDataState": "no_data"
+        }
+      },
+      {
+        "id": 11,
+        "title": "Fraud Detection Metrics",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(fraud_checks_total[5m])",
+            "legendFormat": "Total Checks",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(fraud_detections_total[5m])",
+            "legendFormat": "Fraud Detected",
+            "refId": "B"
+          },
+          {
+            "expr": "rate(fraud_false_positives_total[5m])",
+            "legendFormat": "False Positives",
+            "refId": "C"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 21}
+      },
+      {
+        "id": 12,
+        "title": "API Security Status by Endpoint",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "sum by (endpoint) (rate_limit_exceeded)",
+            "refId": "A",
+            "format": "table"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 21}
+      },
+      {
+        "id": 13,
+        "title": "Security Event Types (Last 24h)",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "sum by (event_type) (increase(security_events_total[24h]))",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 8, "x": 0, "y": 29}
+      },
+      {
+        "id": 14,
+        "title": "Top Security Violators (IPs)",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "topk(10, sum by (client_ip) (increase(security_violations_total[1h])))",
+            "refId": "A",
+            "format": "table"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 8, "x": 8, "y": 29}
+      },
+      {
+        "id": 15,
+        "title": "Webhook Security Status",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "sum by (provider) (rate(webhook_signature_verified[5m]))",
+            "refId": "A",
+            "format": "table"
+          },
+          {
+            "expr": "sum by (provider) (rate(webhook_signature_failed[5m]))",
+            "refId": "B",
+            "format": "table"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 8, "x": 16, "y": 29}
+      }
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "refresh": "30s",
+    "annotations": {
+      "list": [
+        {
+          "name": "Security Events",
+          "datasource": "prometheus",
+          "expr": "ALERTS{alertname=~\".*Security.*\"}",
+          "titleFormat": "Security Alert",
+          "textFormat": "{{alertname}}: {{instance}}"
+        }
+      ]
+    },
+    "templating": {
+      "list": [
+        {
+          "name": "service",
+          "type": "query",
+          "query": "label_values(up{job=~\".*waqiti.*\"}, job)",
+          "refresh": 1
+        },
+        {
+          "name": "environment",
+          "type": "query", 
+          "query": "label_values(up, environment)",
+          "refresh": 1
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,293 @@
+# ============================================================================
+# FinCEN BSA E-Filing Production Configuration
+# CRITICAL: This configuration enables real FinCEN SAR filing
+# ============================================================================
+
+fincen:
+  api:
+    # PRODUCTION ENABLEMENT FLAG
+    # Set to 'true' only after completing deployment checklist
+    # See: FINCEN_PRODUCTION_DEPLOYMENT_GUIDE.md
+    enabled: ${FINCEN_API_ENABLED:false}
+    
+    # FinCEN Production API Endpoint
+    # Production: https://bsaefiling.fincen.treas.gov/api
+    # Test: https://bsaefilingtest.fincen.treas.gov/api
+    base-url: ${FINCEN_API_BASE_URL:https://bsaefiling.fincen.treas.gov/api}
+    
+    # CREDENTIALS (MUST be from Vault, NEVER hardcoded)
+    # Obtain credentials from: https://bsaefiling.fincen.treas.gov/
+    username: ${vault.fincen.username:#{null}}
+    password: ${vault.fincen.password:#{null}}
+    institution-id: ${vault.fincen.institution-id:#{null}}
+    
+    # Timeout Configuration
+    # FinCEN can be slow during high volume periods
+    timeout-seconds: ${FINCEN_TIMEOUT_SECONDS:60}
+    
+    # Retry Configuration
+    # Be conservative - don't spam FinCEN with retries
+    retry-attempts: ${FINCEN_RETRY_ATTEMPTS:3}
+    retry-backoff-seconds: ${FINCEN_RETRY_BACKOFF:5}
+    
+    # Filing Configuration
+    filing:
+      # Auto-submit SARs or require manual review
+      # Recommended: false for first 2 weeks, then true
+      auto-submit: ${FINCEN_AUTO_SUBMIT:false}
+      
+      # Require dual approval for SARs over threshold
+      dual-approval-enabled: ${FINCEN_DUAL_APPROVAL:true}
+      dual-approval-threshold: ${FINCEN_DUAL_APPROVAL_THRESHOLD:50000}
+      
+      # Expedited filing for severe crimes
+      # FinCEN requires expedited filing for certain activities
+      expedited-enabled: true
+      expedited-threshold: ${FINCEN_EXPEDITED_THRESHOLD:100000}
+      
+      # Filing window (FinCEN requires 30 days)
+      filing-deadline-days: 30
+      expedited-deadline-hours: 24
+      
+    # Monitoring and Alerting
+    monitoring:
+      # Enable metrics collection
+      metrics-enabled: true
+      
+      # Alert on filing failures
+      alert-on-failure: true
+      alert-on-rejection: true
+      alert-on-timeout: true
+      
+      # Alert channels (comma-separated)
+      alert-channels: ${FINCEN_ALERT_CHANNELS:EMAIL,SLACK,PAGERDUTY}
+      
+      # Filing SLA monitoring
+      # Alert if filing takes longer than threshold
+      filing-sla-hours: ${FINCEN_SLA_HOURS:24}
+      sla-warning-threshold-hours: 20
+      
+      # Health check configuration
+      health-check-enabled: true
+      health-check-interval-minutes: 15
+      
+    # Compliance Configuration
+    compliance:
+      # Compliance officer contacts (comma-separated emails)
+      primary-officer-email: ${COMPLIANCE_PRIMARY_EMAIL:compliance@example.com}
+      secondary-officer-email: ${COMPLIANCE_SECONDARY_EMAIL:cfo@example.com}
+      legal-team-email: ${LEGAL_TEAM_EMAIL:legal@example.com}
+      
+      # SAR review workflow
+      require-legal-review: ${FINCEN_REQUIRE_LEGAL_REVIEW:true}
+      require-compliance-approval: true
+      
+      # Audit retention
+      audit-retention-years: 7
+      
+    # Security Configuration
+    security:
+      # TLS version (minimum 1.2, recommend 1.3)
+      tls-version: TLS1.3
+      
+      # Certificate validation
+      validate-certificates: true
+      
+      # Certificate pinning (optional but recommended)
+      certificate-pinning-enabled: ${FINCEN_CERT_PINNING:false}
+      pinned-certificates: ${FINCEN_PINNED_CERTS:}
+      
+      # Request signing (if required by FinCEN)
+      request-signing-enabled: false
+      
+    # Performance Configuration
+    performance:
+      # Connection pool settings
+      connection-pool-size: 5
+      connection-pool-timeout-seconds: 30
+      
+      # Rate limiting (don't overwhelm FinCEN)
+      rate-limit-enabled: true
+      max-requests-per-minute: 10
+      
+      # Batch filing (if supported by FinCEN)
+      batch-filing-enabled: false
+      batch-size: 10
+      
+    # Disaster Recovery
+    disaster-recovery:
+      # Queue failed filings for retry
+      queue-failed-filings: true
+      
+      # Retry failed filings every N hours
+      retry-interval-hours: 4
+      
+      # Max retry attempts before manual intervention
+      max-retry-attempts: 72
+      
+      # Fallback to manual filing
+      manual-filing-fallback: true
+
+# Logging Configuration for FinCEN Operations
+logging:
+  level:
+    com.example.compliance.fincen: ${FINCEN_LOG_LEVEL:INFO}
+    org.springframework.web.reactive.function.client: ${WEBCLIENT_LOG_LEVEL:DEBUG}
+  pattern:
+    console: "%d{ISO8601} [%thread] %-5level %logger{36} - FINCEN [%X{sarId}] - %msg%n"
+    file: "%d{ISO8601} [%thread] %-5level %logger{36} - FINCEN [%X{sarId}] [%X{filingNumber}] - %msg%n"
+  file:
+    name: ${LOG_FILE:/var/log/waqiti/compliance-service-fincen.log}
+    max-size: 100MB
+    max-history: 90
+    total-size-cap: 10GB
+
+# Metrics Configuration
+management:
+  metrics:
+    tags:
+      service: compliance-service
+      integration: fincen
+      environment: ${ENVIRONMENT:production}
+    export:
+      prometheus:
+        enabled: true
+        step: 1m
+      datadog:
+        enabled: ${DATADOG_ENABLED:false}
+        api-key: ${DATADOG_API_KEY:}
+        application-key: ${DATADOG_APP_KEY:}
+
+# Health Check Configuration
+management:
+  health:
+    fincen:
+      enabled: true
+      show-details: when-authorized
+  endpoint:
+    health:
+      show-details: when-authorized
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus,metrics
+
+# Resilience4j Circuit Breaker for FinCEN
+resilience4j:
+  circuitbreaker:
+    instances:
+      fincen-api:
+        register-health-indicator: true
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        wait-duration-in-open-state: 60s
+        failure-rate-threshold: 50
+        slow-call-rate-threshold: 80
+        slow-call-duration-threshold: 30s
+        
+  retry:
+    instances:
+      fincen-api:
+        max-attempts: 3
+        wait-duration: 5s
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
+          - org.springframework.web.reactive.function.client.WebClientRequestException
+
+# Audit Trail Configuration
+audit:
+  fincen:
+    enabled: true
+    # Log all FinCEN operations to audit database
+    database-enabled: true
+    # Log to SIEM system
+    siem-enabled: ${SIEM_ENABLED:false}
+    siem-endpoint: ${SIEM_ENDPOINT:}
+    # Include sensitive data in audit logs
+    include-sar-details: true
+    # Encrypt audit logs
+    encrypt-audit-logs: true
+
+# Data Retention
+data-retention:
+  sar-filings:
+    # BSA requires 5 years, we keep 7 for safety
+    retention-years: 7
+  filing-confirmations:
+    retention-years: 7
+  audit-logs:
+    retention-years: 10
+
+# Alert Configuration
+alerts:
+  fincen:
+    # Email alerts
+    email:
+      enabled: true
+      from: ${ALERT_EMAIL_FROM:alerts@example.com}
+      to: ${COMPLIANCE_ALERT_EMAILS:compliance@example.com,legal@example.com}
+      cc: ${COMPLIANCE_ALERT_CC:cfo@example.com}
+    
+    # Slack alerts
+    slack:
+      enabled: ${SLACK_ALERTS_ENABLED:false}
+      webhook-url: ${SLACK_WEBHOOK_URL:}
+      channel: ${SLACK_CHANNEL:#compliance-alerts}
+    
+    # PagerDuty alerts (for critical issues)
+    pagerduty:
+      enabled: ${PAGERDUTY_ENABLED:false}
+      integration-key: ${PAGERDUTY_INTEGRATION_KEY:}
+      severity-mapping:
+        filing-failure: critical
+        filing-rejection: high
+        filing-timeout: high
+        api-down: critical
+
+# Feature Flags
+features:
+  fincen:
+    # Enable FinCEN integration
+    enabled: ${FINCEN_FEATURE_ENABLED:false}
+    
+    # Enable automatic SAR generation
+    auto-sar-generation: ${FINCEN_AUTO_SAR:true}
+    
+    # Enable automatic filing (requires manual review if false)
+    auto-filing: ${FINCEN_AUTO_FILING:false}
+    
+    # Enable SAR amendments
+    sar-amendments: true
+    
+    # Enable filing status checks
+    status-checks: true
+
+# Compliance Thresholds
+compliance:
+  sar:
+    # Transaction threshold for SAR consideration
+    # Note: Legal requirement is $5,000 for suspicious, $10,000 for CTR
+    transaction-threshold: 5000
+    
+    # Aggregation window for related transactions
+    aggregation-window-days: 30
+    
+    # Automatic SAR triggers
+    auto-triggers:
+      structuring: true
+      money-laundering: true
+      terrorist-financing: true
+      fraud: true
+      cyber-crime: true
+      identity-theft: true
+      
+  # CTR (Currency Transaction Report) thresholds
+  ctr:
+    threshold: 10000
+    aggregation-window-days: 1
+

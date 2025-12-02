@@ -1,0 +1,659 @@
+---
+# ============================================================================
+# FRAUD DETECTION SERVICE NETWORK POLICY
+# ============================================================================
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: fraud-detection-service-policy
+  namespace: example-production
+  labels:
+    app.kubernetes.io/name: network-policy
+    app.kubernetes.io/component: fraud-detection-service
+    security.example.com/tier: critical
+    compliance: pci-dss,aml
+  annotations:
+    description: "Fraud Detection Service - real-time ML-based fraud scoring"
+    security.example.com/last-reviewed: "2025-10-25"
+spec:
+  podSelector:
+    matchLabels:
+      app: fraud-detection-service
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress:
+    # Allow ingress from API Gateway
+    - from:
+        - podSelector:
+            matchLabels:
+              app: api-gateway
+      ports:
+        - protocol: TCP
+          port: 8088
+
+    # Allow ingress from Payment Service
+    - from:
+        - podSelector:
+            matchLabels:
+              app: payment-service
+      ports:
+        - protocol: TCP
+          port: 8088
+
+    # Allow ingress from Transaction Service
+    - from:
+        - podSelector:
+            matchLabels:
+              app: transaction-service
+      ports:
+        - protocol: TCP
+          port: 8088
+
+    # Allow ingress from User Service (login fraud detection)
+    - from:
+        - podSelector:
+            matchLabels:
+              app: user-service
+      ports:
+        - protocol: TCP
+          port: 8088
+
+    # Allow ingress from Prometheus for metrics
+    - from:
+        - podSelector:
+            matchLabels:
+              app: prometheus
+      ports:
+        - protocol: TCP
+          port: 9090
+
+  egress:
+    # DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+    # PostgreSQL database
+    - to:
+        - podSelector:
+            matchLabels:
+              app: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+
+    # Kafka for fraud events
+    - to:
+        - podSelector:
+            matchLabels:
+              app: kafka
+      ports:
+        - protocol: TCP
+          port: 9092
+        - protocol: TCP
+          port: 29092
+
+    # Redis for ML model caching and feature store
+    - to:
+        - podSelector:
+            matchLabels:
+              app: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+
+    # Neo4j for graph-based fraud detection
+    - to:
+        - podSelector:
+            matchLabels:
+              app: neo4j
+      ports:
+        - protocol: TCP
+          port: 7687
+        - protocol: TCP
+          port: 7474
+
+    # Notification Service (for fraud alerts)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: notification-service
+      ports:
+        - protocol: TCP
+          port: 8084
+
+    # Discovery Service (Eureka)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: discovery-service
+      ports:
+        - protocol: TCP
+          port: 8761
+
+    # Config Service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: config-service
+      ports:
+        - protocol: TCP
+          port: 8888
+
+    # Zipkin for tracing
+    - to:
+        - podSelector:
+            matchLabels:
+              app: zipkin
+      ports:
+        - protocol: TCP
+          port: 9411
+
+    # External ML model APIs (HTTPS only)
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443
+
+---
+# ============================================================================
+# KYC SERVICE NETWORK POLICY
+# ============================================================================
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kyc-service-policy
+  namespace: example-production
+  labels:
+    app.kubernetes.io/name: network-policy
+    app.kubernetes.io/component: kyc-service
+    security.example.com/tier: critical
+    compliance: kyc,aml,gdpr
+  annotations:
+    description: "KYC Service - identity verification and regulatory compliance"
+    security.example.com/last-reviewed: "2025-10-25"
+spec:
+  podSelector:
+    matchLabels:
+      app: kyc-service
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress:
+    # Allow ingress from API Gateway
+    - from:
+        - podSelector:
+            matchLabels:
+              app: api-gateway
+      ports:
+        - protocol: TCP
+          port: 8087
+
+    # Allow ingress from User Service (during registration)
+    - from:
+        - podSelector:
+            matchLabels:
+              app: user-service
+      ports:
+        - protocol: TCP
+          port: 8087
+
+    # Allow ingress from Compliance Service
+    - from:
+        - podSelector:
+            matchLabels:
+              app: compliance-service
+      ports:
+        - protocol: TCP
+          port: 8087
+
+    # Allow ingress from Prometheus for metrics
+    - from:
+        - podSelector:
+            matchLabels:
+              app: prometheus
+      ports:
+        - protocol: TCP
+          port: 9090
+
+  egress:
+    # DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+    # PostgreSQL database
+    - to:
+        - podSelector:
+            matchLabels:
+              app: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+
+    # Kafka for KYC events
+    - to:
+        - podSelector:
+            matchLabels:
+              app: kafka
+      ports:
+        - protocol: TCP
+          port: 9092
+        - protocol: TCP
+          port: 29092
+
+    # Redis for caching
+    - to:
+        - podSelector:
+            matchLabels:
+              app: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+
+    # Integration Service (for KYC provider APIs)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: integration-service
+      ports:
+        - protocol: TCP
+          port: 8085
+
+    # Notification Service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: notification-service
+      ports:
+        - protocol: TCP
+          port: 8084
+
+    # Discovery Service (Eureka)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: discovery-service
+      ports:
+        - protocol: TCP
+          port: 8761
+
+    # Config Service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: config-service
+      ports:
+        - protocol: TCP
+          port: 8888
+
+    # Zipkin for tracing
+    - to:
+        - podSelector:
+            matchLabels:
+              app: zipkin
+      ports:
+        - protocol: TCP
+          port: 9411
+
+    # External KYC provider APIs (Onfido, Jumio, ComplyAdvantage) - HTTPS only
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443
+
+---
+# ============================================================================
+# COMPLIANCE SERVICE NETWORK POLICY
+# ============================================================================
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: compliance-service-policy
+  namespace: example-production
+  labels:
+    app.kubernetes.io/name: network-policy
+    app.kubernetes.io/component: compliance-service
+    security.example.com/tier: critical
+    compliance: aml,ctf,sanctions
+  annotations:
+    description: "Compliance Service - AML/CTF monitoring and SAR filing"
+    security.example.com/last-reviewed: "2025-10-25"
+spec:
+  podSelector:
+    matchLabels:
+      app: compliance-service
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress:
+    # Allow ingress from API Gateway
+    - from:
+        - podSelector:
+            matchLabels:
+              app: api-gateway
+      ports:
+        - protocol: TCP
+          port: 8089
+
+    # Allow ingress from Transaction Service (for monitoring)
+    - from:
+        - podSelector:
+            matchLabels:
+              app: transaction-service
+      ports:
+        - protocol: TCP
+          port: 8089
+
+    # Allow ingress from Payment Service
+    - from:
+        - podSelector:
+            matchLabels:
+              app: payment-service
+      ports:
+        - protocol: TCP
+          port: 8089
+
+    # Allow ingress from KYC Service
+    - from:
+        - podSelector:
+            matchLabels:
+              app: kyc-service
+      ports:
+        - protocol: TCP
+          port: 8089
+
+    # Allow ingress from Prometheus for metrics
+    - from:
+        - podSelector:
+            matchLabels:
+              app: prometheus
+      ports:
+        - protocol: TCP
+          port: 9090
+
+  egress:
+    # DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+    # PostgreSQL database
+    - to:
+        - podSelector:
+            matchLabels:
+              app: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+
+    # Kafka for compliance events
+    - to:
+        - podSelector:
+            matchLabels:
+              app: kafka
+      ports:
+        - protocol: TCP
+          port: 9092
+        - protocol: TCP
+          port: 29092
+
+    # Redis for caching
+    - to:
+        - podSelector:
+            matchLabels:
+              app: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+
+    # Integration Service (for sanctions screening APIs)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: integration-service
+      ports:
+        - protocol: TCP
+          port: 8085
+
+    # KYC Service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: kyc-service
+      ports:
+        - protocol: TCP
+          port: 8087
+
+    # Notification Service (for compliance alerts)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: notification-service
+      ports:
+        - protocol: TCP
+          port: 8084
+
+    # Discovery Service (Eureka)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: discovery-service
+      ports:
+        - protocol: TCP
+          port: 8761
+
+    # Config Service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: config-service
+      ports:
+        - protocol: TCP
+          port: 8888
+
+    # Zipkin for tracing
+    - to:
+        - podSelector:
+            matchLabels:
+              app: zipkin
+      ports:
+        - protocol: TCP
+          port: 9411
+
+    # External compliance APIs (FinCEN, OFAC, sanctions lists) - HTTPS only
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443
+
+---
+# ============================================================================
+# USER SERVICE NETWORK POLICY
+# ============================================================================
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: user-service-policy
+  namespace: example-production
+  labels:
+    app.kubernetes.io/name: network-policy
+    app.kubernetes.io/component: user-service
+    security.example.com/tier: critical
+    compliance: gdpr
+  annotations:
+    description: "User Service - authentication, authorization, user management"
+    security.example.com/last-reviewed: "2025-10-25"
+spec:
+  podSelector:
+    matchLabels:
+      app: user-service
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress:
+    # Allow ingress from API Gateway
+    - from:
+        - podSelector:
+            matchLabels:
+              app: api-gateway
+      ports:
+        - protocol: TCP
+          port: 8081
+
+    # Allow ingress from all services for user validation
+    - from:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 8081
+
+    # Allow ingress from Prometheus for metrics
+    - from:
+        - podSelector:
+            matchLabels:
+              app: prometheus
+      ports:
+        - protocol: TCP
+          port: 9090
+
+  egress:
+    # DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+    # PostgreSQL database
+    - to:
+        - podSelector:
+            matchLabels:
+              app: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+
+    # Kafka for user events
+    - to:
+        - podSelector:
+            matchLabels:
+              app: kafka
+      ports:
+        - protocol: TCP
+          port: 9092
+        - protocol: TCP
+          port: 29092
+
+    # Redis for session management
+    - to:
+        - podSelector:
+            matchLabels:
+              app: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+
+    # Integration Service (for OAuth, social login)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: integration-service
+      ports:
+        - protocol: TCP
+          port: 8085
+
+    # KYC Service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: kyc-service
+      ports:
+        - protocol: TCP
+          port: 8087
+
+    # Fraud Detection Service (login fraud)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: fraud-detection-service
+      ports:
+        - protocol: TCP
+          port: 8088
+
+    # Notification Service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: notification-service
+      ports:
+        - protocol: TCP
+          port: 8084
+
+    # Discovery Service (Eureka)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: discovery-service
+      ports:
+        - protocol: TCP
+          port: 8761
+
+    # Config Service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: config-service
+      ports:
+        - protocol: TCP
+          port: 8888
+
+    # Zipkin for tracing
+    - to:
+        - podSelector:
+            matchLabels:
+              app: zipkin
+      ports:
+        - protocol: TCP
+          port: 9411
+
+    # External OAuth providers - HTTPS only
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443

@@ -1,0 +1,331 @@
+{
+  "dashboard": {
+    "title": "Wallet Service - Financial Operations",
+    "tags": ["wallet", "balance", "transfers"],
+    "timezone": "browser",
+    "schemaVersion": 38,
+    "version": 1,
+    "refresh": "30s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Wallet Operations Rate",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(wallet_operations_total{operation=\"TRANSFER\"}[5m])",
+            "legendFormat": "Transfers/sec",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(wallet_operations_total{operation=\"DEPOSIT\"}[5m])",
+            "legendFormat": "Deposits/sec",
+            "refId": "B"
+          },
+          {
+            "expr": "rate(wallet_operations_total{operation=\"WITHDRAWAL\"}[5m])",
+            "legendFormat": "Withdrawals/sec",
+            "refId": "C"
+          }
+        ],
+        "yaxes": [
+          {"format": "ops", "label": "Operations/sec"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Balance Consistency Check",
+        "type": "gauge",
+        "gridPos": {"x": 12, "y": 0, "w": 6, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(wallet_balance_discrepancies_total) / sum(wallet_operations_total) * 100",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 1,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 0.01, "color": "yellow"},
+                {"value": 0.1, "color": "red"}
+              ]
+            }
+          }
+        },
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": {"type": "gt", "params": [0.1]},
+              "operator": {"type": "and"},
+              "query": {"params": ["A", "5m", "now"]},
+              "type": "query"
+            }
+          ],
+          "frequency": "5m",
+          "handler": 1,
+          "name": "Balance Discrepancy Alert",
+          "message": "CRITICAL: Balance discrepancy detected in wallet operations"
+        }
+      },
+      {
+        "id": 3,
+        "title": "Transfer Latency (ACID Guarantee)",
+        "type": "graph",
+        "gridPos": {"x": 18, "y": 0, "w": 6, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(wallet_transfer_duration_seconds_bucket[5m]))",
+            "legendFormat": "p95",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.99, rate(wallet_transfer_duration_seconds_bucket[5m]))",
+            "legendFormat": "p99",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {"format": "s", "label": "Latency"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Total Wallet Balance (All Currencies)",
+        "type": "stat",
+        "gridPos": {"x": 0, "y": 8, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(wallet_balance_total_usd)",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyUSD",
+            "decimals": 0
+          }
+        }
+      },
+      {
+        "id": 5,
+        "title": "Active Wallets",
+        "type": "stat",
+        "gridPos": {"x": 6, "y": 8, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(wallet_count{status=\"ACTIVE\"})",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Failed Transfers (24h)",
+        "type": "stat",
+        "gridPos": {"x": 12, "y": 8, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(increase(wallet_operations_total{operation=\"TRANSFER\",status=\"FAILED\"}[24h]))",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 10, "color": "yellow"},
+                {"value": 50, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 7,
+        "title": "Insufficient Balance Errors",
+        "type": "stat",
+        "gridPos": {"x": 18, "y": 8, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(increase(wallet_operation_errors_total{error_type=\"INSUFFICIENT_BALANCE\"}[1h]))",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "Balance Cache Hit Rate",
+        "type": "gauge",
+        "gridPos": {"x": 0, "y": 12, "w": 8, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(wallet_balance_cache_hits[5m])) / sum(rate(wallet_balance_cache_requests[5m])) * 100",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 85, "color": "yellow"},
+                {"value": 95, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 9,
+        "title": "Transaction Lock Contention",
+        "type": "graph",
+        "gridPos": {"x": 8, "y": 12, "w": 8, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(wallet_lock_wait_time_seconds_sum[5m]) / rate(wallet_lock_wait_time_seconds_count[5m])",
+            "legendFormat": "Avg Lock Wait Time",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(wallet_lock_timeouts_total[5m])",
+            "legendFormat": "Lock Timeouts/sec",
+            "refId": "B"
+          }
+        ]
+      },
+      {
+        "id": 10,
+        "title": "Concurrent Transfer Prevention",
+        "type": "graph",
+        "gridPos": {"x": 16, "y": 12, "w": 8, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(wallet_concurrent_transfer_attempts_total[5m])",
+            "legendFormat": "Concurrent Attempts Blocked/sec",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 11,
+        "title": "Daily Transaction Limits",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 20, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "topk(10, wallet_daily_limit_remaining_total)",
+            "legendFormat": "User {{user_id}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "currencyUSD", "label": "Remaining Limit"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 12,
+        "title": "Multi-Currency Wallets",
+        "type": "piechart",
+        "gridPos": {"x": 12, "y": 20, "w": 6, "h": 8},
+        "targets": [
+          {
+            "expr": "sum by (currency) (wallet_balance_total)",
+            "legendFormat": "{{currency}}",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 13,
+        "title": "Optimistic Lock Failures",
+        "type": "stat",
+        "gridPos": {"x": 18, "y": 20, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(increase(wallet_optimistic_lock_failures_total[1h]))",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 50, "color": "yellow"},
+                {"value": 200, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 14,
+        "title": "Wallet Transaction History Size",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 28, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, wallet_transaction_history_size_bucket)",
+            "legendFormat": "p95 Transaction Count",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 15,
+        "title": "Fund Reservation Status",
+        "type": "stat",
+        "gridPos": {"x": 12, "y": 28, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(fund_reservations_total{status=\"ACTIVE\"})",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 16,
+        "title": "Wallet Frozen/Suspended",
+        "type": "stat",
+        "gridPos": {"x": 18, "y": 28, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(wallet_count{status=~\"FROZEN|SUSPENDED\"})",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 1, "color": "red"}
+              ]
+            }
+          }
+        }
+      }
+    ]
+  }
+}

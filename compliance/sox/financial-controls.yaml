@@ -1,0 +1,486 @@
+# SOX Compliance Financial Controls Configuration
+# Sarbanes-Oxley Act compliance for financial reporting and internal controls
+# SECURITY: Ensures financial data integrity and audit trail compliance
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sox-compliance-checks
+  namespace: waqiti-system
+  labels:
+    compliance.example.com/framework: "sox"
+    compliance.example.com/version: "2002"
+data:
+  sox-requirements.yaml: |
+    # Sarbanes-Oxley Act Compliance Requirements
+    requirements:
+      # Section 302: Corporate Responsibility for Financial Reports
+      - id: "sox.302"
+        title: "Corporate Responsibility"
+        checks:
+          - name: "financial-data-accuracy"
+            description: "Financial data accuracy and completeness controls"
+            automated: true
+            command: "grep -r 'FinancialTransaction\|AuditLog' services/*/src/ | wc -l"
+          - name: "executive-certification"
+            description: "Process for executive certification of financial reports"
+            automated: false
+            manual_verification: "Review executive certification process documentation"
+      
+      # Section 404: Management Assessment of Internal Controls
+      - id: "sox.404"
+        title: "Internal Controls Assessment"
+        checks:
+          - name: "internal-controls-documentation"
+            description: "Internal controls over financial reporting documented"
+            automated: false
+            manual_verification: "Review internal controls documentation"
+          - name: "control-effectiveness-testing"
+            description: "Regular testing of control effectiveness"
+            automated: true
+            command: "find . -name '*control*test*' -o -name '*audit*test*' | wc -l"
+      
+      # Section 409: Real Time Issuer Disclosures
+      - id: "sox.409"
+        title: "Real-time Disclosures"
+        checks:
+          - name: "material-changes-reporting"
+            description: "Process for reporting material changes"
+            automated: false
+            manual_verification: "Review material change reporting procedures"
+      
+      # IT General Controls (ITGC) - Supporting SOX compliance
+      - id: "itgc.access"
+        title: "Access Controls"
+        checks:
+          - name: "privileged-access-management"
+            description: "Privileged access to financial systems controlled"
+            automated: true
+            command: "kubectl get rolebindings -A | grep -i 'admin\|finance\|payment' | wc -l"
+          - name: "user-access-reviews"
+            description: "Regular user access reviews conducted"
+            automated: false
+            manual_verification: "Review user access review logs and procedures"
+          - name: "segregation-of-duties"
+            description: "Segregation of duties enforced in financial processes"
+            automated: true
+            command: "grep -r 'RequireApproval\|DualControl\|Segregation' services/*/src/ | wc -l"
+      
+      - id: "itgc.change"
+        title: "Change Management"
+        checks:
+          - name: "change-approval-process"
+            description: "All changes to financial systems require approval"
+            automated: false
+            manual_verification: "Review change management process documentation"
+          - name: "code-review-mandatory"
+            description: "Code reviews mandatory for financial system changes"
+            automated: true
+            command: "find . -name '.github/workflows' -o -name 'gitlab-ci' -o -name 'jenkins' | head -1"
+          - name: "deployment-controls"
+            description: "Controlled deployment process for financial systems"
+            automated: true
+            command: "find scripts/ -name '*deploy*' -o -name '*release*' | wc -l"
+      
+      - id: "itgc.data"
+        title: "Data Integrity"
+        checks:
+          - name: "data-validation-controls"
+            description: "Data validation controls in financial transactions"
+            automated: true
+            command: "grep -r '@Valid\|@NotNull\|validation' services/payment-service/src/ | wc -l"
+          - name: "transaction-logging"
+            description: "All financial transactions logged"
+            automated: true
+            command: "grep -r 'AuditLog\|TransactionLog\|@Audited' services/*/src/ | wc -l"
+          - name: "data-backup-controls"
+            description: "Financial data backup and recovery controls"
+            automated: true
+            command: "find . -name '*backup*' -o -name '*recovery*' | wc -l"
+      
+      - id: "itgc.monitoring"
+        title: "System Monitoring"
+        checks:
+          - name: "real-time-monitoring"
+            description: "Real-time monitoring of financial systems"
+            automated: true
+            command: "kubectl get pods -A | grep -i 'monitor\|alert\|prometheus\|grafana' | wc -l"
+          - name: "exception-reporting"
+            description: "Automated exception and error reporting"
+            automated: true
+            command: "grep -r 'Exception\|Error.*Log\|Alert' services/*/src/ | wc -l"
+          - name: "system-availability-monitoring"
+            description: "Financial system availability monitoring"
+            automated: true
+            command: "kubectl get servicemonitors -A | wc -l"
+      
+      # Financial Reporting Controls
+      - id: "frc.accuracy"
+        title: "Financial Accuracy Controls"
+        checks:
+          - name: "calculation-accuracy"
+            description: "Financial calculation accuracy controls"
+            automated: true
+            command: "grep -r 'BigDecimal\|MathContext\|RoundingMode' services/*/src/ | wc -l"
+          - name: "reconciliation-controls"
+            description: "Automated reconciliation controls"
+            automated: true
+            command: "grep -r 'reconcil\|balance.*check\|double.*entry' services/*/src/ | wc -l"
+          - name: "period-end-controls"
+            description: "Period-end closing controls"
+            automated: false
+            manual_verification: "Review period-end closing procedures"
+      
+      - id: "frc.completeness"
+        title: "Financial Completeness Controls"
+        checks:
+          - name: "transaction-completeness"
+            description: "All transactions captured and processed"
+            automated: true
+            command: "grep -r 'IdempotencyKey\|TransactionId.*unique' services/*/src/ | wc -l"
+          - name: "cut-off-controls"
+            description: "Transaction cut-off controls"
+            automated: true
+            command: "grep -r 'cutoff\|period.*boundary\|date.*validation' services/*/src/ | wc -l"
+      
+      # Audit Trail Requirements
+      - id: "audit.trail"
+        title: "Audit Trail"
+        checks:
+          - name: "comprehensive-audit-logging"
+            description: "Comprehensive audit trail for all financial transactions"
+            automated: true
+            command: "grep -r '@Audited\|AuditLog\|audit.*trail' services/*/src/ | wc -l"
+          - name: "audit-log-integrity"
+            description: "Audit log integrity protection"
+            automated: true
+            command: "grep -r 'hash\|checksum\|integrity' services/audit-service/src/ | wc -l"
+          - name: "audit-log-retention"
+            description: "Audit log retention controls"
+            automated: false
+            manual_verification: "Review audit log retention policies"
+          - name: "audit-log-access-controls"
+            description: "Restricted access to audit logs"
+            automated: true
+            command: "kubectl get rolebindings -A | grep audit | wc -l"
+
+  sox-validation.sh: |
+    #!/bin/bash
+    
+    # SOX Compliance Validation Script
+    # Validates Sarbanes-Oxley Act compliance controls
+    
+    set -euo pipefail
+    
+    REPORT_FILE="/tmp/sox-compliance-report.json"
+    TIMESTAMP=$(date -Iseconds)
+    
+    echo "🔍 Starting SOX compliance validation..."
+    
+    # Initialize report
+    cat > "$REPORT_FILE" << EOF
+    {
+      "report_type": "sox_compliance",
+      "regulation": "Sarbanes-Oxley Act of 2002",
+      "timestamp": "$TIMESTAMP",
+      "environment": "production",
+      "scope": "financial-reporting-systems",
+      "checks": []
+    }
+    EOF
+    
+    # Function to add check result to report
+    add_check_result() {
+      local section="$1"
+      local check_name="$2"
+      local status="$3"
+      local details="$4"
+      local risk_level="${5:-MEDIUM}"
+      
+      jq --arg section "$section" \
+         --arg check "$check_name" \
+         --arg status "$status" \
+         --arg details "$details" \
+         --arg risk "$risk_level" \
+         '.checks += [{
+           "section": $section,
+           "check_name": $check,
+           "status": $status,
+           "details": $details,
+           "risk_level": $risk,
+           "timestamp": now | strftime("%Y-%m-%dT%H:%M:%S%Z")
+         }]' "$REPORT_FILE" > /tmp/report_temp.json
+      
+      mv /tmp/report_temp.json "$REPORT_FILE"
+    }
+    
+    # Section 302: Corporate Responsibility
+    echo "Checking Section 302: Corporate Responsibility..."
+    financial_controls=$(grep -r 'FinancialTransaction\|AuditLog' services/*/src/ | wc -l || echo "0")
+    if [ "$financial_controls" -gt 10 ]; then
+      add_check_result "sox.302" "financial-data-controls" "PASS" "$financial_controls financial control implementations found" "HIGH"
+    else
+      add_check_result "sox.302" "financial-data-controls" "FAIL" "Insufficient financial control implementations" "HIGH"
+    fi
+    
+    # ITGC Access Controls
+    echo "Checking ITGC: Access Controls..."
+    privileged_access=$(kubectl get rolebindings -A | grep -i 'admin\|finance\|payment' | wc -l || echo "0")
+    if [ "$privileged_access" -gt 0 ]; then
+      add_check_result "itgc.access" "privileged-access" "PASS" "$privileged_access privileged access bindings configured" "HIGH"
+    else
+      add_check_result "itgc.access" "privileged-access" "FAIL" "No privileged access controls found" "HIGH"
+    fi
+    
+    segregation_controls=$(grep -r 'RequireApproval\|DualControl\|Segregation' services/*/src/ | wc -l || echo "0")
+    if [ "$segregation_controls" -gt 0 ]; then
+      add_check_result "itgc.access" "segregation-of-duties" "PASS" "$segregation_controls segregation controls found" "HIGH"
+    else
+      add_check_result "itgc.access" "segregation-of-duties" "WARNING" "Limited segregation of duties implementation" "HIGH"
+    fi
+    
+    # ITGC Change Management
+    echo "Checking ITGC: Change Management..."
+    ci_cd_present=0
+    for ci_indicator in ".github/workflows" "gitlab-ci" "jenkins"; do
+      if find . -name "$ci_indicator" | head -1 > /dev/null 2>&1; then
+        ci_cd_present=1
+        break
+      fi
+    done
+    
+    if [ "$ci_cd_present" -eq 1 ]; then
+      add_check_result "itgc.change" "automated-deployment" "PASS" "CI/CD pipeline detected for controlled deployments" "HIGH"
+    else
+      add_check_result "itgc.change" "automated-deployment" "FAIL" "No CI/CD pipeline found" "HIGH"
+    fi
+    
+    deployment_scripts=$(find scripts/ -name '*deploy*' -o -name '*release*' | wc -l || echo "0")
+    if [ "$deployment_scripts" -gt 0 ]; then
+      add_check_result "itgc.change" "deployment-controls" "PASS" "$deployment_scripts deployment control scripts found" "MEDIUM"
+    else
+      add_check_result "itgc.change" "deployment-controls" "WARNING" "Limited deployment control scripts" "MEDIUM"
+    fi
+    
+    # ITGC Data Integrity
+    echo "Checking ITGC: Data Integrity..."
+    data_validation=$(grep -r '@Valid\|@NotNull\|validation' services/payment-service/src/ | wc -l || echo "0")
+    if [ "$data_validation" -gt 20 ]; then
+      add_check_result "itgc.data" "data-validation" "PASS" "$data_validation data validation controls found" "HIGH"
+    elif [ "$data_validation" -gt 5 ]; then
+      add_check_result "itgc.data" "data-validation" "WARNING" "$data_validation data validation controls found - may need enhancement" "HIGH"
+    else
+      add_check_result "itgc.data" "data-validation" "FAIL" "Insufficient data validation controls" "HIGH"
+    fi
+    
+    transaction_logging=$(grep -r 'AuditLog\|TransactionLog\|@Audited' services/*/src/ | wc -l || echo "0")
+    if [ "$transaction_logging" -gt 10 ]; then
+      add_check_result "itgc.data" "transaction-logging" "PASS" "$transaction_logging transaction logging implementations found" "HIGH"
+    else
+      add_check_result "itgc.data" "transaction-logging" "FAIL" "Insufficient transaction logging" "HIGH"
+    fi
+    
+    backup_controls=$(find . -name '*backup*' -o -name '*recovery*' | wc -l || echo "0")
+    if [ "$backup_controls" -gt 0 ]; then
+      add_check_result "itgc.data" "backup-controls" "PASS" "$backup_controls backup/recovery controls found" "MEDIUM"
+    else
+      add_check_result "itgc.data" "backup-controls" "FAIL" "No backup/recovery controls found" "HIGH"
+    fi
+    
+    # ITGC System Monitoring
+    echo "Checking ITGC: System Monitoring..."
+    monitoring_systems=$(kubectl get pods -A | grep -i 'monitor\|alert\|prometheus\|grafana' | wc -l || echo "0")
+    if [ "$monitoring_systems" -gt 0 ]; then
+      add_check_result "itgc.monitoring" "system-monitoring" "PASS" "$monitoring_systems monitoring system pods running" "MEDIUM"
+    else
+      add_check_result "itgc.monitoring" "system-monitoring" "FAIL" "No monitoring systems detected" "HIGH"
+    fi
+    
+    exception_reporting=$(grep -r 'Exception\|Error.*Log\|Alert' services/*/src/ | wc -l || echo "0")
+    if [ "$exception_reporting" -gt 50 ]; then
+      add_check_result "itgc.monitoring" "exception-reporting" "PASS" "$exception_reporting exception reporting implementations found" "MEDIUM"
+    else
+      add_check_result "itgc.monitoring" "exception-reporting" "WARNING" "Limited exception reporting implementation" "MEDIUM"
+    fi
+    
+    service_monitors=$(kubectl get servicemonitors -A | wc -l || echo "0")
+    if [ "$service_monitors" -gt 0 ]; then
+      add_check_result "itgc.monitoring" "availability-monitoring" "PASS" "$service_monitors service monitors configured" "MEDIUM"
+    else
+      add_check_result "itgc.monitoring" "availability-monitoring" "WARNING" "No service monitors found" "MEDIUM"
+    fi
+    
+    # Financial Reporting Controls - Accuracy
+    echo "Checking Financial Reporting Controls: Accuracy..."
+    precision_controls=$(grep -r 'BigDecimal\|MathContext\|RoundingMode' services/*/src/ | wc -l || echo "0")
+    if [ "$precision_controls" -gt 10 ]; then
+      add_check_result "frc.accuracy" "calculation-precision" "PASS" "$precision_controls precision control implementations found" "HIGH"
+    else
+      add_check_result "frc.accuracy" "calculation-precision" "FAIL" "Insufficient financial calculation precision controls" "HIGH"
+    fi
+    
+    reconciliation_controls=$(grep -r 'reconcil\|balance.*check\|double.*entry' services/*/src/ | wc -l || echo "0")
+    if [ "$reconciliation_controls" -gt 5 ]; then
+      add_check_result "frc.accuracy" "reconciliation" "PASS" "$reconciliation_controls reconciliation controls found" "HIGH"
+    else
+      add_check_result "frc.accuracy" "reconciliation" "WARNING" "Limited reconciliation controls" "HIGH"
+    fi
+    
+    # Financial Reporting Controls - Completeness
+    echo "Checking Financial Reporting Controls: Completeness..."
+    idempotency_controls=$(grep -r 'IdempotencyKey\|TransactionId.*unique' services/*/src/ | wc -l || echo "0")
+    if [ "$idempotency_controls" -gt 0 ]; then
+      add_check_result "frc.completeness" "transaction-completeness" "PASS" "$idempotency_controls idempotency controls found" "HIGH"
+    else
+      add_check_result "frc.completeness" "transaction-completeness" "FAIL" "No transaction completeness controls found" "HIGH"
+    fi
+    
+    cutoff_controls=$(grep -r 'cutoff\|period.*boundary\|date.*validation' services/*/src/ | wc -l || echo "0")
+    if [ "$cutoff_controls" -gt 0 ]; then
+      add_check_result "frc.completeness" "cutoff-controls" "PASS" "$cutoff_controls cutoff controls found" "MEDIUM"
+    else
+      add_check_result "frc.completeness" "cutoff-controls" "WARNING" "Limited cutoff controls" "MEDIUM"
+    fi
+    
+    # Audit Trail
+    echo "Checking Audit Trail Requirements..."
+    audit_implementations=$(grep -r '@Audited\|AuditLog\|audit.*trail' services/*/src/ | wc -l || echo "0")
+    if [ "$audit_implementations" -gt 15 ]; then
+      add_check_result "audit.trail" "comprehensive-auditing" "PASS" "$audit_implementations audit trail implementations found" "HIGH"
+    elif [ "$audit_implementations" -gt 5 ]; then
+      add_check_result "audit.trail" "comprehensive-auditing" "WARNING" "$audit_implementations audit implementations - may need enhancement" "HIGH"
+    else
+      add_check_result "audit.trail" "comprehensive-auditing" "FAIL" "Insufficient audit trail implementation" "HIGH"
+    fi
+    
+    audit_integrity=$(grep -r 'hash\|checksum\|integrity' services/audit-service/src/ | wc -l || echo "0")
+    if [ "$audit_integrity" -gt 0 ]; then
+      add_check_result "audit.trail" "audit-integrity" "PASS" "$audit_integrity audit integrity controls found" "HIGH"
+    else
+      add_check_result "audit.trail" "audit-integrity" "WARNING" "Limited audit integrity controls" "HIGH"
+    fi
+    
+    audit_access=$(kubectl get rolebindings -A | grep audit | wc -l || echo "0")
+    if [ "$audit_access" -gt 0 ]; then
+      add_check_result "audit.trail" "audit-access-control" "PASS" "$audit_access audit-specific access controls found" "MEDIUM"
+    else
+      add_check_result "audit.trail" "audit-access-control" "WARNING" "No audit-specific access controls found" "MEDIUM"
+    fi
+    
+    # Generate compliance summary
+    total_checks=$(jq '.checks | length' "$REPORT_FILE")
+    passed_checks=$(jq '[.checks[] | select(.status == "PASS")] | length' "$REPORT_FILE")
+    failed_checks=$(jq '[.checks[] | select(.status == "FAIL")] | length' "$REPORT_FILE")
+    warning_checks=$(jq '[.checks[] | select(.status == "WARNING")] | length' "$REPORT_FILE")
+    high_risk_failures=$(jq '[.checks[] | select(.status == "FAIL" and .risk_level == "HIGH")] | length' "$REPORT_FILE")
+    
+    compliance_pct=$((passed_checks * 100 / total_checks))
+    
+    # Add summary
+    jq --arg total "$total_checks" \
+       --arg passed "$passed_checks" \
+       --arg failed "$failed_checks" \
+       --arg warnings "$warning_checks" \
+       --arg compliance "$compliance_pct" \
+       --arg high_risk "$high_risk_failures" \
+       '.summary = {
+         "total_checks": ($total | tonumber),
+         "passed": ($passed | tonumber),
+         "failed": ($failed | tonumber),
+         "warnings": ($warnings | tonumber),
+         "high_risk_failures": ($high_risk | tonumber),
+         "compliance_percentage": ($compliance | tonumber),
+         "financial_reporting_risk": (if ($high_risk | tonumber) > 0 then "HIGH" else "MEDIUM" end)
+       }' "$REPORT_FILE" > /tmp/final_report.json
+    
+    mv /tmp/final_report.json "$REPORT_FILE"
+    
+    echo "✅ SOX compliance validation completed"
+    echo "📊 Results: $passed_checks passed, $failed_checks failed, $warning_checks warnings"
+    echo "📈 Compliance level: $compliance_pct%"
+    echo "🚨 High-risk failures: $high_risk_failures"
+    echo "📄 Full report saved to: $REPORT_FILE"
+    
+    # Display critical findings
+    echo ""
+    echo "=== CRITICAL SOX COMPLIANCE FINDINGS ==="
+    jq -r '.checks[] | select(.status == "FAIL" and .risk_level == "HIGH") | "❌ \(.section) - \(.check_name): \(.details)"' "$REPORT_FILE"
+    echo ""
+    echo "=== HIGH RISK WARNINGS ==="
+    jq -r '.checks[] | select(.status == "WARNING" and .risk_level == "HIGH") | "⚠️  \(.section) - \(.check_name): \(.details)"' "$REPORT_FILE"
+    echo ""
+    echo "=== PASSED CONTROLS ==="
+    jq -r '.checks[] | select(.status == "PASS") | "✅ \(.section) - \(.check_name): \(.details)"' "$REPORT_FILE"
+    
+    # Critical failure conditions for SOX
+    if [ "$high_risk_failures" -gt 0 ]; then
+      echo "❌ CRITICAL: $high_risk_failures high-risk SOX compliance failures detected"
+      echo "🚨 Financial reporting controls are inadequate - immediate remediation required"
+      exit 1
+    elif [ "$failed_checks" -gt 2 ]; then
+      echo "⚠️  WARNING: Multiple SOX compliance failures detected"
+      echo "📋 Review and remediate failed controls before financial reporting"
+      exit 0
+    else
+      echo "🎉 SUCCESS: SOX compliance controls are functioning adequately"
+      exit 0
+    fi
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: sox-compliance-check
+  namespace: waqiti-system
+  labels:
+    compliance.example.com/framework: "sox"
+    compliance.example.com/automated: "true"
+spec:
+  schedule: "0 10 * * 3" # Weekly on Wednesday at 10 AM
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: compliance-service-account
+          containers:
+          - name: sox-compliance-checker
+            image: waqiti/compliance-checker:latest
+            command: ["/bin/bash"]
+            args: ["/scripts/sox-validation.sh"]
+            env:
+            - name: REPORT_OUTPUT_PATH
+              value: "/reports"
+            - name: COMPLIANCE_FRAMEWORK
+              value: "SOX"
+            - name: FINANCIAL_CONTROLS_CHECK
+              value: "enabled"
+            volumeMounts:
+            - name: compliance-scripts
+              mountPath: /scripts
+              readOnly: true
+            - name: compliance-reports
+              mountPath: /reports
+            resources:
+              requests:
+                memory: "512Mi"
+                cpu: "300m"
+              limits:
+                memory: "1Gi"
+                cpu: "1000m"
+            securityContext:
+              runAsNonRoot: true
+              runAsUser: 1001
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                - ALL
+              readOnlyRootFilesystem: true
+          volumes:
+          - name: compliance-scripts
+            configMap:
+              name: sox-compliance-checks
+              defaultMode: 0755
+          - name: compliance-reports
+            persistentVolumeClaim:
+              claimName: compliance-reports-pvc
+          restartPolicy: OnFailure

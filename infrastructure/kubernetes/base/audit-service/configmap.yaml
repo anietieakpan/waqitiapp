@@ -1,0 +1,186 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: audit-config
+  namespace: waqiti
+  labels:
+    app: audit-service
+    component: audit
+data:
+  application.yml: |
+    server:
+      port: 8080
+      shutdown: graceful
+    
+    management:
+      server:
+        port: 8090
+      endpoints:
+        web:
+          exposure:
+            include: health,info,metrics,prometheus
+      endpoint:
+        health:
+          probes:
+            enabled: true
+          show-details: always
+        metrics:
+          enabled: true
+        prometheus:
+          enabled: true
+      metrics:
+        export:
+          prometheus:
+            enabled: true
+    
+    spring:
+      application:
+        name: audit-service
+      datasource:
+        url: ${DATABASE_URL}
+        username: ${DATABASE_USERNAME}
+        password: ${DATABASE_PASSWORD}
+        hikari:
+          maximum-pool-size: 20
+          minimum-idle: 5
+          idle-timeout: 300000
+          max-lifetime: 1200000
+          connection-timeout: 20000
+          validation-timeout: 5000
+          leak-detection-threshold: 60000
+      jpa:
+        hibernate:
+          ddl-auto: validate
+        properties:
+          hibernate:
+            dialect: org.hibernate.dialect.PostgreSQLDialect
+            format_sql: false
+            jdbc:
+              batch_size: 50
+              order_inserts: true
+              order_updates: true
+        show-sql: false
+      data:
+        redis:
+          url: ${REDIS_URL}
+          timeout: 2s
+          lettuce:
+            pool:
+              max-active: 20
+              max-idle: 8
+              min-idle: 3
+      kafka:
+        bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+        producer:
+          key-serializer: org.apache.kafka.common.serialization.StringSerializer
+          value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+          acks: all
+          retries: 3
+          properties:
+            enable.idempotence: true
+        consumer:
+          group-id: audit-service
+          key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+          value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+          properties:
+            spring.json.trusted.packages: com.waqiti
+            auto.offset.reset: earliest
+      cloud:
+        vault:
+          enabled: true
+          host: ${VAULT_ENDPOINT}
+          port: 8200
+          scheme: https
+          authentication: token
+          token: ${VAULT_TOKEN}
+          kv:
+            enabled: true
+            backend: secret
+    
+    eureka:
+      client:
+        service-url:
+          defaultZone: ${EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE}
+        fetch-registry: true
+        register-with-eureka: true
+      instance:
+        prefer-ip-address: true
+        lease-renewal-interval-in-seconds: 30
+        lease-expiration-duration-in-seconds: 90
+    
+    logging:
+      level:
+        com.waqiti: INFO
+        org.springframework.kafka: WARN
+        org.hibernate.SQL: WARN
+      pattern:
+        console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+        file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+      file:
+        name: /logs/audit-service.log
+    
+    # Audit Configuration
+    audit:
+      event-capture:
+        enabled: true
+        async-processing: true
+        batch-size: 100
+        flush-interval: 5s
+      integrity:
+        cryptographic-hashing: true
+        hash-algorithm: "SHA-256"
+        digital-signatures: true
+      retention:
+        default-period: 2555d  # 7 years
+        compliance-period: 3650d  # 10 years for compliance events
+        archival-enabled: true
+        compression: true
+      monitoring:
+        suspicious-activity-detection: true
+        behavior-analysis: true
+        pattern-recognition: true
+        real-time-alerts: true
+      compliance:
+        sox-compliance: true
+        pci-dss-compliance: true
+        gdpr-compliance: true
+        hipaa-compliance: false
+      reporting:
+        automated-reports: true
+        compliance-dashboards: true
+        forensic-analysis: true
+        export-formats: ["PDF", "CSV", "JSON"]
+      security:
+        immutable-storage: true
+        encryption-at-rest: true
+        encryption-in-transit: true
+        access-control: "RBAC"
+      data-lineage:
+        track-changes: true
+        impact-analysis: true
+        dependency-mapping: true
+      archival:
+        storage-path: /audit-data/archive
+        compression-ratio: 0.7
+        verification-checks: true
+    
+    # Circuit Breaker Configuration
+    resilience4j:
+      circuitbreaker:
+        instances:
+          database:
+            failure-rate-threshold: 50
+            wait-duration-in-open-state: 30s
+            sliding-window-size: 10
+          external-service:
+            failure-rate-threshold: 60
+            wait-duration-in-open-state: 60s
+            sliding-window-size: 20
+      retry:
+        instances:
+          database:
+            max-attempts: 3
+            wait-duration: 1s
+          external-service:
+            max-attempts: 2
+            wait-duration: 2s

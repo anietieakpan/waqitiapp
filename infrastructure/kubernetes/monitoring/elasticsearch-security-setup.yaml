@@ -1,0 +1,405 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: elasticsearch-security-setup
+  namespace: example-monitoring
+  labels:
+    app: elasticsearch
+    component: security-setup
+spec:
+  template:
+    metadata:
+      labels:
+        app: elasticsearch
+        component: security-setup
+    spec:
+      restartPolicy: OnFailure
+      serviceAccountName: elasticsearch-security-admin
+      initContainers:
+      - name: wait-for-elasticsearch
+        image: curlimages/curl:7.85.0
+        command:
+        - /bin/sh
+        - -c
+        - |
+          until curl -k -s "https://elasticsearch:9200/_cluster/health?wait_for_status=yellow&timeout=30s"; do
+            echo "Waiting for Elasticsearch to be ready..."
+            sleep 10
+          done
+          echo "Elasticsearch is ready!"
+      containers:
+      - name: setup-users-and-roles
+        image: docker.elastic.co/elasticsearch/elasticsearch:8.10.0
+        env:
+        - name: ELASTIC_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: elasticsearch-credentials
+              key: elastic-password
+        - name: KIBANA_SYSTEM_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: elasticsearch-credentials
+              key: kibana-system-password
+        volumeMounts:
+        - name: elasticsearch-certs
+          mountPath: /usr/share/elasticsearch/config/certs
+          readOnly: true
+        - name: setup-script
+          mountPath: /usr/share/elasticsearch/setup
+          readOnly: true
+        command:
+        - /bin/bash
+        - /usr/share/elasticsearch/setup/setup-security.sh
+      volumes:
+      - name: elasticsearch-certs
+        secret:
+          secretName: elasticsearch-certs
+      - name: setup-script
+        configMap:
+          name: elasticsearch-security-setup
+          defaultMode: 0755
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: elasticsearch-security-setup
+  namespace: example-monitoring
+data:
+  setup-security.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    
+    echo "Setting up Elasticsearch security..."
+    
+    # Wait for Elasticsearch to be ready
+    until curl -k -u "elastic:${ELASTIC_PASSWORD}" "https://elasticsearch:9200/_cluster/health?wait_for_status=yellow&timeout=30s"; do
+      echo "Waiting for Elasticsearch cluster..."
+      sleep 10
+    done
+    
+    # Create built-in users
+    echo "Setting up built-in users..."
+    
+    # Set kibana_system password
+    curl -k -X POST "https://elasticsearch:9200/_security/user/kibana_system/_password" \
+      -u "elastic:${ELASTIC_PASSWORD}" \
+      -H "Content-Type: application/json" \
+      -d "{\"password\": \"${KIBANA_SYSTEM_PASSWORD}\"}"
+    
+    # Create custom roles for Waqiti platform
+    echo "Creating custom roles..."
+    
+    # Waqiti Admin Role
+    curl -k -X POST "https://elasticsearch:9200/_security/role/waqiti_admin" \
+      -u "elastic:${ELASTIC_PASSWORD}" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "cluster": ["monitor", "manage_index_templates", "manage_ingest_pipelines"],
+        "indices": [
+          {
+            "names": ["waqiti-*", "audit-*", "security-*"],
+            "privileges": ["all"]
+          },
+          {
+            "names": [".kibana*"],
+            "privileges": ["read", "write", "create", "delete", "create_index", "view_index_metadata"]
+          }
+        ]
+      }'
+    
+    # Waqiti Analyst Role
+    curl -k -X POST "https://elasticsearch:9200/_security/role/waqiti_analyst" \
+      -u "elastic:${ELASTIC_PASSWORD}" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "cluster": ["monitor"],
+        "indices": [
+          {
+            "names": ["waqiti-transactions-*", "waqiti-analytics-*", "waqiti-business-*"],
+            "privileges": ["read", "view_index_metadata"]
+          },
+          {
+            "names": [".kibana*"],
+            "privileges": ["read"]
+          }
+        ]
+      }'
+    
+    # Waqiti Support Role
+    curl -k -X POST "https://elasticsearch:9200/_security/role/waqiti_support" \
+      -u "elastic:${ELASTIC_PASSWORD}" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "cluster": ["monitor"],
+        "indices": [
+          {
+            "names": ["waqiti-support-*", "waqiti-notifications-*", "waqiti-user-*"],
+            "privileges": ["read", "view_index_metadata"]
+          },
+          {
+            "names": [".kibana*"],
+            "privileges": ["read"]
+          }
+        ]
+      }'
+    
+    # Waqiti Compliance Role
+    curl -k -X POST "https://elasticsearch:9200/_security/role/waqiti_compliance" \
+      -u "elastic:${ELASTIC_PASSWORD}" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "cluster": ["monitor"],
+        "indices": [
+          {
+            "names": ["waqiti-compliance-*", "audit-*", "waqiti-kyc-*", "waqiti-aml-*"],
+            "privileges": ["read", "view_index_metadata"]
+          },
+          {
+            "names": [".kibana*"],
+            "privileges": ["read"]
+          }
+        ]
+      }'
+    
+    # Create service users
+    echo "Creating service users..."
+    
+    # Logstash user
+    curl -k -X POST "https://elasticsearch:9200/_security/user/logstash_writer" \
+      -u "elastic:${ELASTIC_PASSWORD}" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "password": "'$(openssl rand -base64 32)'",
+        "roles": ["logstash_writer"],
+        "full_name": "Logstash Writer Service",
+        "email": "logstash@example.com"
+      }'
+    
+    # Filebeat user
+    curl -k -X POST "https://elasticsearch:9200/_security/user/filebeat_publisher" \
+      -u "elastic:${ELASTIC_PASSWORD}" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "password": "'$(openssl rand -base64 32)'",
+        "roles": ["filebeat_publisher"],
+        "full_name": "Filebeat Publisher Service",
+        "email": "filebeat@example.com"
+      }'
+    
+    # Metricbeat user
+    curl -k -X POST "https://elasticsearch:9200/_security/user/metricbeat_publisher" \
+      -u "elastic:${ELASTIC_PASSWORD}" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "password": "'$(openssl rand -base64 32)'",
+        "roles": ["metricbeat_publisher"],
+        "full_name": "Metricbeat Publisher Service",
+        "email": "metricbeat@example.com"
+      }'
+    
+    # Create index templates for Waqiti data
+    echo "Creating index templates..."
+    
+    # Waqiti transactions template
+    curl -k -X PUT "https://elasticsearch:9200/_index_template/waqiti-transactions" \
+      -u "elastic:${ELASTIC_PASSWORD}" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "index_patterns": ["waqiti-transactions-*"],
+        "template": {
+          "settings": {
+            "number_of_shards": 3,
+            "number_of_replicas": 1,
+            "index.lifecycle.name": "waqiti-financial-policy",
+            "index.lifecycle.rollover_alias": "waqiti-transactions"
+          },
+          "mappings": {
+            "properties": {
+              "@timestamp": {"type": "date"},
+              "transaction_id": {"type": "keyword"},
+              "user_id": {"type": "keyword"},
+              "amount": {"type": "scaled_float", "scaling_factor": 100},
+              "currency": {"type": "keyword"},
+              "status": {"type": "keyword"},
+              "payment_method": {"type": "keyword"},
+              "risk_score": {"type": "integer"},
+              "fraud_flags": {"type": "keyword"},
+              "compliance_status": {"type": "keyword"},
+              "location": {"type": "geo_point"}
+            }
+          }
+        },
+        "priority": 100,
+        "composed_of": ["waqiti-base-mappings"],
+        "_meta": {
+          "description": "Template for Waqiti transaction data"
+        }
+      }'
+    
+    # Waqiti audit template
+    curl -k -X PUT "https://elasticsearch:9200/_index_template/waqiti-audit" \
+      -u "elastic:${ELASTIC_PASSWORD}" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "index_patterns": ["audit-*"],
+        "template": {
+          "settings": {
+            "number_of_shards": 2,
+            "number_of_replicas": 1,
+            "index.lifecycle.name": "waqiti-audit-policy",
+            "index.lifecycle.rollover_alias": "audit-logs"
+          },
+          "mappings": {
+            "properties": {
+              "@timestamp": {"type": "date"},
+              "event_type": {"type": "keyword"},
+              "user_id": {"type": "keyword"},
+              "action": {"type": "keyword"},
+              "resource": {"type": "keyword"},
+              "result": {"type": "keyword"},
+              "ip_address": {"type": "ip"},
+              "user_agent": {"type": "text"},
+              "session_id": {"type": "keyword"},
+              "compliance_flags": {"type": "keyword"}
+            }
+          }
+        },
+        "priority": 100,
+        "_meta": {
+          "description": "Template for Waqiti audit data"
+        }
+      }'
+    
+    # Set up index lifecycle policies
+    echo "Creating index lifecycle policies..."
+    
+    # Financial data policy (7 years retention for compliance)
+    curl -k -X PUT "https://elasticsearch:9200/_ilm/policy/waqiti-financial-policy" \
+      -u "elastic:${ELASTIC_PASSWORD}" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "policy": {
+          "phases": {
+            "hot": {
+              "actions": {
+                "rollover": {
+                  "max_size": "5GB",
+                  "max_age": "7d"
+                },
+                "set_priority": {
+                  "priority": 100
+                }
+              }
+            },
+            "warm": {
+              "min_age": "7d",
+              "actions": {
+                "allocate": {
+                  "number_of_replicas": 0
+                },
+                "forcemerge": {
+                  "max_num_segments": 1
+                },
+                "set_priority": {
+                  "priority": 50
+                }
+              }
+            },
+            "cold": {
+              "min_age": "30d",
+              "actions": {
+                "allocate": {
+                  "number_of_replicas": 0
+                },
+                "set_priority": {
+                  "priority": 0
+                }
+              }
+            },
+            "delete": {
+              "min_age": "2555d"
+            }
+          }
+        }
+      }'
+    
+    # Audit data policy (10 years retention)
+    curl -k -X PUT "https://elasticsearch:9200/_ilm/policy/waqiti-audit-policy" \
+      -u "elastic:${ELASTIC_PASSWORD}" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "policy": {
+          "phases": {
+            "hot": {
+              "actions": {
+                "rollover": {
+                  "max_size": "2GB",
+                  "max_age": "1d"
+                },
+                "set_priority": {
+                  "priority": 100
+                }
+              }
+            },
+            "warm": {
+              "min_age": "1d",
+              "actions": {
+                "allocate": {
+                  "number_of_replicas": 0
+                },
+                "forcemerge": {
+                  "max_num_segments": 1
+                },
+                "set_priority": {
+                  "priority": 50
+                }
+              }
+            },
+            "cold": {
+              "min_age": "7d",
+              "actions": {
+                "allocate": {
+                  "number_of_replicas": 0
+                },
+                "set_priority": {
+                  "priority": 0
+                }
+              }
+            },
+            "delete": {
+              "min_age": "3650d"
+            }
+          }
+        }
+      }'
+    
+    echo "Elasticsearch security setup completed successfully!"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: elasticsearch-security-admin
+  namespace: example-monitoring
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: elasticsearch-security-admin
+rules:
+- apiGroups: [""]
+  resources: ["secrets", "configmaps"]
+  verbs: ["get", "list", "create", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: elasticsearch-security-admin
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: elasticsearch-security-admin
+subjects:
+- kind: ServiceAccount
+  name: elasticsearch-security-admin
+  namespace: example-monitoring

@@ -1,0 +1,150 @@
+{{- if .Values.services.mlService.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "example-platform.fullname" . }}-ml-service
+  labels:
+    {{- include "example-platform.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ml-service
+spec:
+  {{- if not .Values.services.mlService.autoscaling.enabled }}
+  replicas: {{ .Values.services.mlService.replicaCount }}
+  {{- end }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      {{- include "example-platform.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: ml-service
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap-ml-service.yaml") . | sha256sum }}
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8095"
+        prometheus.io/path: "/actuator/prometheus"
+      labels:
+        {{- include "example-platform.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: ml-service
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "example-platform.serviceAccountName" . }}-ml-service
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 3000
+        fsGroup: 2000
+      containers:
+      - name: ml-service
+        image: "{{ .Values.global.imageRegistry }}/{{ .Values.services.mlService.image.repository }}:{{ .Values.services.mlService.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.services.mlService.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.services.mlService.service.port }}
+          protocol: TCP
+        - name: management
+          containerPort: 8096
+          protocol: TCP
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: {{ .Values.global.environment }}
+        - name: DB_HOST
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "example-platform.fullname" . }}-ml-service-secrets
+              key: db-host
+        - name: DB_NAME
+          value: "waqiti_ml"
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "example-platform.fullname" . }}-ml-service-secrets
+              key: db-username
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "example-platform.fullname" . }}-ml-service-secrets
+              key: db-password
+        - name: REDIS_HOST
+          value: {{ include "example-platform.redis.host" . }}
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "example-platform.redis.secretName" . }}
+              key: {{ include "example-platform.redis.secretKey" . }}
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          value: {{ include "example-platform.kafka.bootstrapServers" . }}
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "example-platform.fullname" . }}-ml-service-secrets
+              key: jwt-secret
+        - name: JVM_OPTS
+          value: "-Xmx{{ .Values.services.mlService.resources.limits.memory | trimSuffix "i" | lower }} -Xms{{ .Values.services.mlService.resources.requests.memory | trimSuffix "i" | lower }} -XX:+UseG1GC -XX:+UseContainerSupport"
+        resources:
+          {{- toYaml .Values.services.mlService.resources | nindent 10 }}
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: management
+          initialDelaySeconds: 90
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: management
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        volumeMounts:
+        - name: ml-models
+          mountPath: /app/models
+        - name: model-backups
+          mountPath: /app/backups/models
+        - name: temp-dir
+          mountPath: /tmp
+        - name: logs
+          mountPath: /app/logs
+      volumes:
+      - name: ml-models
+        {{- if .Values.services.mlService.persistence.models.enabled }}
+        persistentVolumeClaim:
+          claimName: {{ include "example-platform.fullname" . }}-ml-models
+        {{- else }}
+        emptyDir: {}
+        {{- end }}
+      - name: model-backups
+        {{- if .Values.services.mlService.persistence.backups.enabled }}
+        persistentVolumeClaim:
+          claimName: {{ include "example-platform.fullname" . }}-model-backups
+        {{- else }}
+        emptyDir: {}
+        {{- end }}
+      - name: temp-dir
+        emptyDir:
+          sizeLimit: 1Gi
+      - name: logs
+        emptyDir:
+          sizeLimit: 500Mi
+      {{- with .Values.services.mlService.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.global.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.global.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

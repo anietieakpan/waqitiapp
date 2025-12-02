@@ -1,0 +1,90 @@
+package com.waqiti.common.notification.model;
+
+/**
+ * Types of notifications
+ */
+public enum NotificationType {
+    // Transaction notifications
+    PAYMENT_SENT,
+    PAYMENT_RECEIVED,
+    PAYMENT_FAILED,
+    PAYMENT_PENDING,
+    REFUND_PROCESSED,
+    
+    // Account notifications
+    ACCOUNT_CREATED,
+    ACCOUNT_VERIFIED,
+    ACCOUNT_SUSPENDED,
+    ACCOUNT_REACTIVATED,
+    ACCOUNT_DELETED,
+    
+    // Security notifications
+    LOGIN_ATTEMPT,
+    LOGIN_SUCCESS,
+    LOGIN_FAILED,
+    PASSWORD_CHANGED,
+    TWO_FACTOR_ENABLED,
+    TWO_FACTOR_DISABLED,
+    SUSPICIOUS_ACTIVITY,
+    URGENT_SECURITY,
+    ESCALATION,
+    DEVICE_ADDED,
+    DEVICE_REMOVED,
+    
+    // KYC notifications
+    KYC_REQUIRED,
+    KYC_IN_PROGRESS,
+    KYC_APPROVED,
+    KYC_REJECTED,
+    DOCUMENT_REQUIRED,
+    
+    // Limit notifications
+    LIMIT_REACHED,
+    LIMIT_WARNING,
+    LIMIT_INCREASED,
+    LIMIT_DECREASED,
+    
+    // Promotional
+    PROMOTION,
+    OFFER,
+    REWARD,
+    REFERRAL_BONUS,
+    
+    // System notifications
+    MAINTENANCE,
+    SYSTEM_UPDATE,
+    FEATURE_ANNOUNCEMENT,
+    POLICY_UPDATE,
+    TERMS_UPDATE,
+    
+    // Compliance
+    COMPLIANCE_NOTICE,
+    REGULATORY_UPDATE,
+    TAX_DOCUMENT,
+    
+    // Support
+    TICKET_CREATED,
+    TICKET_UPDATED,
+    TICKET_RESOLVED,
+    TICKET_ESCALATED,
+
+    // Group payments
+    GROUP_PAYMENT_CREATED,
+    GROUP_PAYMENT_CONTRIBUTION,
+    GROUP_PAYMENT_APPROVAL_REQUIRED,
+    GROUP_PAYMENT_EXPENSE_APPROVED,
+    GROUP_PAYMENT_SETTLEMENT,
+    GROUP_PAYMENT_TARGET_REACHED,
+    GROUP_PAYMENT_MEMBER_JOINED,
+    GROUP_PAYMENT_MEMBER_LEFT,
+    GROUP_PAYMENT_UPDATED,
+
+    // Communication channels
+    SMS,
+    EMAIL,
+    PUSH_NOTIFICATION,
+    VOICE_CALL,
+
+    // Custom
+    CUSTOM
+}

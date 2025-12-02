@@ -1,0 +1,392 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: database-migration-job
+  namespace: waqiti
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      name: database-migration
+      annotations:
+        sidecar.istio.io/inject: "false"
+    spec:
+      restartPolicy: OnFailure
+      initContainers:
+      # Wait for database to be ready
+      - name: wait-for-postgres
+        image: busybox:1.35
+        command: ['sh', '-c']
+        args:
+          - |
+            until nc -z postgres-primary 5432; do
+              echo "Waiting for PostgreSQL to be ready..."
+              sleep 5
+            done
+            echo "PostgreSQL is ready!"
+            
+      containers:
+      - name: flyway-migration
+        image: flyway/flyway:9.16
+        env:
+        - name: FLYWAY_URL
+          value: "jdbc:postgresql://postgres-primary:5432/waqiti"
+        - name: FLYWAY_USER
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: username
+        - name: FLYWAY_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: password
+        - name: FLYWAY_SCHEMAS
+          value: "public,users,wallets,payments,transactions,compliance,audit"
+        - name: FLYWAY_BASELINE_ON_MIGRATE
+          value: "true"
+        - name: FLYWAY_VALIDATE_ON_MIGRATE
+          value: "true"
+        - name: FLYWAY_OUT_OF_ORDER
+          value: "false"
+        - name: FLYWAY_CLEAN_ON_VALIDATION_ERROR
+          value: "false"
+        - name: FLYWAY_LOCATIONS
+          value: "filesystem:/flyway/sql"
+        - name: FLYWAY_CONNECT_RETRIES
+          value: "10"
+        - name: FLYWAY_CONNECT_RETRIES_INTERVAL
+          value: "5"
+        command:
+        - flyway
+        - migrate
+        - -placeholders.environment=production
+        volumeMounts:
+        - name: migrations
+          mountPath: /flyway/sql
+          readOnly: true
+        - name: flyway-config
+          mountPath: /flyway/conf
+          readOnly: true
+          
+      volumes:
+      - name: migrations
+        configMap:
+          name: database-migrations
+      - name: flyway-config
+        configMap:
+          name: flyway-configuration
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: flyway-configuration
+  namespace: waqiti
+data:
+  flyway.conf: |
+    # Flyway Configuration
+    flyway.table=flyway_schema_history
+    flyway.installedBy=waqiti-migration-service
+    flyway.mixed=false
+    flyway.group=true
+    flyway.failOnMissingLocations=true
+    flyway.validateMigrationNaming=true
+    flyway.ignoreMigrationPatterns=*:pending
+    
+    # PostgreSQL specific
+    flyway.postgresql.transactional.lock=true
+    
+    # Callbacks
+    flyway.callbacks=com.waqiti.migration.callbacks.AuditCallback,com.waqiti.migration.callbacks.NotificationCallback
+    
+    # Placeholders
+    flyway.placeholders.schemaPrefix=waqiti_
+    flyway.placeholders.tableSpace=waqiti_data
+    flyway.placeholders.indexSpace=waqiti_index
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: database-migrations
+  namespace: waqiti
+data:
+  V001__initial_schema.sql: |
+    -- Create schemas
+    CREATE SCHEMA IF NOT EXISTS users;
+    CREATE SCHEMA IF NOT EXISTS wallets;
+    CREATE SCHEMA IF NOT EXISTS payments;
+    CREATE SCHEMA IF NOT EXISTS transactions;
+    CREATE SCHEMA IF NOT EXISTS compliance;
+    CREATE SCHEMA IF NOT EXISTS audit;
+    
+    -- Enable extensions
+    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+    CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+    CREATE EXTENSION IF NOT EXISTS "pg_trgm";
+    CREATE EXTENSION IF NOT EXISTS "btree_gin";
+    CREATE EXTENSION IF NOT EXISTS "btree_gist";
+    
+    -- Create users table
+    CREATE TABLE users.users (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        username VARCHAR(100) UNIQUE NOT NULL,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        phone_number VARCHAR(50) UNIQUE,
+        password_hash VARCHAR(255) NOT NULL,
+        status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
+        kyc_status VARCHAR(50) DEFAULT 'NOT_STARTED',
+        kyc_level INTEGER DEFAULT 0,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        deleted_at TIMESTAMP WITH TIME ZONE,
+        version BIGINT DEFAULT 0
+    );
+    
+    -- Create wallets table
+    CREATE TABLE wallets.wallets (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        user_id UUID NOT NULL REFERENCES users.users(id),
+        wallet_type VARCHAR(50) NOT NULL,
+        currency VARCHAR(3) NOT NULL,
+        balance DECIMAL(19,4) NOT NULL DEFAULT 0,
+        available_balance DECIMAL(19,4) NOT NULL DEFAULT 0,
+        reserved_balance DECIMAL(19,4) NOT NULL DEFAULT 0,
+        status VARCHAR(50) NOT NULL DEFAULT 'ACTIVE',
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        version BIGINT DEFAULT 0,
+        CONSTRAINT unique_user_currency UNIQUE(user_id, currency)
+    );
+    
+    -- Create transactions table with partitioning
+    CREATE TABLE transactions.transactions (
+        id UUID NOT NULL DEFAULT uuid_generate_v4(),
+        source_wallet_id UUID REFERENCES wallets.wallets(id),
+        target_wallet_id UUID REFERENCES wallets.wallets(id),
+        amount DECIMAL(19,4) NOT NULL,
+        currency VARCHAR(3) NOT NULL,
+        type VARCHAR(50) NOT NULL,
+        status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
+        reference_number VARCHAR(100) UNIQUE NOT NULL,
+        description TEXT,
+        metadata JSONB,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        completed_at TIMESTAMP WITH TIME ZONE,
+        failed_at TIMESTAMP WITH TIME ZONE,
+        version BIGINT DEFAULT 0,
+        PRIMARY KEY (id, created_at)
+    ) PARTITION BY RANGE (created_at);
+    
+    -- Create monthly partitions for transactions
+    CREATE TABLE transactions.transactions_2024_01 PARTITION OF transactions.transactions
+        FOR VALUES FROM ('2024-01-01') TO ('2024-02-01');
+    CREATE TABLE transactions.transactions_2024_02 PARTITION OF transactions.transactions
+        FOR VALUES FROM ('2024-02-01') TO ('2024-03-01');
+    -- Continue for all months...
+    
+    -- Create indexes
+    CREATE INDEX idx_users_email_trgm ON users.users USING gin(email gin_trgm_ops);
+    CREATE INDEX idx_users_phone ON users.users(phone_number) WHERE phone_number IS NOT NULL;
+    CREATE INDEX idx_users_status ON users.users(status) WHERE status != 'ACTIVE';
+    CREATE INDEX idx_users_kyc_status ON users.users(kyc_status) WHERE kyc_status != 'VERIFIED';
+    
+    CREATE INDEX idx_wallets_user_id ON wallets.wallets(user_id);
+    CREATE INDEX idx_wallets_status ON wallets.wallets(status) WHERE status = 'ACTIVE';
+    CREATE INDEX idx_wallets_balance ON wallets.wallets(available_balance) WHERE available_balance > 0;
+    
+    CREATE INDEX idx_transactions_source_wallet ON transactions.transactions(source_wallet_id, created_at DESC);
+    CREATE INDEX idx_transactions_target_wallet ON transactions.transactions(target_wallet_id, created_at DESC);
+    CREATE INDEX idx_transactions_status ON transactions.transactions(status, created_at DESC) WHERE status IN ('PENDING', 'PROCESSING');
+    CREATE INDEX idx_transactions_reference ON transactions.transactions(reference_number);
+    
+  V002__audit_tables.sql: |
+    -- Create audit schema objects
+    CREATE TABLE audit.audit_log (
+        id BIGSERIAL PRIMARY KEY,
+        entity_type VARCHAR(100) NOT NULL,
+        entity_id VARCHAR(100) NOT NULL,
+        action VARCHAR(50) NOT NULL,
+        user_id UUID,
+        ip_address INET,
+        user_agent TEXT,
+        old_values JSONB,
+        new_values JSONB,
+        metadata JSONB,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+    
+    -- Create audit triggers
+    CREATE OR REPLACE FUNCTION audit.log_changes()
+    RETURNS TRIGGER AS $$
+    BEGIN
+        INSERT INTO audit.audit_log (
+            entity_type,
+            entity_id,
+            action,
+            user_id,
+            old_values,
+            new_values,
+            metadata
+        ) VALUES (
+            TG_TABLE_NAME,
+            COALESCE(NEW.id::text, OLD.id::text),
+            TG_OP,
+            current_setting('app.current_user_id', true)::uuid,
+            to_jsonb(OLD),
+            to_jsonb(NEW),
+            jsonb_build_object(
+                'schema', TG_TABLE_SCHEMA,
+                'timestamp', current_timestamp
+            )
+        );
+        RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+    
+    -- Apply audit triggers to all tables
+    CREATE TRIGGER audit_users_changes
+        AFTER INSERT OR UPDATE OR DELETE ON users.users
+        FOR EACH ROW EXECUTE FUNCTION audit.log_changes();
+        
+    CREATE TRIGGER audit_wallets_changes
+        AFTER INSERT OR UPDATE OR DELETE ON wallets.wallets
+        FOR EACH ROW EXECUTE FUNCTION audit.log_changes();
+        
+    CREATE TRIGGER audit_transactions_changes
+        AFTER INSERT OR UPDATE OR DELETE ON transactions.transactions
+        FOR EACH ROW EXECUTE FUNCTION audit.log_changes();
+    
+    -- Partition audit log by month
+    CREATE TABLE audit.audit_log_2024_01 PARTITION OF audit.audit_log
+        FOR VALUES FROM ('2024-01-01') TO ('2024-02-01');
+    
+  V003__compliance_tables.sql: |
+    -- Compliance monitoring tables
+    CREATE TABLE compliance.aml_checks (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        user_id UUID NOT NULL REFERENCES users.users(id),
+        transaction_id UUID,
+        check_type VARCHAR(50) NOT NULL,
+        status VARCHAR(50) NOT NULL,
+        risk_score INTEGER,
+        details JSONB,
+        checked_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        reviewed_at TIMESTAMP WITH TIME ZONE,
+        reviewed_by UUID REFERENCES users.users(id)
+    );
+    
+    CREATE TABLE compliance.suspicious_activity_reports (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        user_id UUID NOT NULL REFERENCES users.users(id),
+        transaction_ids UUID[],
+        report_type VARCHAR(50) NOT NULL,
+        severity VARCHAR(20) NOT NULL,
+        description TEXT NOT NULL,
+        evidence JSONB,
+        status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
+        filed_with_authorities BOOLEAN DEFAULT FALSE,
+        filing_reference VARCHAR(100),
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+    
+    CREATE TABLE compliance.transaction_limits (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        user_id UUID REFERENCES users.users(id),
+        wallet_id UUID REFERENCES wallets.wallets(id),
+        limit_type VARCHAR(50) NOT NULL,
+        currency VARCHAR(3) NOT NULL,
+        amount DECIMAL(19,4) NOT NULL,
+        period VARCHAR(20) NOT NULL,
+        effective_from TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        effective_to TIMESTAMP WITH TIME ZONE,
+        CONSTRAINT unique_limit UNIQUE(user_id, wallet_id, limit_type, period)
+    );
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: database-backup
+  namespace: waqiti
+spec:
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: postgres-backup
+            image: postgres:15-alpine
+            env:
+            - name: PGHOST
+              value: postgres-primary
+            - name: PGDATABASE
+              value: waqiti
+            - name: PGUSER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: username
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: password
+            - name: BACKUP_LOCATION
+              value: /backup
+            - name: S3_BUCKET
+              value: waqiti-database-backups
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: access-key-id
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: secret-access-key
+            command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              DATE=$(date +%Y%m%d_%H%M%S)
+              BACKUP_FILE="waqiti_backup_${DATE}.sql.gz"
+              
+              echo "Starting database backup..."
+              pg_dump --verbose --no-owner --no-acl --clean --if-exists | gzip > /backup/${BACKUP_FILE}
+              
+              echo "Uploading to S3..."
+              aws s3 cp /backup/${BACKUP_FILE} s3://${S3_BUCKET}/daily/${BACKUP_FILE}
+              
+              echo "Backup completed successfully"
+              
+              # Keep only last 30 days of backups
+              aws s3 ls s3://${S3_BUCKET}/daily/ | while read -r line;
+              do
+                createDate=$(echo $line | awk '{print $1" "$2}')
+                createDate=$(date -d "$createDate" +%s)
+                olderThan=$(date -d "30 days ago" +%s)
+                if [[ $createDate -lt $olderThan ]]
+                then
+                  fileName=$(echo $line | awk '{print $4}')
+                  echo "Deleting old backup: $fileName"
+                  aws s3 rm s3://${S3_BUCKET}/daily/$fileName
+                fi
+              done
+            volumeMounts:
+            - name: backup
+              mountPath: /backup
+          volumes:
+          - name: backup
+            emptyDir: {}
+          restartPolicy: OnFailure

@@ -1,0 +1,194 @@
+# Spring Boot Configuration for PgBouncer Connection Pooling
+# Description: Optimized datasource configuration for PgBouncer
+# Usage: Set SPRING_PROFILES_ACTIVE=production,pgbouncer
+
+spring:
+  datasource:
+    # PgBouncer connection URL
+    url: jdbc:postgresql://pgbouncer.database.svc.cluster.local:5432/${DATABASE_NAME:waqiti_core}
+    username: ${DATABASE_USERNAME:pgbouncer_user}
+    password: ${DATABASE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+    # HikariCP Configuration optimized for PgBouncer
+    hikari:
+      # Connection pool sizing (smaller than direct PostgreSQL)
+      # PgBouncer handles the actual connection pooling
+      minimum-idle: 5
+      maximum-pool-size: 20
+
+      # Connection timeout settings
+      connection-timeout: 10000  # 10 seconds
+      validation-timeout: 5000   # 5 seconds
+      idle-timeout: 300000       # 5 minutes
+      max-lifetime: 600000       # 10 minutes (shorter than direct DB)
+
+      # Connection test query (lightweight for PgBouncer)
+      connection-test-query: SELECT 1
+
+      # Pool name for monitoring
+      pool-name: HikariPool-PgBouncer-${spring.application.name}
+
+      # Auto-commit (true for PgBouncer transaction mode)
+      auto-commit: true
+
+      # Connection initialization
+      connection-init-sql: SET application_name = '${spring.application.name}'
+
+      # Leak detection (useful for debugging)
+      leak-detection-threshold: 60000  # 60 seconds
+
+      # Register MBeans for JMX monitoring
+      register-mbeans: true
+
+      # Data source properties specific to PostgreSQL + PgBouncer
+      data-source-properties:
+        # PostgreSQL-specific settings
+        prepareThreshold: 5
+        preparedStatementCacheQueries: 250
+        preparedStatementCacheSizeMiB: 5
+
+        # SSL settings (if PgBouncer has TLS enabled)
+        ssl: ${DATABASE_SSL_ENABLED:true}
+        sslmode: ${DATABASE_SSL_MODE:require}
+        sslrootcert: ${DATABASE_SSL_CERT:/etc/ssl/certs/ca-certificates.crt}
+
+        # Application name for connection tracking
+        ApplicationName: ${spring.application.name}
+
+        # TCP keep-alive settings
+        tcpKeepAlive: true
+
+        # Socket timeout
+        socketTimeout: 30
+
+        # Login timeout
+        loginTimeout: 10
+
+        # Cancel signal timeout
+        cancelSignalTimeout: 10
+
+        # Assume minimal server version for better performance
+        assumeMinServerVersion: 15.0
+
+        # Rewrite batched inserts for better performance
+        reWriteBatchedInserts: true
+
+        # Default fetch size
+        defaultRowFetchSize: 100
+
+  # JPA Configuration
+  jpa:
+    # Don't use JPA auto-configuration for schema creation
+    # Flyway handles migrations
+    generate-ddl: false
+    hibernate:
+      ddl-auto: none
+
+    # Show SQL in development, hide in production
+    show-sql: ${SHOW_SQL:false}
+
+    properties:
+      hibernate:
+        # Dialect for PostgreSQL 15+
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+        # Format SQL for better logging
+        format_sql: true
+        use_sql_comments: true
+
+        # JDBC batching
+        jdbc:
+          batch_size: 50
+          batch_versioned_data: true
+          order_inserts: true
+          order_updates: true
+
+        # Second-level cache (with Redis)
+        cache:
+          use_second_level_cache: true
+          use_query_cache: true
+          region:
+            factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
+
+        # Statistics for monitoring
+        generate_statistics: ${HIBERNATE_STATISTICS:false}
+
+        # Connection handling
+        connection:
+          provider_disables_autocommit: true
+
+        # Query optimization
+        query:
+          in_clause_parameter_padding: true
+          plan_cache_max_size: 2048
+
+        # Default schema
+        default_schema: ${DATABASE_SCHEMA:public}
+
+# Monitoring
+management:
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    enable:
+      hikaricp: true
+      jdbc: true
+    tags:
+      application: ${spring.application.name}
+      pool: pgbouncer
+
+# Logging
+logging:
+  level:
+    com.zaxxer.hikari: INFO
+    org.hibernate.SQL: ${SQL_LOG_LEVEL:WARN}
+    org.hibernate.type.descriptor.sql.BasicBinder: ${SQL_BIND_LOG_LEVEL:WARN}
+    org.postgresql: INFO
+
+---
+# Profile-specific overrides for different services
+
+# Payment Service (higher connection requirements)
+spring:
+  config:
+    activate:
+      on-profile: payment-service,pgbouncer
+  datasource:
+    hikari:
+      maximum-pool-size: 30
+      minimum-idle: 10
+
+---
+# Analytics Service (read-only, can use replica)
+spring:
+  config:
+    activate:
+      on-profile: analytics-service,pgbouncer
+  datasource:
+    url: jdbc:postgresql://pgbouncer.database.svc.cluster.local:5432/waqiti_analytics
+    username: pgbouncer_readonly
+    hikari:
+      maximum-pool-size: 15
+      minimum-idle: 5
+      read-only: true
+
+---
+# Development profile (more verbose logging)
+spring:
+  config:
+    activate:
+      on-profile: development,pgbouncer
+  jpa:
+    show-sql: true
+    properties:
+      hibernate:
+        generate_statistics: true
+
+logging:
+  level:
+    com.zaxxer.hikari: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.postgresql: DEBUG

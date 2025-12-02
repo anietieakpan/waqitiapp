@@ -1,0 +1,159 @@
+{
+  "properties": [
+    {
+      "name": "transaction.processing.max-retry-attempts",
+      "type": "java.lang.Integer",
+      "description": "Maximum retry attempts for transaction processing",
+      "defaultValue": 3
+    },
+    {
+      "name": "transaction.processing.retry-delay-seconds",
+      "type": "java.lang.Integer",
+      "description": "Delay between retry attempts in seconds",
+      "defaultValue": 30
+    },
+    {
+      "name": "transaction.processing.timeout-seconds",
+      "type": "java.lang.Integer",
+      "description": "Transaction processing timeout in seconds",
+      "defaultValue": 300
+    },
+    {
+      "name": "transaction.fraud-detection.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable fraud detection",
+      "defaultValue": true
+    },
+    {
+      "name": "transaction.fraud-detection.velocity-checks.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable velocity checks",
+      "defaultValue": true
+    },
+    {
+      "name": "transaction.fraud-detection.velocity-checks.daily-limit",
+      "type": "java.math.BigDecimal",
+      "description": "Daily transaction limit for velocity checks",
+      "defaultValue": "10000"
+    },
+    {
+      "name": "transaction.fraud-detection.velocity-checks.transaction-limit",
+      "type": "java.math.BigDecimal",
+      "description": "Single transaction limit for velocity checks",
+      "defaultValue": "5000"
+    },
+    {
+      "name": "transaction.fraud-detection.risk-scoring.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable risk scoring",
+      "defaultValue": true
+    },
+    {
+      "name": "transaction.fraud-detection.risk-scoring.threshold",
+      "type": "java.lang.Double",
+      "description": "Risk score threshold",
+      "defaultValue": 0.75
+    },
+    {
+      "name": "transaction.export.max-records",
+      "type": "java.lang.Integer",
+      "description": "Maximum records for export",
+      "defaultValue": 10000
+    },
+    {
+      "name": "transaction.export.supported-formats",
+      "type": "java.lang.String",
+      "description": "Comma-separated list of supported export formats",
+      "defaultValue": "csv,pdf"
+    },
+    {
+      "name": "transaction.notifications.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable transaction notifications",
+      "defaultValue": true
+    },
+    {
+      "name": "transaction.notifications.channels",
+      "type": "java.lang.String",
+      "description": "Comma-separated list of notification channels",
+      "defaultValue": "email,sms,push"
+    },
+    {
+      "name": "services.saga-orchestration-service.url",
+      "type": "java.lang.String",
+      "description": "Saga orchestration service URL",
+      "defaultValue": "http://localhost:8088"
+    },
+    {
+      "name": "services.saga-orchestration-service.timeout",
+      "type": "java.lang.String",
+      "description": "Saga orchestration service timeout",
+      "defaultValue": "30s"
+    },
+    {
+      "name": "services.wallet-service.url",
+      "type": "java.lang.String",
+      "description": "Wallet service URL",
+      "defaultValue": "http://localhost:8082"
+    },
+    {
+      "name": "services.wallet-service.timeout",
+      "type": "java.lang.String",
+      "description": "Wallet service timeout",
+      "defaultValue": "30s"
+    },
+    {
+      "name": "services.security-service.url",
+      "type": "java.lang.String",
+      "description": "Security service URL",
+      "defaultValue": "http://localhost:8089"
+    },
+    {
+      "name": "services.security-service.timeout",
+      "type": "java.lang.String",
+      "description": "Security service timeout",
+      "defaultValue": "30s"
+    },
+    {
+      "name": "services.notification-service.url",
+      "type": "java.lang.String",
+      "description": "Notification service URL",
+      "defaultValue": "http://localhost:8084"
+    },
+    {
+      "name": "services.notification-service.timeout",
+      "type": "java.lang.String",
+      "description": "Notification service timeout",
+      "defaultValue": "30s"
+    },
+    {
+      "name": "security.jwt.secret",
+      "type": "java.lang.String",
+      "description": "JWT secret key"
+    },
+    {
+      "name": "security.jwt.expiration",
+      "type": "java.lang.Long",
+      "description": "JWT expiration time in milliseconds",
+      "defaultValue": 86400000
+    },
+    {
+      "name": "features.auth.mode",
+      "type": "java.lang.String",
+      "description": "Authentication mode",
+      "defaultValue": "KEYCLOAK"
+    },
+    {
+      "name": "features.auth.keycloak.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Keycloak authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "features.auth.legacy.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable legacy authentication",
+      "defaultValue": false
+    }
+  ]
+}

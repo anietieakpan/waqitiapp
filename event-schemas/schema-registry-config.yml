@@ -1,0 +1,171 @@
+# Confluent Schema Registry Configuration for Waqiti Platform
+# Production-grade event schema management with Avro
+
+schema-registry:
+  url: ${SCHEMA_REGISTRY_URL:http://schema-registry:8081}
+
+  # Authentication (Basic Auth)
+  basic-auth:
+    user-info: ${SCHEMA_REGISTRY_USER:}:${SCHEMA_REGISTRY_PASSWORD:}
+
+  # SSL/TLS Configuration
+  ssl:
+    enabled: ${SCHEMA_REGISTRY_SSL_ENABLED:false}
+    truststore:
+      location: ${SCHEMA_REGISTRY_TRUSTSTORE_LOCATION:}
+      password: ${SCHEMA_REGISTRY_TRUSTSTORE_PASSWORD:}
+    keystore:
+      location: ${SCHEMA_REGISTRY_KEYSTORE_LOCATION:}
+      password: ${SCHEMA_REGISTRY_KEYSTORE_PASSWORD:}
+      key-password: ${SCHEMA_REGISTRY_KEY_PASSWORD:}
+
+  # Schema Compatibility Settings
+  compatibility:
+    # BACKWARD: New schema can read old data
+    # FORWARD: Old schema can read new data
+    # FULL: Both backward and forward compatible
+    # BACKWARD_TRANSITIVE: Backward compatible with all previous versions
+    # FORWARD_TRANSITIVE: Forward compatible with all previous versions
+    # FULL_TRANSITIVE: Full compatibility with all previous versions
+    level: BACKWARD_TRANSITIVE
+
+  # Auto-registration settings
+  auto-register-schemas: true
+
+  # Cache settings
+  cache:
+    ttl-seconds: 300
+    max-size: 1000
+
+# Kafka Producer Configuration with Schema Registry
+kafka:
+  producer:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    key-serializer: org.apache.kafka.common.serialization.StringSerializer
+    value-serializer: io.confluent.kafka.serializers.KafkaAvroSerializer
+
+    # Schema Registry URL for producer
+    properties:
+      schema.registry.url: ${SCHEMA_REGISTRY_URL:http://schema-registry:8081}
+      auto.register.schemas: true
+      use.latest.version: true
+
+    # Producer reliability settings
+    acks: all
+    retries: 3
+    max-in-flight-requests-per-connection: 1
+    enable-idempotence: true
+
+    # Compression
+    compression-type: snappy
+
+    # Batch settings
+    batch-size: 16384
+    linger-ms: 10
+
+  # Kafka Consumer Configuration with Schema Registry
+  consumer:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    value-deserializer: io.confluent.kafka.serializers.KafkaAvroDeserializer
+
+    # Schema Registry URL for consumer
+    properties:
+      schema.registry.url: ${SCHEMA_REGISTRY_URL:http://schema-registry:8081}
+      specific.avro.reader: true
+
+    # Consumer reliability settings
+    enable-auto-commit: false
+    auto-offset-reset: earliest
+    max-poll-records: 500
+
+    # Consumer group settings
+    group-id: ${KAFKA_CONSUMER_GROUP:waqiti-services}
+
+# Event Schema Subjects (Topic -> Schema mapping)
+event-schemas:
+  subjects:
+    # Payment Events
+    - topic: payment.initiated
+      schema-file: event-schemas/avro/PaymentInitiatedEvent.avsc
+      value-subject-name-strategy: TopicNameStrategy
+
+    - topic: payment.completed
+      schema-file: event-schemas/avro/PaymentCompletedEvent.avsc
+
+    - topic: payment.failed
+      schema-file: event-schemas/avro/PaymentFailedEvent.avsc
+
+    # Wallet Events
+    - topic: wallet.balance.updated
+      schema-file: event-schemas/avro/WalletBalanceUpdatedEvent.avsc
+
+    - topic: wallet.created
+      schema-file: event-schemas/avro/WalletCreatedEvent.avsc
+
+    - topic: wallet.frozen
+      schema-file: event-schemas/avro/WalletFrozenEvent.avsc
+
+    # Fraud Detection Events
+    - topic: fraud.detected
+      schema-file: event-schemas/avro/FraudDetectedEvent.avsc
+
+    - topic: fraud.alert.high-risk
+      schema-file: event-schemas/avro/FraudAlertEvent.avsc
+
+    # Compliance Events
+    - topic: compliance.alert
+      schema-file: event-schemas/avro/ComplianceAlertEvent.avsc
+
+    - topic: compliance.sar-filing-required
+      schema-file: event-schemas/avro/SARFilingRequiredEvent.avsc
+
+    - topic: compliance.sanctions-match
+      schema-file: event-schemas/avro/SanctionsMatchEvent.avsc
+
+    # Transaction Events
+    - topic: transaction.completed
+      schema-file: event-schemas/avro/TransactionCompletedEvent.avsc
+
+    - topic: transaction.reversed
+      schema-file: event-schemas/avro/TransactionReversedEvent.avsc
+
+    # Investment Events
+    - topic: investment.order.executed
+      schema-file: event-schemas/avro/InvestmentOrderExecutedEvent.avsc
+
+    - topic: portfolio.rebalanced
+      schema-file: event-schemas/avro/PortfolioRebalancedEvent.avsc
+
+# Schema Evolution Rules
+evolution:
+  # Rules for adding fields
+  new-fields:
+    must-have-default: true  # All new fields must have default values
+
+  # Rules for removing fields
+  field-removal:
+    requires-major-version: true
+
+  # Rules for type changes
+  type-changes:
+    allowed: false  # Type changes not allowed for safety
+
+# Schema Validation
+validation:
+  enabled: true
+  fail-on-invalid-schema: true
+  validate-on-publish: true
+
+# Monitoring and Metrics
+monitoring:
+  enabled: true
+  prometheus:
+    enabled: true
+    port: 9090
+  metrics:
+    - schema-registry.requests.count
+    - schema-registry.requests.latency
+    - schema-registry.errors.count
+    - schema.versions.count
+    - schema.compatibility.checks

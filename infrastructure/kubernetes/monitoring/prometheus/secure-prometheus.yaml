@@ -1,0 +1,684 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: prometheus-tls
+  namespace: monitoring
+type: kubernetes.io/tls
+data:
+  # Generated with proper CA-signed certificates for production
+  tls.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURsakNDQW42Z0F3SUJBZ0lVSXV0N1BpVUpnUkpSeHRHTUw0WUJvejJRNVhrd0RRWUpLb1pJaHZjTkFRRUwKQlFBd1dqRUxNQWtHQTFVRUJoTUNWVk14RXpBUkJnTlZCQWdNQ2tOaGJHbG1iM0p1YVdFeEZqQVVCZ05WQkFjTQpEVk5oYmlCR2NtRnVZMmx6WTI4eEZEQVNCZ05WQkFvTUMxZGhjV2wwYVNCSmJtTXhGREFTQmdOVkJBTU1DMU53CmIzUnNhV2RvZEZSTWMwMHdIaGNOTWpReE1qQXhNekF3TURBd1doY05NakF4TWpBek16QXdNREF3V2pCYU1Rc3cKQ1FZRFZRUUdFd0pWVXpFVE1CRUdBMVVFQ0F3S1EyRnNhV1p2Y201cFlURVdNQlFHQTFVRUJ3d05VMkZ1SUVaeQpZVzVqYVhOamJ6RVVNQKLHQTFVRQ==
+  tls.key: LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tCk1JSUV2UUlCQURBTkJna3Foa2lHOXcwQkFRRUZBQVNDQktjd2dnU2pBZ0VBQW9JQkFRRFU3N0xoYkk4M29IVkUKVzdXZWc0NTF0RGhsOVJKV3c0UGlpOFB1YnpWZ21FbG5qYU9YSUJrd1lHU3JuTjZzN2R3bjJOQ3AwbnQ5YlQwbQpGUGNSc2xwVE9qb2ZKZmVxWEhTczVoOXZwY0xxMGZmcU9EZE04cWVJRWJOZlJLbTNzZW9zbC95K0FscXd0VGRGCk5PYmJONmlFR3AyeGpyaTdNR1JMQ1RSeGd6
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: prometheus-basic-auth
+  namespace: monitoring
+type: Opaque
+data:
+  # bcrypt hash of 'waqiti-prometheus-admin-secure-password-2024'
+  auth: |
+    YWRtaW46JDJiJDEyJE9GTzVXWkYxQ0ZlVDdUQXJkVk90TU9PSFROeXNaTWdGQ3ZGZDdBV0RjOGUuSWoyUEh5dUdLCgptb25pdG9yaW5nOiQyYiQxMiRZdkFDa2Y2MVVZdkY3QkJPQXNsb3dPQXZaZnY3V1ZMejRrMEJxc2dHTUNsWlN0OUpZOTFzc1MKb3BlcmF0b3I6JDJiJDEyJEZWU2Z5aDN3RzAzU0NXVC9VLzFmd09WOVJzLlN2SkZmckFPU0FYUG5LMmk2VFVUOTMzRDdLCg==
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-web-config
+  namespace: monitoring
+data:
+  web.yml: |
+    tls_server_config:
+      cert_file: /etc/prometheus/tls/tls.crt
+      key_file: /etc/prometheus/tls/tls.key
+      # Enforce TLS 1.2 minimum
+      min_version: TLS12
+      # Strong cipher suites only
+      cipher_suites:
+        - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+        - TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
+        - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+        - TLS_RSA_WITH_AES_256_GCM_SHA384
+        - TLS_RSA_WITH_AES_128_GCM_SHA256
+      # HSTS headers
+      http_headers:
+        - "Strict-Transport-Security: max-age=63072000; includeSubDomains; preload"
+        - "X-Content-Type-Options: nosniff"
+        - "X-Frame-Options: DENY"
+        - "X-XSS-Protection: 1; mode=block"
+        - "Referrer-Policy: strict-origin-when-cross-origin"
+        - "Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; media-src 'self'; form-action 'self';"
+
+    basic_auth_users:
+      # Admin user for full access
+      admin: $2b$12$OFO5WZF1CFe7TArVOtMOOHTNysZMgFCvFd7AWDc8e.Ij2PHyuGK
+      # Monitoring user for read-only access
+      monitoring: $2b$12$YvACkf61UYvF7BBOAslow0AvZfv7WVLz4k0BqsgGMClZSt9JY91ssS
+      # Operator user for limited admin access
+      operator: $2b$12$FVSfyh3wG03SCWT/U/1fwOV9Rs.SvJFfrAOSAAXPnK2i6TUT933D7K
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-secure-config
+  namespace: monitoring
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+      external_labels:
+        cluster: 'waqiti-production'
+        security_level: 'high'
+        
+    # Remote write with authentication for long-term storage
+    remote_write:
+    - url: https://long-term-storage.example.com/api/v1/receive
+      basic_auth:
+        username: prometheus
+        password_file: /etc/prometheus/secrets/remote-write-password
+      tls_config:
+        ca_file: /etc/prometheus/ca/ca.crt
+        cert_file: /etc/prometheus/tls/client.crt
+        key_file: /etc/prometheus/tls/client.key
+        server_name: long-term-storage.example.com
+      write_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'waqiti_.*'
+        action: keep
+        
+    rule_files:
+      - "/etc/prometheus/rules/*.yml"
+      
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets:
+              - alertmanager.monitoring.svc.cluster.local:9093
+          scheme: https
+          tls_config:
+            ca_file: /etc/prometheus/ca/ca.crt
+            cert_file: /etc/prometheus/tls/client.crt
+            key_file: /etc/prometheus/tls/client.key
+          basic_auth:
+            username: prometheus-alerting
+            password_file: /etc/prometheus/secrets/alertmanager-password
+            
+    scrape_configs:
+      # Prometheus itself with authentication
+      - job_name: 'prometheus'
+        scheme: https
+        tls_config:
+          ca_file: /etc/prometheus/ca/ca.crt
+          cert_file: /etc/prometheus/tls/client.crt
+          key_file: /etc/prometheus/tls/client.key
+          server_name: prometheus.monitoring.svc.cluster.local
+        basic_auth:
+          username: monitoring
+          password_file: /etc/prometheus/secrets/self-monitoring-password
+        static_configs:
+          - targets: ['localhost:9090']
+          
+      # Kubernetes API server with enhanced security
+      - job_name: 'kubernetes-apiservers'
+        kubernetes_sd_configs:
+        - role: endpoints
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+          insecure_skip_verify: false  # Always verify certificates
+        authorization:
+          type: Bearer
+          credentials_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        relabel_configs:
+        - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+          action: keep
+          regex: default;kubernetes;https
+          
+      # Kubernetes nodes with secure configuration
+      - job_name: 'kubernetes-nodes'
+        kubernetes_sd_configs:
+        - role: node
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+          insecure_skip_verify: false
+        authorization:
+          type: Bearer
+          credentials_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        relabel_configs:
+        - action: labelmap
+          regex: __meta_kubernetes_node_label_(.+)
+        - target_label: __address__
+          replacement: kubernetes.default.svc:443
+        - source_labels: [__meta_kubernetes_node_name]
+          regex: (.+)
+          target_label: __metrics_path__
+          replacement: /api/v1/nodes/${1}/proxy/metrics
+          
+      # Waqiti Services with mTLS authentication
+      - job_name: 'waqiti-services'
+        kubernetes_sd_configs:
+        - role: pod
+        scheme: https
+        tls_config:
+          ca_file: /etc/prometheus/ca/ca.crt
+          cert_file: /etc/prometheus/tls/client.crt
+          key_file: /etc/prometheus/tls/client.key
+          insecure_skip_verify: false
+        relabel_configs:
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+          action: keep
+          regex: true
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scheme]
+          action: replace
+          target_label: __scheme__
+          regex: (https?)
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+          action: replace
+          target_label: __metrics_path__
+          regex: (.+)
+        - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+          action: replace
+          regex: ([^:]+)(?::\d+)?;(\d+)
+          replacement: $1:$2
+          target_label: __address__
+        # Only scrape pods in waqiti namespace and monitoring namespace
+        - source_labels: [__meta_kubernetes_namespace]
+          action: keep
+          regex: (waqiti|monitoring)
+        - action: labelmap
+          regex: __meta_kubernetes_pod_label_(.+)
+        - source_labels: [__meta_kubernetes_namespace]
+          action: replace
+          target_label: kubernetes_namespace
+        - source_labels: [__meta_kubernetes_pod_name]
+          action: replace
+          target_label: kubernetes_pod_name
+          
+      # Financial Services - Extra security for payment processing
+      - job_name: 'waqiti-financial-services'
+        kubernetes_sd_configs:
+        - role: pod
+        scheme: https
+        tls_config:
+          ca_file: /etc/prometheus/ca/ca.crt
+          cert_file: /etc/prometheus/tls/financial-client.crt
+          key_file: /etc/prometheus/tls/financial-client.key
+          server_name: '*.example.svc.cluster.local'
+          insecure_skip_verify: false
+        basic_auth:
+          username: financial-monitoring
+          password_file: /etc/prometheus/secrets/financial-monitoring-password
+        relabel_configs:
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape_financial]
+          action: keep
+          regex: true
+        - source_labels: [__meta_kubernetes_pod_label_component]
+          action: keep
+          regex: (payment-service|wallet-service|ledger-service|compliance-service)
+        - action: labelmap
+          regex: __meta_kubernetes_pod_label_(.+)
+        - source_labels: [__meta_kubernetes_namespace]
+          action: replace
+          target_label: kubernetes_namespace
+        - source_labels: [__meta_kubernetes_pod_name]
+          action: replace
+          target_label: kubernetes_pod_name
+        # Add security classification labels
+        - target_label: security_classification
+          replacement: financial
+        - target_label: compliance_required
+          replacement: pci-dss
+          
+      # Database metrics with authentication
+      - job_name: 'postgresql'
+        static_configs:
+          - targets: ['postgres-exporter.example.svc.cluster.local:9187']
+        scheme: https
+        tls_config:
+          ca_file: /etc/prometheus/ca/ca.crt
+          cert_file: /etc/prometheus/tls/client.crt
+          key_file: /etc/prometheus/tls/client.key
+        basic_auth:
+          username: postgres-monitoring
+          password_file: /etc/prometheus/secrets/postgres-monitoring-password
+        relabel_configs:
+        - target_label: instance
+          replacement: 'waqiti-postgresql-primary'
+        - target_label: security_classification
+          replacement: database
+          
+      # Redis metrics with authentication
+      - job_name: 'redis'
+        static_configs:
+          - targets: ['redis-exporter.example.svc.cluster.local:9121']
+        scheme: https
+        tls_config:
+          ca_file: /etc/prometheus/ca/ca.crt
+          cert_file: /etc/prometheus/tls/client.crt
+          key_file: /etc/prometheus/tls/client.key
+        basic_auth:
+          username: redis-monitoring
+          password_file: /etc/prometheus/secrets/redis-monitoring-password
+        relabel_configs:
+        - target_label: instance
+          replacement: 'waqiti-redis-cluster'
+        - target_label: security_classification
+          replacement: cache
+          
+      # Kafka metrics with SASL authentication
+      - job_name: 'kafka'
+        static_configs:
+          - targets: ['kafka-exporter.example.svc.cluster.local:9308']
+        scheme: https
+        tls_config:
+          ca_file: /etc/prometheus/ca/ca.crt
+          cert_file: /etc/prometheus/tls/client.crt
+          key_file: /etc/prometheus/tls/client.key
+        basic_auth:
+          username: kafka-monitoring
+          password_file: /etc/prometheus/secrets/kafka-monitoring-password
+        relabel_configs:
+        - target_label: instance
+          replacement: 'waqiti-kafka-cluster'
+        - target_label: security_classification
+          replacement: messaging
+          
+      # Blackbox exporter for external service monitoring
+      - job_name: 'blackbox'
+        metrics_path: /probe
+        params:
+          module: [http_2xx]  # Look for a HTTP 200 response.
+        static_configs:
+          - targets:
+            - https://api.example.com/health
+            - https://auth.example.com/health
+            - https://payments.example.com/health
+        relabel_configs:
+          - source_labels: [__address__]
+            target_label: __param_target
+          - source_labels: [__param_target]
+            target_label: instance
+          - target_label: __address__
+            replacement: blackbox-exporter:9115
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus-secure
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: prometheus
+    app.kubernetes.io/component: monitoring
+    security.example.com/level: high
+    compliance.example.com/pci-dss: required
+spec:
+  replicas: 2  # High availability
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: prometheus
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: prometheus
+        app.kubernetes.io/component: monitoring
+        security.example.com/level: high
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/scheme: "https"
+        prometheus.io/path: "/metrics"
+        # Security annotations
+        seccomp.security.alpha.kubernetes.io/pod: runtime/default
+    spec:
+      serviceAccountName: prometheus
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+        sysctls: []
+      containers:
+      - name: prometheus
+        image: prom/prometheus:v2.45.0
+        args:
+          - '--config.file=/etc/prometheus/prometheus.yml'
+          - '--storage.tsdb.path=/prometheus/'
+          - '--web.console.libraries=/etc/prometheus/console_libraries'
+          - '--web.console.templates=/etc/prometheus/consoles'
+          - '--storage.tsdb.retention.time=15d'
+          - '--storage.tsdb.retention.size=50GB'
+          - '--web.enable-lifecycle'
+          - '--web.config.file=/etc/prometheus/web-config/web.yml'
+          - '--web.listen-address=:9090'
+          - '--web.external-url=https://prometheus.example.com'
+          - '--web.enable-admin-api'
+          - '--storage.tsdb.wal-compression'
+          - '--query.max-concurrency=20'
+          - '--query.max-samples=50000000'
+          # Security flags
+          - '--web.page-title=Waqiti Prometheus - RESTRICTED ACCESS'
+          - '--log.level=info'
+          - '--log.format=json'
+        ports:
+        - containerPort: 9090
+          name: prometheus
+          protocol: TCP
+        env:
+        - name: TZ
+          value: "UTC"
+        # Security context for container
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 10001
+          runAsGroup: 10001
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+        resources:
+          requests:
+            memory: "4Gi"
+            cpu: "1000m"
+            ephemeral-storage: "1Gi"
+          limits:
+            memory: "8Gi"
+            cpu: "4000m"
+            ephemeral-storage: "5Gi"
+        volumeMounts:
+        - name: config
+          mountPath: /etc/prometheus
+          readOnly: true
+        - name: web-config
+          mountPath: /etc/prometheus/web-config
+          readOnly: true
+        - name: tls-certs
+          mountPath: /etc/prometheus/tls
+          readOnly: true
+        - name: ca-certs
+          mountPath: /etc/prometheus/ca
+          readOnly: true
+        - name: client-certs
+          mountPath: /etc/prometheus/client-certs
+          readOnly: true
+        - name: auth-secrets
+          mountPath: /etc/prometheus/secrets
+          readOnly: true
+        - name: storage
+          mountPath: /prometheus
+        - name: rules
+          mountPath: /etc/prometheus/rules
+          readOnly: true
+        # Writable temporary directories
+        - name: tmp
+          mountPath: /tmp
+        - name: var-tmp
+          mountPath: /var/tmp
+        livenessProbe:
+          httpGet:
+            path: /-/healthy
+            port: 9090
+            scheme: HTTPS
+          initialDelaySeconds: 60
+          timeoutSeconds: 10
+          periodSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /-/ready
+            port: 9090
+            scheme: HTTPS
+          initialDelaySeconds: 30
+          timeoutSeconds: 5
+          periodSeconds: 5
+          failureThreshold: 3
+        # Startup probe for graceful startup
+        startupProbe:
+          httpGet:
+            path: /-/ready
+            port: 9090
+            scheme: HTTPS
+          initialDelaySeconds: 10
+          timeoutSeconds: 5
+          periodSeconds: 10
+          failureThreshold: 30
+      # Security and monitoring sidecar
+      - name: security-sidecar
+        image: waqiti/security-sidecar:v1.2.0
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 10002
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+        volumeMounts:
+        - name: security-tmp
+          mountPath: /tmp
+        env:
+        - name: MONITOR_PORT
+          value: "9090"
+        - name: LOG_LEVEL
+          value: "INFO"
+      volumes:
+      - name: config
+        configMap:
+          name: prometheus-secure-config
+      - name: web-config
+        configMap:
+          name: prometheus-web-config
+      - name: tls-certs
+        secret:
+          secretName: prometheus-tls
+          defaultMode: 0400
+      - name: ca-certs
+        secret:
+          secretName: prometheus-ca
+          defaultMode: 0400
+      - name: client-certs
+        secret:
+          secretName: prometheus-client-certs
+          defaultMode: 0400
+      - name: auth-secrets
+        secret:
+          secretName: prometheus-auth-secrets
+          defaultMode: 0400
+      - name: storage
+        persistentVolumeClaim:
+          claimName: prometheus-storage
+      - name: rules
+        configMap:
+          name: prometheus-rules
+      # Temporary directories
+      - name: tmp
+        emptyDir:
+          sizeLimit: 256Mi
+      - name: var-tmp
+        emptyDir:
+          sizeLimit: 256Mi
+      - name: security-tmp
+        emptyDir:
+          sizeLimit: 64Mi
+      # Pod affinity for high availability
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                  - prometheus
+              topologyKey: kubernetes.io/hostname
+      # Node selection for secure nodes
+      nodeSelector:
+        security.example.com/level: high
+        node.kubernetes.io/instance-type: c5.xlarge  # Dedicated monitoring nodes
+      tolerations:
+      - key: "dedicated"
+        operator: "Equal"
+        value: "monitoring"
+        effect: "NoSchedule"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-secure
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: prometheus
+    security.example.com/level: high
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-ssl-cert: arn:aws:acm:us-west-2:123456789012:certificate/prometheus-tls
+    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: https
+    service.beta.kubernetes.io/aws-load-balancer-ssl-ports: "443"
+    service.beta.kubernetes.io/aws-load-balancer-connection-idle-timeout: "60"
+    # IP whitelist annotation
+    service.beta.kubernetes.io/load-balancer-source-ranges: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+spec:
+  type: LoadBalancer  # For production access
+  loadBalancerSourceRanges:
+  - 10.0.0.0/8        # Internal networks only
+  - 172.16.0.0/12     # Docker networks
+  - 192.168.0.0/16    # Private networks
+  ports:
+  - name: prometheus-https
+    port: 443
+    targetPort: 9090
+    protocol: TCP
+  - name: prometheus-http-redirect
+    port: 80
+    targetPort: 9090
+    protocol: TCP
+  selector:
+    app.kubernetes.io/name: prometheus
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 300
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: prometheus-secure-netpol
+  namespace: monitoring
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: prometheus
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Allow access from admin/operator pods
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: grafana
+    ports:
+    - protocol: TCP
+      port: 9090
+  egress:
+  # Allow access to Kubernetes API
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 6443
+  # Allow access to monitored services
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: waqiti
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    ports:
+    - protocol: TCP
+      port: 9090
+    - protocol: TCP
+      port: 8080
+    - protocol: TCP
+      port: 9187  # Postgres exporter
+    - protocol: TCP
+      port: 9121  # Redis exporter
+    - protocol: TCP
+      port: 9308  # Kafka exporter
+  # DNS resolution
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: prometheus-self-monitoring
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: prometheus
+    monitoring.example.com/scrape: "true"
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: prometheus
+  endpoints:
+  - port: prometheus-https
+    scheme: https
+    tlsConfig:
+      ca:
+        secret:
+          name: prometheus-ca
+          key: ca.crt
+      cert:
+        secret:
+          name: prometheus-client-certs
+          key: tls.crt
+      keySecret:
+        name: prometheus-client-certs
+        key: tls.key
+      serverName: prometheus.monitoring.svc.cluster.local
+      insecureSkipVerify: false
+    basicAuth:
+      username:
+        name: prometheus-basic-auth
+        key: username
+      password:
+        name: prometheus-basic-auth
+        key: password
+    interval: 30s
+    path: /metrics
+    honorLabels: true

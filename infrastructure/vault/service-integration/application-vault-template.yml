@@ -1,0 +1,142 @@
+# HashiCorp Vault Integration Configuration Template
+#
+# This configuration should be added to each service's application.yml
+# Replace ${SERVICE_NAME} with the actual service name (e.g., payment-service, wallet-service)
+
+spring:
+  application:
+    name: ${SERVICE_NAME}
+
+  cloud:
+    vault:
+      enabled: ${VAULT_ENABLED:true}
+      host: ${VAULT_HOST:vault.vault-system.svc.cluster.local}
+      port: ${VAULT_PORT:8200}
+      scheme: https
+      authentication: TOKEN
+      token: ${VAULT_TOKEN}
+
+      # Connection settings
+      connection-timeout: 5000
+      read-timeout: 15000
+
+      # Fail fast on startup if Vault is unavailable
+      fail-fast: true
+
+      # KV v2 engine configuration
+      kv:
+        enabled: true
+        backend: secret
+        default-context: waqiti
+        application-name: ${SERVICE_NAME}
+        profiles: ${spring.profiles.active:default}
+
+      # Generic backend (for backward compatibility)
+      generic:
+        enabled: true
+        backend: secret
+        default-context: waqiti/${SERVICE_NAME}
+
+      # Lease configuration
+      config:
+        lifecycle:
+          enabled: true
+          min-renewal: 10s
+          expiry-threshold: 60s
+          lease-endpoints: LeasesEndpoint
+
+      ssl:
+        trust-store: ${VAULT_TRUST_STORE:}
+        trust-store-password: ${VAULT_TRUST_STORE_PASSWORD:}
+
+# Service-specific Vault paths
+vault:
+  enabled: true
+  paths:
+    # Common secrets (shared across all services)
+    jwt-secret: secret/data/waqiti/jwt-secret
+    jwt-refresh-secret: secret/data/waqiti/jwt-refresh-secret
+    encryption-key: secret/data/waqiti/encryption/field-encryption-key
+
+    # Service-specific secrets
+    database: secret/data/waqiti/${SERVICE_NAME}/database
+    redis: secret/data/waqiti/${SERVICE_NAME}/redis
+    kafka: secret/data/waqiti/${SERVICE_NAME}/kafka
+    external-apis: secret/data/waqiti/${SERVICE_NAME}/external-apis
+
+    # Payment gateway credentials (for payment-related services)
+    stripe: secret/data/waqiti/${SERVICE_NAME}/stripe
+    paypal: secret/data/waqiti/${SERVICE_NAME}/paypal
+    flutterwave: secret/data/waqiti/${SERVICE_NAME}/flutterwave
+
+    # SMS/Email providers
+    twilio: secret/data/waqiti/${SERVICE_NAME}/twilio
+    sendgrid: secret/data/waqiti/${SERVICE_NAME}/sendgrid
+
+    # KYC providers
+    sumsub: secret/data/waqiti/${SERVICE_NAME}/sumsub
+    onfido: secret/data/waqiti/${SERVICE_NAME}/onfido
+
+    # Banking APIs
+    plaid: secret/data/waqiti/${SERVICE_NAME}/plaid
+    finicity: secret/data/waqiti/${SERVICE_NAME}/finicity
+
+# Security configuration using Vault secrets
+security:
+  jwt:
+    # Will be loaded from Vault at runtime
+    secret-key: ${vault.jwt.secret-key}
+    refresh-secret-key: ${vault.jwt.refresh-secret-key}
+    expiration: 3600000  # 1 hour
+    refresh-expiration: 604800000  # 7 days
+
+# Database configuration using Vault secrets
+spring.datasource:
+  url: ${POSTGRES_URL:jdbc:postgresql://localhost:5432/${SERVICE_NAME}}
+  username: ${vault.database.username:waqiti_user}
+  password: ${vault.database.password}
+  driver-class-name: org.postgresql.Driver
+
+  # Connection pool settings
+  hikari:
+    maximum-pool-size: 20
+    minimum-idle: 5
+    connection-timeout: 30000
+    idle-timeout: 600000
+    max-lifetime: 1800000
+
+# Redis configuration using Vault secrets
+spring.redis:
+  host: ${REDIS_HOST:localhost}
+  port: ${REDIS_PORT:6379}
+  password: ${vault.redis.password:}
+  timeout: 5000ms
+  lettuce:
+    pool:
+      max-active: 20
+      max-idle: 10
+      min-idle: 5
+
+# Kafka configuration using Vault secrets
+spring.kafka:
+  bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+  properties:
+    sasl.mechanism: PLAIN
+    security.protocol: SASL_SSL
+    sasl.jaas.config: org.apache.kafka.common.security.plain.PlainLoginModule required username="${vault.kafka.username}" password="${vault.kafka.password}";
+
+# Encryption configuration using Vault secrets
+encryption:
+  field:
+    key: ${vault.encryption.field-key}
+    algorithm: AES/GCM/NoPadding
+    key-size: 256
+
+# Vault health check
+management:
+  health:
+    vault:
+      enabled: true
+  endpoint:
+    health:
+      show-details: always

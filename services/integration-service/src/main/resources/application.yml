@@ -1,0 +1,226 @@
+spring:
+  application:
+    name: integration-service
+  
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  
+  cloud:
+    config:
+      uri: ${CONFIG_SERVER_URL:http://localhost:8888}
+      fail-fast: true
+      retry:
+        max-attempts: 3
+  
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/waqiti_integration}
+    username: ${DATABASE_USERNAME:waqiti}
+    password: ${DATABASE_PASSWORD:${VAULT_DATABASE_PASSWORD}}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      connection-timeout: 30000
+      maximum-pool-size: 50
+      minimum-idle: 10
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      leak-detection-threshold: 60000
+      validation-timeout: 5000
+      initialization-fail-timeout: 30000
+    
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+    show-sql: false
+    
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.trusted.packages: "*"
+    consumer:
+      group-id: integration-service
+      enable-auto-commit: false  # Manual acknowledgment for DLQ support
+      max-poll-records: 50  # Batch size control
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+      auto-offset-reset: earliest
+  
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+    
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+
+
+# Integration Configuration
+integration:
+  internal:
+    users-enabled: true
+    accounts-enabled: true
+    balance-enabled: true
+    payments-enabled: true
+
+# Resilience4j Configuration
+resilience4j:
+  circuitbreaker:
+    instances:
+      internalApi:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 5s
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10
+  retry:
+    instances:
+      internalApi:
+        maxAttempts: 3
+        waitDuration: 1s
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:${EUREKA_SERVER_URL:https://discovery-service:8761/eureka}/}
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+    metadata-map:
+      version: ${info.version}
+      region: ${DEPLOYMENT_REGION:us-east-1}
+
+server:
+  port: ${PORT:8085}
+  servlet:
+    context-path: /api/v1
+  error:
+    include-message: always
+    include-binding-errors: always
+
+# Keycloak Configuration - CRITICAL SECURITY IMPLEMENTATION
+keycloak:
+  enabled: true
+  realm: waqiti-fintech
+  auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}
+  ssl-required: external
+  resource: integration-service
+  bearer-only: true
+  use-resource-role-mappings: true
+  cors: true
+  cors-allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+  cors-allowed-headers: Authorization,Content-Type,X-Requested-With,X-Integration-Id
+  cors-max-age: 3600
+  public-client: false
+  credentials:
+    secret: ${KEYCLOAK_CLIENT_SECRET:}
+
+# Spring Security OAuth2 Configuration
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti
+          jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/certs
+      client:
+        registration:
+          keycloak:
+            client-id: integration-service
+            client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+            authorization-grant-type: client_credentials
+            scope: openid,profile,email,integration
+        provider:
+          keycloak:
+            issuer-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti
+            token-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/token
+            authorization-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/auth
+            userinfo-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/userinfo
+            jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/certs
+
+# Service-to-Service Authentication
+service:
+  auth:
+    enabled: true
+    client-id: integration-service
+    client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+  health:
+    circuitbreakers:
+      enabled: true
+
+# Feign client configuration
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 5000
+        readTimeout: 5000
+        loggerLevel: FULL
+      user-service:
+        url: ${USER_SERVICE_URL:http://user-service/api/v1}
+      wallet-service:
+        url: ${WALLET_SERVICE_URL:http://wallet-service/api/v1}
+      payment-service:
+        url: ${PAYMENT_SERVICE_URL:http://payment-service/api/v1}
+      notification-service:
+        url: ${NOTIFICATION_SERVICE_URL:http://notification-service/api/v1}
+
+# Kafka topics
+kafka:
+  topics:
+    integration-event: integration-events
+    data-sync: data-sync-events
+    webhook-received: webhook-events
+    api-call: api-call-events
+    error-event: error-events
+    notification: notification-events
+
+logging:
+  level:
+    com.waqiti.integration: INFO
+    org.springframework.web: INFO
+    org.springframework.kafka: INFO
+    org.hibernate.SQL: INFO
+    org.hibernate.type.descriptor.sql.BasicBinder: INFO
+    org.springframework.security: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

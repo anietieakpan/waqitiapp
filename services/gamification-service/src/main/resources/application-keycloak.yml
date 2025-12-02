@@ -1,0 +1,87 @@
+# Keycloak Security Configuration for Gamification Service
+
+keycloak:
+  enabled: true
+  server-url: ${KEYCLOAK_SERVER_URL:https://localhost:8180}
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  client-id: ${KEYCLOAK_CLIENT_ID:gamification-service}
+  client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+  
+  # OAuth2/OIDC Endpoints
+  issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8080/realms/waqiti}
+  jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:https://auth.example.com/realms/waqiti/protocol/openid-connect/certs}
+  
+  # JWT Configuration
+  jwk-cache-duration: PT5M
+  token-validity-duration: PT30M
+  validate-issuer: true
+  validate-audience: true
+  
+  # CORS Configuration
+  development-mode: ${DEVELOPMENT_MODE:false}
+  allowed-origins:
+    - ${FRONTEND_URL:http://localhost:3000}
+    - ${ADMIN_URL:http://localhost:3001}
+  
+  # Service-specific Configuration
+  services:
+    gamification-service:
+      client-id: gamification-service
+      client-secret: ${GAMIFICATION_SERVICE_CLIENT_SECRET:}
+      required-roles:
+        - gamification_user
+        - verified_user
+      required-scopes:
+        - gamification:read
+        - gamification:write
+        - gamification:achievements
+        - gamification:leaderboard
+        - gamification:rewards
+      additional-claims:
+        activity-tracking: enabled
+  
+  # Security Configuration
+  security:
+    log-security-events: true
+    enable-audit-log: true
+
+# Spring Security Configuration
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${keycloak.issuer-uri}
+          
+# Gamification Service Specific Security Configuration
+gamification:
+  security:
+    # Public endpoints (no authentication required)
+    public-endpoints:
+      - /api/v1/gamification/leaderboard/global
+      - /api/v1/gamification/achievements/public
+      - /api/v1/gamification/challenges/public
+    
+    # Required authorities for different operations
+    authorities:
+      read:
+        - SCOPE_gamification:read
+        - ROLE_VERIFIED_USER
+      write:
+        - SCOPE_gamification:write
+        - ROLE_VERIFIED_USER
+      achievements:
+        - SCOPE_gamification:achievements
+        - ROLE_VERIFIED_USER
+      leaderboard:
+        - SCOPE_gamification:leaderboard
+        - ROLE_VERIFIED_USER
+      rewards:
+        - SCOPE_gamification:rewards
+        - ROLE_VERIFIED_USER
+      admin:
+        - ROLE_GAMIFICATION_ADMIN
+        - SCOPE_gamification:admin
+      management:
+        - ROLE_GAMIFICATION_MANAGER
+        - SCOPE_gamification:management

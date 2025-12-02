@@ -1,0 +1,172 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: analytics-service-config
+  namespace: waqiti
+  labels:
+    app: analytics-service
+    component: backend
+data:
+  application.yaml: |
+    spring:
+      application:
+        name: analytics-service
+      datasource:
+        hikari:
+          connection-timeout: 30000
+          maximum-pool-size: 10
+      kafka:
+        consumer:
+          group-id: analytics-service
+          auto-offset-reset: earliest
+          key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+          value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+          properties:
+            spring.json.trusted.packages: "*"
+        streams:
+          application-id: analytics-processor
+          bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS}
+          default:
+            key.serde: org.apache.kafka.common.serialization.Serdes$StringSerde
+            value.serde: org.springframework.kafka.support.serializer.JsonSerde
+          state-dir: /tmp/kafka-streams
+          cache:
+            max-bytes-buffering: 10485760
+    
+    analytics:
+      processing:
+        batch-size: 1000
+        batch-interval: 10000
+        parallel-streams: 4
+        
+      aggregations:
+        windows:
+          - name: "1-minute"
+            duration: 60
+            unit: SECONDS
+          - name: "5-minute"
+            duration: 300
+            unit: SECONDS
+          - name: "1-hour"
+            duration: 3600
+            unit: SECONDS
+          - name: "1-day"
+            duration: 86400
+            unit: SECONDS
+            
+      metrics:
+        transaction-volume:
+          enabled: true
+          dimensions:
+            - transaction_type
+            - currency
+            - payment_method
+            - user_segment
+            
+        user-activity:
+          enabled: true
+          dimensions:
+            - action_type
+            - platform
+            - country
+            - user_tier
+            
+        revenue-tracking:
+          enabled: true
+          dimensions:
+            - revenue_type
+            - product
+            - channel
+            - region
+            
+        fraud-detection:
+          enabled: true
+          ml-model: "fraud-detection-v2"
+          threshold: 0.85
+          
+      reports:
+        scheduled:
+          - name: "daily-summary"
+            cron: "0 0 1 * * *"
+            recipients:
+              - analytics@example.com
+              
+          - name: "weekly-business-report"
+            cron: "0 0 9 * * MON"
+            recipients:
+              - executives@example.com
+              
+          - name: "monthly-financial-report"
+            cron: "0 0 9 1 * *"
+            recipients:
+              - finance@example.com
+              
+      clickhouse:
+        batch-insert-size: 10000
+        connection-timeout: 30000
+        socket-timeout: 60000
+        tables:
+          - name: transactions
+            ttl: 365
+            partition-by: toYYYYMM(timestamp)
+            order-by: (timestamp, user_id)
+            
+          - name: user_events
+            ttl: 90
+            partition-by: toYYYYMMDD(timestamp)
+            order-by: (timestamp, user_id, event_type)
+            
+          - name: aggregated_metrics
+            ttl: 730
+            partition-by: toYYYYMM(timestamp)
+            order-by: (timestamp, metric_name)
+    
+    cache:
+      analytics:
+        ttl: 300
+        max-entries: 10000
+        
+    resilience4j:
+      circuitbreaker:
+        instances:
+          clickhouse:
+            sliding-window-size: 10
+            minimum-number-of-calls: 5
+            permitted-number-of-calls-in-half-open-state: 3
+            automatic-transition-from-open-to-half-open-enabled: true
+            wait-duration-in-open-state: 30s
+            failure-rate-threshold: 50
+      bulkhead:
+        instances:
+          analytics-processing:
+            max-concurrent-calls: 50
+            max-wait-duration: 10s
+    
+    management:
+      endpoints:
+        web:
+          exposure:
+            include: health,info,metrics,prometheus,kafka-streams
+      endpoint:
+        health:
+          show-details: always
+          probes:
+            enabled: true
+      metrics:
+        export:
+          prometheus:
+            enabled: true
+        distribution:
+          percentiles-histogram:
+            analytics.processing.time: true
+            analytics.query.time: true
+        tags:
+          application: ${spring.application.name}
+    
+    logging:
+      level:
+        com.waqiti.analytics: DEBUG
+        org.apache.kafka.streams: INFO
+        ru.yandex.clickhouse: DEBUG
+      pattern:
+        console: "%d{yyyy-MM-dd HH:mm:ss} - %logger{36} - %msg%n"

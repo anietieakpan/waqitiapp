@@ -1,0 +1,298 @@
+# Litmus Chaos Operator Installation for Waqiti
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: litmus
+---
+# Litmus CRDs
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: chaosengines.litmuschaos.io
+spec:
+  group: litmuschaos.io
+  names:
+    kind: ChaosEngine
+    listKind: ChaosEngineList
+    plural: chaosengines
+    singular: chaosengine
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            type: object
+          status:
+            type: object
+    served: true
+    storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: chaosexperiments.litmuschaos.io
+spec:
+  group: litmuschaos.io
+  names:
+    kind: ChaosExperiment
+    listKind: ChaosExperimentList
+    plural: chaosexperiments
+    singular: chaosexperiment
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            type: object
+          status:
+            type: object
+    served: true
+    storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: chaosresults.litmuschaos.io
+spec:
+  group: litmuschaos.io
+  names:
+    kind: ChaosResult
+    listKind: ChaosResultList
+    plural: chaosresults
+    singular: chaosresult
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            type: object
+          status:
+            type: object
+    served: true
+    storage: true
+---
+# Chaos Operator RBAC
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: litmus
+  namespace: litmus
+  labels:
+    name: litmus
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: litmus
+  labels:
+    name: litmus
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "events", "jobs", "pods/log", "pods/exec", "services", "configmaps", "secrets"]
+    verbs: ["create", "list", "get", "patch", "update", "delete", "deletecollection", "watch"]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["create", "list", "get", "delete", "deletecollection"]
+  - apiGroups: ["litmuschaos.io"]
+    resources: ["chaosengines", "chaosexperiments", "chaosresults"]
+    verbs: ["create", "list", "get", "patch", "update", "delete", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "daemonsets", "replicasets", "statefulsets"]
+    verbs: ["list", "get", "patch", "update", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "patch", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: litmus
+  labels:
+    name: litmus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: litmus
+subjects:
+- kind: ServiceAccount
+  name: litmus
+  namespace: litmus
+---
+# Chaos Operator Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chaos-operator-ce
+  namespace: litmus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: chaos-operator
+  template:
+    metadata:
+      labels:
+        name: chaos-operator
+    spec:
+      serviceAccountName: litmus
+      containers:
+        - name: chaos-operator
+          image: litmuschaos/chaos-operator:2.14.0
+          command:
+          - chaos-operator
+          imagePullPolicy: Always
+          env:
+            - name: CHAOS_RUNNER_IMAGE
+              value: "litmuschaos/chaos-runner:2.14.0"
+            - name: WATCH_NAMESPACE
+              value: ""
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: OPERATOR_NAME
+              value: "chaos-operator"
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          resources:
+            requests:
+              memory: "300Mi"
+              cpu: "125m"
+            limits:
+              memory: "500Mi"
+              cpu: "225m"
+---
+# Chaos Exporter for Prometheus metrics
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chaos-exporter
+  namespace: litmus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chaos-exporter
+  template:
+    metadata:
+      labels:
+        app: chaos-exporter
+    spec:
+      serviceAccountName: litmus
+      containers:
+      - name: chaos-exporter
+        image: litmuschaos/chaos-exporter:2.14.0
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+        env:
+        - name: TSDB_SCRAPE_INTERVAL
+          value: "10"
+        resources:
+          requests:
+            memory: "300Mi"
+            cpu: "125m"
+          limits:
+            memory: "500Mi"
+            cpu: "225m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: chaos-exporter
+  namespace: litmus
+  labels:
+    app: chaos-exporter
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: 8080
+  selector:
+    app: chaos-exporter
+---
+# ServiceMonitor for Prometheus to scrape chaos metrics
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: chaos-exporter
+  namespace: litmus
+  labels:
+    app: chaos-exporter
+spec:
+  selector:
+    matchLabels:
+      app: chaos-exporter
+  endpoints:
+  - port: metrics
+    interval: 10s
+    path: /metrics
+---
+# Litmus Portal for UI (Optional but recommended)
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: litmus-portal
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: litmus-server-account
+  namespace: litmus-portal
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: litmus-server
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services", "configmaps", "secrets"]
+    verbs: ["*"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets"]
+    verbs: ["*"]
+  - apiGroups: ["litmuschaos.io"]
+    resources: ["*"]
+    verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: litmus-server
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: litmus-server
+subjects:
+  - kind: ServiceAccount
+    name: litmus-server-account
+    namespace: litmus-portal

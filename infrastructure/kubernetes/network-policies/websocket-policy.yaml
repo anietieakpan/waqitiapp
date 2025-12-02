@@ -1,0 +1,72 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: websocket-service-network-policy
+  namespace: waqiti
+spec:
+  podSelector:
+    matchLabels:
+      app: websocket-service
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Allow WebSocket connections from API Gateway
+  - from:
+    - podSelector:
+        matchLabels:
+          app: api-gateway
+    ports:
+    - protocol: TCP
+      port: 8090
+  # Allow direct WebSocket connections through ingress
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 8090
+  # Allow Prometheus scraping
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    - podSelector:
+        matchLabels:
+          app: prometheus
+    ports:
+    - protocol: TCP
+      port: 8090
+  egress:
+  # Allow access to Redis for pub/sub
+  - to:
+    - podSelector:
+        matchLabels:
+          app: redis
+    ports:
+    - protocol: TCP
+      port: 6379
+  # Allow access to Kafka
+  - to:
+    - podSelector:
+        matchLabels:
+          app: kafka
+    ports:
+    - protocol: TCP
+      port: 9092
+  # Allow access to notification service
+  - to:
+    - podSelector:
+        matchLabels:
+          app: notification-service
+    ports:
+    - protocol: TCP
+  # Allow access to discovery service
+  - to:
+    - podSelector:
+        matchLabels:
+          app: discovery-service
+    ports:
+    - protocol: TCP
+      port: 8761

@@ -1,0 +1,475 @@
+version: '3.8'
+
+# WAQITI STAGING ENVIRONMENT - Complete Infrastructure Setup
+# This docker-compose file sets up the entire staging environment including:
+# - PostgreSQL database cluster
+# - Redis cache
+# - Kafka message broker
+# - MongoDB for audit logs
+# - Elasticsearch for search
+# - All microservices
+
+services:
+  # ============================================
+  # DATABASES
+  # ============================================
+  
+  postgres:
+    image: postgres:15-alpine
+    container_name: waqiti-postgres
+    environment:
+      POSTGRES_DB: waqiti_db
+      POSTGRES_USER: waqiti_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=en_US.utf8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - waqiti-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U waqiti_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: waqiti-redis
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - waqiti-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  mongodb:
+    image: mongo:6
+    container_name: waqiti-mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+      MONGO_INITDB_DATABASE: waqiti_audit
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+      - ./infrastructure/mongodb/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js
+    networks:
+      - waqiti-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ============================================
+  # MESSAGE BROKER
+  # ============================================
+  
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: waqiti-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_SYNC_LIMIT: 2
+    ports:
+      - "2181:2181"
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+      - zookeeper_logs:/var/lib/zookeeper/log
+    networks:
+      - waqiti-network
+    restart: unless-stopped
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: waqiti-kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://${KAFKA_EXTERNAL_HOST:-kafka}:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+      KAFKA_CONFLUENT_LICENSE_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_CONFLUENT_BALANCER_TOPIC_REPLICATION_FACTOR: 1
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks:
+      - waqiti-network
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "kafka:29092"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: waqiti-kafka-ui
+    depends_on:
+      - kafka
+    ports:
+      - "8088:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: waqiti-staging
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    networks:
+      - waqiti-network
+    restart: unless-stopped
+
+  # ============================================
+  # SEARCH ENGINE
+  # ============================================
+  
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: waqiti-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - cluster.name=waqiti-cluster
+      - bootstrap.memory_lock=true
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - waqiti-network
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9200/_cluster/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ============================================
+  # MONITORING & OBSERVABILITY
+  # ============================================
+  
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: waqiti-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infrastructure/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    networks:
+      - waqiti-network
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: waqiti-grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infrastructure/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./infrastructure/grafana/datasources:/etc/grafana/provisioning/datasources
+    networks:
+      - waqiti-network
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  # ============================================
+  # SERVICE DISCOVERY & CONFIGURATION
+  # ============================================
+  
+  consul:
+    image: consul:1.17
+    container_name: waqiti-consul
+    ports:
+      - "8500:8500"
+      - "8600:8600/udp"
+    command: agent -server -ui -node=server-1 -bootstrap-expect=1 -client=0.0.0.0
+    volumes:
+      - consul_data:/consul/data
+    networks:
+      - waqiti-network
+    restart: unless-stopped
+
+  # ============================================
+  # REVERSE PROXY & LOAD BALANCER
+  # ============================================
+  
+  nginx:
+    image: nginx:alpine
+    container_name: waqiti-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./infrastructure/nginx/ssl:/etc/nginx/ssl
+    networks:
+      - waqiti-network
+    depends_on:
+      - payment-service
+      - wallet-service
+      - ledger-service
+    restart: unless-stopped
+
+  # ============================================
+  # MICROSERVICES
+  # ============================================
+  
+  payment-service:
+    build:
+      context: ./services/payment-service
+      dockerfile: Dockerfile
+    container_name: waqiti-payment-service
+    environment:
+      SPRING_PROFILES_ACTIVE: staging
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/waqiti_db
+      SPRING_DATASOURCE_USERNAME: waqiti_user
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      SPRING_REDIS_PASSWORD: ${REDIS_PASSWORD}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_DATA_MONGODB_HOST: mongodb
+      SPRING_DATA_MONGODB_PORT: 27017
+      SPRING_DATA_MONGODB_DATABASE: waqiti_audit
+      SPRING_DATA_MONGODB_USERNAME: admin
+      SPRING_DATA_MONGODB_PASSWORD: ${MONGO_PASSWORD}
+      JAVA_OPTS: "-Xms256m -Xmx512m"
+      SERVER_PORT: 8080
+    ports:
+      - "8080:8080"
+    networks:
+      - waqiti-network
+    depends_on:
+      - postgres
+      - redis
+      - kafka
+      - mongodb
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  wallet-service:
+    build:
+      context: ./services/wallet-service
+      dockerfile: Dockerfile
+    container_name: waqiti-wallet-service
+    environment:
+      SPRING_PROFILES_ACTIVE: staging
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/waqiti_db
+      SPRING_DATASOURCE_USERNAME: waqiti_user
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      SPRING_REDIS_PASSWORD: ${REDIS_PASSWORD}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      JAVA_OPTS: "-Xms256m -Xmx512m"
+      SERVER_PORT: 8081
+    ports:
+      - "8081:8081"
+    networks:
+      - waqiti-network
+    depends_on:
+      - postgres
+      - redis
+      - kafka
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  ledger-service:
+    build:
+      context: ./services/ledger-service
+      dockerfile: Dockerfile
+    container_name: waqiti-ledger-service
+    environment:
+      SPRING_PROFILES_ACTIVE: staging
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/waqiti_db
+      SPRING_DATASOURCE_USERNAME: waqiti_user
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_DATA_MONGODB_HOST: mongodb
+      SPRING_DATA_MONGODB_PORT: 27017
+      SPRING_DATA_MONGODB_DATABASE: waqiti_audit
+      JAVA_OPTS: "-Xms256m -Xmx512m"
+      SERVER_PORT: 8082
+    ports:
+      - "8082:8082"
+    networks:
+      - waqiti-network
+    depends_on:
+      - postgres
+      - kafka
+      - mongodb
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  compliance-service:
+    build:
+      context: ./services/compliance-service
+      dockerfile: Dockerfile
+    container_name: waqiti-compliance-service
+    environment:
+      SPRING_PROFILES_ACTIVE: staging
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/waqiti_db
+      SPRING_DATASOURCE_USERNAME: waqiti_user
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_DATA_ELASTICSEARCH_CLUSTER_NODES: elasticsearch:9200
+      JAVA_OPTS: "-Xms256m -Xmx512m"
+      SERVER_PORT: 8083
+    ports:
+      - "8083:8083"
+    networks:
+      - waqiti-network
+    depends_on:
+      - postgres
+      - kafka
+      - elasticsearch
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  fraud-service:
+    build:
+      context: ./services/fraud-service
+      dockerfile: Dockerfile
+    container_name: waqiti-fraud-service
+    environment:
+      SPRING_PROFILES_ACTIVE: staging
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/waqiti_db
+      SPRING_DATASOURCE_USERNAME: waqiti_user
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      SPRING_REDIS_PASSWORD: ${REDIS_PASSWORD}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      JAVA_OPTS: "-Xms256m -Xmx512m"
+      SERVER_PORT: 8084
+    ports:
+      - "8084:8084"
+    networks:
+      - waqiti-network
+    depends_on:
+      - postgres
+      - redis
+      - kafka
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8084/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  ml-service:
+    build:
+      context: ./services/ml-service
+      dockerfile: Dockerfile
+    container_name: waqiti-ml-service
+    environment:
+      SPRING_PROFILES_ACTIVE: staging
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/waqiti_db
+      SPRING_DATASOURCE_USERNAME: waqiti_user
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      JAVA_OPTS: "-Xms256m -Xmx512m"
+      SERVER_PORT: 8085
+    ports:
+      - "8085:8085"
+    networks:
+      - waqiti-network
+    depends_on:
+      - postgres
+      - kafka
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8085/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+# ============================================
+# NETWORKS
+# ============================================
+
+networks:
+  waqiti-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.0.0/16
+
+# ============================================
+# VOLUMES
+# ============================================
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  mongo_data:
+    driver: local
+  kafka_data:
+    driver: local
+  zookeeper_data:
+    driver: local
+  zookeeper_logs:
+    driver: local
+  elasticsearch_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  consul_data:
+    driver: local

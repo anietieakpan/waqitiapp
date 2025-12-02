@@ -1,0 +1,41 @@
+node.name: waqiti-logstash-node-1
+path.data: /usr/share/logstash/data
+path.logs: /usr/share/logstash/logs
+path.settings: /usr/share/logstash/config
+
+# Pipeline settings
+pipeline.workers: 4
+pipeline.batch.size: 1000
+pipeline.batch.delay: 50
+
+# Queue settings
+queue.type: persisted
+queue.max_events: 0
+queue.max_bytes: 10gb
+queue.checkpoint.writes: 1024
+
+# Dead letter queue settings
+dead_letter_queue.enable: true
+dead_letter_queue.max_bytes: 1gb
+
+# Monitoring settings
+xpack.monitoring.enabled: true
+xpack.monitoring.elasticsearch.hosts: ["http://elasticsearch:9200"]
+
+# HTTP API settings
+http.host: "0.0.0.0"
+http.port: 9600
+
+# Logging configuration
+log.level: info
+slowlog.threshold.warn: 2s
+slowlog.threshold.info: 1s
+slowlog.threshold.debug: 500ms
+slowlog.threshold.trace: 100ms
+
+# JVM settings
+config.reload.automatic: true
+config.reload.interval: 3s
+
+# Security settings
+xpack.security.enabled: false

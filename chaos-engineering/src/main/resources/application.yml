@@ -1,0 +1,127 @@
+spring:
+  application:
+    name: chaos-engineering
+  
+server:
+  port: 8099
+  
+# Chaos Engineering Configuration
+chaos:
+  enabled: ${CHAOS_ENABLED:false}
+  schedule:
+    enabled: ${CHAOS_SCHEDULE_ENABLED:false}
+    cron: "0 0 2 * * ?"  # 2 AM daily
+  experiment:
+    parallel: ${CHAOS_PARALLEL:false}
+    random-order: ${CHAOS_RANDOM_ORDER:true}
+    selection: ${CHAOS_SELECTION:all}
+  stop-on-failure: ${CHAOS_STOP_ON_FAILURE:true}
+  delay-between-experiments: ${CHAOS_DELAY:5000}
+  
+  network:
+    target-service: ${CHAOS_TARGET_SERVICE:payment-service}
+    duration: ${CHAOS_NETWORK_DURATION:60}
+  
+  kubernetes:
+    namespace: ${CHAOS_K8S_NAMESPACE:waqiti}
+    pod-kill-percentage: ${CHAOS_POD_KILL_PCT:30}
+    duration: ${CHAOS_K8S_DURATION:300}
+    services: ${CHAOS_K8S_SERVICES:payment-service,wallet-service,transaction-service}
+  
+  database:
+    connection-pool-size: ${CHAOS_DB_POOL_SIZE:10}
+    duration: ${CHAOS_DB_DURATION:120}
+    load-threads: ${CHAOS_DB_LOAD_THREADS:50}
+  
+  reporting:
+    output-dir: ${CHAOS_REPORT_DIR:./chaos-reports}
+    format: ${CHAOS_REPORT_FORMAT:html}
+
+# Resilience Testing Configuration
+resilience:
+  test:
+    duration: ${RESILIENCE_DURATION:300}
+    threads: ${RESILIENCE_THREADS:100}
+
+# Toxiproxy Configuration
+toxiproxy:
+  host: ${TOXIPROXY_HOST:localhost}
+  port: ${TOXIPROXY_PORT:8474}
+
+# Chaos Monkey Configuration
+chaos:
+  monkey:
+    enabled: ${CHAOS_MONKEY_ENABLED:false}
+    watcher:
+      controller: true
+      service: true
+      repository: true
+      component: true
+    assaults:
+      level: 5
+      latency-range-start: 1000
+      latency-range-end: 15000
+      latency-active: true
+      exceptions-active: false
+      kill-application-active: false
+      memory-active: false
+
+# Resilience4j Configuration
+resilience4j:
+  circuitbreaker:
+    instances:
+      default:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        permittedNumberOfCallsInHalfOpenState: 3
+        slidingWindowType: COUNT_BASED
+        waitDurationInOpenState: 5s
+        failureRateThreshold: 50
+        recordExceptions:
+          - java.lang.Exception
+  
+  retry:
+    instances:
+      default:
+        maxAttempts: 3
+        waitDuration: 500ms
+        retryExceptions:
+          - java.lang.Exception
+  
+  ratelimiter:
+    instances:
+      default:
+        limitForPeriod: 10
+        limitRefreshPeriod: 1s
+        timeoutDuration: 0s
+  
+  bulkhead:
+    instances:
+      default:
+        maxConcurrentCalls: 5
+        maxWaitDuration: 500ms
+  
+  timelimiter:
+    instances:
+      default:
+        timeoutDuration: 2s
+
+# Metrics and Monitoring
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,chaosmonkey
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: chaos-engineering
+
+# Logging
+logging:
+  level:
+    com.waqiti.chaos: DEBUG
+    de.codecentric.chaos.monkey: INFO
+    io.github.resilience4j: DEBUG

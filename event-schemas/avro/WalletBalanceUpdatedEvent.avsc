@@ -1,0 +1,106 @@
+{
+  "type": "record",
+  "name": "WalletBalanceUpdatedEvent",
+  "namespace": "com.waqiti.wallet.events",
+  "doc": "Event emitted when wallet balance is updated",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "Unique identifier for this event"
+    },
+    {
+      "name": "walletId",
+      "type": "string",
+      "doc": "Unique identifier for the wallet"
+    },
+    {
+      "name": "userId",
+      "type": "string",
+      "doc": "Owner of the wallet"
+    },
+    {
+      "name": "previousBalance",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 19,
+        "scale": 4
+      },
+      "doc": "Previous balance before update"
+    },
+    {
+      "name": "newBalance",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 19,
+        "scale": 4
+      },
+      "doc": "New balance after update"
+    },
+    {
+      "name": "amountChanged",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 19,
+        "scale": 4
+      },
+      "doc": "Amount that changed (positive for credit, negative for debit)"
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "doc": "ISO 4217 currency code"
+    },
+    {
+      "name": "transactionId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Associated transaction ID"
+    },
+    {
+      "name": "transactionType",
+      "type": {
+        "type": "enum",
+        "name": "TransactionType",
+        "symbols": ["DEPOSIT", "WITHDRAWAL", "TRANSFER_IN", "TRANSFER_OUT", "REFUND", "FEE", "INTEREST", "CASHBACK", "REWARD"]
+      },
+      "doc": "Type of transaction causing balance update"
+    },
+    {
+      "name": "referenceId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Reference to source operation (payment ID, transfer ID, etc.)"
+    },
+    {
+      "name": "description",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Description of the balance change"
+    },
+    {
+      "name": "metadata",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "default": {},
+      "doc": "Additional metadata"
+    },
+    {
+      "name": "timestamp",
+      "type": "long",
+      "logicalType": "timestamp-millis",
+      "doc": "Event timestamp in milliseconds since epoch"
+    },
+    {
+      "name": "version",
+      "type": "int",
+      "default": 1,
+      "doc": "Schema version"
+    }
+  ]
+}

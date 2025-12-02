@@ -1,0 +1,93 @@
+# Keycloak Configuration for Bill Payment Service
+
+keycloak:
+  enabled: true
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  ssl-required: external
+  resource: bill-payment-service
+  bearer-only: true
+  credentials:
+    secret: ${BILL_PAYMENT_SERVICE_CLIENT_SECRET}
+  use-resource-role-mappings: true
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# Bill Payment Service Security Configuration
+bill-payment:
+  security:
+    # Public endpoints that don't require authentication
+    public-endpoints:
+      - /actuator/health
+      - /actuator/info
+      - /api/v1/bill-payments/webhook/**
+      - /swagger-ui/**
+      - /v3/api-docs/**
+    
+    # Service-to-service endpoints
+    service-endpoints:
+      - /internal/bill-payments/**
+    
+    # Required roles for bill payment operations
+    required-roles:
+      read:
+        - BILL_PAYMENT_USER
+        - BILL_PAYMENT_VIEWER
+      write:
+        - BILL_PAYMENT_USER
+        - BILL_PAYMENT_PROCESSOR
+      management:
+        - BILL_PAYMENT_MANAGER
+        - BILL_PAYMENT_OPERATOR
+      admin:
+        - BILL_PAYMENT_ADMIN
+        - SYSTEM_ADMIN
+    
+    # Required scopes for operations
+    required-scopes:
+      read: bill-payment:read
+      write: bill-payment:write
+      pay: bill-payment:pay
+      schedule: bill-payment:schedule
+      history: bill-payment:history
+      autopay: bill-payment:autopay
+      biller: bill-payment:biller
+      account: bill-payment:account
+      reminders: bill-payment:reminders
+      analytics: bill-payment:analytics
+      disputes: bill-payment:disputes
+    
+    # Bill payment security features
+    features:
+      biller-verification-enabled: true
+      account-validation-enabled: true
+      payment-confirmation-enabled: true
+      fraud-detection-enabled: true
+      audit-logging-enabled: true
+      encryption-enabled: true
+      
+    # Bill payment limits and thresholds
+    limits:
+      max-payment-amount: 25000.00
+      max-daily-payments: 20
+      max-monthly-payments: 100
+      max-auto-pay-amount: 5000.00
+      
+    # Security thresholds requiring additional verification
+    verification-thresholds:
+      large-bill-payment: 5000.00
+      new-biller-payment: 1000.00
+      frequent-payment-threshold: 10
+      
+    # Advanced security features
+    advanced-security:
+      require-mfa-large-payments: true
+      biller-reputation-checking: true
+      payment-pattern-analysis: true
+      suspicious-activity-monitoring: true

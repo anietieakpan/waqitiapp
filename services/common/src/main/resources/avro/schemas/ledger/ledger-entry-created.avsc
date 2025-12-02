@@ -1,0 +1,110 @@
+{
+  "type": "record",
+  "name": "LedgerEntryCreatedEvent",
+  "namespace": "com.waqiti.events.v1",
+  "doc": "Event published when a ledger entry is created",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "Unique event identifier (UUID)"
+    },
+    {
+      "name": "eventType",
+      "type": "string",
+      "default": "ledger-entry-created",
+      "doc": "Type of event"
+    },
+    {
+      "name": "timestamp",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "Event timestamp in epoch milliseconds"
+    },
+    {
+      "name": "correlationId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Correlation ID for distributed tracing"
+    },
+    {
+      "name": "version",
+      "type": "string",
+      "default": "1.0",
+      "doc": "Schema version"
+    },
+    {
+      "name": "ledgerEntryId",
+      "type": "string",
+      "doc": "Unique ledger entry identifier (UUID)"
+    },
+    {
+      "name": "transactionId",
+      "type": "string",
+      "doc": "Associated transaction ID (UUID)"
+    },
+    {
+      "name": "accountId",
+      "type": "string",
+      "doc": "Account ID (UUID)"
+    },
+    {
+      "name": "entryType",
+      "type": {
+        "type": "enum",
+        "name": "EntryType",
+        "symbols": ["DEBIT", "CREDIT"]
+      },
+      "doc": "Type of ledger entry"
+    },
+    {
+      "name": "amount",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 19,
+        "scale": 4
+      },
+      "doc": "Entry amount"
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "default": "USD",
+      "doc": "Currency code (ISO 4217)"
+    },
+    {
+      "name": "balanceAfter",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 19,
+        "scale": 4
+      },
+      "doc": "Account balance after entry"
+    },
+    {
+      "name": "description",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Entry description"
+    },
+    {
+      "name": "referenceNumber",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Reference number"
+    },
+    {
+      "name": "metadata",
+      "type": ["null", {
+        "type": "map",
+        "values": "string"
+      }],
+      "default": null,
+      "doc": "Additional metadata"
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+# Wallet Service specific configuration
+server:
+  port: 8083
+
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/waqiti_wallets
+    username: ${DB_USERNAME:${VAULT_DB_USERNAME:wallet_service}}
+    password: ${DB_PASSWORD:${VAULT_DB_PASSWORD}}
+  kafka:
+    topics:
+          wallet-created: wallet.created
+          balance-updated: wallet.balance.updated
+          transaction-initiated: wallet.transaction.initiated
+          transaction-completed: wallet.transaction.completed
+          transaction-failed: wallet.transaction.failed
+
+  cache:
+    type:
+        redis:
+          time-to-live: 300000  # 5 minutes
+          cache-null-values: false
+        cache-names:
+          - wallet-balance
+          - wallet-limits
+          - exchange-rates
+
+# Wallet service specific settings
+wallet:
+  # Default settings
+  default-currency: USD
+  supported-currencies:
+    - USD
+    - EUR
+    - GBP
+    - CAD
+    
+  # Balance limits
+  limits:
+    max-balance: 100000
+    min-balance: 0
+    daily-transaction-limit: 50000
+    single-transaction-limit: 10000
+    
+  # Transaction processing
+  transaction:
+    pending-timeout: 300000  # 5 minutes
+    batch-size: 100
+    retry-attempts: 3
+    
+  # Fee configuration
+  fees:
+    internal-transfer: 0
+    external-transfer-percentage: 0.015  # 1.5%
+    external-transfer-min: 0.25
+    external-transfer-max: 25.00
+    instant-transfer-percentage: 0.015
+    instant-transfer-min: 0.25
+    
+# Service specific Kafka topics
+# Redis caching configuration

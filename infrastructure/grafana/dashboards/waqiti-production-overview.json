@@ -1,0 +1,356 @@
+{
+  "dashboard": {
+    "title": "Waqiti Production Overview - Financial Transactions",
+    "tags": ["production", "fintech", "transactions", "payments"],
+    "timezone": "utc",
+    "editable": false,
+    "graphTooltip": 1,
+    "time": {
+      "from": "now-15m",
+      "to": "now"
+    },
+    "refresh": "10s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Transaction Throughput (TPS)",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+        "targets": [
+          {
+            "expr": "rate(transactions_processed_total[1m])",
+            "legendFormat": "Total TPS"
+          },
+          {
+            "expr": "rate(transactions_processed_total{status=\"success\"}[1m])",
+            "legendFormat": "Success TPS"
+          },
+          {
+            "expr": "rate(transactions_processed_total{status=\"failed\"}[1m])",
+            "legendFormat": "Failed TPS"
+          }
+        ],
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": {"params": [5000], "type": "gt"},
+              "query": {"params": ["A", "5m", "now"]},
+              "type": "query"
+            }
+          ],
+          "name": "High Transaction Volume Alert"
+        }
+      },
+      {
+        "id": 2,
+        "title": "Transaction Success Rate",
+        "type": "gauge",
+        "gridPos": {"h": 8, "w": 6, "x": 12, "y": 0},
+        "targets": [
+          {
+            "expr": "rate(transactions_processed_total{status=\"success\"}[5m]) / rate(transactions_processed_total[5m]) * 100",
+            "legendFormat": "Success %"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 95, "color": "yellow"},
+                {"value": 99, "color": "green"}
+              ]
+            },
+            "max": 100,
+            "min": 0,
+            "unit": "percent"
+          }
+        }
+      },
+      {
+        "id": 3,
+        "title": "Payment Processing Latency (p95)",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 6, "x": 18, "y": 0},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(payment_processing_duration_bucket[5m]))",
+            "legendFormat": "p95 latency"
+          },
+          {
+            "expr": "histogram_quantile(0.99, rate(payment_processing_duration_bucket[5m]))",
+            "legendFormat": "p99 latency"
+          }
+        ],
+        "yaxes": [{"format": "ms"}],
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": {"params": [500], "type": "gt"},
+              "query": {"params": ["A", "5m", "now"]},
+              "type": "query"
+            }
+          ],
+          "name": "High Payment Latency Alert"
+        }
+      },
+      {
+        "id": 4,
+        "title": "Transaction Volume by Type",
+        "type": "piechart",
+        "gridPos": {"h": 8, "w": 8, "x": 0, "y": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(transactions_processed_total[5m])) by (transaction_type)",
+            "legendFormat": "{{transaction_type}}"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Active Payment Channels",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 4, "x": 8, "y": 8},
+        "targets": [
+          {
+            "expr": "count(up{job=\"payment-service\"} == 1)",
+            "legendFormat": "Active Instances"
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Fraud Detection Rate",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 4, "x": 12, "y": 8},
+        "targets": [
+          {
+            "expr": "rate(fraud_detections_total[5m])",
+            "legendFormat": "Fraud/min"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 10, "color": "yellow"},
+                {"value": 50, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 7,
+        "title": "Database Connection Pool Usage",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 8, "x": 16, "y": 8},
+        "targets": [
+          {
+            "expr": "hikaricp_connections_active{pool=\"payment-service-db-pool\"}",
+            "legendFormat": "Active Connections"
+          },
+          {
+            "expr": "hikaricp_connections_idle{pool=\"payment-service-db-pool\"}",
+            "legendFormat": "Idle Connections"
+          },
+          {
+            "expr": "hikaricp_connections_max{pool=\"payment-service-db-pool\"}",
+            "legendFormat": "Max Connections"
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "Kafka Consumer Lag",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+        "targets": [
+          {
+            "expr": "kafka_consumer_lag{topic=~\".*transaction.*\"}",
+            "legendFormat": "{{topic}} - {{partition}}"
+          }
+        ],
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": {"params": [10000], "type": "gt"},
+              "query": {"params": ["A", "5m", "now"]},
+              "type": "query"
+            }
+          ],
+          "name": "High Kafka Consumer Lag Alert"
+        }
+      },
+      {
+        "id": 9,
+        "title": "Dead Letter Queue Messages",
+        "type": "stat",
+        "gridPos": {"h": 8, "w": 6, "x": 12, "y": 16},
+        "targets": [
+          {
+            "expr": "sum(dlq_messages_total)",
+            "legendFormat": "DLQ Messages"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 100, "color": "yellow"},
+                {"value": 1000, "color": "red"}
+              ]
+            }
+          }
+        },
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": {"params": [500], "type": "gt"},
+              "query": {"params": ["A", "5m", "now"]},
+              "type": "query"
+            }
+          ],
+          "name": "High DLQ Volume Alert"
+        }
+      },
+      {
+        "id": 10,
+        "title": "Circuit Breaker Status",
+        "type": "stat",
+        "gridPos": {"h": 8, "w": 6, "x": 18, "y": 16},
+        "targets": [
+          {
+            "expr": "sum(resilience4j_circuitbreaker_state{state=\"open\"}) by (name)",
+            "legendFormat": "{{name}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 1, "color": "red"}
+              ]
+            },
+            "mappings": [
+              {"type": "value", "options": {"0": {"text": "CLOSED"}}},
+              {"type": "value", "options": {"1": {"text": "OPEN"}}}
+            ]
+          }
+        }
+      },
+      {
+        "id": 11,
+        "title": "API Gateway Request Rate",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24},
+        "targets": [
+          {
+            "expr": "rate(http_server_requests_seconds_count{uri=~\"/api/v1/.*\"}[1m])",
+            "legendFormat": "{{method}} {{uri}}"
+          }
+        ]
+      },
+      {
+        "id": 12,
+        "title": "Cache Hit Rate",
+        "type": "gauge",
+        "gridPos": {"h": 8, "w": 6, "x": 12, "y": 24},
+        "targets": [
+          {
+            "expr": "rate(cache_hits_total[5m]) / (rate(cache_hits_total[5m]) + rate(cache_misses_total[5m])) * 100",
+            "legendFormat": "Hit Rate %"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 70, "color": "yellow"},
+                {"value": 90, "color": "green"}
+              ]
+            },
+            "max": 100,
+            "min": 0,
+            "unit": "percent"
+          }
+        }
+      },
+      {
+        "id": 13,
+        "title": "JVM Memory Usage",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 6, "x": 18, "y": 24},
+        "targets": [
+          {
+            "expr": "jvm_memory_used_bytes{area=\"heap\",service=\"payment-service\"} / jvm_memory_max_bytes{area=\"heap\",service=\"payment-service\"} * 100",
+            "legendFormat": "Heap Usage %"
+          }
+        ],
+        "yaxes": [{"format": "percent"}]
+      },
+      {
+        "id": 14,
+        "title": "Saga Compensation Rate",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 32},
+        "targets": [
+          {
+            "expr": "rate(saga_compensations_total[5m])",
+            "legendFormat": "Compensations/min"
+          }
+        ]
+      },
+      {
+        "id": 15,
+        "title": "Travel Rule Violations",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 6, "y": 32},
+        "targets": [
+          {
+            "expr": "increase(travel_rule_violations_total[5m])",
+            "legendFormat": "Violations"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 1, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 16,
+        "title": "KYC Verification Queue",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 12, "y": 32},
+        "targets": [
+          {
+            "expr": "kyc_pending_verifications",
+            "legendFormat": "Pending"
+          }
+        ]
+      },
+      {
+        "id": 17,
+        "title": "Cross-Border Transaction Volume",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 18, "y": 32},
+        "targets": [
+          {
+            "expr": "rate(cross_border_transactions_total[5m])",
+            "legendFormat": "Cross-border TPS"
+          }
+        ]
+      }
+    ]
+  }
+}

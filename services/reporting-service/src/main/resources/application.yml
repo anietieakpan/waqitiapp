@@ -1,0 +1,254 @@
+spring:
+  application:
+    name: reporting-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:development}
+    include: keycloak
+  
+  datasource:
+    url: jdbc:postgresql://localhost:5432/waqiti_reporting
+    username: waqiti_user
+    password: ${DB_PASSWORD:${vault.database.password:${VAULT_REPORTING_DB_PASSWORD}}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+  
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        jdbc:
+          batch_size: 25
+        order_inserts: true
+        order_updates: true
+    show-sql: false
+  
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+  
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}}
+    consumer:
+      group-id: reporting-service
+      enable-auto-commit: false  # Manual acknowledgment for DLQ support
+      max-poll-records: 50  # Batch size control
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+
+    listener:
+      ack-mode: record  # Acknowledge each record individually for better error handling
+      missing-topics-fatal: false  # Don't fail on missing topics
+      type: batch  # Support batch processing
+      concurrency: 3  # Number of concurrent consumer threads
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+  
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:reports@example.com}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+  
+  cache:
+    type: caffeine
+    caffeine:
+      spec: maximumSize=1000,expireAfterWrite=5m
+    cache-names:
+      - financialDashboard
+      - reportDefinitions
+      - reportExecutions
+  
+  quartz:
+    job-store-type: jdbc
+    jdbc:
+      initialize-schema: always
+    properties:
+      org:
+        quartz:
+          scheduler:
+            instanceId: AUTO
+          jobStore:
+            isClustered: true
+            clusterCheckinInterval: 20000
+          threadPool:
+            threadCount: 10
+  security:
+    oauth2:
+          resourceserver:
+            jwt:
+              issuer-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti
+              jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/certs
+          client:
+            registration:
+              keycloak:
+                client-id: reporting-service
+                client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+                authorization-grant-type: client_credentials
+                scope: openid,profile,email,reports
+            provider:
+              keycloak:
+                issuer-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti
+                token-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/token
+                authorization-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/auth
+                userinfo-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/userinfo
+                jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/certs
+  # Redis Cache Configuration
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD}  # SECURITY: No default - service must fail if password not provided
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 2
+
+  cache:
+    type: redis
+    redis:
+      time-to-live: 3600000  # 1 hour
+      cache-null-values: false
+      enable-statistics: true
+
+
+server:
+  port: ${PORT:8090}
+  error:
+    include-message: always
+    include-binding-errors: always
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER:${EUREKA_SERVER_URL:https://discovery-service:8761/eureka}/}
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,loggers
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+logging:
+  level:
+    com.waqiti.reporting: DEBUG
+    org.springframework.web: INFO
+    org.hibernate.SQL: ${LOG_LEVEL_SQL:WARN}  # WARN for production
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/reporting-service.log
+    max-size: 10MB
+    max-history: 30
+
+# Application specific configuration
+report:
+  storage:
+    path: ${REPORT_STORAGE_PATH:/var/waqiti/reports}
+    max-size-mb: 100
+  distribution:
+    from-email: ${REPORT_FROM_EMAIL:reports@example.com}
+    base-url: ${APP_BASE_URL:https://app.example.com}
+    max-recipients: 50
+  generation:
+    timeout-minutes: 30
+    max-concurrent: 10
+  cleanup:
+    enabled: true
+    retention-days: 90
+    cron: "0 0 2 * * ?"
+
+# Circuit breaker configuration
+resilience4j:
+  circuitbreaker:
+    instances:
+      account-service:
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 30s
+      transaction-service:
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 30s
+      ledger-service:
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 30s
+  retry:
+    instances:
+      default:
+        maxAttempts: 3
+        waitDuration: 1s
+        retryExceptions:
+          - java.io.IOException
+          - feign.RetryableException
+
+# Keycloak Configuration
+keycloak:
+  enabled: true
+  realm: waqiti-fintech
+  auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}
+  ssl-required: external
+  resource: reporting-service
+  bearer-only: true
+  use-resource-role-mappings: true
+  cors: true
+  cors-allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+  cors-allowed-headers: Authorization,Content-Type,X-Requested-With
+  cors-max-age: 3600
+  public-client: false
+  credentials:
+    secret: ${KEYCLOAK_CLIENT_SECRET:}
+
+# Spring Security OAuth2 Configuration
+
+# Service-to-Service Authentication
+service:
+  auth:
+    enabled: true
+    client-id: reporting-service
+    client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+
+# API Documentation
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true

@@ -1,0 +1,175 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kyc-service-config
+  namespace: waqiti
+  labels:
+    app: kyc-service
+    component: backend
+data:
+  application.yml: |
+    server:
+      port: 8080
+    management:
+      server:
+        port: 9090
+      endpoints:
+        web:
+          exposure:
+            include: health,info,metrics,prometheus
+      metrics:
+        export:
+          prometheus:
+            enabled: true
+    spring:
+      application:
+        name: kyc-service
+      profiles:
+        active: kubernetes
+      datasource:
+        hikari:
+          maximum-pool-size: 20
+          minimum-idle: 5
+          connection-timeout: 30000
+          idle-timeout: 600000
+          max-lifetime: 1800000
+      jpa:
+        hibernate:
+          ddl-auto: validate
+        properties:
+          hibernate:
+            dialect: org.hibernate.dialect.PostgreSQLDialect
+            format_sql: true
+            jdbc:
+              batch_size: 25
+            order_inserts: true
+            order_updates: true
+        show-sql: false
+      kafka:
+        producer:
+          key-serializer: org.apache.kafka.common.serialization.StringSerializer
+          value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+        consumer:
+          group-id: kyc-service-group
+          key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+          value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      redis:
+        timeout: 2000ms
+        jedis:
+          pool:
+            max-active: 10
+            max-idle: 5
+            min-idle: 2
+    eureka:
+      client:
+        enabled: true
+        fetch-registry: true
+        register-with-eureka: true
+      instance:
+        prefer-ip-address: true
+        lease-renewal-interval-in-seconds: 30
+        lease-expiration-duration-in-seconds: 90
+        metadata-map:
+          cluster: kubernetes
+    kyc:
+      providers:
+        default-provider: ONFIDO
+        onfido:
+          api-url: https://api.onfido.com/v3
+          enabled: true
+          timeout-seconds: 30
+        jumio:
+          api-url: https://netverify.com/api/v4
+          enabled: true
+          timeout-seconds: 30
+        comply-advantage:
+          api-url: https://api.complyadvantage.com
+          enabled: false
+          timeout-seconds: 30
+      storage:
+        type: S3
+        bucket-name: waqiti-kyc-documents
+        max-file-size-bytes: 10485760
+        allowed-file-types:
+          - image/jpeg
+          - image/png
+          - application/pdf
+      verification:
+        max-attempts-per-user: 3
+        session-timeout-minutes: 30
+        document-expiry-days: 365
+        verification-expiry-days: 365
+        auto-approve-enabled: false
+        auto-approve-threshold: 0.95
+        level-requirements:
+          BASIC: 1
+          INTERMEDIATE: 2
+          ADVANCED: 3
+      security:
+        encrypt-documents: true
+        watermark-documents: true
+        watermark-text: "WAQITI KYC VERIFIED"
+        audit-log-enabled: true
+        download-url-expiry-minutes: 15
+        ip-whitelist-enabled: false
+        whitelisted-ips: []
+      compliance:
+        gdpr-enabled: true
+        data-retention-days: 2555
+        right-to-erasure-enabled: true
+        restricted-countries:
+          - IR
+          - KP
+          - SY
+        pii-encryption-enabled: true
+        audit-trail-enabled: true
+    resilience4j:
+      circuitbreaker:
+        instances:
+          kyc-provider:
+            registerHealthIndicator: true
+            slidingWindowSize: 10
+            minimumNumberOfCalls: 5
+            permittedNumberOfCallsInHalfOpenState: 3
+            automaticTransitionFromOpenToHalfOpenEnabled: true
+            waitDurationInOpenState: 30s
+            failureRateThreshold: 50
+            eventConsumerBufferSize: 10
+          database:
+            registerHealthIndicator: true
+            slidingWindowSize: 20
+            minimumNumberOfCalls: 10
+            permittedNumberOfCallsInHalfOpenState: 5
+            automaticTransitionFromOpenToHalfOpenEnabled: true
+            waitDurationInOpenState: 60s
+            failureRateThreshold: 70
+            eventConsumerBufferSize: 10
+      retry:
+        instances:
+          kyc-provider:
+            maxAttempts: 3
+            waitDuration: 2000ms
+            enableExponentialBackoff: true
+            exponentialBackoffMultiplier: 2
+          database:
+            maxAttempts: 5
+            waitDuration: 500ms
+            enableExponentialBackoff: true
+            exponentialBackoffMultiplier: 2
+      timelimiter:
+        instances:
+          kyc-provider:
+            timeoutDuration: 30s
+            cancelRunningFuture: true
+          document-storage:
+            timeoutDuration: 60s
+            cancelRunningFuture: true
+    logging:
+      level:
+        com.waqiti.kyc: DEBUG
+        org.springframework.web: INFO
+        org.springframework.security: DEBUG
+        org.hibernate.SQL: DEBUG
+        org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+      pattern:
+        console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%X{traceId},%X{spanId}] %logger{36} - %msg%n"

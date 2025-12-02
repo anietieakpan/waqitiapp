@@ -1,0 +1,132 @@
+{
+  "namespace": "com.waqiti.payment.events",
+  "type": "record",
+  "name": "PaymentEvent",
+  "doc": "Payment event schema for Waqiti payment processing",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "Unique event identifier"
+    },
+    {
+      "name": "eventType",
+      "type": {
+        "name": "PaymentEventType",
+        "type": "enum",
+        "symbols": [
+          "PAYMENT_INITIATED",
+          "PAYMENT_PROCESSING",
+          "PAYMENT_COMPLETED",
+          "PAYMENT_FAILED",
+          "PAYMENT_CANCELLED",
+          "PAYMENT_REFUNDED"
+        ]
+      },
+      "doc": "Type of payment event"
+    },
+    {
+      "name": "paymentId",
+      "type": "string",
+      "doc": "Payment identifier"
+    },
+    {
+      "name": "transactionId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "External transaction identifier"
+    },
+    {
+      "name": "userId",
+      "type": "string",
+      "doc": "User identifier"
+    },
+    {
+      "name": "merchantId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Merchant identifier (for merchant payments)"
+    },
+    {
+      "name": "amount",
+      "type": {
+        "type": "record",
+        "name": "MonetaryAmount",
+        "fields": [
+          {
+            "name": "value",
+            "type": "string",
+            "doc": "Amount value as string to preserve precision"
+          },
+          {
+            "name": "currency",
+            "type": "string",
+            "doc": "Currency code (ISO 4217)"
+          }
+        ]
+      },
+      "doc": "Payment amount"
+    },
+    {
+      "name": "paymentMethod",
+      "type": {
+        "name": "PaymentMethod",
+        "type": "enum",
+        "symbols": [
+          "WALLET",
+          "CREDIT_CARD",
+          "DEBIT_CARD",
+          "BANK_TRANSFER",
+          "ACH",
+          "CRYPTO",
+          "MOBILE_MONEY"
+        ]
+      },
+      "doc": "Payment method used"
+    },
+    {
+      "name": "status",
+      "type": {
+        "name": "PaymentStatus",
+        "type": "enum",
+        "symbols": [
+          "PENDING",
+          "PROCESSING",
+          "COMPLETED",
+          "FAILED",
+          "CANCELLED",
+          "REFUNDED",
+          "DISPUTED"
+        ]
+      },
+      "doc": "Payment status"
+    },
+    {
+      "name": "provider",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Payment provider (Stripe, PayPal, etc.)"
+    },
+    {
+      "name": "metadata",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "default": {},
+      "doc": "Additional metadata"
+    },
+    {
+      "name": "timestamp",
+      "type": "long",
+      "logicalType": "timestamp-millis",
+      "doc": "Event timestamp in milliseconds"
+    },
+    {
+      "name": "version",
+      "type": "string",
+      "default": "1.0",
+      "doc": "Event schema version"
+    }
+  ]
+}

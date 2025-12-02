@@ -1,0 +1,128 @@
+spring:
+  application:
+    name: payroll-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/waqiti_payroll}
+    username: ${DATABASE_USERNAME:waqiti}
+    password: ${DATABASE_PASSWORD:${VAULT_DATABASE_PASSWORD}}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 300000
+      connection-timeout: 20000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        jdbc:
+          batch_size: 100
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      group-id: payroll-service
+      enable-auto-commit: false  # Manual acknowledgment for DLQ support
+      max-poll-records: 50  # Batch size control
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti
+          jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/certs
+  # Redis Cache Configuration
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD}  # SECURITY: No default - service must fail if password not provided
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 2
+
+  cache:
+    type: redis
+    redis:
+      time-to-live: 3600000  # 1 hour
+      cache-null-values: false
+      enable-statistics: true
+
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:${EUREKA_SERVER_URL:https://discovery-service:8761/eureka}/}
+    register-with-eureka: true
+    fetch-registry: true
+
+server:
+  port: ${PORT:8095}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+
+# Payroll-specific configuration
+payroll:
+  processing:
+    max-employees-per-batch: 10000
+    max-individual-payment: 1000000.00
+    max-batch-total: 100000000.00
+    max-processing-hours: 24
+    max-retries: 3
+
+  tax:
+    federal-rate: 0.22
+    state-rate: 0.05
+    fica-rate: 0.0765
+    social-security-rate: 0.062
+    medicare-rate: 0.0145
+    social-security-wage-base: 160200.00
+
+  compliance:
+    minimum-wage: 7.25
+    overtime-threshold-hours: 40
+    enable-flsa-checks: true
+    enable-equal-pay-checks: true
+    enable-aml-screening: true
+    aml-threshold: 10000.00
+
+  bank-transfer:
+    default-method: ACH
+    settlement-days: 2
+    enable-same-day: false
+
+  notifications:
+    enable-email: true
+    enable-sms: false
+    enable-push: true
+
+logging:
+  level:
+    com.waqiti.payroll: INFO
+    org.springframework.kafka: WARN
+    org.hibernate.SQL: WARN

@@ -1,0 +1,341 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" 
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" 
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" 
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn" 
+             id="kyc-risk-assessment" 
+             name="KYC Risk Assessment" 
+             namespace="http://waqiti.com/kyc">
+             
+  <decision id="kyc-risk-assessment" name="Calculate KYC Risk Score">
+    <decisionTable id="riskAssessmentTable" hitPolicy="COLLECT" aggregation="SUM">
+      
+      <!-- Identity Verification Score -->
+      <input id="identityScore" label="Identity Verification Score" camunda:inputVariable="identityVerificationScore">
+        <inputExpression id="identityScoreExpr" typeRef="integer">
+          <text>identityVerificationScore</text>
+        </inputExpression>
+      </input>
+      
+      <!-- Document Verification Status -->
+      <input id="documentStatus" label="Document Verification Status" camunda:inputVariable="documentVerificationStatus">
+        <inputExpression id="documentStatusExpr" typeRef="string">
+          <text>documentVerificationStatus</text>
+        </inputExpression>
+        <inputValues id="documentStatusValues">
+          <text>"VERIFIED","SUSPICIOUS","FAILED"</text>
+        </inputValues>
+      </input>
+      
+      <!-- AML Screening Result -->
+      <input id="amlResult" label="AML Screening Result" camunda:inputVariable="amlScreeningResult">
+        <inputExpression id="amlResultExpr" typeRef="string">
+          <text>amlScreeningResult</text>
+        </inputExpression>
+        <inputValues id="amlResultValues">
+          <text>"CLEAR","POTENTIAL_MATCH","CONFIRMED_MATCH"</text>
+        </inputValues>
+      </input>
+      
+      <!-- Country Risk Level -->
+      <input id="countryRisk" label="Country Risk Level" camunda:inputVariable="countryRisk">
+        <inputExpression id="countryRiskExpr" typeRef="string">
+          <text>countryRisk</text>
+        </inputExpression>
+        <inputValues id="countryRiskValues">
+          <text>"LOW","MEDIUM","HIGH"</text>
+        </inputValues>
+      </input>
+      
+      <!-- PEP Status -->
+      <input id="pepStatus" label="PEP Status" camunda:inputVariable="isPEP">
+        <inputExpression id="pepStatusExpr" typeRef="boolean">
+          <text>isPEP</text>
+        </inputExpression>
+      </input>
+      
+      <!-- Selfie Match Score -->
+      <input id="selfieScore" label="Selfie Match Score" camunda:inputVariable="selfieMatchScore">
+        <inputExpression id="selfieScoreExpr" typeRef="integer">
+          <text>selfieMatchScore</text>
+        </inputExpression>
+      </input>
+      
+      <!-- Risk Score Output -->
+      <output id="riskScore" label="Risk Score Component" name="riskScoreComponent" typeRef="integer" />
+      
+      <!-- Decision Rules -->
+      
+      <!-- Identity Verification Risk -->
+      <rule id="identityRule1">
+        <inputEntry id="identity1_1">
+          <text>&lt; 70</text>
+        </inputEntry>
+        <inputEntry id="identity1_2">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="identity1_3">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="identity1_4">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="identity1_5">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="identity1_6">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="identityOutput1">
+          <text>30</text>
+        </outputEntry>
+      </rule>
+      
+      <rule id="identityRule2">
+        <inputEntry id="identity2_1">
+          <text>[70..85]</text>
+        </inputEntry>
+        <inputEntry id="identity2_2">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="identity2_3">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="identity2_4">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="identity2_5">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="identity2_6">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="identityOutput2">
+          <text>10</text>
+        </outputEntry>
+      </rule>
+      
+      <!-- Document Verification Risk -->
+      <rule id="documentRule1">
+        <inputEntry id="document1_1">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="document1_2">
+          <text>"SUSPICIOUS"</text>
+        </inputEntry>
+        <inputEntry id="document1_3">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="document1_4">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="document1_5">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="document1_6">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="documentOutput1">
+          <text>20</text>
+        </outputEntry>
+      </rule>
+      
+      <rule id="documentRule2">
+        <inputEntry id="document2_1">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="document2_2">
+          <text>"FAILED"</text>
+        </inputEntry>
+        <inputEntry id="document2_3">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="document2_4">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="document2_5">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="document2_6">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="documentOutput2">
+          <text>40</text>
+        </outputEntry>
+      </rule>
+      
+      <!-- AML Screening Risk -->
+      <rule id="amlRule1">
+        <inputEntry id="aml1_1">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="aml1_2">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="aml1_3">
+          <text>"POTENTIAL_MATCH"</text>
+        </inputEntry>
+        <inputEntry id="aml1_4">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="aml1_5">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="aml1_6">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="amlOutput1">
+          <text>25</text>
+        </outputEntry>
+      </rule>
+      
+      <rule id="amlRule2">
+        <inputEntry id="aml2_1">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="aml2_2">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="aml2_3">
+          <text>"CONFIRMED_MATCH"</text>
+        </inputEntry>
+        <inputEntry id="aml2_4">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="aml2_5">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="aml2_6">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="amlOutput2">
+          <text>50</text>
+        </outputEntry>
+      </rule>
+      
+      <!-- Country Risk -->
+      <rule id="countryRule1">
+        <inputEntry id="country1_1">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="country1_2">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="country1_3">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="country1_4">
+          <text>"MEDIUM"</text>
+        </inputEntry>
+        <inputEntry id="country1_5">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="country1_6">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="countryOutput1">
+          <text>15</text>
+        </outputEntry>
+      </rule>
+      
+      <rule id="countryRule2">
+        <inputEntry id="country2_1">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="country2_2">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="country2_3">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="country2_4">
+          <text>"HIGH"</text>
+        </inputEntry>
+        <inputEntry id="country2_5">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="country2_6">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="countryOutput2">
+          <text>30</text>
+        </outputEntry>
+      </rule>
+      
+      <!-- PEP Risk -->
+      <rule id="pepRule">
+        <inputEntry id="pep1_1">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="pep1_2">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="pep1_3">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="pep1_4">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="pep1_5">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="pep1_6">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="pepOutput">
+          <text>25</text>
+        </outputEntry>
+      </rule>
+      
+      <!-- Selfie Match Risk -->
+      <rule id="selfieRule1">
+        <inputEntry id="selfie1_1">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="selfie1_2">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="selfie1_3">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="selfie1_4">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="selfie1_5">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="selfie1_6">
+          <text>&lt; 70</text>
+        </inputEntry>
+        <outputEntry id="selfieOutput1">
+          <text>20</text>
+        </outputEntry>
+      </rule>
+      
+      <rule id="selfieRule2">
+        <inputEntry id="selfie2_1">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="selfie2_2">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="selfie2_3">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="selfie2_4">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="selfie2_5">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="selfie2_6">
+          <text>[70..85]</text>
+        </inputEntry>
+        <outputEntry id="selfieOutput2">
+          <text>10</text>
+        </outputEntry>
+      </rule>
+      
+    </decisionTable>
+  </decision>
+</definitions>

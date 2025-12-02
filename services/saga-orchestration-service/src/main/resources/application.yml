@@ -1,0 +1,287 @@
+spring:
+  application:
+    name: saga-orchestration-service
+  
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  
+  cloud:
+    config:
+      uri: ${CONFIG_SERVER_URL:http://localhost:8888}
+      fail-fast: true
+      retry:
+        max-attempts: 3
+  
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/waqiti_saga}
+    username: ${DATABASE_USERNAME:waqiti}
+    password: ${DATABASE_PASSWORD:${VAULT_DATABASE_PASSWORD}}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 30
+      minimum-idle: 10
+      idle-timeout: 300000
+      connection-timeout: 30000
+      validation-timeout: 5000
+      max-lifetime: 1800000
+      leak-detection-threshold: 60000
+  
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        jdbc:
+          batch_size: 25
+        order_inserts: true
+        order_updates: true
+    show-sql: false
+  
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.trusted.packages: "*"
+        enable.idempotence: true
+        acks: all
+        retries: 3
+        max.in.flight.requests.per.connection: 5
+        compression.type: snappy
+    consumer:
+      group-id: saga-orchestration-service
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      max-poll-records: 100
+      max-poll-interval-ms: 300000
+      session-timeout-ms: 30000
+  
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 10
+          max-idle: 10
+          min-idle: 5
+  
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+  security:
+    oauth2:
+          resourceserver:
+            jwt:
+              issuer-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti
+              jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/certs
+          client:
+            registration:
+              keycloak:
+                client-id: saga-orchestration-service
+                client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+                authorization-grant-type: client_credentials
+                scope: openid,profile,email,saga
+            provider:
+              keycloak:
+                issuer-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti
+                token-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/token
+                authorization-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/auth
+                userinfo-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/userinfo
+                jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/certs
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:${EUREKA_SERVER_URL:https://discovery-service:8761/eureka}/}
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+    metadata-map:
+      version: ${info.version}
+      region: ${DEPLOYMENT_REGION:us-east-1}
+
+server:
+  port: ${PORT:8076}
+  servlet:
+    context-path: /api/v1
+  error:
+    include-message: always
+    include-binding-errors: always
+
+# Keycloak Configuration - CRITICAL SECURITY IMPLEMENTATION
+keycloak:
+  enabled: true
+  realm: waqiti-fintech
+  auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}
+  ssl-required: external
+  resource: saga-orchestration-service
+  bearer-only: true
+  use-resource-role-mappings: true
+  cors: true
+  cors-allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+  cors-allowed-headers: Authorization,Content-Type,X-Requested-With,X-Saga-Id
+  cors-max-age: 3600
+  public-client: false
+  credentials:
+    secret: ${KEYCLOAK_CLIENT_SECRET:}
+
+# Spring Security OAuth2 Configuration
+
+# Service-to-Service Authentication
+service:
+  auth:
+    enabled: true
+    client-id: saga-orchestration-service
+    client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+
+# Feign client configuration
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 5000
+        readTimeout: 10000
+        loggerLevel: FULL
+      payment-service:
+        url: ${PAYMENT_SERVICE_URL:http://payment-service/api/v1}
+      wallet-service:
+        url: ${WALLET_SERVICE_URL:http://wallet-service/api/v1}
+      transaction-service:
+        url: ${TRANSACTION_SERVICE_URL:http://transaction-service/api/v1}
+      account-service:
+        url: ${ACCOUNT_SERVICE_URL:http://account-service/api/v1}
+      notification-service:
+        url: ${NOTIFICATION_SERVICE_URL:http://notification-service/api/v1}
+      ledger-service:
+        url: ${LEDGER_SERVICE_URL:http://ledger-service/api/v1}
+      analytics-service:
+        url: ${ANALYTICS_SERVICE_URL:http://analytics-service/api/v1}
+
+# Kafka topics with DLQ configuration
+kafka:
+  topics:
+    saga-started: saga-started-events
+    saga-step-completed: saga-step-completed-events
+    saga-step-failed: saga-step-failed-events
+    saga-completed: saga-completed-events
+    saga-failed: saga-failed-events
+    saga-compensated: saga-compensated-events
+    notification: notification-events
+    # Dead Letter Queue topics
+    saga-step-results-dlq: saga-step-results-dlq
+    saga-started-events-dlq: saga-started-events-dlq
+    saga-step-completed-dlq: saga-step-completed-events-dlq
+    saga-step-failed-dlq: saga-step-failed-events-dlq
+  dlq:
+    enabled: true
+    max-retries: 3
+    retry-delay-ms: 1000
+    retry-backoff-multiplier: 2.0
+    max-retry-delay-ms: 60000
+    suffix: -dlq
+
+# Saga Orchestration Configuration
+saga:
+  orchestration:
+    max-retry-attempts: 3
+    retry-delay-ms: 1000
+    compensation-timeout-ms: 30000
+    step-timeout-ms: 10000
+    enable-distributed-locking: true
+    enable-idempotency: true
+    enable-audit-logging: true
+  
+  transaction-types:
+    - P2P_TRANSFER
+    - MERCHANT_PAYMENT
+    - BILL_PAYMENT
+    - INTERNATIONAL_TRANSFER
+    - CRYPTO_EXCHANGE
+    - LOAN_DISBURSEMENT
+    - INVESTMENT_PURCHASE
+    - GROUP_PAYMENT
+  
+  compensation-strategy:
+    automatic: true
+    manual-intervention-threshold: 3
+    notification-on-failure: true
+  
+  monitoring:
+    enable-metrics: true
+    enable-tracing: true
+    alert-on-failure: true
+    failure-threshold: 5
+
+# Circuit Breaker Configuration
+resilience4j:
+  circuitbreaker:
+    instances:
+      saga-step:
+        failure-rate-threshold: 50
+        slow-call-rate-threshold: 50
+        slow-call-duration-threshold: 2s
+        permitted-number-of-calls-in-half-open-state: 5
+        sliding-window-size: 20
+        minimum-number-of-calls: 10
+        wait-duration-in-open-state: 30s
+        automatic-transition-from-open-to-half-open-enabled: true
+        record-exceptions:
+          - java.lang.Exception
+        ignore-exceptions:
+          - com.waqiti.saga.exception.SagaValidationException
+  retry:
+    instances:
+      saga-step:
+        max-attempts: 3
+        wait-duration: 1s
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        randomized-wait-factor: 0.5  # ✅ JITTER ADDED - prevents thundering herd
+        retry-exceptions:
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
+          - org.springframework.web.client.ResourceAccessException
+        ignore-exceptions:
+          - com.waqiti.saga.exception.SagaValidationException
+          - java.lang.IllegalArgumentException
+
+logging:
+  level:
+    com.waqiti.saga: INFO
+    org.springframework.web: INFO
+    org.springframework.kafka: INFO
+    org.hibernate.SQL: INFO
+    org.hibernate.type.descriptor.sql.BasicBinder: INFO
+    org.springframework.security: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

@@ -1,0 +1,493 @@
+{
+  "properties": [
+    {
+      "name": "investment.account.default-currency",
+      "type": "java.lang.String",
+      "description": "Default currency for investment accounts",
+      "defaultValue": "USD"
+    },
+    {
+      "name": "investment.account.min-initial-deposit",
+      "type": "java.math.BigDecimal",
+      "description": "Minimum initial deposit for investment accounts",
+      "defaultValue": 1.00
+    },
+    {
+      "name": "investment.account.max-initial-deposit",
+      "type": "java.math.BigDecimal",
+      "description": "Maximum initial deposit for investment accounts",
+      "defaultValue": 100000.00
+    },
+    {
+      "name": "investment.account.kyc-required",
+      "type": "java.lang.Boolean",
+      "description": "KYC requirement for investment accounts",
+      "defaultValue": true
+    },
+    {
+      "name": "investment.account.auto-activate",
+      "type": "java.lang.Boolean",
+      "description": "Auto-activate investment accounts",
+      "defaultValue": false
+    },
+    {
+      "name": "investment.trading.market-hours.start",
+      "type": "java.lang.String",
+      "description": "Market opening time",
+      "defaultValue": "09:30"
+    },
+    {
+      "name": "investment.trading.market-hours.end",
+      "type": "java.lang.String",
+      "description": "Market closing time",
+      "defaultValue": "16:00"
+    },
+    {
+      "name": "investment.trading.market-hours.timezone",
+      "type": "java.lang.String",
+      "description": "Market hours timezone",
+      "defaultValue": "America/New_York"
+    },
+    {
+      "name": "investment.trading.extended-hours.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable extended trading hours",
+      "defaultValue": true
+    },
+    {
+      "name": "investment.trading.extended-hours.pre-market-start",
+      "type": "java.lang.String",
+      "description": "Pre-market trading start time",
+      "defaultValue": "04:00"
+    },
+    {
+      "name": "investment.trading.extended-hours.pre-market-end",
+      "type": "java.lang.String",
+      "description": "Pre-market trading end time",
+      "defaultValue": "09:30"
+    },
+    {
+      "name": "investment.trading.extended-hours.after-hours-start",
+      "type": "java.lang.String",
+      "description": "After-hours trading start time",
+      "defaultValue": "16:00"
+    },
+    {
+      "name": "investment.trading.extended-hours.after-hours-end",
+      "type": "java.lang.String",
+      "description": "After-hours trading end time",
+      "defaultValue": "20:00"
+    },
+    {
+      "name": "investment.trading.order.min-amount",
+      "type": "java.math.BigDecimal",
+      "description": "Minimum order amount",
+      "defaultValue": 1.00
+    },
+    {
+      "name": "investment.trading.order.max-amount",
+      "type": "java.math.BigDecimal",
+      "description": "Maximum order amount",
+      "defaultValue": 1000000.00
+    },
+    {
+      "name": "investment.trading.order.fractional-shares-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable fractional share trading",
+      "defaultValue": true
+    },
+    {
+      "name": "investment.trading.order.day-trade-limit",
+      "type": "java.lang.Integer",
+      "description": "Day trading limit per account",
+      "defaultValue": 3
+    },
+    {
+      "name": "investment.trading.order.commission",
+      "type": "java.math.BigDecimal",
+      "description": "Trading commission per order",
+      "defaultValue": 0.00
+    },
+    {
+      "name": "investment.trading.order.fees",
+      "type": "java.math.BigDecimal",
+      "description": "Trading fees per order",
+      "defaultValue": 0.00
+    },
+    {
+      "name": "investment.portfolio.rebalancing.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable portfolio rebalancing",
+      "defaultValue": true
+    },
+    {
+      "name": "investment.portfolio.rebalancing.threshold",
+      "type": "java.lang.Double",
+      "description": "Rebalancing threshold percentage",
+      "defaultValue": 5.0
+    },
+    {
+      "name": "investment.portfolio.rebalancing.frequency",
+      "type": "java.lang.String",
+      "description": "Portfolio rebalancing frequency",
+      "defaultValue": "MONTHLY"
+    },
+    {
+      "name": "investment.portfolio.performance.calculation-frequency",
+      "type": "java.lang.String",
+      "description": "Performance calculation frequency",
+      "defaultValue": "5m"
+    },
+    {
+      "name": "investment.portfolio.performance.history-retention-days",
+      "type": "java.lang.Integer",
+      "description": "Performance history retention in days",
+      "defaultValue": 730
+    },
+    {
+      "name": "investment.auto-invest.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable auto-invest feature",
+      "defaultValue": true
+    },
+    {
+      "name": "investment.auto-invest.min-amount",
+      "type": "java.math.BigDecimal",
+      "description": "Minimum auto-invest amount",
+      "defaultValue": 1.00
+    },
+    {
+      "name": "investment.auto-invest.max-plans-per-account",
+      "type": "java.lang.Integer",
+      "description": "Maximum auto-invest plans per account",
+      "defaultValue": 10
+    },
+    {
+      "name": "investment.auto-invest.execution-time",
+      "type": "java.lang.String",
+      "description": "Daily execution time for auto-invest",
+      "defaultValue": "09:00"
+    },
+    {
+      "name": "investment.auto-invest.retry-attempts",
+      "type": "java.lang.Integer",
+      "description": "Retry attempts for failed auto-invest",
+      "defaultValue": 3
+    },
+    {
+      "name": "investment.auto-invest.retry-delay",
+      "type": "java.lang.String",
+      "description": "Delay between retry attempts",
+      "defaultValue": "1h"
+    },
+    {
+      "name": "investment.market-data.provider",
+      "type": "java.lang.String",
+      "description": "Market data provider",
+      "defaultValue": "alpaca"
+    },
+    {
+      "name": "investment.market-data.update-frequency",
+      "type": "java.lang.String",
+      "description": "Market data update frequency",
+      "defaultValue": "1m"
+    },
+    {
+      "name": "investment.market-data.batch-size",
+      "type": "java.lang.Integer",
+      "description": "Batch size for market data processing",
+      "defaultValue": 100
+    },
+    {
+      "name": "investment.market-data.cache-ttl",
+      "type": "java.lang.String",
+      "description": "Market data cache TTL",
+      "defaultValue": "60s"
+    },
+    {
+      "name": "investment.brokerage.default-provider",
+      "type": "java.lang.String",
+      "description": "Default brokerage provider",
+      "defaultValue": "alpaca"
+    },
+    {
+      "name": "investment.brokerage.providers.alpaca.api-key",
+      "type": "java.lang.String",
+      "description": "Alpaca API key"
+    },
+    {
+      "name": "investment.brokerage.providers.alpaca.api-secret",
+      "type": "java.lang.String",
+      "description": "Alpaca API secret"
+    },
+    {
+      "name": "investment.brokerage.providers.alpaca.base-url",
+      "type": "java.lang.String",
+      "description": "Alpaca base URL"
+    },
+    {
+      "name": "investment.brokerage.providers.alpaca.data-url",
+      "type": "java.lang.String",
+      "description": "Alpaca data URL"
+    },
+    {
+      "name": "investment.brokerage.providers.schwab.client-id",
+      "type": "java.lang.String",
+      "description": "Schwab client ID"
+    },
+    {
+      "name": "investment.brokerage.providers.schwab.client-secret",
+      "type": "java.lang.String",
+      "description": "Schwab client secret"
+    },
+    {
+      "name": "investment.brokerage.providers.schwab.redirect-uri",
+      "type": "java.lang.String",
+      "description": "Schwab OAuth redirect URI"
+    },
+    {
+      "name": "investment.brokerage.providers.robinhood.username",
+      "type": "java.lang.String",
+      "description": "Robinhood username"
+    },
+    {
+      "name": "investment.brokerage.providers.robinhood.password",
+      "type": "java.lang.String",
+      "description": "Robinhood password"
+    },
+    {
+      "name": "external-services.wallet-service.url",
+      "type": "java.lang.String",
+      "description": "Wallet service URL"
+    },
+    {
+      "name": "external-services.wallet-service.timeout",
+      "type": "java.time.Duration",
+      "description": "Wallet service timeout",
+      "defaultValue": "10s"
+    },
+    {
+      "name": "external-services.wallet-service.retry-attempts",
+      "type": "java.lang.Integer",
+      "description": "Wallet service retry attempts",
+      "defaultValue": 3
+    },
+    {
+      "name": "external-services.notification-service.url",
+      "type": "java.lang.String",
+      "description": "Notification service URL"
+    },
+    {
+      "name": "external-services.notification-service.timeout",
+      "type": "java.time.Duration",
+      "description": "Notification service timeout",
+      "defaultValue": "5s"
+    },
+    {
+      "name": "external-services.notification-service.retry-attempts",
+      "type": "java.lang.Integer",
+      "description": "Notification service retry attempts",
+      "defaultValue": 2
+    },
+    {
+      "name": "external-services.fraud-detection-service.url",
+      "type": "java.lang.String",
+      "description": "Fraud detection service URL"
+    },
+    {
+      "name": "external-services.fraud-detection-service.timeout",
+      "type": "java.time.Duration",
+      "description": "Fraud detection service timeout",
+      "defaultValue": "5s"
+    },
+    {
+      "name": "external-services.fraud-detection-service.retry-attempts",
+      "type": "java.lang.Integer",
+      "description": "Fraud detection service retry attempts",
+      "defaultValue": 3
+    },
+    {
+      "name": "external-services.market-data-service.url",
+      "type": "java.lang.String",
+      "description": "Market data service URL"
+    },
+    {
+      "name": "external-services.market-data-service.timeout",
+      "type": "java.time.Duration",
+      "description": "Market data service timeout",
+      "defaultValue": "3s"
+    },
+    {
+      "name": "external-services.market-data-service.retry-attempts",
+      "type": "java.lang.Integer",
+      "description": "Market data service retry attempts",
+      "defaultValue": 2
+    },
+    {
+      "name": "async.core-pool-size",
+      "type": "java.lang.Integer",
+      "description": "Core pool size for async executor",
+      "defaultValue": 5
+    },
+    {
+      "name": "async.max-pool-size",
+      "type": "java.lang.Integer",
+      "description": "Maximum pool size for async executor",
+      "defaultValue": 20
+    },
+    {
+      "name": "async.queue-capacity",
+      "type": "java.lang.Integer",
+      "description": "Queue capacity for async executor",
+      "defaultValue": 1000
+    },
+    {
+      "name": "async.thread-name-prefix",
+      "type": "java.lang.String",
+      "description": "Thread name prefix for async executor",
+      "defaultValue": "investment-async-"
+    },
+    {
+      "name": "async.keep-alive-seconds",
+      "type": "java.lang.Integer",
+      "description": "Keep alive time in seconds for async threads",
+      "defaultValue": 60
+    },
+    {
+      "name": "scheduling.thread-pool-size",
+      "type": "java.lang.Integer",
+      "description": "Thread pool size for scheduler",
+      "defaultValue": 5
+    },
+    {
+      "name": "scheduling.thread-name-prefix",
+      "type": "java.lang.String",
+      "description": "Thread name prefix for scheduler",
+      "defaultValue": "investment-scheduler-"
+    },
+    {
+      "name": "scheduling.await-termination",
+      "type": "java.lang.Boolean",
+      "description": "Await termination on shutdown",
+      "defaultValue": true
+    },
+    {
+      "name": "scheduling.await-termination-period",
+      "type": "java.lang.Integer",
+      "description": "Await termination period in seconds",
+      "defaultValue": 60
+    },
+    {
+      "name": "cache.caffeine.spec",
+      "type": "java.lang.String",
+      "description": "Caffeine cache specification",
+      "defaultValue": "maximumSize=1000,expireAfterWrite=5m"
+    },
+    {
+      "name": "cache.redis.ttl",
+      "type": "java.lang.Integer",
+      "description": "Redis cache TTL in seconds",
+      "defaultValue": 300
+    },
+    {
+      "name": "cache.redis.key-prefix",
+      "type": "java.lang.String",
+      "description": "Redis cache key prefix",
+      "defaultValue": "investment:"
+    },
+    {
+      "name": "security.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable security features",
+      "defaultValue": true
+    },
+    {
+      "name": "security.cors.allowed-origins",
+      "type": "java.lang.String",
+      "description": "Comma-separated list of allowed CORS origins"
+    },
+    {
+      "name": "security.cors.allowed-methods",
+      "type": "java.lang.String",
+      "description": "Comma-separated list of allowed HTTP methods",
+      "defaultValue": "GET,POST,PUT,DELETE,OPTIONS"
+    },
+    {
+      "name": "security.cors.allowed-headers",
+      "type": "java.lang.String",
+      "description": "Comma-separated list of allowed headers",
+      "defaultValue": "*"
+    },
+    {
+      "name": "security.cors.allow-credentials",
+      "type": "java.lang.Boolean",
+      "description": "Allow credentials in CORS requests",
+      "defaultValue": true
+    },
+    {
+      "name": "security.rate-limiting.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable rate limiting",
+      "defaultValue": true
+    },
+    {
+      "name": "security.rate-limiting.requests-per-minute",
+      "type": "java.lang.Integer",
+      "description": "Maximum requests per minute",
+      "defaultValue": 100
+    },
+    {
+      "name": "security.rate-limiting.burst-capacity",
+      "type": "java.lang.Integer",
+      "description": "Burst capacity for rate limiting",
+      "defaultValue": 20
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "Client ID for service authentication",
+      "defaultValue": "investment-service"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "Client secret for service authentication"
+    }
+  ],
+  "hints": [
+    {
+      "name": "investment.portfolio.rebalancing.frequency",
+      "values": [
+        {"value": "DAILY", "description": "Rebalance daily"},
+        {"value": "WEEKLY", "description": "Rebalance weekly"},
+        {"value": "MONTHLY", "description": "Rebalance monthly"},
+        {"value": "QUARTERLY", "description": "Rebalance quarterly"},
+        {"value": "YEARLY", "description": "Rebalance yearly"}
+      ]
+    },
+    {
+      "name": "investment.market-data.provider",
+      "values": [
+        {"value": "alpaca", "description": "Alpaca Markets"},
+        {"value": "polygon", "description": "Polygon.io"},
+        {"value": "yahoo", "description": "Yahoo Finance"},
+        {"value": "iex", "description": "IEX Cloud"}
+      ]
+    },
+    {
+      "name": "investment.brokerage.default-provider",
+      "values": [
+        {"value": "alpaca", "description": "Alpaca Markets"},
+        {"value": "schwab", "description": "Charles Schwab"},
+        {"value": "robinhood", "description": "Robinhood"},
+        {"value": "interactive-brokers", "description": "Interactive Brokers"}
+      ]
+    }
+  ]
+}

@@ -1,0 +1,80 @@
+{
+  "properties": [
+    {
+      "name": "gdpr.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable GDPR compliance features",
+      "defaultValue": true
+    },
+    {
+      "name": "gdpr.data-retention.default-days",
+      "type": "java.lang.Integer",
+      "description": "Default data retention period in days",
+      "defaultValue": 2555
+    },
+    {
+      "name": "gdpr.right-to-be-forgotten.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable right to be forgotten",
+      "defaultValue": true
+    },
+    {
+      "name": "gdpr.right-to-be-forgotten.processing-days",
+      "type": "java.lang.Integer",
+      "description": "Days to process deletion requests",
+      "defaultValue": 30
+    },
+    {
+      "name": "gdpr.data-export.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable data export functionality",
+      "defaultValue": true
+    },
+    {
+      "name": "gdpr.data-export.formats",
+      "type": "java.util.List",
+      "description": "Supported data export formats"
+    },
+    {
+      "name": "gdpr.consent.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable consent management",
+      "defaultValue": true
+    },
+    {
+      "name": "gdpr.consent.tracking-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable consent tracking",
+      "defaultValue": true
+    },
+    {
+      "name": "gdpr.audit.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable GDPR audit logging",
+      "defaultValue": true
+    },
+    {
+      "name": "gdpr.notifications.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable GDPR notifications",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "OAuth2 client ID for service",
+      "defaultValue": "gdpr-service"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "OAuth2 client secret for service"
+    }
+  ]
+}

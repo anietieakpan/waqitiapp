@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
+
+    <changeSet id="005-1" author="kyc-service">
+        <comment>Create migration tracking table</comment>
+        <createTable tableName="user_kyc_migration_status">
+            <column name="user_id" type="VARCHAR(255)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="migrated" type="BOOLEAN" defaultValue="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="migrated_at" type="TIMESTAMP"/>
+            <column name="migration_attempts" type="INT" defaultValue="0"/>
+            <column name="last_attempt_at" type="TIMESTAMP"/>
+            <column name="last_error" type="TEXT"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="005-2" author="kyc-service">
+        <createIndex tableName="user_kyc_migration_status" indexName="idx_migration_status">
+            <column name="migrated"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="005-3" author="kyc-service">
+        <createTable tableName="kyc_migration_log">
+            <column name="id" type="VARCHAR(255)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="user_id" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="migration_type" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="source_system" type="VARCHAR(50)"/>
+            <column name="target_system" type="VARCHAR(50)"/>
+            <column name="records_migrated" type="INT" defaultValue="0"/>
+            <column name="start_time" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="end_time" type="TIMESTAMP"/>
+            <column name="duration_ms" type="BIGINT"/>
+            <column name="error_message" type="TEXT"/>
+            <column name="metadata" type="JSONB"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="005-4" author="kyc-service">
+        <createIndex tableName="kyc_migration_log" indexName="idx_migration_log_user">
+            <column name="user_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="005-5" author="kyc-service">
+        <createIndex tableName="kyc_migration_log" indexName="idx_migration_log_created">
+            <column name="created_at"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="005-6" author="kyc-service">
+        <comment>Create feature flag table for migration control</comment>
+        <createTable tableName="kyc_feature_flags">
+            <column name="flag_name" type="VARCHAR(100)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="enabled" type="BOOLEAN" defaultValue="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="percentage" type="INT" defaultValue="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="TEXT"/>
+            <column name="metadata" type="JSONB"/>
+            <column name="updated_by" type="VARCHAR(255)"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="005-7" author="kyc-service">
+        <comment>Insert default feature flags</comment>
+        <insert tableName="kyc_feature_flags">
+            <column name="flag_name" value="USE_NEW_KYC_SERVICE"/>
+            <column name="enabled" value="false"/>
+            <column name="percentage" value="0"/>
+            <column name="description" value="Route KYC requests to new dedicated service"/>
+        </insert>
+        <insert tableName="kyc_feature_flags">
+            <column name="flag_name" value="ENABLE_KYC_MIGRATION"/>
+            <column name="enabled" value="false"/>
+            <column name="percentage" value="0"/>
+            <column name="description" value="Enable migration endpoints and background jobs"/>
+        </insert>
+        <insert tableName="kyc_feature_flags">
+            <column name="flag_name" value="DUAL_WRITE_MODE"/>
+            <column name="enabled" value="false"/>
+            <column name="percentage" value="0"/>
+            <column name="description" value="Write to both legacy and new systems"/>
+        </insert>
+        <insert tableName="kyc_feature_flags">
+            <column name="flag_name" value="SHADOW_MODE"/>
+            <column name="enabled" value="true"/>
+            <column name="percentage" value="100"/>
+            <column name="description" value="Run new service in shadow mode for comparison"/>
+        </insert>
+        <insert tableName="kyc_feature_flags">
+            <column name="flag_name" value="AUTO_MIGRATION"/>
+            <column name="enabled" value="false"/>
+            <column name="percentage" value="0"/>
+            <column name="description" value="Automatically migrate users on first access"/>
+        </insert>
+    </changeSet>
+
+    <changeSet id="005-8" author="kyc-service">
+        <comment>Create compatibility metrics table</comment>
+        <createTable tableName="kyc_compatibility_metrics">
+            <column name="id" type="VARCHAR(255)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="metric_type" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="operation" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="legacy_result" type="JSONB"/>
+            <column name="new_result" type="JSONB"/>
+            <column name="match_status" type="VARCHAR(50)"/>
+            <column name="legacy_duration_ms" type="BIGINT"/>
+            <column name="new_duration_ms" type="BIGINT"/>
+            <column name="user_id" type="VARCHAR(255)"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="005-9" author="kyc-service">
+        <createIndex tableName="kyc_compatibility_metrics" indexName="idx_compatibility_metrics_created">
+            <column name="created_at"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="005-10" author="kyc-service">
+        <createIndex tableName="kyc_compatibility_metrics" indexName="idx_compatibility_metrics_type">
+            <column name="metric_type"/>
+            <column name="match_status"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

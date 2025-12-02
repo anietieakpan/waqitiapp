@@ -1,0 +1,525 @@
+# Data Masking Configuration for Waqiti Platform
+# Comprehensive configuration for protecting sensitive data in logs
+# Supports multiple environments and compliance requirements
+
+# Core Data Masking Settings
+logging:
+  data-masking:
+    # Enable/disable data masking globally
+    enabled: true
+    
+    # Default masking strategy for unspecified data types
+    default-strategy: PARTIAL
+    
+    # Whether to preserve original format when masking
+    preserve-format: true
+    
+    # Character used for masking (single character)
+    mask-character: "*"
+    
+    # Caching configuration
+    cache:
+      enabled: true
+      size: 10000
+      ttl-minutes: 30
+      cleanup-interval-minutes: 15
+    
+    # Performance settings
+    performance:
+      # Skip masking for messages shorter than this length
+      min-message-length: 10
+      
+      # Maximum message length to process (prevent DoS)
+      max-message-length: 100000
+      
+      # Thread pool size for async processing
+      thread-pool-size: 4
+      
+      # Queue size for async processing
+      queue-size: 1000
+
+# Data Type Specific Configuration
+data-types:
+  # Personal Identifiable Information (PII)
+  pii:
+    email:
+      enabled: true
+      strategy: PRESERVE_FORMAT
+      show-characters: 2
+      pattern: "(?i)\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}\\b"
+      priority: HIGH
+    
+    phone:
+      enabled: true
+      strategy: PARTIAL
+      show-characters: 3
+      pattern: "(?:\\+?1[-. ]?)?\\(?([0-9]{3})\\)?[-. ]?([0-9]{3})[-. ]?([0-9]{4})"
+      priority: HIGH
+    
+    ssn:
+      enabled: true
+      strategy: FULL
+      show-characters: 0
+      pattern: "\\b(?!000|666|9\\d{2})\\d{3}[-.]?(?!00)\\d{2}[-.]?(?!0000)\\d{4}\\b"
+      priority: CRITICAL
+    
+    national-id:
+      enabled: true
+      strategy: TOKENIZE
+      pattern: "\\b[A-Z]{2}[0-9]{6,12}\\b"
+      priority: HIGH
+
+  # Financial Data
+  financial:
+    credit-card:
+      enabled: true
+      strategy: PARTIAL
+      show-characters: 4
+      pattern: "\\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13}|3[0-9]{13}|6(?:011|5[0-9]{2})[0-9]{12})\\b"
+      priority: CRITICAL
+      validation:
+        luhn-check: true
+        min-length: 13
+        max-length: 19
+    
+    bank-account:
+      enabled: true
+      strategy: PARTIAL
+      show-characters: 3
+      pattern: "\\b[0-9]{8,17}\\b"
+      priority: CRITICAL
+    
+    iban:
+      enabled: true
+      strategy: PARTIAL
+      show-characters: 4
+      pattern: "\\b[A-Z]{2}[0-9]{2}[A-Z0-9]{4}[0-9]{7}([A-Z0-9]?){0,16}\\b"
+      priority: HIGH
+    
+    routing-number:
+      enabled: true
+      strategy: TOKENIZE
+      pattern: "\\b[0-9]{9}\\b"
+      priority: HIGH
+      validation:
+        aba-check: true
+    
+    amount:
+      enabled: true
+      strategy: REDACT
+      pattern: "\\b(?:amount|balance|value|price|cost)\\s*[:=]\\s*([0-9]+(?:\\.[0-9]{2})?)"
+      priority: MEDIUM
+
+  # Authentication & Security
+  authentication:
+    password:
+      enabled: true
+      strategy: FULL
+      pattern: "(?i)(?:password|passwd|pwd)\\s*[:=]\\s*['\"]?[^\\s'\"]{8,}['\"]?"
+      priority: CRITICAL
+    
+    api-key:
+      enabled: true
+      strategy: TOKENIZE
+      pattern: "\\b[Aa][Pp][Ii]_?[Kk][Ee][Yy].*['\"][0-9a-zA-Z]{32,45}['\"]"
+      priority: CRITICAL
+    
+    jwt-token:
+      enabled: true
+      strategy: TOKENIZE
+      pattern: "\\beyJ[A-Za-z0-9_/+-]*={0,2}\\.[A-Za-z0-9_/+-]*={0,2}\\.[A-Za-z0-9_/+-]*={0,2}\\b"
+      priority: CRITICAL
+      validation:
+        jwt-structure: true
+    
+    access-token:
+      enabled: true
+      strategy: TOKENIZE
+      pattern: "\\b[Aa]ccess_?[Tt]oken\\s*[:=]\\s*['\"]?[A-Za-z0-9_-]{20,100}['\"]?"
+      priority: CRITICAL
+    
+    session-id:
+      enabled: true
+      strategy: HASH
+      pattern: "\\b[Ss]ession_?[Ii]d\\s*[:=]\\s*['\"]?[A-Za-z0-9_-]{20,50}['\"]?"
+      priority: HIGH
+    
+    secret:
+      enabled: true
+      strategy: FULL
+      pattern: "(?i)(?:secret|key|token)\\s*[:=]\\s*['\"]?[A-Za-z0-9_/+=]{16,}['\"]?"
+      priority: CRITICAL
+
+  # Network & Infrastructure
+  network:
+    ip-address:
+      enabled: true
+      strategy: PARTIAL
+      show-characters: 1
+      pattern: "\\b(?:[0-9]{1,3}\\.){3}[0-9]{1,3}\\b"
+      priority: MEDIUM
+      validation:
+        ipv4-format: true
+        private-ranges: false  # Don't mask private IP ranges
+    
+    ipv6-address:
+      enabled: true
+      strategy: PARTIAL
+      show-characters: 2
+      pattern: "\\b(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}\\b"
+      priority: MEDIUM
+    
+    mac-address:
+      enabled: true
+      strategy: PARTIAL
+      show-characters: 2
+      pattern: "\\b([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})\\b"
+      priority: LOW
+    
+    url:
+      enabled: true
+      strategy: PRESERVE_FORMAT
+      pattern: "(?i)(?:https?://)(?:[-\\w.])+(?:[:\\d]+)?(?:/(?:[\\w/_.])*(?:\\?(?:[\\w&=%.])*)?(?:#(?:\\w*))?)?"
+      priority: MEDIUM
+      exceptions:
+        - "localhost"
+        - "127.0.0.1"
+        - "internal.domain.com"
+
+  # Database & Storage
+  database:
+    connection-string:
+      enabled: true
+      strategy: REDACT
+      pattern: "\\b(?:Server|Host|Data Source)=[^;]+;(?:.*Password=[^;]+;?.*)?"
+      priority: CRITICAL
+    
+    database-url:
+      enabled: true
+      strategy: REDACT
+      pattern: "\\b(?:jdbc:|mongodb:|redis:)//[^\\s]+"
+      priority: CRITICAL
+
+  # Business Specific
+  business:
+    customer-id:
+      enabled: true
+      strategy: TOKENIZE
+      pattern: "\\b[Cc]ustomer_?[Ii]d\\s*[:=]\\s*['\"]?[A-Za-z0-9_-]{8,20}['\"]?"
+      priority: HIGH
+    
+    transaction-id:
+      enabled: true
+      strategy: TOKENIZE
+      pattern: "\\b[Tt](?:ransaction|xn)_?[Ii]d\\s*[:=]\\s*['\"]?[A-Za-z0-9_-]{10,30}['\"]?"
+      priority: HIGH
+    
+    account-number:
+      enabled: true
+      strategy: PARTIAL
+      show-characters: 2
+      pattern: "\\b[Aa]ccount_?[Nn](?:umber|o)\\s*[:=]\\s*['\"]?[0-9]{8,20}['\"]?"
+      priority: CRITICAL
+
+# Custom Masking Functions
+custom-functions:
+  amount-masking:
+    enabled: true
+    description: "Mask financial amounts and balances"
+    pattern: "\\b(?:amount|balance|total|sum)\\s*[:=]\\s*([0-9]+(?:\\.[0-9]{2})?)"
+    replacement: "${key}=***.**"
+    priority: MEDIUM
+  
+  user-id-masking:
+    enabled: true
+    description: "Mask user identifiers"
+    pattern: "\\buser(?:_?id|_?name)\\s*[:=]\\s*['\"]?([A-Za-z0-9_-]+)['\"]?"
+    replacement: "${key}=USER_***"
+    priority: HIGH
+  
+  device-id-masking:
+    enabled: true
+    description: "Mask device identifiers"
+    pattern: "\\bdevice[_-]?id\\s*[:=]\\s*['\"]?([A-Za-z0-9_-]+)['\"]?"
+    replacement: "${key}=DEVICE_***"
+    priority: MEDIUM
+
+# Filter Configuration
+filters:
+  sensitive-data-filter:
+    enabled: true
+    strict-mode: false
+    denial-message: "[FILTERED - SENSITIVE DATA DETECTED]"
+    
+    # Risk levels that trigger filtering
+    risk-levels:
+      - HIGH
+      - CRITICAL
+    
+    # Patterns that should always be filtered
+    always-filter:
+      - "(?i)password\\s*[:=]"
+      - "(?i)secret\\s*[:=]"
+      - "(?i)api[_-]?key\\s*[:=]"
+      - "\\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13})\\b"
+  
+  sql-filter:
+    enabled: true
+    
+    # Tables considered sensitive
+    sensitive-tables:
+      - users
+      - customers
+      - accounts
+      - payments
+      - transactions
+      - credentials
+      - secrets
+    
+    # SQL operations to filter
+    filter-operations:
+      - "SELECT * FROM"
+      - "DESCRIBE"
+      - "SHOW TABLES"
+      - "INFORMATION_SCHEMA"
+    
+    # Block administrative queries
+    block-admin-queries: true
+
+# Environment-Specific Configurations
+environments:
+  development:
+    logging:
+      data-masking:
+        enabled: true
+        default-strategy: PARTIAL
+        cache:
+          enabled: false  # Disable caching for easier debugging
+    
+    # More lenient filtering in development
+    filters:
+      sensitive-data-filter:
+        strict-mode: false
+        risk-levels:
+          - CRITICAL
+      
+      sql-filter:
+        enabled: false  # Allow full SQL logging for debugging
+  
+  staging:
+    logging:
+      data-masking:
+        enabled: true
+        default-strategy: TOKENIZE
+        cache:
+          enabled: true
+          size: 5000
+    
+    filters:
+      sensitive-data-filter:
+        strict-mode: true
+        risk-levels:
+          - HIGH
+          - CRITICAL
+      
+      sql-filter:
+        enabled: true
+        block-admin-queries: true
+  
+  production:
+    logging:
+      data-masking:
+        enabled: true
+        default-strategy: FULL
+        cache:
+          enabled: true
+          size: 10000
+    
+    # Strict filtering in production
+    filters:
+      sensitive-data-filter:
+        strict-mode: true
+        risk-levels:
+          - MEDIUM
+          - HIGH
+          - CRITICAL
+      
+      sql-filter:
+        enabled: true
+        block-admin-queries: true
+    
+    # Additional production-only masking
+    data-types:
+      network:
+        ip-address:
+          strategy: FULL  # Fully mask IPs in production
+
+# Compliance Settings
+compliance:
+  # General Data Protection Regulation (GDPR)
+  gdpr:
+    enabled: true
+    
+    # Data types subject to GDPR
+    protected-data:
+      - email
+      - phone
+      - ip-address
+      - customer-id
+      - user-id
+    
+    # Right to be forgotten - mask deleted user data
+    anonymization:
+      enabled: true
+      retention-days: 30
+  
+  # Payment Card Industry Data Security Standard (PCI DSS)
+  pci-dss:
+    enabled: true
+    
+    # Cardholder data protection
+    cardholder-data:
+      - credit-card
+      - cvv
+      - pin
+      - bank-account
+    
+    # Mask all cardholder data except last 4 digits of PAN
+    mask-strategy: PARTIAL
+    show-characters: 4
+  
+  # California Consumer Privacy Act (CCPA)
+  ccpa:
+    enabled: true
+    
+    # Personal information categories
+    personal-information:
+      - email
+      - phone
+      - ssn
+      - ip-address
+      - customer-id
+    
+    # Consumer rights compliance
+    data-minimization: true
+
+# Monitoring and Metrics
+monitoring:
+  # Data masking performance metrics
+  metrics:
+    enabled: true
+    export-to-prometheus: true
+    
+    # Custom metrics
+    custom-metrics:
+      - name: "data_masking_operations_total"
+        type: "counter"
+        labels: ["data_type", "strategy", "environment"]
+      
+      - name: "data_masking_duration_seconds"
+        type: "histogram"
+        buckets: [0.001, 0.01, 0.1, 1.0]
+      
+      - name: "sensitive_data_detected_total"
+        type: "counter"
+        labels: ["data_type", "risk_level"]
+      
+      - name: "masking_cache_hit_rate"
+        type: "gauge"
+  
+  # Alerting on sensitive data detection
+  alerts:
+    # High volume of sensitive data in logs
+    sensitive-data-spike:
+      enabled: true
+      threshold: 100
+      window: "5m"
+      severity: "warning"
+    
+    # Critical data types detected
+    critical-data-detected:
+      enabled: true
+      data-types: ["password", "api-key", "credit-card"]
+      severity: "critical"
+    
+    # Masking performance degradation
+    masking-performance:
+      enabled: true
+      duration-threshold: "100ms"
+      severity: "warning"
+    
+    # Cache performance
+    cache-performance:
+      enabled: true
+      hit-rate-threshold: 0.8
+      severity: "info"
+
+# Integration Settings
+integrations:
+  # Log aggregation systems
+  log-aggregation:
+    elasticsearch:
+      enabled: true
+      apply-masking: true
+      index-pattern: "waqiti-logs-*"
+    
+    splunk:
+      enabled: false
+      apply-masking: true
+      source-type: "waqiti"
+    
+    datadog:
+      enabled: false
+      apply-masking: true
+      service-name: "waqiti"
+  
+  # Security Information and Event Management (SIEM)
+  siem:
+    enabled: true
+    format: "cef"
+    
+    # Events to send to SIEM
+    events:
+      - "sensitive_data_detected"
+      - "masking_bypass_attempt"
+      - "high_risk_data_logged"
+      - "filter_violation"
+  
+  # Data Loss Prevention (DLP)
+  dlp:
+    enabled: true
+    integration-type: "api"
+    
+    # DLP policies to enforce
+    policies:
+      - "prevent_credit_card_logging"
+      - "prevent_ssn_logging"
+      - "prevent_password_logging"
+
+# Testing and Validation
+testing:
+  # Test data patterns for validation
+  test-patterns:
+    enabled: true
+    
+    # Sample data for testing masking functions
+    samples:
+      email: ["test@example.com", "user.name@domain.co.uk"]
+      credit-card: ["4111111111111111", "5555555555554444"]
+      ssn: ["123-45-6789", "987-65-4321"]
+      phone: ["+1-555-123-4567", "(555) 987-6543"]
+      jwt: ["eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"]
+  
+  # Validation rules
+  validation:
+    # Ensure masked data doesn't contain original values
+    no-leakage: true
+    
+    # Validate masking consistency
+    consistency-check: true
+    
+    # Performance benchmarks
+    performance-benchmarks:
+      max-processing-time: "10ms"
+      max-memory-usage: "10MB"
+      min-throughput: "1000ops/sec"

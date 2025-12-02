@@ -1,0 +1,399 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fluent-bit-config
+  namespace: example-monitoring
+  labels:
+    app.kubernetes.io/name: fluent-bit
+    app.kubernetes.io/part-of: elk-stack
+data:
+  fluent-bit.conf: |
+    [SERVICE]
+        Flush         5
+        Daemon        Off
+        Log_Level     info
+        Parsers_File  parsers.conf
+        Plugins_File  plugins.conf
+        HTTP_Server   On
+        HTTP_Listen   0.0.0.0
+        HTTP_Port     2020
+        Health_Check  On
+        HC_Errors_Count 5
+        HC_Retry_Failure_Count 5
+        HC_Period     60
+        
+    [INPUT]
+        Name              tail
+        Path              /var/log/containers/*waqiti*.log
+        Parser            docker
+        Tag               kube.*
+        Refresh_Interval  5
+        Mem_Buf_Limit     10MB
+        Skip_Long_Lines   On
+        DB                /var/log/flb-kube.db
+        DB.Sync           Normal
+        
+    [INPUT]
+        Name              systemd
+        Tag               host.*
+        Systemd_Filter    _SYSTEMD_UNIT=kubelet.service
+        Systemd_Filter    _SYSTEMD_UNIT=docker.service
+        Read_From_Tail    On
+        
+    [FILTER]
+        Name                kubernetes
+        Match               kube.*
+        Kube_URL            https://kubernetes.default.svc:443
+        Kube_CA_File        /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        Kube_Token_File     /var/run/secrets/kubernetes.io/serviceaccount/token
+        Kube_Tag_Prefix     kube.var.log.containers.
+        Merge_Log           On
+        Keep_Log            Off
+        K8S-Logging.Parser  On
+        K8S-Logging.Exclude On
+        Labels              On
+        Annotations         On
+        
+    [FILTER]
+        Name                modify
+        Match               kube.*
+        Add                 environment ${ENVIRONMENT}
+        Add                 cluster ${CLUSTER_NAME}
+        Add                 region ${AWS_REGION}
+        
+    [FILTER]
+        Name                parser
+        Match               kube.*
+        Key_Name            log
+        Parser              json
+        Reserve_Data        On
+        
+    [FILTER]
+        Name                grep
+        Match               kube.*
+        Exclude             log health|ping|metrics
+        
+    # Enrich logs with correlation IDs
+    [FILTER]
+        Name                lua
+        Match               kube.*
+        script              correlation.lua
+        call                enrich_correlation_id
+        
+    # Parse Spring Boot logs
+    [FILTER]
+        Name                parser
+        Match               kube.*waqiti*
+        Key_Name            log
+        Parser              spring_boot
+        Reserve_Data        On
+        
+    # Security filtering - mask sensitive data
+    [FILTER]
+        Name                lua
+        Match               *
+        script              mask_sensitive.lua
+        call                mask_sensitive_data
+        
+    # Add transaction tracing
+    [FILTER]
+        Name                lua
+        Match               kube.*payment*
+        script              transaction_trace.lua
+        call                add_transaction_trace
+        
+    # Output to Elasticsearch
+    [OUTPUT]
+        Name              es
+        Match             kube.*
+        Host              example-elasticsearch-es-http
+        Port              9200
+        HTTP_User         elastic
+        HTTP_Passwd       ${ELASTIC_PASSWORD}
+        Logstash_Format   On
+        Logstash_Prefix   waqiti-logs
+        Logstash_DateFormat %Y.%m.%d
+        Type              _doc
+        Include_Tag_Key   On
+        Tag_Key           @tag
+        Buffer_Size       False
+        Retry_Limit       5
+        
+    # Output critical errors to dedicated index
+    [OUTPUT]
+        Name              es
+        Match             kube.*error*
+        Host              example-elasticsearch-es-http
+        Port              9200
+        HTTP_User         elastic
+        HTTP_Passwd       ${ELASTIC_PASSWORD}
+        Index             waqiti-errors
+        Type              _doc
+        
+    # Output audit logs to dedicated index
+    [OUTPUT]
+        Name              es
+        Match             kube.*audit*
+        Host              example-elasticsearch-es-http
+        Port              9200
+        HTTP_User         elastic
+        HTTP_Passwd       ${ELASTIC_PASSWORD}
+        Index             waqiti-audit
+        Type              _doc
+        
+    # Output to S3 for long-term storage
+    [OUTPUT]
+        Name              s3
+        Match             kube.*
+        bucket            waqiti-logs-archive
+        region            ${AWS_REGION}
+        use_put_object    On
+        total_file_size   50M
+        upload_timeout    10m
+        compression       gzip
+        
+    # Output metrics to Prometheus
+    [OUTPUT]
+        Name              prometheus_exporter
+        Match             metrics.*
+        Host              0.0.0.0
+        Port              9101
+        
+  parsers.conf: |
+    [PARSER]
+        Name        docker
+        Format      json
+        Time_Key    time
+        Time_Format %Y-%m-%dT%H:%M:%S.%LZ
+        Time_Keep   On
+        
+    [PARSER]
+        Name        spring_boot
+        Format      regex
+        Regex       ^(?<timestamp>\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\.\d{3})\s+(?<level>\w+)\s+\[(?<service>[^\]]+)\]\s+\[(?<trace_id>[^\]]*)\]\s+\[(?<span_id>[^\]]*)\]\s+\[(?<thread>[^\]]+)\]\s+(?<logger>[^\s]+)\s+:\s+(?<message>.*)$
+        Time_Key    timestamp
+        Time_Format %Y-%m-%d %H:%M:%S.%L
+        
+    [PARSER]
+        Name        json
+        Format      json
+        Time_Key    timestamp
+        Time_Format %Y-%m-%dT%H:%M:%S.%LZ
+        
+    [PARSER]
+        Name        payment_parser
+        Format      regex
+        Regex       ^.*transaction_id=(?<transaction_id>[^\s]+).*amount=(?<amount>[^\s]+).*currency=(?<currency>[^\s]+).*status=(?<status>[^\s]+).*$
+        
+  correlation.lua: |
+    function enrich_correlation_id(tag, timestamp, record)
+        -- Extract correlation ID from various sources
+        local correlation_id = nil
+        
+        -- Check headers
+        if record["headers"] then
+            correlation_id = record["headers"]["X-Correlation-ID"]
+        end
+        
+        -- Check MDC context
+        if not correlation_id and record["mdc"] then
+            correlation_id = record["mdc"]["correlationId"]
+        end
+        
+        -- Check log message
+        if not correlation_id and record["message"] then
+            local pattern = "correlation[_-]?id[=:]%s*([%w-]+)"
+            correlation_id = string.match(record["message"], pattern)
+        end
+        
+        -- Generate if not found
+        if not correlation_id then
+            correlation_id = generate_uuid()
+        end
+        
+        record["correlation_id"] = correlation_id
+        return 1, timestamp, record
+    end
+    
+    function generate_uuid()
+        local template ='xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'
+        return string.gsub(template, '[xy]', function (c)
+            local v = (c == 'x') and math.random(0, 0xf) or math.random(8, 0xb)
+            return string.format('%x', v)
+        end)
+    end
+    
+  mask_sensitive.lua: |
+    function mask_sensitive_data(tag, timestamp, record)
+        local sensitive_patterns = {
+            -- Credit card numbers
+            {pattern = "%d%d%d%d%s?%d%d%d%d%s?%d%d%d%d%s?%d%d%d%d", replacement = "****-****-****-****"},
+            -- SSN
+            {pattern = "%d%d%d%-?%d%d%-?%d%d%d%d", replacement = "***-**-****"},
+            -- Email addresses (partial masking)
+            {pattern = "([^%s]+)@([^%s]+)", replacement = function(user, domain) 
+                return string.sub(user, 1, 2) .. "***@" .. domain 
+            end},
+            -- Phone numbers
+            {pattern = "%+?%d?%-?%(?".."%d%d%d".."%)?".."%s?%-?".."[%d%s%-]+", replacement = "***-***-****"},
+            -- API keys
+            {pattern = "api[_-]?key[\"']?%s*[:=]%s*[\"']?([^\"'%s]+)", replacement = "api_key=***REDACTED***"},
+            -- Passwords
+            {pattern = "password[\"']?%s*[:=]%s*[\"']?([^\"'%s]+)", replacement = "password=***REDACTED***"},
+            -- JWT tokens
+            {pattern = "Bearer%s+[A-Za-z0-9%-_]+%.[A-Za-z0-9%-_]+%.[A-Za-z0-9%-_]+", replacement = "Bearer ***REDACTED***"},
+        }
+        
+        local message = record["message"] or ""
+        for _, pattern_info in ipairs(sensitive_patterns) do
+            if type(pattern_info.replacement) == "function" then
+                message = string.gsub(message, pattern_info.pattern, pattern_info.replacement)
+            else
+                message = string.gsub(message, pattern_info.pattern, pattern_info.replacement)
+            end
+        end
+        
+        record["message"] = message
+        return 1, timestamp, record
+    end
+    
+  transaction_trace.lua: |
+    function add_transaction_trace(tag, timestamp, record)
+        -- Add transaction tracing information
+        if record["message"] and string.find(record["message"], "transaction") then
+            -- Extract transaction details
+            local tx_id = string.match(record["message"], "transaction_id=([%w-]+)")
+            local amount = string.match(record["message"], "amount=([%d.]+)")
+            local currency = string.match(record["message"], "currency=([A-Z]+)")
+            
+            if tx_id then
+                record["transaction"] = {
+                    id = tx_id,
+                    amount = amount,
+                    currency = currency,
+                    timestamp = timestamp
+                }
+            end
+        end
+        
+        return 1, timestamp, record
+    end
+
+---
+apiVersion: v1
+kind: DaemonSet
+metadata:
+  name: fluent-bit
+  namespace: example-monitoring
+  labels:
+    app.kubernetes.io/name: fluent-bit
+    app.kubernetes.io/part-of: elk-stack
+spec:
+  selector:
+    matchLabels:
+      app: fluent-bit
+  template:
+    metadata:
+      labels:
+        app: fluent-bit
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "2020"
+        prometheus.io/path: "/api/v1/metrics/prometheus"
+    spec:
+      serviceAccountName: fluent-bit
+      containers:
+      - name: fluent-bit
+        image: fluent/fluent-bit:2.1.0
+        imagePullPolicy: Always
+        env:
+        - name: ELASTIC_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: example-elasticsearch-es-elastic-user
+              key: elastic
+        - name: ENVIRONMENT
+          value: "production"
+        - name: CLUSTER_NAME
+          value: "waqiti-prod"
+        - name: AWS_REGION
+          value: "us-east-1"
+        ports:
+        - containerPort: 2020
+          name: metrics
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        volumeMounts:
+        - name: varlog
+          mountPath: /var/log
+        - name: varlibdockercontainers
+          mountPath: /var/lib/docker/containers
+          readOnly: true
+        - name: fluent-bit-config
+          mountPath: /fluent-bit/etc/
+        - name: mnt
+          mountPath: /mnt
+          readOnly: true
+      volumes:
+      - name: varlog
+        hostPath:
+          path: /var/log
+      - name: varlibdockercontainers
+        hostPath:
+          path: /var/lib/docker/containers
+      - name: fluent-bit-config
+        configMap:
+          name: fluent-bit-config
+      - name: mnt
+        hostPath:
+          path: /mnt
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+        effect: NoSchedule
+      - operator: "Exists"
+        effect: "NoExecute"
+      - operator: "Exists"
+        effect: "NoSchedule"
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: fluent-bit
+  namespace: example-monitoring
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: fluent-bit
+rules:
+- apiGroups: [""]
+  resources:
+  - namespaces
+  - pods
+  - pods/logs
+  verbs:
+  - get
+  - list
+  - watch
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: fluent-bit
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: fluent-bit
+subjects:
+- kind: ServiceAccount
+  name: fluent-bit
+  namespace: example-monitoring

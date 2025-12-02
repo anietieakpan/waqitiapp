@@ -1,0 +1,111 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vault
+  namespace: waqiti-system
+  labels:
+    app: vault
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vault
+  template:
+    metadata:
+      labels:
+        app: vault
+    spec:
+      containers:
+      - name: vault
+        image: hashicorp/vault:1.15.2
+        ports:
+        - containerPort: 8200
+          name: vault-port
+        - containerPort: 8201
+          name: cluster-port
+        env:
+        - name: VAULT_DEV_ROOT_TOKEN_ID
+          value: "dev-only-token"
+        - name: VAULT_DEV_LISTEN_ADDRESS
+          value: "0.0.0.0:8200"
+        - name: VAULT_ADDR
+          value: "http://127.0.0.1:8200"
+        command:
+        - vault
+        - server
+        - -dev
+        - -dev-listen-address=0.0.0.0:8200
+        - -dev-root-token-id=$(VAULT_DEV_ROOT_TOKEN_ID)
+        readinessProbe:
+          httpGet:
+            path: /v1/sys/health
+            port: 8200
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /v1/sys/health
+            port: 8200
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        securityContext:
+          capabilities:
+            add:
+            - IPC_LOCK
+      serviceAccountName: vault
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vault
+  namespace: waqiti-system
+  labels:
+    app: vault
+spec:
+  ports:
+  - name: vault-port
+    port: 8200
+    targetPort: 8200
+  - name: cluster-port
+    port: 8201
+    targetPort: 8201
+  selector:
+    app: vault
+  type: ClusterIP
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vault
+  namespace: waqiti-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: vault
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: vault
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: vault
+subjects:
+- kind: ServiceAccount
+  name: vault
+  namespace: waqiti-system

@@ -1,0 +1,203 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: waqiti-api-gateway-ingress
+  namespace: waqiti
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    
+    # Load balancing configuration
+    nginx.ingress.kubernetes.io/load-balance: "round_robin"
+    nginx.ingress.kubernetes.io/upstream-hash-by: "$remote_addr"
+    nginx.ingress.kubernetes.io/affinity: "cookie"
+    nginx.ingress.kubernetes.io/affinity-mode: "persistent"
+    nginx.ingress.kubernetes.io/session-cookie-name: "waqiti-session"
+    nginx.ingress.kubernetes.io/session-cookie-max-age: "86400"
+    
+    # Rate limiting annotations
+    nginx.ingress.kubernetes.io/limit-rps: "100"
+    nginx.ingress.kubernetes.io/limit-rpm: "1000"
+    nginx.ingress.kubernetes.io/limit-connections: "50"
+    nginx.ingress.kubernetes.io/limit-whitelist: "10.0.0.0/8,172.16.0.0/12"
+    
+    # Security headers
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "X-Frame-Options: DENY";
+      more_set_headers "X-Content-Type-Options: nosniff";
+      more_set_headers "X-XSS-Protection: 1; mode=block";
+      more_set_headers "Content-Security-Policy: default-src 'self'";
+      more_set_headers "Referrer-Policy: strict-origin-when-cross-origin";
+      more_set_headers "Permissions-Policy: geolocation=(), microphone=(), camera=()";
+      more_set_headers "Strict-Transport-Security: max-age=31536000; includeSubDomains; preload";
+    
+    # Request/Response size limits
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-buffer-size: "16k"
+    nginx.ingress.kubernetes.io/proxy-buffers-number: "8"
+    
+    # Timeouts
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "30"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    
+    # CORS configuration
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://app.example.com,https://admin.example.com"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "DNT,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization,X-API-Key,X-Idempotency-Key"
+    nginx.ingress.kubernetes.io/cors-max-age: "86400"
+    
+    # WebSocket support
+    nginx.ingress.kubernetes.io/websocket-services: "websocket-service"
+    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+    
+    # Monitoring
+    nginx.ingress.kubernetes.io/enable-access-log: "true"
+    nginx.ingress.kubernetes.io/enable-rewrite-log: "true"
+    
+spec:
+  tls:
+    - hosts:
+      - api.example.com
+      - api-staging.example.com
+      secretName: waqiti-api-tls
+    - hosts:
+      - ws.example.com
+      secretName: waqiti-websocket-tls
+      
+  rules:
+    # Production API
+    - host: api.example.com
+      http:
+        paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: api-gateway
+              port:
+                number: 8080
+                
+    # Staging API
+    - host: api-staging.example.com
+      http:
+        paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: api-gateway-staging
+              port:
+                number: 8080
+                
+    # WebSocket endpoint
+    - host: ws.example.com
+      http:
+        paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: websocket-service
+              port:
+                number: 8080
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: waqiti-admin-ingress
+  namespace: waqiti
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    
+    # Stricter rate limiting for admin endpoints
+    nginx.ingress.kubernetes.io/limit-rps: "10"
+    nginx.ingress.kubernetes.io/limit-rpm: "100"
+    
+    # IP whitelist for admin access
+    nginx.ingress.kubernetes.io/whitelist-source-range: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+    
+    # Basic auth for additional security
+    nginx.ingress.kubernetes.io/auth-type: basic
+    nginx.ingress.kubernetes.io/auth-secret: admin-basic-auth
+    nginx.ingress.kubernetes.io/auth-realm: "Waqiti Admin Access"
+    
+spec:
+  tls:
+    - hosts:
+      - admin.example.com
+      secretName: waqiti-admin-tls
+      
+  rules:
+    - host: admin.example.com
+      http:
+        paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: admin-service
+              port:
+                number: 8080
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-gateway-nodeport
+  namespace: waqiti
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+    service.beta.kubernetes.io/aws-load-balancer-connection-draining-enabled: "true"
+    service.beta.kubernetes.io/aws-load-balancer-connection-draining-timeout: "60"
+spec:
+  type: LoadBalancer
+  selector:
+    app: api-gateway
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP
+    - name: https
+      port: 443
+      targetPort: 8443
+      protocol: TCP
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: api-gateway-pdb
+  namespace: waqiti
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: api-gateway
+
+---
+apiVersion: v1
+kind: ServiceMonitor
+metadata:
+  name: api-gateway-monitor
+  namespace: waqiti
+spec:
+  selector:
+    matchLabels:
+      app: api-gateway
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /actuator/prometheus

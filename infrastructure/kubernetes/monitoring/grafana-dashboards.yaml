@@ -1,0 +1,294 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: example-monitoring
+  labels:
+    app: grafana
+    component: monitoring
+data:
+  waqiti-overview.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "Waqiti Platform Overview",
+        "tags": ["waqiti", "overview"],
+        "timezone": "browser",
+        "panels": [
+          {
+            "id": 1,
+            "title": "Total Active Users",
+            "type": "singlestat",
+            "targets": [
+              {
+                "expr": "sum(active_users_total)",
+                "refId": "A"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0}
+          },
+          {
+            "id": 2,
+            "title": "Transaction Volume (24h)",
+            "type": "singlestat",
+            "targets": [
+              {
+                "expr": "sum(increase(transactions_total[24h]))",
+                "refId": "A"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 6, "x": 6, "y": 0}
+          },
+          {
+            "id": 3,
+            "title": "Revenue (24h)",
+            "type": "singlestat",
+            "targets": [
+              {
+                "expr": "sum(increase(revenue_total[24h]))",
+                "refId": "A"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 6, "x": 12, "y": 0}
+          },
+          {
+            "id": 4,
+            "title": "System Health Score",
+            "type": "gauge",
+            "targets": [
+              {
+                "expr": "avg(up{job=\"waqiti-services\"}) * 100",
+                "refId": "A"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 6, "x": 18, "y": 0}
+          },
+          {
+            "id": 5,
+            "title": "Transaction Rate",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(transactions_total[5m])",
+                "refId": "A",
+                "legendFormat": "{{ kubernetes_name }}"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+          },
+          {
+            "id": 6,
+            "title": "Payment Success Rate",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(payment_success_total[5m]) / rate(payment_attempts_total[5m]) * 100",
+                "refId": "A"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+          },
+          {
+            "id": 7,
+            "title": "Service Response Times",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))",
+                "refId": "A",
+                "legendFormat": "95th percentile - {{ kubernetes_name }}"
+              },
+              {
+                "expr": "histogram_quantile(0.50, rate(http_request_duration_seconds_bucket[5m]))",
+                "refId": "B",
+                "legendFormat": "50th percentile - {{ kubernetes_name }}"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 24, "x": 0, "y": 16}
+          }
+        ],
+        "time": {
+          "from": "now-1h",
+          "to": "now"
+        },
+        "refresh": "30s"
+      }
+    }
+
+  waqiti-payments.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "Waqiti Payment Systems",
+        "tags": ["waqiti", "payments"],
+        "timezone": "browser",
+        "panels": [
+          {
+            "id": 1,
+            "title": "Payment Volume by Type",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(payments_total[5m]) by (payment_type)",
+                "refId": "A",
+                "legendFormat": "{{ payment_type }}"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+          },
+          {
+            "id": 2,
+            "title": "Payment Failures",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(payment_failures_total[5m]) by (failure_reason)",
+                "refId": "A",
+                "legendFormat": "{{ failure_reason }}"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+          },
+          {
+            "id": 3,
+            "title": "International Transfer Status",
+            "type": "piechart",
+            "targets": [
+              {
+                "expr": "sum by (status) (international_transfers_total)",
+                "refId": "A",
+                "legendFormat": "{{ status }}"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 8, "x": 0, "y": 8}
+          },
+          {
+            "id": 4,
+            "title": "Virtual Card Transactions",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(virtual_card_transactions_total[5m])",
+                "refId": "A"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 8, "x": 8, "y": 8}
+          },
+          {
+            "id": 5,
+            "title": "Fraud Detection Rate",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(fraud_detections_total[5m]) / rate(transactions_total[5m]) * 100",
+                "refId": "A"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 8, "x": 16, "y": 8}
+          }
+        ],
+        "time": {
+          "from": "now-4h",
+          "to": "now"
+        },
+        "refresh": "1m"
+      }
+    }
+
+  waqiti-infrastructure.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "Waqiti Infrastructure",
+        "tags": ["waqiti", "infrastructure"],
+        "timezone": "browser",
+        "panels": [
+          {
+            "id": 1,
+            "title": "CPU Usage by Service",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(container_cpu_usage_seconds_total{namespace=\"waqiti\"}[5m]) by (pod)",
+                "refId": "A",
+                "legendFormat": "{{ pod }}"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+          },
+          {
+            "id": 2,
+            "title": "Memory Usage by Service",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "container_memory_usage_bytes{namespace=\"waqiti\"} / 1024 / 1024 / 1024",
+                "refId": "A",
+                "legendFormat": "{{ pod }}"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+          },
+          {
+            "id": 3,
+            "title": "Database Connections",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "hikaricp_connections_active by (kubernetes_name)",
+                "refId": "A",
+                "legendFormat": "Active - {{ kubernetes_name }}"
+              },
+              {
+                "expr": "hikaricp_connections_max by (kubernetes_name)",
+                "refId": "B",
+                "legendFormat": "Max - {{ kubernetes_name }}"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+          },
+          {
+            "id": 4,
+            "title": "Kafka Message Rate",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(kafka_consumer_records_consumed_total[5m]) by (topic)",
+                "refId": "A",
+                "legendFormat": "{{ topic }}"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+          },
+          {
+            "id": 5,
+            "title": "Redis Hit Rate",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(redis_keyspace_hits_total[5m]) / (rate(redis_keyspace_hits_total[5m]) + rate(redis_keyspace_misses_total[5m])) * 100",
+                "refId": "A"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16}
+          },
+          {
+            "id": 6,
+            "title": "Vault Status",
+            "type": "singlestat",
+            "targets": [
+              {
+                "expr": "vault_core_unsealed",
+                "refId": "A"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16}
+          }
+        ],
+        "time": {
+          "from": "now-2h",
+          "to": "now"
+        },
+        "refresh": "30s"
+      }
+    }

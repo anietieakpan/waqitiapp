@@ -1,0 +1,56 @@
+{
+  "properties": [
+    {
+      "name": "group-payment.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable group payment functionality",
+      "defaultValue": true
+    },
+    {
+      "name": "group-payment.max-participants",
+      "type": "java.lang.Integer",
+      "description": "Maximum participants per group payment",
+      "defaultValue": 50
+    },
+    {
+      "name": "group-payment.split-types",
+      "type": "java.util.List",
+      "description": "Supported split types"
+    },
+    {
+      "name": "group-payment.auto-reminders.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable automatic payment reminders",
+      "defaultValue": true
+    },
+    {
+      "name": "group-payment.auto-reminders.days",
+      "type": "java.lang.Integer",
+      "description": "Days before sending reminders",
+      "defaultValue": 3
+    },
+    {
+      "name": "group-payment.expense-tracking.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable expense tracking for groups",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "OAuth2 client ID for service",
+      "defaultValue": "group-payment-service"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "OAuth2 client secret for service"
+    }
+  ]
+}

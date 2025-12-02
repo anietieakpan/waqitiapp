@@ -1,0 +1,425 @@
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: grafana-prometheus-datasource
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/component: datasource
+    security.example.com/type: authentication
+type: Opaque
+data:
+  # Grafana service user credentials for Prometheus access
+  username: Z3JhZmFuYS1wcm9tZXRoZXVzLWRhdGFzb3VyY2U=  # grafana-prometheus-datasource
+  password: Z3JhZmFuYS1wcm9tZXRoZXVzLXNlY3VyZS1hY2Nlc3MtMjAyNA==  # grafana-prometheus-secure-access-2024
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-prometheus-datasource-config
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/component: datasource-config
+data:
+  prometheus-datasource.yaml: |
+    apiVersion: 1
+    
+    datasources:
+    - name: Prometheus-Secure
+      type: prometheus
+      access: proxy
+      url: https://prometheus-secure.monitoring.svc.cluster.local:9090
+      basicAuth: true
+      basicAuthUser: monitoring
+      secureJsonData:
+        basicAuthPassword: prometheus-monitor-secure-2024
+        tlsClientCert: |
+          -----BEGIN CERTIFICATE-----
+          MIIDKjCCAhICCQD3R85KBNp/KTANBgkqhkiG9w0BAQsFADBXMQswCQYDVQQGEwJV
+          UzETMBEGA1UECAwKQ2FsaWZvcm5pYTEWMBQGA1UEBwwNU2FuIEZyYW5jaXNjbzEU
+          MBIGA1UECgwLV2FxaXRpIEluYzEVMBMGA1UEAwwMUHJvbWV0aGV1cyBDQTAeFw0y
+          NDEyMDEyMjAwMDBaFw0zMzExMjgyMjAwMDBh...
+          -----END CERTIFICATE-----
+        tlsClientKey: |
+          -----BEGIN PRIVATE KEY-----
+          MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDU77LhbI83oHVE
+          W7Weg451tDhl9RJWw4Pii8PubzVgmElnjaDXIBkwYGSrnN6s7dwn2NCp0nt9bT0m
+          FPcRslpTOjofJfeqXHSs5h9vpcLq0ffqODdM8qeIEbNfRKm3seasl/y+AlqwtTdF
+          NObN6iEGp2xjri7MGRLCT...
+          -----END PRIVATE KEY-----
+        tlsCACert: |
+          -----BEGIN CERTIFICATE-----
+          MIIDljCCAn6gAwIBAgIUIut7PiUJgRJRxtGML4YBoz2Q5XkwDQYJKoZIhvcNAQEL
+          BQAwWjELMAkGA1UEBhMCVVMxEzARBgNVBAgMCkNhbGlmb3JuaWExFjAUBgNVBAcM
+          DVNhbiBGcmFuY2lzY28xFDASBgNVBAoMC1dhcWl0aSBJbmMxFDASBgNVBAMM...
+          -----END CERTIFICATE-----
+      jsonData:
+        httpMethod: GET
+        timeout: 60
+        keepCookies: []
+        tlsAuth: true
+        tlsAuthWithCACert: true
+        tlsSkipVerify: false
+        tlsServerName: prometheus.monitoring.svc.cluster.local
+        # Custom HTTP headers for additional security
+        customHeaders:
+          X-Grafana-Org-Id: 1
+          X-Request-Source: grafana-datasource
+          X-Security-Level: high
+        # Query settings
+        manageAlerts: false
+        alertmanagerUid: alertmanager
+        # Caching settings
+        cacheLevel: High
+        disableRecordingRules: false
+        exemplarTraceIdDestinations: []
+        # Prometheus-specific settings
+        queryTimeout: 60s
+        defaultEditor: code
+        disableMetricsLookup: false
+        customQueryParameters: 
+          step: 15s
+          max_source_resolution: 0s
+      isDefault: true
+      editable: false
+      orgId: 1
+      version: 1
+
+    # Secondary datasource for financial metrics with enhanced security
+    - name: Prometheus-Financial-Metrics
+      type: prometheus
+      access: proxy
+      url: https://prometheus-secure.monitoring.svc.cluster.local:9090
+      basicAuth: true
+      basicAuthUser: financial-monitoring
+      secureJsonData:
+        basicAuthPassword: financial-monitor-extra-secure-2024
+        tlsClientCert: |
+          -----BEGIN CERTIFICATE-----
+          MIIDKjCCAhICCQD3R85KBNp/KTANBgkqhkiG9w0BAQsFADBXMQswCQYDVQQGEwJV
+          UzETMBEGA1UECAwKQ2FsaWZvcm5pYTEWMBQGA1UEBwwNU2FuIEZyYW5jaXNjbzEU
+          MBIGA1UECgwLV2FxaXRpIEluYzEVMBMGA1UEAwwMUHJvbWV0aGV1cyBDQTAeFw0y
+          NDEyMDEyMjAwMDBaFw0zMzExMjgyMjAwMDBh...
+          -----END CERTIFICATE-----
+        tlsClientKey: |
+          -----BEGIN PRIVATE KEY-----
+          MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDU77LhbI83oHVE
+          W7Weg451tDhl9RJWw4Pii8PubzVgmElnjaDXIBkwYGSrnN6s7dwn2NCp0nt9bT0m
+          FPcRslpTOjofJfeqXHSs5h9vpcLq0ffqODdM8qeIEbNfRKm3seasl/y+AlqwtTdF
+          NObN6iEGp2xjri7MGRLCT...
+          -----END PRIVATE KEY-----
+        tlsCACert: |
+          -----BEGIN CERTIFICATE-----
+          MIIDljCCAn6gAwIBAgIUIut7PiUJgRJRxtGML4YBoz2Q5XkwDQYJKoZIhvcNAQEL
+          BQAwWjELMAkGA1UEBhMCVVMxEzARBgNVBAgMCkNhbGlmb3JuaWExFjAUBgNVBAcM
+          DVNhbiBGcmFuY2lzY28xFDASBgNVBAoMC1dhcWl0aSBJbmMxFDASBgNVBAMM...
+          -----END CERTIFICATE-----
+      jsonData:
+        httpMethod: GET
+        timeout: 30
+        keepCookies: []
+        tlsAuth: true
+        tlsAuthWithCACert: true
+        tlsSkipVerify: false
+        tlsServerName: prometheus.monitoring.svc.cluster.local
+        customHeaders:
+          X-Grafana-Org-Id: 1
+          X-Request-Source: grafana-financial-datasource
+          X-Security-Level: financial
+          X-Compliance-Level: pci-dss
+        # Financial-specific query settings
+        manageAlerts: true
+        alertmanagerUid: alertmanager
+        cacheLevel: Medium  # Balanced for real-time financial data
+        # Restrict to financial metrics only
+        customQueryParameters:
+          step: 5s  # Higher resolution for financial data
+          max_source_resolution: 0s
+          # Add query filter for financial metrics
+          query_filter: '{security_classification="financial"}'
+      isDefault: false
+      editable: false
+      orgId: 1
+      version: 1
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-prometheus-queries
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/component: queries
+data:
+  financial-queries.json: |
+    {
+      "financial_metrics": {
+        "payment_transaction_rate": {
+          "query": "rate(payment_transactions_total{security_classification=\"financial\"}[5m])",
+          "description": "Payment transaction rate per second",
+          "unit": "ops",
+          "alert_threshold": 100
+        },
+        "payment_success_rate": {
+          "query": "rate(payment_transactions_total{status=\"success\",security_classification=\"financial\"}[5m]) / rate(payment_transactions_total{security_classification=\"financial\"}[5m])",
+          "description": "Payment success rate percentage",
+          "unit": "percent",
+          "alert_threshold": 0.99
+        },
+        "payment_latency_p99": {
+          "query": "histogram_quantile(0.99, rate(payment_duration_seconds_bucket{security_classification=\"financial\"}[5m]))",
+          "description": "99th percentile payment latency",
+          "unit": "s",
+          "alert_threshold": 2.0
+        },
+        "wallet_balance_total": {
+          "query": "sum(wallet_balance_total{security_classification=\"financial\"})",
+          "description": "Total wallet balances across all currencies",
+          "unit": "currency",
+          "sensitive": true
+        },
+        "fraud_detection_rate": {
+          "query": "rate(fraud_detections_total{security_classification=\"financial\"}[5m])",
+          "description": "Fraud detection rate per second",
+          "unit": "ops",
+          "alert_threshold": 1.0
+        },
+        "kyc_verification_rate": {
+          "query": "rate(kyc_verifications_total{security_classification=\"financial\"}[5m])",
+          "description": "KYC verification rate per second",
+          "unit": "ops"
+        },
+        "compliance_check_failures": {
+          "query": "rate(compliance_checks_total{status=\"failed\",security_classification=\"financial\"}[5m])",
+          "description": "Compliance check failure rate",
+          "unit": "ops",
+          "alert_threshold": 0.01
+        }
+      }
+    }
+
+  security-queries.json: |
+    {
+      "security_metrics": {
+        "authentication_failures": {
+          "query": "rate(authentication_attempts_total{status=\"failed\"}[5m])",
+          "description": "Authentication failure rate per second",
+          "unit": "ops",
+          "alert_threshold": 5.0
+        },
+        "authorization_denials": {
+          "query": "rate(authorization_checks_total{status=\"denied\"}[5m])",
+          "description": "Authorization denial rate per second", 
+          "unit": "ops",
+          "alert_threshold": 10.0
+        },
+        "rate_limit_violations": {
+          "query": "rate(rate_limit_violations_total[5m])",
+          "description": "Rate limit violation rate per second",
+          "unit": "ops"
+        },
+        "security_incidents": {
+          "query": "increase(security_incidents_total[1h])",
+          "description": "Security incidents in the last hour",
+          "unit": "count",
+          "alert_threshold": 1
+        },
+        "certificate_expiry_days": {
+          "query": "(cert_expiry_timestamp - time()) / 86400",
+          "description": "Days until certificate expiry",
+          "unit": "days",
+          "alert_threshold": 30
+        }
+      }
+    }
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-financial
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/component: dashboard
+    grafana_dashboard: "1"
+data:
+  financial-overview.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "Waqiti Financial Services - Security Overview",
+        "tags": ["waqiti", "financial", "security", "pci-dss"],
+        "timezone": "UTC",
+        "refresh": "30s",
+        "time": {
+          "from": "now-1h",
+          "to": "now"
+        },
+        "panels": [
+          {
+            "id": 1,
+            "title": "Payment Transaction Rate",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "rate(payment_transactions_total{security_classification=\"financial\"}[5m])",
+                "refId": "A",
+                "datasource": "Prometheus-Financial-Metrics"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "ops",
+                "min": 0,
+                "thresholds": {
+                  "steps": [
+                    {"color": "green", "value": null},
+                    {"color": "yellow", "value": 50},
+                    {"color": "red", "value": 100}
+                  ]
+                }
+              }
+            },
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+          },
+          {
+            "id": 2,
+            "title": "Payment Success Rate",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "rate(payment_transactions_total{status=\"success\",security_classification=\"financial\"}[5m]) / rate(payment_transactions_total{security_classification=\"financial\"}[5m])",
+                "refId": "A",
+                "datasource": "Prometheus-Financial-Metrics"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "percentunit",
+                "min": 0,
+                "max": 1,
+                "thresholds": {
+                  "steps": [
+                    {"color": "red", "value": null},
+                    {"color": "yellow", "value": 0.95},
+                    {"color": "green", "value": 0.99}
+                  ]
+                }
+              }
+            },
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+          },
+          {
+            "id": 3,
+            "title": "Security Incidents",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "increase(security_incidents_total[5m])",
+                "refId": "A",
+                "datasource": "Prometheus-Secure"
+              }
+            ],
+            "alert": {
+              "conditions": [
+                {
+                  "query": {"params": ["A", "5m", "now"]},
+                  "reducer": {"params": [], "type": "last"},
+                  "evaluator": {"params": [1], "type": "gt"}
+                }
+              ],
+              "executionErrorState": "alerting",
+              "for": "0m",
+              "frequency": "10s",
+              "handler": 1,
+              "name": "Critical Security Incident",
+              "noDataState": "no_data",
+              "notifications": []
+            },
+            "gridPos": {"h": 8, "w": 24, "x": 0, "y": 8}
+          }
+        ],
+        "templating": {
+          "list": [
+            {
+              "name": "environment",
+              "type": "query",
+              "query": "label_values(up, environment)",
+              "datasource": "Prometheus-Secure"
+            },
+            {
+              "name": "service",
+              "type": "query", 
+              "query": "label_values(up{security_classification=\"financial\"}, job)",
+              "datasource": "Prometheus-Financial-Metrics"
+            }
+          ]
+        },
+        "annotations": {
+          "list": [
+            {
+              "name": "Security Events",
+              "datasource": "Prometheus-Secure",
+              "expr": "ALERTS{alertname=~\".*Security.*\"}",
+              "titleFormat": "{{alertname}}",
+              "textFormat": "{{description}}",
+              "iconColor": "red"
+            }
+          ]
+        }
+      }
+    }
+
+---
+apiVersion: v1
+kind: ServiceMonitor
+metadata:
+  name: prometheus-secure-monitoring
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: prometheus
+    monitoring.example.com/level: secure
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: prometheus
+  endpoints:
+  - port: prometheus-https
+    interval: 30s
+    path: /metrics
+    scheme: https
+    tlsConfig:
+      ca:
+        secret:
+          name: prometheus-ca
+          key: ca.crt
+      cert:
+        secret:
+          name: prometheus-client-certs
+          key: tls.crt
+      keySecret:
+        name: prometheus-client-certs
+        key: tls.key
+      serverName: prometheus.monitoring.svc.cluster.local
+      insecureSkipVerify: false
+    basicAuth:
+      username:
+        name: prometheus-basic-auth
+        key: monitoring-user
+      password:
+        name: prometheus-basic-auth
+        key: monitoring-password
+    honorLabels: true
+    metricRelabelings:
+    - sourceLabels: [__name__]
+      regex: 'go_.*|process_.*|promhttp_.*'
+      action: drop  # Drop internal Go metrics for cleaner monitoring
+    - targetLabel: security_classification
+      replacement: monitoring
+    - targetLabel: compliance_required
+      replacement: pci-dss

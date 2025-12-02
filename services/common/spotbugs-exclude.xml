@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter>
+    <!-- Exclude generated code -->
+    <Match>
+        <Package name="~.*\.dto.*"/>
+    </Match>
+
+    <Match>
+        <Package name="~.*\.model.*"/>
+    </Match>
+
+    <Match>
+        <Package name="~.*\.config.*"/>
+    </Match>
+
+    <!-- Exclude Lombok generated methods -->
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+        <Class name="~.*"/>
+        <Method name="~(get|set).*"/>
+    </Match>
+
+    <!-- Exclude serialization warnings for DTOs -->
+    <Match>
+        <Bug pattern="SE_NO_SERIALVERSIONID"/>
+        <Package name="~.*\.dto.*"/>
+    </Match>
+
+    <!-- Exclude builder pattern warnings -->
+    <Match>
+        <Bug pattern="UWF_FIELD_NOT_INITIALIZED_IN_CONSTRUCTOR"/>
+        <Class name="~.*\$.*Builder"/>
+    </Match>
+
+    <!-- Exclude test classes from certain checks -->
+    <Match>
+        <Package name="~.*\.test.*"/>
+        <Bug pattern="DM_STRING_CTOR,DM_NUMBER_CTOR"/>
+    </Match>
+</FindBugsFilter>

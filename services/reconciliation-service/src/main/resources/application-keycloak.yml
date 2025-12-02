@@ -1,0 +1,131 @@
+# Keycloak Configuration for Reconciliation Service
+
+keycloak:
+  enabled: true
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  ssl-required: external
+  resource: reconciliation-service
+  bearer-only: true
+  credentials:
+    secret: ${RECONCILIATION_SERVICE_CLIENT_SECRET}
+  use-resource-role-mappings: true
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# Reconciliation Service Security Configuration
+reconciliation:
+  security:
+    # Public endpoints that don't require authentication
+    public-endpoints:
+      - /actuator/health
+      - /actuator/info
+      - /swagger-ui/**
+      - /v3/api-docs/**
+    
+    # Service-to-service endpoints
+    service-endpoints:
+      - /internal/reconciliation/**
+    
+    # Required roles for reconciliation operations
+    required-roles:
+      read: RECONCILIATION_USER,ACCOUNTING_USER
+      reconciliation-execute: RECONCILIATION_OFFICER,ACCOUNTING_MANAGER
+      discrepancy-investigation: RECONCILIATION_ANALYST,FINANCE_ANALYST
+      audit-review: RECONCILIATION_AUDITOR,INTERNAL_AUDITOR
+      management: RECONCILIATION_MANAGER,RECONCILIATION_OPERATOR
+      exception-handling: EXCEPTION_HANDLER,FINANCE_ANALYST
+      adjustment-approval: RECONCILIATION_APPROVER,FINANCE_MANAGER
+      report-generation: RECONCILIATION_REPORTER,ACCOUNTING_MANAGER
+      admin: RECONCILIATION_ADMIN,SYSTEM_ADMIN
+    
+    # Required scopes for operations
+    required-scopes:
+      reconciliation-read: reconciliation:read
+      reconciliation-execute: reconciliation:execute
+      discrepancy-investigation: reconciliation:discrepancy:investigate
+      adjustment-processing: reconciliation:adjustment:process
+      report-generation: reconciliation:report:generate
+      exception-handling: reconciliation:exception:handle
+      audit-trail: reconciliation:audit:trail
+      matching-rules: reconciliation:matching:rules
+      admin: reconciliation:admin
+      management: reconciliation:manage
+    
+    # Reconciliation security features
+    features:
+      automated-matching-enabled: true
+      exception-handling-enabled: true
+      audit-trail-enabled: true
+      discrepancy-alerting-enabled: true
+      real-time-monitoring-enabled: true
+      regulatory-reporting-enabled: true
+      
+    # Reconciliation limits and thresholds
+    limits:
+      max-records-per-batch: 100000
+      max-concurrent-reconciliations: 10
+      reconciliation-timeout-hours: 6
+      exception-resolution-timeout-hours: 24
+      
+    # Security thresholds requiring escalation
+    escalation-thresholds:
+      large-discrepancy-amount: 10000.00
+      high-exception-count: 100
+      reconciliation-failure-rate: 0.05
+      unresolved-exceptions-age-hours: 48
+      
+    # Advanced security features
+    advanced-security:
+      require-dual-authorization-adjustments: true
+      automated-discrepancy-detection: true
+      ml-based-exception-routing: true
+      real-time-balance-monitoring: true
+      regulatory-compliance-checking: true
+      immutable-audit-trail: true
+      
+    # Flat configuration properties expected by Qodana
+    required-roles-discrepancy-investigation: RECONCILIATION_ANALYST,FINANCE_ANALYST
+    limits-max-records-per-batch: 100000
+    features-regulatory-reporting-enabled: true
+    required-roles-audit-review: RECONCILIATION_AUDITOR,INTERNAL_AUDITOR
+    escalation-thresholds-large-discrepancy-amount: 10000.00
+    required-scopes-exception-handling: reconciliation:exception:handle
+    required-roles-management: RECONCILIATION_MANAGER,RECONCILIATION_OPERATOR
+    advanced-security-real-time-balance-monitoring: true
+    required-scopes-admin: reconciliation:admin
+    required-roles-read: RECONCILIATION_USER,ACCOUNTING_USER
+    features-real-time-monitoring-enabled: true
+    required-scopes-report-generation: reconciliation:report:generate
+    required-roles-reconciliation-execute: RECONCILIATION_OFFICER,ACCOUNTING_MANAGER
+    features-automated-matching-enabled: true
+    required-scopes-adjustment-processing: reconciliation:adjustment:process
+    advanced-security-automated-discrepancy-detection: true
+    advanced-security-ml-based-exception-routing: true
+    limits-reconciliation-timeout-hours: 6
+    required-scopes-management: reconciliation:manage
+    advanced-security-require-dual-authorization-adjustments: true
+    required-scopes-matching-rules: reconciliation:matching:rules
+    escalation-thresholds-unresolved-exceptions-age-hours: 48
+    features-discrepancy-alerting-enabled: true
+    required-scopes-reconciliation-execute: reconciliation:execute
+    limits-max-concurrent-reconciliations: 10
+    required-scopes-discrepancy-investigation: reconciliation:discrepancy:investigate
+    limits-exception-resolution-timeout-hours: 24
+    advanced-security-immutable-audit-trail: true
+    escalation-thresholds-high-exception-count: 100
+    required-roles-adjustment-approval: RECONCILIATION_APPROVER,FINANCE_MANAGER
+    required-scopes-audit-trail: reconciliation:audit:trail
+    advanced-security-regulatory-compliance-checking: true
+    required-roles-admin: RECONCILIATION_ADMIN,SYSTEM_ADMIN
+    required-scopes-reconciliation-read: reconciliation:read
+    features-exception-handling-enabled: true
+    features-audit-trail-enabled: true
+    escalation-thresholds-reconciliation-failure-rate: 0.05
+    required-roles-report-generation: RECONCILIATION_REPORTER,ACCOUNTING_MANAGER

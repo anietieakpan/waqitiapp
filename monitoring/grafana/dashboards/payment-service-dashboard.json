@@ -1,0 +1,184 @@
+{
+  "dashboard": {
+    "title": "Payment Service Production Dashboard",
+    "tags": ["payment", "production", "critical"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "title": "Payment Success Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(payment_success_total[5m]) / rate(payment_attempts_total[5m]) * 100",
+            "legendFormat": "Success Rate %"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": {"params": [95], "type": "lt"},
+              "operator": {"type": "and"},
+              "query": {"params": ["A", "5m", "now"]},
+              "reducer": {"params": [], "type": "avg"},
+              "type": "query"
+            }
+          ],
+          "executionErrorState": "alerting",
+          "frequency": "60s",
+          "handler": 1,
+          "name": "Payment Success Rate Alert",
+          "noDataState": "alerting",
+          "notifications": [{"uid": "slack-channel"}]
+        }
+      },
+      {
+        "title": "Transaction Volume",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum(rate(payment_transactions_total[5m])) by (provider)",
+            "legendFormat": "{{provider}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+      },
+      {
+        "title": "Circuit Breaker Status",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "circuit_breaker_state",
+            "format": "table",
+            "instant": true
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+      },
+      {
+        "title": "Payment Latency P99",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.99, rate(payment_duration_seconds_bucket[5m]))",
+            "legendFormat": "P99 Latency"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": {"params": [5], "type": "gt"},
+              "operator": {"type": "and"},
+              "query": {"params": ["A", "5m", "now"]},
+              "reducer": {"params": [], "type": "avg"},
+              "type": "query"
+            }
+          ],
+          "frequency": "60s",
+          "name": "High Payment Latency Alert"
+        }
+      },
+      {
+        "title": "Database Connection Pool",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "hikaricp_connections_active",
+            "legendFormat": "Active Connections"
+          },
+          {
+            "expr": "hikaricp_connections_idle",
+            "legendFormat": "Idle Connections"
+          },
+          {
+            "expr": "hikaricp_connections_pending",
+            "legendFormat": "Pending Connections"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16}
+      },
+      {
+        "title": "Error Rate by Provider",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum(rate(payment_errors_total[5m])) by (provider, error_type)",
+            "legendFormat": "{{provider}} - {{error_type}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16}
+      },
+      {
+        "title": "JVM Memory Usage",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "jvm_memory_used_bytes{area=\"heap\"}",
+            "legendFormat": "Heap Used"
+          },
+          {
+            "expr": "jvm_memory_max_bytes{area=\"heap\"}",
+            "legendFormat": "Heap Max"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24}
+      },
+      {
+        "title": "Rate Limiting",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum(rate(rate_limit_exceeded_total[5m])) by (tier)",
+            "legendFormat": "{{tier}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24}
+      },
+      {
+        "title": "Fraud Detection",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(rate(fraud_detected_total[5m]))",
+            "legendFormat": "Fraud Attempts/sec"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 32}
+      },
+      {
+        "title": "Payment Revenue",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(payment_revenue_total)",
+            "legendFormat": "Total Revenue"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 6, "x": 6, "y": 32}
+      },
+      {
+        "title": "Active Users",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "count(increase(user_activity_total[1h]) > 0)",
+            "legendFormat": "Active Users"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 6, "x": 12, "y": 32}
+      },
+      {
+        "title": "System Health Score",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "(1 - (sum(rate(payment_errors_total[5m])) / sum(rate(payment_attempts_total[5m])))) * 100",
+            "legendFormat": "Health %"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 6, "x": 18, "y": 32}
+      }
+    ]
+  }
+}

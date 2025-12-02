@@ -1,0 +1,251 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: health-check
+  namespace: waqiti-monitoring
+spec:
+  schedule: "*/5 * * * *"  # Every 5 minutes
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: health-check
+            monitoring: "true"
+        spec:
+          restartPolicy: OnFailure
+          serviceAccountName: health-check-sa
+          containers:
+          - name: health-checker
+            image: waqiti/health-checker:latest
+            imagePullPolicy: IfNotPresent
+            env:
+            - name: ENVIRONMENT
+              value: "production"
+            - name: NAMESPACE
+              value: "example-prod"
+            - name: SLACK_WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: monitoring-secrets
+                  key: slack-webhook-url
+            - name: PAGERDUTY_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: monitoring-secrets
+                  key: pagerduty-integration-key
+            command:
+            - /bin/sh
+            - -c
+            - |
+              #!/bin/sh
+              set -e
+              
+              # Colors for output
+              RED='\033[0;31m'
+              GREEN='\033[0;32m'
+              YELLOW='\033[1;33m'
+              NC='\033[0m'
+              
+              # Services to check
+              SERVICES="user-service payment-service wallet-service banking-service notification-service api-gateway"
+              
+              # Health check function
+              check_service() {
+                  service=$1
+                  url="http://${service}.${NAMESPACE}.svc.cluster.local:8080/actuator/health"
+                  
+                  response=$(curl -s -o /dev/null -w "%{http_code}" $url)
+                  
+                  if [ "$response" = "200" ]; then
+                      echo -e "${GREEN}✓${NC} $service is healthy"
+                      return 0
+                  else
+                      echo -e "${RED}✗${NC} $service is unhealthy (HTTP $response)"
+                      return 1
+                  fi
+              }
+              
+              # Database health check
+              check_database() {
+                  echo "Checking database connectivity..."
+                  
+                  pg_isready -h postgresql.${NAMESPACE}.svc.cluster.local -p 5432
+                  if [ $? -eq 0 ]; then
+                      echo -e "${GREEN}✓${NC} Database is healthy"
+                      return 0
+                  else
+                      echo -e "${RED}✗${NC} Database is unhealthy"
+                      return 1
+                  fi
+              }
+              
+              # Redis health check
+              check_redis() {
+                  echo "Checking Redis connectivity..."
+                  
+                  redis-cli -h redis-master.${NAMESPACE}.svc.cluster.local ping > /dev/null 2>&1
+                  if [ $? -eq 0 ]; then
+                      echo -e "${GREEN}✓${NC} Redis is healthy"
+                      return 0
+                  else
+                      echo -e "${RED}✗${NC} Redis is unhealthy"
+                      return 1
+                  fi
+              }
+              
+              # Kafka health check
+              check_kafka() {
+                  echo "Checking Kafka connectivity..."
+                  
+                  kafka-broker-api-versions.sh \
+                      --bootstrap-server kafka.${NAMESPACE}.svc.cluster.local:9092 \
+                      > /dev/null 2>&1
+                  
+                  if [ $? -eq 0 ]; then
+                      echo -e "${GREEN}✓${NC} Kafka is healthy"
+                      return 0
+                  else
+                      echo -e "${RED}✗${NC} Kafka is unhealthy"
+                      return 1
+                  fi
+              }
+              
+              # Main health check
+              echo "==================================="
+              echo "Waqiti Platform Health Check"
+              echo "Environment: $ENVIRONMENT"
+              echo "Time: $(date)"
+              echo "==================================="
+              
+              failed_services=""
+              total_checks=0
+              failed_checks=0
+              
+              # Check infrastructure
+              echo ""
+              echo "Infrastructure Health:"
+              echo "----------------------"
+              
+              check_database || failed_checks=$((failed_checks + 1))
+              total_checks=$((total_checks + 1))
+              
+              check_redis || failed_checks=$((failed_checks + 1))
+              total_checks=$((total_checks + 1))
+              
+              check_kafka || failed_checks=$((failed_checks + 1))
+              total_checks=$((total_checks + 1))
+              
+              # Check application services
+              echo ""
+              echo "Application Services:"
+              echo "--------------------"
+              
+              for service in $SERVICES; do
+                  if ! check_service $service; then
+                      failed_services="$failed_services $service"
+                      failed_checks=$((failed_checks + 1))
+                  fi
+                  total_checks=$((total_checks + 1))
+              done
+              
+              # Summary
+              echo ""
+              echo "==================================="
+              echo "Health Check Summary:"
+              echo "Total checks: $total_checks"
+              echo "Failed checks: $failed_checks"
+              
+              if [ $failed_checks -eq 0 ]; then
+                  echo -e "${GREEN}✓ All systems operational${NC}"
+                  
+                  # Send success metric
+                  curl -X POST http://prometheus-pushgateway.waqiti-monitoring:9091/metrics/job/health-check \
+                      -H "Content-Type: text/plain" \
+                      --data-binary "health_check_status{environment=\"$ENVIRONMENT\"} 1"
+              else
+                  echo -e "${RED}✗ System degraded${NC}"
+                  echo "Failed services:$failed_services"
+                  
+                  # Send failure metric
+                  curl -X POST http://prometheus-pushgateway.waqiti-monitoring:9091/metrics/job/health-check \
+                      -H "Content-Type: text/plain" \
+                      --data-binary "health_check_status{environment=\"$ENVIRONMENT\"} 0"
+                  
+                  # Send alerts
+                  if [ -n "$SLACK_WEBHOOK_URL" ]; then
+                      curl -X POST $SLACK_WEBHOOK_URL \
+                          -H 'Content-Type: application/json' \
+                          -d "{
+                              \"text\": \"🚨 Health Check Failed\",
+                              \"attachments\": [{
+                                  \"color\": \"danger\",
+                                  \"title\": \"Waqiti Platform Health Check\",
+                                  \"text\": \"Environment: $ENVIRONMENT\nFailed services:$failed_services\",
+                                  \"footer\": \"Health Monitor\",
+                                  \"ts\": $(date +%s)
+                              }]
+                          }"
+                  fi
+                  
+                  # Trigger PagerDuty if critical services are down
+                  if echo "$failed_services" | grep -q "api-gateway\|payment-service"; then
+                      if [ -n "$PAGERDUTY_KEY" ]; then
+                          curl -X POST https://events.pagerduty.com/v2/enqueue \
+                              -H 'Content-Type: application/json' \
+                              -d "{
+                                  \"routing_key\": \"$PAGERDUTY_KEY\",
+                                  \"event_action\": \"trigger\",
+                                  \"payload\": {
+                                      \"summary\": \"Critical services down in $ENVIRONMENT\",
+                                      \"severity\": \"critical\",
+                                      \"source\": \"health-check\",
+                                      \"component\": \"$failed_services\"
+                                  }
+                              }"
+                      fi
+                  fi
+                  
+                  exit 1
+              fi
+            resources:
+              requests:
+                memory: "64Mi"
+                cpu: "100m"
+              limits:
+                memory: "128Mi"
+                cpu: "200m"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: health-check-sa
+  namespace: waqiti-monitoring
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: health-check-role
+rules:
+- apiGroups: [""]
+  resources: ["pods", "services", "endpoints"]
+  verbs: ["get", "list"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "replicasets"]
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: health-check-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: health-check-role
+subjects:
+- kind: ServiceAccount
+  name: health-check-sa
+  namespace: waqiti-monitoring

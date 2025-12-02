@@ -1,0 +1,107 @@
+# Keycloak Security Configuration for Predictive Scaling Service
+
+keycloak:
+  enabled: true
+  server-url: ${KEYCLOAK_SERVER_URL:https://localhost:8180}
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  client-id: ${KEYCLOAK_CLIENT_ID:predictive-scaling-service}
+  client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+  
+  # OAuth2/OIDC Endpoints
+  issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8080/realms/waqiti}
+  jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:https://auth.example.com/realms/waqiti/protocol/openid-connect/certs}
+  
+  # JWT Configuration
+  jwk-cache-duration: PT5M
+  token-validity-duration: PT30M
+  validate-issuer: true
+  validate-audience: true
+  
+  # CORS Configuration
+  development-mode: ${DEVELOPMENT_MODE:false}
+  allowed-origins:
+    - ${ADMIN_URL:http://localhost:3001}
+    - ${MONITORING_URL:http://localhost:3006}
+    - ${DEVOPS_TOOLS_URL:http://localhost:3007}
+  
+  # Service-specific Configuration
+  services:
+    predictive-scaling-service:
+      client-id: predictive-scaling-service
+      client-secret: ${PREDICTIVE_SCALING_SERVICE_CLIENT_SECRET:}
+      required-roles:
+        - devops_user
+        - system_admin
+        - scaling_manager
+      required-scopes:
+        - scaling:read
+        - scaling:write
+        - scaling:predict
+        - scaling:execute
+        - scaling:monitor
+        - scaling:optimize
+      additional-claims:
+        infrastructure-access: required
+        monitoring-tools: enabled
+  
+  # Security Configuration
+  security:
+    log-security-events: true
+    enable-audit-log: true
+    strict-mode: true  # Infrastructure operations require strict security
+
+# Spring Security Configuration
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${keycloak.issuer-uri}
+          
+# Predictive Scaling Service Specific Security Configuration
+predictive-scaling:
+  security:
+    # Public endpoints for monitoring
+    public-endpoints:
+      - /api/v1/scaling/health
+      - /api/v1/scaling/metrics/public
+      - /api/v1/scaling/status
+    
+    # Infrastructure-specific security requirements
+    infrastructure-access: ${INFRASTRUCTURE_ACCESS:true}
+    audit-all-actions: ${AUDIT_ALL_ACTIONS:true}
+    require-approval: ${REQUIRE_APPROVAL:true}
+    
+    # Critical operation thresholds
+    critical-scaling-threshold: ${CRITICAL_SCALING_THRESHOLD:50}  # percentage
+    auto-scaling-limit: ${AUTO_SCALING_LIMIT:10}  # instances
+    
+    # Required authorities for different operations
+    authorities:
+      read:
+        - SCOPE_scaling:read
+        - ROLE_DEVOPS_USER
+      monitor:
+        - SCOPE_scaling:monitor
+        - ROLE_DEVOPS_USER
+      predict:
+        - SCOPE_scaling:predict
+        - ROLE_SCALING_MANAGER
+      execute:
+        - SCOPE_scaling:execute
+        - ROLE_SCALING_MANAGER
+        - ROLE_INFRASTRUCTURE_APPROVED
+      optimize:
+        - SCOPE_scaling:optimize
+        - ROLE_SCALING_MANAGER
+      critical-operations:
+        - SCOPE_scaling:execute
+        - ROLE_SCALING_MANAGER
+        - ROLE_CRITICAL_OPS_APPROVED
+        - ROLE_SYSTEM_ADMIN
+      admin:
+        - ROLE_SCALING_ADMIN
+        - SCOPE_scaling:admin
+      management:
+        - ROLE_INFRASTRUCTURE_MANAGER
+        - SCOPE_scaling:management

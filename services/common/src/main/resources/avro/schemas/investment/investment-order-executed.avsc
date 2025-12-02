@@ -1,0 +1,142 @@
+{
+  "type": "record",
+  "name": "InvestmentOrderExecutedEvent",
+  "namespace": "com.waqiti.events.v1",
+  "doc": "Event published when an investment order is executed",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "Unique event identifier (UUID)"
+    },
+    {
+      "name": "eventType",
+      "type": "string",
+      "default": "investment-order-executed",
+      "doc": "Type of event"
+    },
+    {
+      "name": "timestamp",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "Event timestamp in epoch milliseconds"
+    },
+    {
+      "name": "correlationId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Correlation ID for distributed tracing"
+    },
+    {
+      "name": "version",
+      "type": "string",
+      "default": "1.0",
+      "doc": "Schema version"
+    },
+    {
+      "name": "orderId",
+      "type": "string",
+      "doc": "Unique order identifier (UUID)"
+    },
+    {
+      "name": "userId",
+      "type": "string",
+      "doc": "User ID (UUID)"
+    },
+    {
+      "name": "portfolioId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Portfolio ID (UUID)"
+    },
+    {
+      "name": "instrumentType",
+      "type": {
+        "type": "enum",
+        "name": "InstrumentType",
+        "symbols": ["STOCK", "BOND", "ETF", "MUTUAL_FUND", "OPTIONS", "FUTURES", "CRYPTO"]
+      },
+      "doc": "Type of investment instrument"
+    },
+    {
+      "name": "symbol",
+      "type": "string",
+      "doc": "Ticker symbol or instrument identifier"
+    },
+    {
+      "name": "orderSide",
+      "type": {
+        "type": "enum",
+        "name": "OrderSide",
+        "symbols": ["BUY", "SELL"]
+      },
+      "doc": "Order side (buy or sell)"
+    },
+    {
+      "name": "quantity",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 19,
+        "scale": 8
+      },
+      "doc": "Quantity executed"
+    },
+    {
+      "name": "executionPrice",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 19,
+        "scale": 4
+      },
+      "doc": "Execution price per unit"
+    },
+    {
+      "name": "totalValue",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 19,
+        "scale": 4
+      },
+      "doc": "Total value of execution"
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "default": "USD",
+      "doc": "Currency code (ISO 4217)"
+    },
+    {
+      "name": "commission",
+      "type": ["null", {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 19,
+        "scale": 4
+      }],
+      "default": null,
+      "doc": "Commission charged"
+    },
+    {
+      "name": "executedAt",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "Execution timestamp"
+    },
+    {
+      "name": "metadata",
+      "type": ["null", {
+        "type": "map",
+        "values": "string"
+      }],
+      "default": null,
+      "doc": "Additional metadata"
+    }
+  ]
+}

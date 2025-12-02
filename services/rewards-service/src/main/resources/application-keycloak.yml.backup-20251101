@@ -1,0 +1,115 @@
+# Keycloak Configuration for Rewards Service
+
+keycloak:
+  enabled: true
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  ssl-required: external
+  resource: rewards-service
+  bearer-only: true
+  credentials:
+    secret: ${REWARDS_SERVICE_CLIENT_SECRET:CHANGE_ME_SECURE_SECRET_REQUIRED}
+  use-resource-role-mappings: true
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# Rewards Service Security Configuration
+rewards:
+  security:
+    # Public endpoints that don't require authentication
+    public-endpoints:
+      - /actuator/health
+      - /actuator/info
+      - /api/v1/rewards/programs/public
+      - /api/v1/rewards/offers/public
+      - /swagger-ui/**
+      - /v3/api-docs/**
+    
+    # Service-to-service endpoints
+    service-endpoints:
+      - /internal/rewards/**
+    
+    # Required roles for rewards operations
+    required-roles:
+      read:
+        - USER
+        - REWARDS_USER
+      points-earn:
+        - USER
+        - REWARDS_USER
+      points-redeem:
+        - USER
+        - REWARDS_USER
+      program-management:
+        - REWARDS_MANAGER
+        - PROGRAM_MANAGER
+      offer-management:
+        - OFFER_MANAGER
+        - REWARDS_MANAGER
+      tier-management:
+        - TIER_MANAGER
+        - REWARDS_MANAGER
+      analytics:
+        - REWARDS_ANALYST
+        - BUSINESS_ANALYST
+      fraud-monitoring:
+        - FRAUD_ANALYST
+        - SECURITY_OFFICER
+      management:
+        - REWARDS_MANAGER
+        - REWARDS_OPERATOR
+      admin:
+        - REWARDS_ADMIN
+        - SYSTEM_ADMIN
+    
+    # Required scopes for operations
+    required-scopes:
+      points-read: rewards:points:read
+      points-earn: rewards:points:earn
+      points-redeem: rewards:points:redeem
+      program-read: rewards:program:read
+      program-write: rewards:program:write
+      offer-read: rewards:offer:read
+      offer-write: rewards:offer:write
+      tier-management: rewards:tier:manage
+      analytics: rewards:analytics
+      admin: rewards:admin
+      management: rewards:manage
+    
+    # Rewards security features
+    features:
+      points-fraud-detection-enabled: true
+      tier-progression-monitoring: true
+      offer-eligibility-validation: true
+      redemption-validation-enabled: true
+      abuse-prevention-enabled: true
+      analytics-tracking-enabled: true
+      
+    # Rewards limits and thresholds
+    limits:
+      max-points-earn-per-transaction: 10000
+      max-points-redeem-per-day: 50000
+      max-offers-per-user: 100
+      points-expiry-months: 24
+      
+    # Security thresholds requiring monitoring
+    monitoring-thresholds:
+      suspicious-earning-pattern: 10000
+      bulk-redemption-threshold: 25000
+      rapid-tier-progression: 2
+      unusual-offer-activity: 20
+      
+    # Advanced security features
+    advanced-security:
+      require-verification-high-redemption: true
+      automated-abuse-detection: true
+      points-integrity-verification: true
+      offer-fraud-prevention: true
+      tier-manipulation-detection: true
+      real-time-activity-monitoring: true

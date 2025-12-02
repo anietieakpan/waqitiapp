@@ -1,0 +1,276 @@
+# Resilience4j Configuration for Core Banking Service
+
+resilience4j:
+  # Circuit Breaker Configuration
+  circuitbreaker:
+    configs:
+      default:
+        registerHealthIndicator: true
+        slidingWindowSize: 100
+        slidingWindowType: COUNT_BASED
+        minimumNumberOfCalls: 20
+        permittedNumberOfCallsInHalfOpenState: 5
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 60s
+        failureRateThreshold: 50
+        slowCallRateThreshold: 50
+        slowCallDurationThreshold: 2s
+        recordExceptions:
+          - java.lang.Exception
+        ignoreExceptions:
+          - com.waqiti.corebanking.exception.BusinessException
+          - com.waqiti.corebanking.exception.ValidationException
+      
+      payment:
+        baseConfig: default
+        failureRateThreshold: 25
+        waitDurationInOpenState: 30s
+        minimumNumberOfCalls: 10
+        slidingWindowSize: 20
+        slowCallDurationThreshold: 1s
+      
+      ledger:
+        baseConfig: default
+        failureRateThreshold: 30
+        waitDurationInOpenState: 45s
+        slowCallDurationThreshold: 1500ms
+        
+      compliance:
+        baseConfig: default
+        failureRateThreshold: 40
+        waitDurationInOpenState: 90s
+        permittedNumberOfCallsInHalfOpenState: 10
+        
+      notification:
+        baseConfig: default
+        failureRateThreshold: 60
+        waitDurationInOpenState: 120s
+        slidingWindowSize: 200
+    
+    instances:
+      payment-processing:
+        baseConfig: payment
+      account-service:
+        baseConfig: default
+      ledger-service:
+        baseConfig: ledger
+      compliance-service:
+        baseConfig: compliance
+      notification-service:
+        baseConfig: notification
+      external-api:
+        baseConfig: default
+        failureRateThreshold: 70
+        waitDurationInOpenState: 180s
+  
+  # Retry Configuration
+  retry:
+    configs:
+      default:
+        maxAttempts: 3
+        waitDuration: 500ms
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+        maxWaitDuration: 10s
+        retryExceptions:
+          - java.io.IOException
+          - java.net.SocketTimeoutException
+          - org.springframework.dao.OptimisticLockingFailureException
+        ignoreExceptions:
+          - com.waqiti.corebanking.exception.BusinessException
+      
+      payment:
+        baseConfig: default
+        maxAttempts: 5
+        waitDuration: 1s
+        exponentialBackoffMultiplier: 1.5
+        
+      database:
+        baseConfig: default
+        maxAttempts: 3
+        waitDuration: 100ms
+        
+    instances:
+      payment-processing:
+        baseConfig: payment
+      account-service:
+        baseConfig: default
+      ledger-service:
+        baseConfig: database
+      compliance-service:
+        baseConfig: default
+      notification-service:
+        maxAttempts: 5
+        waitDuration: 2s
+  
+  # Bulkhead Configuration
+  bulkhead:
+    configs:
+      default:
+        maxConcurrentCalls: 25
+        maxWaitDuration: 1s
+      
+      payment:
+        maxConcurrentCalls: 10
+        maxWaitDuration: 500ms
+        
+      ledger:
+        maxConcurrentCalls: 20
+        maxWaitDuration: 2s
+        
+    instances:
+      payment-processing:
+        baseConfig: payment
+      account-service:
+        baseConfig: default
+      ledger-service:
+        baseConfig: ledger
+      compliance-service:
+        maxConcurrentCalls: 15
+      notification-service:
+        maxConcurrentCalls: 50
+        maxWaitDuration: 5s
+  
+  # Thread Pool Bulkhead Configuration
+  thread-pool-bulkhead:
+    configs:
+      default:
+        maxThreadPoolSize: 10
+        coreThreadPoolSize: 5
+        queueCapacity: 100
+        keepAliveDuration: 20ms
+        
+      payment:
+        maxThreadPoolSize: 5
+        coreThreadPoolSize: 3
+        queueCapacity: 50
+        
+    instances:
+      payment-processing:
+        baseConfig: payment
+      account-service:
+        baseConfig: default
+      ledger-service:
+        maxThreadPoolSize: 8
+        coreThreadPoolSize: 4
+        queueCapacity: 80
+  
+  # Rate Limiter Configuration
+  ratelimiter:
+    configs:
+      default:
+        registerHealthIndicator: true
+        limitForPeriod: 50
+        limitRefreshPeriod: 1s
+        timeoutDuration: 1s
+        
+      payment:
+        limitForPeriod: 20
+        limitRefreshPeriod: 1s
+        timeoutDuration: 500ms
+        
+      public-api:
+        limitForPeriod: 100
+        limitRefreshPeriod: 1s
+        timeoutDuration: 2s
+        
+    instances:
+      payment-processing:
+        baseConfig: payment
+      account-service:
+        baseConfig: default
+      ledger-service:
+        limitForPeriod: 30
+      compliance-service:
+        limitForPeriod: 25
+      notification-service:
+        limitForPeriod: 200
+      public-api:
+        baseConfig: public-api
+  
+  # Time Limiter Configuration
+  timelimiter:
+    configs:
+      default:
+        timeoutDuration: 5s
+        cancelRunningFuture: true
+        
+      payment:
+        timeoutDuration: 3s
+        
+      ledger:
+        timeoutDuration: 2s
+        
+    instances:
+      payment-processing:
+        baseConfig: payment
+      account-service:
+        baseConfig: default
+      ledger-service:
+        baseConfig: ledger
+      compliance-service:
+        timeoutDuration: 10s
+      notification-service:
+        timeoutDuration: 15s
+
+# Resilience Monitoring
+management:
+  health:
+    circuitbreakers:
+      enabled: true
+    ratelimiters:
+      enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,circuitbreakers,circuitbreakerevents,retries,retryevents,ratelimiters,ratelimiterevents,bulkheads
+  metrics:
+    tags:
+      application: core-banking-service
+      environment: ${spring.profiles.active:default}
+    export:
+      prometheus:
+        enabled: true
+    distribution:
+      percentiles-histogram:
+        resilience4j.circuitbreaker.calls: true
+        resilience4j.retry.calls: true
+        resilience4j.bulkhead.calls: true
+        resilience4j.ratelimiter.calls: true
+
+# Custom Resilience Settings
+resilience:
+  circuit-breaker:
+    failure-threshold: 50
+    wait-duration-seconds: 60
+    sliding-window-size: 100
+    enable-health-indicator: true
+    
+  retry:
+    max-attempts: 3
+    wait-duration-ms: 500
+    exponential-backoff: true
+    
+  bulkhead:
+    max-concurrent-calls: 25
+    max-wait-duration-ms: 1000
+    
+  rate-limiter:
+    limit-for-period: 50
+    limit-refresh-period-ms: 1000
+    
+  time-limiter:
+    timeout-duration-seconds: 5
+    
+  adaptive:
+    enabled: true
+    load-threshold-high: 0.8
+    load-threshold-medium: 0.5
+    adjustment-factor: 0.7
+    
+  monitoring:
+    enabled: true
+    interval-seconds: 30
+    alert-threshold-failure-rate: 70
+    auto-recovery-enabled: true
+    auto-recovery-timeout-minutes: 10

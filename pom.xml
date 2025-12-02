@@ -1,0 +1,1621 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.waqiti</groupId>
+    <artifactId>waqiti-app</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <name>Waqiti Application</name>
+    <description>Peer-to-peer payment and e-wallet application</description>
+
+    <modules>
+        <!-- Common/Shared Modules -->
+        <module>services/common</module>
+        <module>services/common/kyc-client</module>
+        <module>services/common/security</module>
+        <module>services/payment-commons</module>
+        <module>services/compliance-contracts</module>  <!-- NEW: Shared contracts for compliance domain decoupling - ADR-012 -->
+
+        <!-- Infrastructure Services -->
+        <module>services/api-gateway</module>
+        <module>services/discovery-service</module>
+        <module>services/config-service</module>
+        <module>services/infrastructure-service</module>
+        <!-- REMOVED: services/orchestration-service - See ADR-008-remove-orchestration-service.md -->
+
+        <!-- Core Services (Previously in Build) -->
+        <module>services/user-service</module>
+        <module>services/wallet-service</module>
+        <module>services/payment-service</module>
+        <module>services/transaction-service</module>
+        <module>services/ledger-service</module>
+        <module>services/core-banking-service</module>
+
+        <!-- Account & Banking Services -->
+        <module>services/account-service</module>
+        <module>services/accounting-service</module>
+        <module>services/family-account-service</module>
+
+        <!-- Payment Services -->
+        <module>services/ar-payment-service</module>
+        <module>services/bill-payment-service</module>
+        <module>services/group-payment-service</module>
+        <module>services/merchant-payment-service</module>
+        <module>services/recurring-payment-service</module>
+        <module>services/voice-payment-service</module>
+
+        <!-- Card Services -->
+        <module>services/atm-service</module>
+        <!-- REMOVED: services/card-processing-service - Consolidated into card-service (ADR-005) -->
+        <module>services/card-service</module>
+        <module>services/virtual-card-service</module>
+
+        <!-- Transfer Services - CONSOLIDATED INTO payment-service -->
+
+        <!-- International & Corporate Banking Services -->
+        <!-- REMOVED: services/international-service - See ADR-010-remove-international-service.md -->
+
+        <!-- Financial Services -->
+        <!-- REMOVED: services/credit-service - See ADR-005-remove-credit-service.md -->
+        <module>services/investment-service</module>
+        <module>services/lending-service</module>
+        <module>services/savings-service</module>
+        <!-- REMOVED: services/treasury-service - See ADR-004-remove-treasury-service.md -->
+
+        <!-- Commerce & Merchant Services -->
+        <module>services/bnpl-service</module>
+        <module>services/merchant-service</module>
+        <module>services/purchase-protection-service</module>
+        <!-- REMOVED: services/social-commerce-service - See ADR-003-remove-social-commerce-service.md -->
+
+        <!-- Security & Compliance Services -->
+        <module>services/audit-service</module>
+        <module>services/compliance-service</module>
+        <module>services/fraud-detection-service</module>
+        <module>services/gdpr-service</module>
+        <module>services/kyc-service</module>
+        <!-- DEPRECATED: privacy-service consolidated into gdpr-service -->
+        <!-- <module>services/privacy-service</module> -->
+        <module>services/security-service</module>
+        <module>services/auth-service</module>
+
+        <!-- Risk & Regulatory Services -->
+        <!-- REMOVED: services/chargeback-service - See ADR-004-remove-chargeback-service.md -->
+        <module>services/dispute-service</module>
+        <module>services/legal-service</module>
+        <module>services/risk-service</module>
+
+        <!-- Integration & External Services -->
+        <module>services/bank-integration-service</module>
+        <module>services/integration-service</module>
+        <module>services/webhook-service</module>
+
+        <!-- Communication & Notification Services -->
+        <!-- REMOVED: services/communication-service - See ADR-007-remove-communication-service.md -->
+        <module>services/messaging-service</module>
+        <module>services/notification-service</module>
+        <module>services/sms-banking-service</module>
+        <module>services/websocket-service</module>
+
+        <!-- Customer Services -->
+        <module>services/customer-service</module>
+        <!-- REMOVED: services/onboarding-service - See ADR-010-remove-onboarding-service.md -->
+        <!-- REMOVED: services/referral-service - See ADR-009-remove-referral-service.md -->
+        <module>services/social-service</module>
+        <module>services/support-service</module>
+
+        <!-- Analytics & Reporting Services -->
+        <module>services/analytics-service</module>
+        <!-- REMOVED: services/market-data-service - See ADR-001-remove-market-data-service.md -->
+        <!-- <module>services/real-time-analytics-service</module> --> <!-- Module directory does not exist -->
+        <module>services/reconciliation-service</module>
+        <module>services/reporting-service</module>
+
+        <!-- Operations Services -->
+        <!-- REMOVED: services/batch-service - See ADR-006-remove-batch-service.md -->
+        <!-- REMOVED: services/dlq-service - Consolidated into common module - See ADR-011-consolidate-dlq-service.md -->
+        <module>services/expense-service</module>
+        <!-- REMOVED: services/operations-service - See ADR-002-remove-operations-service.md -->
+        <module>services/payroll-service</module>
+        <module>services/tax-service</module>
+
+        <!-- Feature & Gamification Services -->
+        <!-- REMOVED: services/feature-service - Zombie service with 70% phantom dependencies, no main class, duplicate of config-service (ADR-011) -->
+        <module>services/gamification-service</module>
+        <module>services/rewards-service</module>
+
+        <!-- Insurance Services -->
+        <module>services/insurance-service</module>
+
+        <!-- Blockchain & Crypto Services -->
+        <module>services/crypto-service</module>
+        <module>services/layer2-service</module>
+        <module>services/nft-service</module>
+        <module>services/tokenization-service</module>
+
+        <!-- Other Utility Services -->
+        <module>services/currency-service</module>
+        <module>services/ml-service</module>
+
+        <!-- Event-Driven Architecture Services -->
+        <!-- REMOVED: services/event-sourcing-service - Consolidated saga orchestration into saga-orchestration-service (ADR-009) -->
+        <module>services/saga-orchestration-service</module>
+    </modules>
+
+    <repositories>
+        <repository>
+            <id>central</id>
+            <name>Maven Central</name>
+            <url>https://repo.maven.apache.org/maven2</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+        <repository>
+            <id>confluent</id>
+            <url>https://packages.confluent.io/maven/</url>
+        </repository>
+        <repository>
+            <id>keycloak</id>
+            <url>https://github.com/keycloak/keycloak/maven</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+        <repository>
+            <id>spring-milestones</id>
+            <name>Spring Milestones</name>
+            <url>https://repo.spring.io/milestone</url>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+        <repository>
+            <id>google</id>
+            <name>Google Maven Repository</name>
+            <url>https://maven.google.com</url>
+        </repository>
+    </repositories>
+
+
+    <properties>
+        <java.version>21</java.version>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        
+        <!-- Core Framework Versions -->
+        <spring-boot.version>3.3.5</spring-boot.version>
+        <spring-cloud.version>2023.0.4</spring-cloud.version>
+        <spring-vault.version>3.1.0</spring-vault.version>
+        <spring-cloud-vault.version>4.1.3</spring-cloud-vault.version>
+        <spring-ai.version>1.0.0-M2</spring-ai.version>
+        
+        <!-- Database Versions -->
+        <postgresql.version>42.7.6</postgresql.version>
+        <flyway.version>10.21.0</flyway.version>
+        <liquibase.version>4.31.0</liquibase.version>
+        <h2.version>2.3.232</h2.version>
+        <clickhouse.version>0.7.1</clickhouse.version>
+        
+        <!-- Message Queue & Event Streaming -->
+        <kafka.version>3.9.0</kafka.version>
+        <avro.version>1.11.3</avro.version>
+        <confluentplatform.version>7.8.0</confluentplatform.version>
+        
+        <!-- Big Data & Analytics -->
+        <flink.version>1.19.1</flink.version>
+        <elasticsearch.version>8.15.2</elasticsearch.version>
+        <opensearch.version>2.17.0</opensearch.version>
+        
+        <!-- Cache & Search -->
+        <redis.version>3.2.6</redis.version>
+        <redisson.version>3.40.2</redisson.version>
+        
+        <!-- Security & Authentication -->
+        <jjwt.version>0.12.6</jjwt.version>
+        <bouncycastle.version>1.80</bouncycastle.version>
+        <keycloak.version>26.0.6</keycloak.version>
+        <vault.version>6.2.0</vault.version>
+        
+        <!-- Code Generation & Mapping -->
+        <lombok.version>1.18.42</lombok.version>
+        <mapstruct.version>1.6.2</mapstruct.version>
+        <annotation-processor.version>0.2.0</annotation-processor.version>
+        <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
+        
+        <!-- Documentation -->
+        <springdoc.version>2.7.0</springdoc.version>
+        <swagger.version>2.2.24</swagger.version>
+        
+        <!-- Testing -->
+        <testcontainers.version>1.20.4</testcontainers.version>
+        <junit.version>5.11.2</junit.version>
+        <mockito.version>5.14.1</mockito.version>
+        <assertj.version>3.26.3</assertj.version>
+        <wiremock.version>3.11.0</wiremock.version>
+        <rest-assured.version>5.5.0</rest-assured.version>
+        
+        <!-- HTTP Clients -->
+        <okhttp.version>4.12.0</okhttp.version>
+        <feign.version>13.4</feign.version>
+        <httpclient.version>5.3.1</httpclient.version>
+        
+        <!-- Blockchain & Cryptocurrency -->
+        <web3j.version>4.12.2</web3j.version>
+        <bitcoinj.version>0.17.0</bitcoinj.version>
+        
+        <!-- AI & ML -->
+        <tensorflow.version>1.15.0</tensorflow.version>
+        <pytorch.version>2.4.1</pytorch.version>
+        <weka.version>3.8.6</weka.version>
+        
+        <!-- Image & Document Processing -->
+        <tesseract.version>5.9.0</tesseract.version>
+        <opencv.version>4.9.0-0</opencv.version>
+        <itext.version>8.0.5</itext.version>
+        <apache-pdfbox.version>3.0.3</apache-pdfbox.version>
+        
+        <!-- Utilities -->
+        <guava.version>33.4.0-jre</guava.version>
+        <commons-lang3.version>3.17.0</commons-lang3.version>
+        <commons-io.version>2.18.0</commons-io.version>
+        <jackson.version>2.18.1</jackson.version>
+        <gson.version>2.11.0</gson.version>
+        
+        <!-- Monitoring & Observability -->
+        <micrometer.version>1.13.6</micrometer.version>
+        <opentelemetry.version>1.42.1</opentelemetry.version>
+        <opentracing.version>3.3.1</opentracing.version>
+        <prometheus.version>1.13.6</prometheus.version>
+        <zipkin.version>3.4.2</zipkin.version>
+
+        <!-- Reactor -->
+        <reactor-bom.version>2023.0.11</reactor-bom.version>
+        <reactor-netty.version>1.1.23</reactor-netty.version>
+        
+        <!-- Build Plugins -->
+        <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
+        <maven-surefire-plugin.version>3.5.1</maven-surefire-plugin.version>
+        <maven-failsafe-plugin.version>3.5.1</maven-failsafe-plugin.version>
+        <jacoco-maven-plugin.version>0.8.12</jacoco-maven-plugin.version>
+        <docker-maven-plugin.version>0.45.0</docker-maven-plugin.version>
+        <git-commit-id-plugin.version>9.0.1</git-commit-id-plugin.version>
+        <pact.version>4.4.14</pact.version>
+        <awaitility.version>4.2.0</awaitility.version>
+        <javafaker.version>1.0.2</javafaker.version>
+        <jmh.version>1.36</jmh.version>
+        
+        <!-- Cloud SDKs -->
+        <aws-sdk.version>2.29.49</aws-sdk.version>
+        <azure-sdk.version>1.2.28</azure-sdk.version>
+        <google-cloud.version>26.50.0</google-cloud.version>
+        
+        <!-- Feast SDK -->
+        <feast.version>0.31.0</feast.version>
+        
+        <!-- Apache Spark -->
+        <spark.version>3.5.0</spark.version>
+        <scala.version>2.12.18</scala.version>
+        <commons-codec.version>1.16.0</commons-codec.version>
+        <commons-collections4.version>4.4</commons-collections4.version>
+        <commons-math3.version>3.6.1</commons-math3.version>
+        <commons-csv.version>1.10.0</commons-csv.version>
+        <commons-text.version>1.12.0</commons-text.version>
+        <commons-fileupload.version>1.5</commons-fileupload.version>
+
+        <!-- Monitoring -->
+        <logstash-encoder.version>8.0</logstash-encoder.version>
+
+        <!-- Security -->
+        <spring-security-oauth2.version>6.3.4</spring-security-oauth2.version>
+        <bcrypt.version>0.10.2</bcrypt.version>
+        
+        <!-- External APIs -->
+        <twilio.version>9.7.0</twilio.version>
+        <sendgrid.version>4.9.3</sendgrid.version>
+        <stripe.version>24.2.0</stripe.version>
+        
+        <!-- Other Libraries -->
+        <zxing.version>3.5.2</zxing.version>
+        <opencsv.version>5.9</opencsv.version>
+        <qrgen.version>2.6.0</qrgen.version>
+        <totp.version>1.7.1</totp.version>
+        <springdoc-openapi-ui.version>2.3.0</springdoc-openapi-ui.version>
+        <poi.version>5.3.1</poi.version>
+        <djl.version>0.32.0</djl.version>
+
+        <sonar.host.url>http://localhost:9000</sonar.host.url>
+        <sonar.projectKey>waqiti</sonar.projectKey>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- Spring Boot BOM -->
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring-boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>testcontainers-bom</artifactId>
+                <version>${testcontainers.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+
+<!--            webclient-->
+            <!-- <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-starter-webflux</artifactId>
+            </dependency> -->
+
+            <!-- Spring Cloud BOM -->
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- Reactor BOM -->
+            <dependency>
+                <groupId>io.projectreactor</groupId>
+                <artifactId>reactor-bom</artifactId>
+                <version>${reactor-bom.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            
+            <!-- Confluent Platform BOM -->
+            <dependency>
+                <groupId>io.confluent</groupId>
+                <artifactId>kafka-schema-registry-parent</artifactId>
+                <version>${confluentplatform.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            
+            <!-- Flyway -->
+            <dependency>
+                <groupId>org.flywaydb</groupId>
+                <artifactId>flyway-database-postgresql</artifactId>
+                <version>${flyway.version}</version>
+            </dependency>
+            
+            <!-- PostgreSQL Driver -->
+            <dependency>
+                <groupId>org.postgresql</groupId>
+                <artifactId>postgresql</artifactId>
+                <version>${postgresql.version}</version>
+            </dependency>
+            
+            <!-- AWS SDK BOM - CRITICAL FIX -->
+            <dependency>
+                <groupId>software.amazon.awssdk</groupId>
+                <artifactId>bom</artifactId>
+                <version>${aws-sdk.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- OpenTelemetry BOM -->
+            <dependency>
+                <groupId>io.opentelemetry</groupId>
+                <artifactId>opentelemetry-bom</artifactId>
+                <version>${opentelemetry.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- OpenTelemetry Alpha BOM -->
+            <dependency>
+                <groupId>io.opentelemetry</groupId>
+                <artifactId>opentelemetry-bom-alpha</artifactId>
+                <version>${opentelemetry.version}-alpha</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- OpenTelemetry Instrumentation Annotations -->
+            <dependency>
+                <groupId>io.opentelemetry.instrumentation</groupId>
+                <artifactId>opentelemetry-instrumentation-annotations</artifactId>
+                <version>2.9.0</version>
+            </dependency>
+
+            <!-- Google Cloud BOM -->
+            <dependency>
+                <groupId>com.google.cloud</groupId>
+                <artifactId>libraries-bom</artifactId>
+                <version>${google-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            
+            <!-- OpenTracing -->
+            <dependency>
+                <groupId>io.opentracing.contrib</groupId>
+                <artifactId>opentracing-spring-jaeger-web-starter</artifactId>
+                <version>${opentracing.version}</version>
+            </dependency>
+            
+            <!-- Apache HttpClient 5.x -->
+            <dependency>
+                <groupId>org.apache.httpcomponents.client5</groupId>
+                <artifactId>httpclient5</artifactId>
+                <version>${httpclient.version}</version>
+            </dependency>
+            
+            <!-- Apache Avro -->
+            <dependency>
+                <groupId>org.apache.avro</groupId>
+                <artifactId>avro</artifactId>
+                <version>${avro.version}</version>
+            </dependency>
+            
+            <!-- Confluent Kafka Libraries -->
+            <dependency>
+                <groupId>io.confluent</groupId>
+                <artifactId>kafka-schema-registry-client</artifactId>
+                <version>${confluentplatform.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.confluent</groupId>
+                <artifactId>kafka-avro-serializer</artifactId>
+                <version>${confluentplatform.version}</version>
+            </dependency>
+            
+            <!-- OAuth2 Resource Server -->
+            <dependency>
+                <groupId>org.springframework.security</groupId>
+                <artifactId>spring-security-oauth2-resource-server</artifactId>
+                <version>${spring-security-oauth2.version}</version>
+            </dependency>
+            
+            <!-- JWT Support -->
+            <dependency>
+                <groupId>org.springframework.security</groupId>
+                <artifactId>spring-security-oauth2-jose</artifactId>
+                <version>${spring-security-oauth2.version}</version>
+            </dependency>
+            
+            <!-- JWT Libraries -->
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-api</artifactId>
+                <version>${jjwt.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-impl</artifactId>
+                <version>${jjwt.version}</version>
+                <scope>runtime</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-jackson</artifactId>
+                <version>${jjwt.version}</version>
+                <scope>runtime</scope>
+            </dependency>
+            
+            <!-- Azure SDK BOM -->
+            <dependency>
+                <groupId>com.azure</groupId>
+                <artifactId>azure-sdk-bom</artifactId>
+                <version>${azure-sdk.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- Documentation -->
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+                <version>${springdoc.version}</version>
+            </dependency>
+            
+            <!-- Apache Commons -->
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-lang3</artifactId>
+                <version>${commons-lang3.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>commons-io</groupId>
+                <artifactId>commons-io</artifactId>
+                <version>${commons-io.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>commons-codec</groupId>
+                <artifactId>commons-codec</artifactId>
+                <version>${commons-codec.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-collections4</artifactId>
+                <version>${commons-collections4.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-math3</artifactId>
+                <version>${commons-math3.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-csv</artifactId>
+                <version>${commons-csv.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-text</artifactId>
+                <version>${commons-text.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>commons-fileupload</groupId>
+                <artifactId>commons-fileupload</artifactId>
+                <version>${commons-fileupload.version}</version>
+            </dependency>
+            
+            <!-- Utilities -->
+            <dependency>
+                <groupId>com.google.guava</groupId>
+                <artifactId>guava</artifactId>
+                <version>${guava.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.code.gson</groupId>
+                <artifactId>gson</artifactId>
+                <version>${gson.version}</version>
+            </dependency>
+            
+            <dependency>
+                <groupId>io.confluent</groupId>
+                <artifactId>kafka-json-serializer</artifactId>
+                <version>${confluent.version}</version>
+            </dependency>
+            
+            <!-- Security -->
+            <dependency>
+                <groupId>at.favre.lib</groupId>
+                <artifactId>bcrypt</artifactId>
+                <version>${bcrypt.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.bouncycastle</groupId>
+                <artifactId>bcprov-jdk18on</artifactId>
+                <version>${bouncycastle.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.bouncycastle</groupId>
+                <artifactId>bcpkix-jdk18on</artifactId>
+                <version>${bouncycastle.version}</version>
+            </dependency>
+            
+            <!-- External APIs -->
+            <dependency>
+                <groupId>com.twilio.sdk</groupId>
+                <artifactId>twilio</artifactId>
+                <version>${twilio.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.sendgrid</groupId>
+                <artifactId>sendgrid-java</artifactId>
+                <version>${sendgrid.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.stripe</groupId>
+                <artifactId>stripe-java</artifactId>
+                <version>${stripe.version}</version>
+            </dependency>
+            
+            <!-- Other Libraries -->
+            <dependency>
+                <groupId>com.google.zxing</groupId>
+                <artifactId>core</artifactId>
+                <version>${zxing.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.opencsv</groupId>
+                <artifactId>opencsv</artifactId>
+                <version>${opencsv.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.glxn</groupId>
+                <artifactId>qrgen</artifactId>
+                <version>${qrgen.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>dev.samstevens.totp</groupId>
+                <artifactId>totp</artifactId>
+                <version>${totp.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>ai.djl</groupId>
+                <artifactId>api</artifactId>
+                <version>${djl.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>ai.djl.tensorflow</groupId>
+                <artifactId>tensorflow-engine</artifactId>
+                <version>${djl.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>ai.djl.onnxruntime</groupId>
+                <artifactId>onnxruntime-engine</artifactId>
+                <version>${djl.version}</version>
+            </dependency>
+            
+            <!-- Keycloak - FIXED: Removed deprecated spring-boot-starter -->
+            <dependency>
+                <groupId>org.keycloak</groupId>
+                <artifactId>keycloak-admin-client</artifactId>
+                <version>${keycloak.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.keycloak</groupId>
+                <artifactId>keycloak-core</artifactId>
+                <version>${keycloak.version}</version>
+            </dependency>
+
+            <!-- Spring Boot 3 Keycloak Adapter -->
+            <dependency>
+                <groupId>org.keycloak</groupId>
+                <artifactId>keycloak-spring-boot-3-starter</artifactId>
+                <version>24.0.5</version>
+            </dependency>
+            
+            <!-- Spring AI -->
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-core</artifactId>
+                <version>${spring-ai.version}</version>
+            </dependency>
+            
+            <!-- iTextPDF -->
+            <dependency>
+                <groupId>com.itextpdf</groupId>
+                <artifactId>itext7-core</artifactId>
+                <version>${itext.version}</version>
+            </dependency>
+            
+            <!-- Feast SDK -->
+            <dependency>
+                <groupId>dev.feast</groupId>
+                <artifactId>feast-java-sdk</artifactId>
+                <version>${feast.version}</version>
+            </dependency>
+            
+            <!-- Apache Spark for Analytics -->
+            <dependency>
+                <groupId>org.apache.spark</groupId>
+                <artifactId>spark-core_2.12</artifactId>
+                <version>${spark.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.spark</groupId>
+                <artifactId>spark-sql_2.12</artifactId>
+                <version>${spark.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.spark</groupId>
+                <artifactId>spark-catalyst_2.12</artifactId>
+                <version>${spark.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.spark</groupId>
+                <artifactId>spark-streaming_2.12</artifactId>
+                <version>${spark.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.spark</groupId>
+                <artifactId>spark-mllib_2.12</artifactId>
+                <version>${spark.version}</version>
+            </dependency>
+            
+            <!-- Scala Library -->
+            <dependency>
+                <groupId>org.scala-lang</groupId>
+                <artifactId>scala-library</artifactId>
+                <version>${scala.version}</version>
+            </dependency>
+
+            <!-- Mockito - FIXED: Removed mockito-inline (merged into core in 5.x) -->
+            <dependency>
+                <groupId>org.mockito</groupId>
+                <artifactId>mockito-core</artifactId>
+                <version>${mockito.version}</version>
+                <scope>test</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>org.mockito</groupId>
+                <artifactId>mockito-junit-jupiter</artifactId>
+                <version>${mockito.version}</version>
+                <scope>test</scope>
+            </dependency>
+
+            <!-- Apache POI - CRITICAL FIX -->
+            <dependency>
+                <groupId>org.apache.poi</groupId>
+                <artifactId>poi</artifactId>
+                <version>${poi.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.apache.poi</groupId>
+                <artifactId>poi-ooxml</artifactId>
+                <version>${poi.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.apache.poi</groupId>
+                <artifactId>poi-ooxml-schemas</artifactId>
+                <version>${poi.version}</version>
+            </dependency>
+
+            <!-- Internal SNAPSHOT modules - CRITICAL FIX -->
+            <dependency>
+                <groupId>com.waqiti</groupId>
+                <artifactId>common</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.waqiti</groupId>
+                <artifactId>common-security</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.waqiti</groupId>
+                <artifactId>common-util</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.waqiti</groupId>
+                <artifactId>kyc-client</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.waqiti</groupId>
+                <artifactId>payment-commons</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <!-- REMOVED: event-sourcing-service - Consolidated into saga-orchestration-service (ADR-009) -->
+
+            <!-- JavaMoney - CRITICAL FIX -->
+            <dependency>
+                <groupId>org.javamoney</groupId>
+                <artifactId>moneta</artifactId>
+                <version>1.4.4</version>
+            </dependency>
+
+            <dependency>
+                <groupId>javax.money</groupId>
+                <artifactId>money-api</artifactId>
+                <version>1.1</version>
+            </dependency>
+
+            <!-- Google AR Core - CRITICAL FIX -->
+            <dependency>
+                <groupId>com.google.ar</groupId>
+                <artifactId>core</artifactId>
+                <version>1.39.0</version>
+            </dependency>
+
+            <!-- IPFS - CRITICAL FIX -->
+            <dependency>
+                <groupId>io.ipfs</groupId>
+                <artifactId>java-ipfs-http-client</artifactId>
+                <version>1.4.5</version>
+            </dependency>
+
+            <!-- Dependency Convergence Fixes - Force specific versions to resolve conflicts -->
+
+            <!-- OpenTelemetry Instrumentation - Keep consistent with spring-boot-autoconfigure 2.6.0 -->
+            <dependency>
+                <groupId>io.opentelemetry.instrumentation</groupId>
+                <artifactId>opentelemetry-instrumentation-api</artifactId>
+                <version>2.6.0</version>
+            </dependency>
+            <dependency>
+                <groupId>io.opentelemetry.instrumentation</groupId>
+                <artifactId>opentelemetry-spring-webmvc-6.0</artifactId>
+                <version>2.6.0-alpha</version>
+            </dependency>
+            <dependency>
+                <groupId>io.opentelemetry.instrumentation</groupId>
+                <artifactId>opentelemetry-kafka-clients-2.6</artifactId>
+                <version>2.6.0-alpha</version>
+            </dependency>
+            <dependency>
+                <groupId>io.opentelemetry.instrumentation</groupId>
+                <artifactId>opentelemetry-jdbc</artifactId>
+                <version>2.6.0-alpha</version>
+            </dependency>
+            <dependency>
+                <groupId>io.opentelemetry.instrumentation</groupId>
+                <artifactId>opentelemetry-instrumentation-api-incubator</artifactId>
+                <version>2.6.0-alpha</version>
+            </dependency>
+            <dependency>
+                <groupId>io.opentelemetry.semconv</groupId>
+                <artifactId>opentelemetry-semconv</artifactId>
+                <version>1.25.0-alpha</version>
+            </dependency>
+
+            <!-- Checker Framework - Force 3.49.3 -->
+            <dependency>
+                <groupId>org.checkerframework</groupId>
+                <artifactId>checker-qual</artifactId>
+                <version>3.49.3</version>
+            </dependency>
+
+            <!-- Microsoft Azure - Force 1.17.2 -->
+            <dependency>
+                <groupId>com.microsoft.azure</groupId>
+                <artifactId>msal4j</artifactId>
+                <version>1.17.2</version>
+            </dependency>
+
+            <!-- Google RE2J - Force 1.7 -->
+            <dependency>
+                <groupId>com.google.re2j</groupId>
+                <artifactId>re2j</artifactId>
+                <version>1.7</version>
+            </dependency>
+
+            <!-- Resilience4j - Force 2.2.0 for all components -->
+            <dependency>
+                <groupId>io.github.resilience4j</groupId>
+                <artifactId>resilience4j-circuitbreaker</artifactId>
+                <version>2.2.0</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.resilience4j</groupId>
+                <artifactId>resilience4j-all</artifactId>
+                <version>2.2.0</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.resilience4j</groupId>
+                <artifactId>resilience4j-reactor</artifactId>
+                <version>2.2.0</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.resilience4j</groupId>
+                <artifactId>resilience4j-spring-boot3</artifactId>
+                <version>2.2.0</version>
+            </dependency>
+
+            <!-- Google Error Prone - Force 2.36.0 -->
+            <dependency>
+                <groupId>com.google.errorprone</groupId>
+                <artifactId>error_prone_annotations</artifactId>
+                <version>2.36.0</version>
+            </dependency>
+
+            <!-- Google API GAX - Force 2.57.0 -->
+            <dependency>
+                <groupId>com.google.api</groupId>
+                <artifactId>gax</artifactId>
+                <version>2.57.0</version>
+            </dependency>
+
+            <!-- Spring Vault - Force 3.2.0 -->
+            <dependency>
+                <groupId>org.springframework.vault</groupId>
+                <artifactId>spring-vault-core</artifactId>
+                <version>3.2.0</version>
+            </dependency>
+
+            <!-- Java Annotation API - Force 1.3.2 -->
+            <dependency>
+                <groupId>javax.annotation</groupId>
+                <artifactId>javax.annotation-api</artifactId>
+                <version>1.3.2</version>
+            </dependency>
+
+            <!-- Nimbus OAuth2 SDK - Force 11.18 -->
+            <dependency>
+                <groupId>com.nimbusds</groupId>
+                <artifactId>oauth2-oidc-sdk</artifactId>
+                <version>11.18</version>
+            </dependency>
+            <dependency>
+                <groupId>com.nimbusds</groupId>
+                <artifactId>nimbus-jose-jwt</artifactId>
+                <version>9.40</version>
+            </dependency>
+
+            <!-- Hazelcast - Force 5.4.0 -->
+            <dependency>
+                <groupId>com.hazelcast</groupId>
+                <artifactId>hazelcast</artifactId>
+                <version>5.4.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.hazelcast</groupId>
+                <artifactId>hazelcast-spring</artifactId>
+                <version>5.3.2</version>
+            </dependency>
+
+            <!-- Google Auth Library - Force 1.29.0 -->
+            <dependency>
+                <groupId>com.google.auth</groupId>
+                <artifactId>google-auth-library-oauth2-http</artifactId>
+                <version>1.29.0</version>
+            </dependency>
+
+            <!-- Force Lombok 1.18.42 for Java 21 compatibility -->
+            <dependency>
+                <groupId>org.projectlombok</groupId>
+                <artifactId>lombok</artifactId>
+                <version>${lombok.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+
+
+    <dependencies>
+        <!-- Common Dependencies -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>${lombok.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Test Dependencies -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${testcontainers.version}</version>
+            <scope>test</scope>
+        </dependency>
+        
+        <!-- Additional Test Dependencies -->
+        <dependency>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        
+        <dependency>
+            <groupId>com.github.tomakehurst</groupId>
+            <artifactId>wiremock-jre8</artifactId>
+            <version>2.35.0</version>
+            <scope>test</scope>
+        </dependency>
+        
+        <!-- Awaitility for Async Testing -->
+        <dependency>
+            <groupId>org.awaitility</groupId>
+            <artifactId>awaitility</artifactId>
+            <version>${awaitility.version}</version>
+            <scope>test</scope>
+        </dependency>
+        
+        <!-- Test Data Generation -->
+        <dependency>
+            <groupId>com.github.javafaker</groupId>
+            <artifactId>javafaker</artifactId>
+            <version>${javafaker.version}</version>
+            <scope>test</scope>
+        </dependency>
+        
+        <!-- Performance Testing -->
+        <dependency>
+            <groupId>org.openjdk.jmh</groupId>
+            <artifactId>jmh-core</artifactId>
+            <version>${jmh.version}</version>
+            <scope>test</scope>
+        </dependency>
+        
+        <dependency>
+            <groupId>org.openjdk.jmh</groupId>
+            <artifactId>jmh-generator-annprocess</artifactId>
+            <version>${jmh.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- MockMvc WebTestClient for reactive tests -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webflux</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- REST Assured for API testing -->
+        <dependency>
+            <groupId>io.rest-assured</groupId>
+            <artifactId>rest-assured</artifactId>
+            <version>${rest-assured.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Additional TestContainers modules -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>${testcontainers.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>kafka</artifactId>
+            <version>${testcontainers.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- WireMock for mocking external services -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-contract-stub-runner</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Monitoring -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <!-- Logging -->
+        <dependency>
+            <groupId>net.logstash.logback</groupId>
+            <artifactId>logstash-logback-encoder</artifactId>
+            <version>${logstash-encoder.version}</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>${maven-compiler-plugin.version}</version>
+                <configuration>
+                    <source>${maven.compiler.source}</source>
+                    <target>${maven.compiler.target}</target>
+                    <release>${java.version}</release>
+                    <fork>true</fork>
+                    <compilerArgs>
+                        <arg>-parameters</arg>
+                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
+                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED</arg>
+                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED</arg>
+                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED</arg>
+                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED</arg>
+                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED</arg>
+                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED</arg>
+                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED</arg>
+                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED</arg>
+                        <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED</arg>
+                        <arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED</arg>
+                        <arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED</arg>
+                    </compilerArgs>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                        <path>
+                            <groupId>org.mapstruct</groupId>
+                            <artifactId>mapstruct-processor</artifactId>
+                            <version>${mapstruct.version}</version>
+                        </path>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok-mapstruct-binding</artifactId>
+                            <version>0.2.0</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <version>${spring-boot.version}</version>
+            </plugin>
+
+
+
+            <!-- jqassistant -->
+<!--            <plugin>-->
+<!--                <groupId>com.buschmais.jqassistant</groupId>-->
+<!--                <artifactId>jqassistant-maven-plugin</artifactId>-->
+<!--                <version>2.7.1</version>-->
+<!--                <executions>-->
+<!--                    <execution>-->
+<!--                        <goals>-->
+<!--                            <goal>scan</goal>-->
+<!--                            <goal>analyze</goal>-->
+<!--                        </goals>-->
+<!--                    </execution>-->
+<!--                </executions>-->
+<!--            </plugin>-->
+
+
+
+
+
+
+
+
+
+            <!-- Add these plugins for test separation -->
+            <!-- Enhanced Surefire Plugin for Unit Tests -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.1.2</version>
+                <configuration>
+                    <includes>
+                        <include>**/*Test.java</include>
+                        <include>**/*Tests.java</include>
+                    </includes>
+                    <excludes>
+                        <exclude>**/*IntegrationTest.java</exclude>
+                        <exclude>**/*ContractTest.java</exclude>
+                        <exclude>**/*PerformanceTest.java</exclude>
+                        <exclude>**/*E2ETest.java</exclude>
+                    </excludes>
+                    <systemPropertyVariables>
+                        <spring.profiles.active>test</spring.profiles.active>
+                    </systemPropertyVariables>
+                    <argLine>
+                        ${argLine}
+                        -Xmx2048m
+                        -XX:+HeapDumpOnOutOfMemoryError
+                    </argLine>
+                    <forkCount>1</forkCount>
+                    <reuseForks>true</reuseForks>
+                    <parallel>classes</parallel>
+                    <threadCount>4</threadCount>
+                </configuration>
+            </plugin>
+            
+            <!-- Enhanced Failsafe Plugin for Integration Tests -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <version>3.1.2</version>
+                <configuration>
+                    <includes>
+                        <include>**/*IntegrationTest.java</include>
+                        <include>**/*ContractTest.java</include>
+                        <include>**/*E2ETest.java</include>
+                    </includes>
+                    <systemPropertyVariables>
+                        <spring.profiles.active>test</spring.profiles.active>
+                    </systemPropertyVariables>
+                    <argLine>
+                        ${argLine}
+                        -Xmx4096m
+                        -XX:+HeapDumpOnOutOfMemoryError
+                    </argLine>
+                    <forkCount>1</forkCount>
+                    <reuseForks>false</reuseForks>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            
+            <!-- Performance Tests Execution -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.1.0</version>
+                <configuration>
+                    <mainClass>org.junit.platform.console.ConsoleLauncher</mainClass>
+                    <commandlineArgs>
+                        --include-classname=.*PerformanceTest
+                        --reports-dir=${project.build.directory}/performance-reports
+                    </commandlineArgs>
+                </configuration>
+            </plugin>
+
+            <!-- Enhanced JaCoCo Test Coverage -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.11</version>
+                <executions>
+                    <execution>
+                        <id>default-prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>default-report</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>default-check</id>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <rule>
+                                    <element>BUNDLE</element>
+                                    <limits>
+                                        <limit>
+                                            <counter>INSTRUCTION</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.80</minimum>
+                                        </limit>
+                                        <limit>
+                                            <counter>BRANCH</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.75</minimum>
+                                        </limit>
+                                        <limit>
+                                            <counter>CLASS</counter>
+                                            <value>MISSEDCOUNT</value>
+                                            <maximum>10</maximum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                                <rule>
+                                    <element>CLASS</element>
+                                    <limits>
+                                        <limit>
+                                            <counter>INSTRUCTION</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.70</minimum>
+                                        </limit>
+                                    </limits>
+                                    <excludes>
+                                        <exclude>*.config.*</exclude>
+                                        <exclude>*.dto.*</exclude>
+                                        <exclude>*.entity.*</exclude>
+                                        <exclude>*.domain.*</exclude>
+                                        <exclude>*Application</exclude>
+                                    </excludes>
+                                </rule>
+                            </rules>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>merge-results</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>merge</goal>
+                        </goals>
+                        <configuration>
+                            <fileSets>
+                                <fileSet>
+                                    <directory>${project.build.directory}</directory>
+                                    <includes>
+                                        <include>*.exec</include>
+                                    </includes>
+                                </fileSet>
+                            </fileSets>
+                            <destFile>${project.build.directory}/aggregate.exec</destFile>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>aggregate-report</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                        <configuration>
+                            <dataFile>${project.build.directory}/aggregate.exec</dataFile>
+                            <outputDirectory>${project.reporting.outputDirectory}/jacoco-aggregate</outputDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+                <configuration>
+                    <excludes>
+                        <exclude>**/*Application.*</exclude>
+                        <exclude>**/config/**/*</exclude>
+                        <exclude>**/dto/**/*</exclude>
+                        <exclude>**/entity/**/*</exclude>
+                        <exclude>**/domain/**/*</exclude>
+                        <exclude>**/test/**/*</exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+
+            <!-- SonarQube Analysis -->
+            <plugin>
+                <groupId>org.sonarsource.scanner.maven</groupId>
+                <artifactId>sonar-maven-plugin</artifactId>
+                <version>3.9.1.2184</version>
+            </plugin>
+
+            <!-- CRITICAL SECURITY FIX: OWASP Dependency Check Plugin -->
+            <plugin>
+                <groupId>org.owasp</groupId>
+                <artifactId>dependency-check-maven</artifactId>
+                <version>10.0.4</version>
+                <configuration>
+                    <!-- Fail build on HIGH or CRITICAL vulnerabilities -->
+                    <failBuildOnCVSS>7.0</failBuildOnCVSS>
+
+                    <!-- Skip test dependencies for faster scans -->
+                    <skipTestScope>true</skipTestScope>
+
+                    <!-- Disable auto-update to avoid NVD API issues during build -->
+                    <!-- To update vulnerability database, run: mvn dependency-check:update-only -->
+                    <autoUpdate>false</autoUpdate>
+
+                    <!-- Output formats -->
+                    <formats>
+                        <format>HTML</format>
+                        <format>JSON</format>
+                        <format>XML</format>
+                    </formats>
+
+                    <!-- Suppressions for false positives -->
+                    <suppressionFile>${project.basedir}/owasp-suppressions.xml</suppressionFile>
+
+                    <!-- Assembly analyzer settings -->
+                    <assemblyAnalyzerEnabled>false</assemblyAnalyzerEnabled>
+
+                    <!-- Archive analyzer settings -->
+                    <zipExtensions>war,jar</zipExtensions>
+
+                    <!-- Database settings -->
+                    <databaseDriverName>org.h2.Driver</databaseDriverName>
+                    <connectionString>jdbc:h2:file:${project.build.directory}/dependency-check/odc;DB_CLOSE_DELAY=-1;MODE=LEGACY</connectionString>
+
+                    <!-- NVD API 2.0 settings (new API) -->
+                    <nvdApiKey>${env.NVD_API_KEY}</nvdApiKey>
+                    <nvdDatafeedUrl>https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-%d.json.gz</nvdDatafeedUrl>
+
+                    <!-- Use cached data if download fails -->
+                    <failOnError>false</failOnError>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+        </plugins>
+    </build>
+
+
+    <profiles>
+        <!-- Unit Tests Only -->
+        <profile>
+            <id>unit-tests</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <properties>
+                <skip.integration.tests>true</skip.integration.tests>
+                <skip.unit.tests>false</skip.unit.tests>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <includes>
+                                <include>**/*Test.java</include>
+                            </includes>
+                            <excludes>
+                                <exclude>**/*IntegrationTest.java</exclude>
+                                <exclude>**/*ContractTest.java</exclude>
+                                <exclude>**/*PerformanceTest.java</exclude>
+                            </excludes>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        
+        <!-- Integration Tests -->
+        <profile>
+            <id>integration-tests</id>
+            <properties>
+                <skip.integration.tests>false</skip.integration.tests>
+                <skip.unit.tests>true</skip.unit.tests>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-failsafe-plugin</artifactId>
+                        <configuration>
+                            <includes>
+                                <include>**/*IntegrationTest.java</include>
+                            </includes>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <goals>
+                                    <goal>integration-test</goal>
+                                    <goal>verify</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        
+        <!-- Performance Tests -->
+        <profile>
+            <id>performance-tests</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-failsafe-plugin</artifactId>
+                        <configuration>
+                            <includes>
+                                <include>**/*PerformanceTest.java</include>
+                            </includes>
+                            <systemPropertyVariables>
+                                <performance.test.duration>300</performance.test.duration>
+                                <performance.test.threads>10</performance.test.threads>
+                            </systemPropertyVariables>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <goals>
+                                    <goal>integration-test</goal>
+                                    <goal>verify</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        
+        <!-- Contract Tests -->
+        <profile>
+            <id>contract-tests</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-failsafe-plugin</artifactId>
+                        <configuration>
+                            <includes>
+                                <include>**/*ContractTest.java</include>
+                            </includes>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <goals>
+                                    <goal>integration-test</goal>
+                                    <goal>verify</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        
+        <!-- All Tests -->
+        <profile>
+            <id>all-tests</id>
+            <properties>
+                <skip.integration.tests>false</skip.integration.tests>
+                <skip.unit.tests>false</skip.unit.tests>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <includes>
+                                <include>**/*Test.java</include>
+                                <include>**/*Tests.java</include>
+                            </includes>
+                        </configuration>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-failsafe-plugin</artifactId>
+                        <configuration>
+                            <includes>
+                                <include>**/*IntegrationTest.java</include>
+                                <include>**/*ContractTest.java</include>
+                                <include>**/*PerformanceTest.java</include>
+                            </includes>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <goals>
+                                    <goal>integration-test</goal>
+                                    <goal>verify</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        
+        <!-- Coverage Analysis -->
+        <profile>
+            <id>coverage</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.jacoco</groupId>
+                        <artifactId>jacoco-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>coverage-initialize</id>
+                                <goals>
+                                    <goal>prepare-agent</goal>
+                                </goals>
+                            </execution>
+                            <execution>
+                                <id>coverage-report</id>
+                                <phase>post-integration-test</phase>
+                                <goals>
+                                    <goal>report</goal>
+                                </goals>
+                            </execution>
+                            <execution>
+                                <id>coverage-check</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>check</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+
+</project>

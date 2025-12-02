@@ -1,0 +1,419 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: disaster-recovery-config
+  namespace: waqiti-system
+data:
+  recovery-procedures.yaml: |
+    recovery_scenarios:
+      # Database corruption/failure
+      database_recovery:
+        priority: critical
+        rto: "15m"  # Recovery Time Objective
+        rpo: "4h"   # Recovery Point Objective
+        steps:
+          - validate_backup_integrity
+          - provision_new_database
+          - restore_from_latest_backup
+          - verify_data_consistency
+          - update_service_endpoints
+          - run_health_checks
+      
+      # Complete data center failure
+      datacenter_failover:
+        priority: critical
+        rto: "30m"
+        rpo: "4h"
+        steps:
+          - activate_secondary_region
+          - restore_all_services
+          - redirect_traffic
+          - verify_service_health
+          - notify_stakeholders
+      
+      # Security breach - data protection
+      security_incident_recovery:
+        priority: critical
+        rto: "10m"
+        rpo: "1h"
+        steps:
+          - isolate_affected_systems
+          - assess_data_integrity
+          - restore_from_clean_backup
+          - reset_all_credentials
+          - enable_enhanced_monitoring
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: disaster-recovery-controller
+  namespace: waqiti-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: disaster-recovery-controller
+  template:
+    metadata:
+      labels:
+        app: disaster-recovery-controller
+    spec:
+      serviceAccountName: disaster-recovery-sa
+      containers:
+      - name: recovery-controller
+        image: waqiti/disaster-recovery-controller:latest
+        env:
+        - name: AWS_REGION
+          value: "us-east-1"
+        - name: BACKUP_BUCKET
+          value: "waqiti-backups"
+        - name: RECOVERY_BUCKET
+          value: "waqiti-disaster-recovery"
+        - name: NOTIFICATION_WEBHOOK
+          valueFrom:
+            secretKeyRef:
+              name: disaster-recovery-secrets
+              key: notification-webhook
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: aws-credentials
+              key: access-key-id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: aws-credentials
+              key: secret-access-key
+        ports:
+        - containerPort: 8080
+          name: http
+        - containerPort: 8090
+          name: metrics
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        volumeMounts:
+        - name: recovery-config
+          mountPath: /config
+        - name: recovery-scripts
+          mountPath: /scripts
+      volumes:
+      - name: recovery-config
+        configMap:
+          name: disaster-recovery-config
+      - name: recovery-scripts
+        configMap:
+          name: recovery-scripts
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: recovery-scripts
+  namespace: waqiti-system
+data:
+  database-recovery.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    
+    # Database Recovery Script
+    BACKUP_BUCKET="waqiti-backups"
+    TIMESTAMP=${1:-$(date +%Y%m%d_%H%M%S)}
+    DATABASE=${2:-"all"}
+    
+    echo "Starting database recovery for $DATABASE at $(date)"
+    
+    # Function to recover a single database
+    recover_database() {
+        local db_name=$1
+        local backup_file=$2
+        
+        echo "Recovering database: $db_name"
+        
+        # Download latest backup
+        aws s3 cp "s3://$BACKUP_BUCKET/postgresql/$db_name/$backup_file" /tmp/
+        
+        # Decrypt backup
+        DECRYPTED_FILE="/tmp/${backup_file%.enc}"
+        openssl enc -aes-256-cbc -d -in "/tmp/$backup_file" -out "$DECRYPTED_FILE" -k "$BACKUP_ENCRYPTION_KEY"
+        
+        # Drop existing database (if exists)
+        psql -h $POSTGRES_HOST -U $POSTGRES_USER -c "DROP DATABASE IF EXISTS $db_name;"
+        
+        # Restore database
+        pg_restore -h $POSTGRES_HOST -U $POSTGRES_USER -d postgres -C "$DECRYPTED_FILE"
+        
+        # Verify restoration
+        RECORD_COUNT=$(psql -h $POSTGRES_HOST -U $POSTGRES_USER -d $db_name -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" | xargs)
+        
+        if [ "$RECORD_COUNT" -gt 0 ]; then
+            echo "Database $db_name recovered successfully with $RECORD_COUNT tables"
+        else
+            echo "ERROR: Database $db_name recovery failed - no tables found"
+            exit 1
+        fi
+        
+        # Cleanup
+        rm -f "/tmp/$backup_file" "$DECRYPTED_FILE"
+    }
+    
+    # Get latest backups for each database
+    if [ "$DATABASE" = "all" ]; then
+        DATABASES=("waqiti_users" "waqiti_payments" "waqiti_transactions" "waqiti_notifications" "waqiti_audit")
+    else
+        DATABASES=("$DATABASE")
+    fi
+    
+    for db in "${DATABASES[@]}"; do
+        # Find latest backup file
+        LATEST_BACKUP=$(aws s3 ls "s3://$BACKUP_BUCKET/postgresql/$db/" | sort | tail -n 1 | awk '{print $4}')
+        
+        if [ -z "$LATEST_BACKUP" ]; then
+            echo "ERROR: No backup found for database $db"
+            exit 1
+        fi
+        
+        recover_database "$db" "$LATEST_BACKUP"
+    done
+    
+    echo "Database recovery completed successfully at $(date)"
+
+  redis-recovery.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    
+    # Redis Recovery Script
+    BACKUP_BUCKET="waqiti-backups"
+    
+    echo "Starting Redis recovery at $(date)"
+    
+    # Find latest Redis backup
+    LATEST_BACKUP=$(aws s3 ls "s3://$BACKUP_BUCKET/redis/" | sort | tail -n 1 | awk '{print $4}')
+    
+    if [ -z "$LATEST_BACKUP" ]; then
+        echo "ERROR: No Redis backup found"
+        exit 1
+    fi
+    
+    echo "Restoring Redis from backup: $LATEST_BACKUP"
+    
+    # Download backup
+    aws s3 cp "s3://$BACKUP_BUCKET/redis/$LATEST_BACKUP" /tmp/
+    
+    # Decompress backup
+    gunzip "/tmp/$LATEST_BACKUP"
+    RDB_FILE="/tmp/${LATEST_BACKUP%.gz}"
+    
+    # Stop Redis (if running)
+    redis-cli -h $REDIS_HOST -p $REDIS_PORT -a "$REDIS_PASSWORD" SHUTDOWN NOSAVE || true
+    
+    # Wait for Redis to stop
+    sleep 5
+    
+    # Copy RDB file to Redis data directory
+    kubectl cp "$RDB_FILE" redis-pod:/data/dump.rdb
+    
+    # Start Redis
+    kubectl rollout restart deployment/redis
+    
+    # Wait for Redis to be ready
+    kubectl wait --for=condition=Ready pod -l app=redis --timeout=60s
+    
+    # Verify recovery
+    KEYS_COUNT=$(redis-cli -h $REDIS_HOST -p $REDIS_PORT -a "$REDIS_PASSWORD" DBSIZE)
+    
+    if [ "$KEYS_COUNT" -gt 0 ]; then
+        echo "Redis recovered successfully with $KEYS_COUNT keys"
+    else
+        echo "WARNING: Redis recovery completed but no keys found"
+    fi
+    
+    # Cleanup
+    rm -f "/tmp/$LATEST_BACKUP" "$RDB_FILE"
+    
+    echo "Redis recovery completed at $(date)"
+
+  vault-recovery.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    
+    # Vault Recovery Script
+    BACKUP_BUCKET="waqiti-backups"
+    
+    echo "Starting Vault recovery at $(date)"
+    
+    # Find latest Vault backup
+    LATEST_BACKUP=$(aws s3 ls "s3://$BACKUP_BUCKET/vault/" | sort | tail -n 1 | awk '{print $4}')
+    
+    if [ -z "$LATEST_BACKUP" ]; then
+        echo "ERROR: No Vault backup found"
+        exit 1
+    fi
+    
+    echo "Restoring Vault from backup: $LATEST_BACKUP"
+    
+    # Download and decrypt backup
+    aws s3 cp "s3://$BACKUP_BUCKET/vault/$LATEST_BACKUP" /tmp/
+    DECRYPTED_FILE="/tmp/${LATEST_BACKUP%.enc}"
+    openssl enc -aes-256-cbc -d -in "/tmp/$LATEST_BACKUP" -out "$DECRYPTED_FILE" -k "$BACKUP_ENCRYPTION_KEY"
+    
+    # Extract backup
+    tar -xzf "$DECRYPTED_FILE" -C /tmp/
+    
+    # Initialize new Vault cluster
+    vault operator init -key-shares=5 -key-threshold=3 > /tmp/vault-keys.txt
+    
+    # Unseal Vault
+    UNSEAL_KEYS=$(grep "Unseal Key" /tmp/vault-keys.txt | head -3 | awk '{print $4}')
+    for key in $UNSEAL_KEYS; do
+        vault operator unseal "$key"
+    done
+    
+    # Get root token
+    ROOT_TOKEN=$(grep "Initial Root Token" /tmp/vault-keys.txt | awk '{print $4}')
+    export VAULT_TOKEN="$ROOT_TOKEN"
+    
+    # Restore from snapshot
+    vault operator raft snapshot restore /tmp/vault_snapshot_*.snap
+    
+    # Import secrets
+    vault kv import secret /tmp/vault_secrets_*.json
+    
+    # Verify recovery
+    SECRET_COUNT=$(vault kv list -format=json secret/ | jq '. | length')
+    
+    if [ "$SECRET_COUNT" -gt 0 ]; then
+        echo "Vault recovered successfully with $SECRET_COUNT secrets"
+    else
+        echo "WARNING: Vault recovery completed but no secrets found"
+    fi
+    
+    # Store new unseal keys securely
+    aws s3 cp /tmp/vault-keys.txt "s3://$BACKUP_BUCKET/vault/recovery-keys-$(date +%Y%m%d_%H%M%S).txt" \
+      --sse AES256
+    
+    # Cleanup
+    rm -f "/tmp/$LATEST_BACKUP" "$DECRYPTED_FILE" /tmp/vault_* /tmp/vault-keys.txt
+    
+    echo "Vault recovery completed at $(date)"
+
+  full-disaster-recovery.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    
+    # Full Disaster Recovery Script
+    echo "INITIATING FULL DISASTER RECOVERY at $(date)"
+    
+    # Send initial notification
+    curl -X POST "$NOTIFICATION_WEBHOOK" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "text": "🚨 DISASTER RECOVERY INITIATED - Full system recovery in progress",
+        "severity": "critical",
+        "timestamp": "'$(date -Iseconds)'"
+      }'
+    
+    # Recovery phase 1: Infrastructure
+    echo "Phase 1: Infrastructure Recovery"
+    kubectl apply -f /recovery-configs/infrastructure/
+    
+    # Recovery phase 2: Databases
+    echo "Phase 2: Database Recovery"
+    /scripts/database-recovery.sh all
+    /scripts/redis-recovery.sh
+    /scripts/vault-recovery.sh
+    
+    # Recovery phase 3: Services
+    echo "Phase 3: Service Recovery"
+    kubectl rollout restart deployment --all
+    kubectl wait --for=condition=Ready pod --all --timeout=300s
+    
+    # Recovery phase 4: Verification
+    echo "Phase 4: Recovery Verification"
+    
+    # Health check all services
+    FAILED_SERVICES=""
+    for service in user-service payment-service transaction-service security-service; do
+        if ! kubectl exec deployment/$service -- wget -qO- http://localhost:8080/actuator/health | grep -q "UP"; then
+            FAILED_SERVICES="$FAILED_SERVICES $service"
+        fi
+    done
+    
+    if [ -n "$FAILED_SERVICES" ]; then
+        echo "ERROR: Failed services detected: $FAILED_SERVICES"
+        
+        # Send failure notification
+        curl -X POST "$NOTIFICATION_WEBHOOK" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "text": "❌ DISASTER RECOVERY PARTIAL FAILURE - Services failed: '"$FAILED_SERVICES"'",
+            "severity": "critical",
+            "timestamp": "'$(date -Iseconds)'"
+          }'
+        exit 1
+    fi
+    
+    # Recovery phase 5: Data integrity verification
+    echo "Phase 5: Data Integrity Verification"
+    
+    # Verify critical data
+    USER_COUNT=$(kubectl exec deployment/user-service -- psql -h postgres -U $POSTGRES_USER -d waqiti_users -t -c "SELECT COUNT(*) FROM users;" | xargs)
+    PAYMENT_COUNT=$(kubectl exec deployment/payment-service -- psql -h postgres -U $POSTGRES_USER -d waqiti_payments -t -c "SELECT COUNT(*) FROM payments;" | xargs)
+    
+    echo "Verified data integrity: $USER_COUNT users, $PAYMENT_COUNT payments"
+    
+    # Recovery phase 6: Traffic restoration
+    echo "Phase 6: Traffic Restoration"
+    
+    # Update DNS to point to recovered services
+    # This would integrate with your DNS provider's API
+    
+    # Send success notification
+    curl -X POST "$NOTIFICATION_WEBHOOK" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "text": "✅ DISASTER RECOVERY COMPLETED SUCCESSFULLY - All systems operational",
+        "severity": "info",
+        "timestamp": "'$(date -Iseconds)'",
+        "details": {
+          "users_recovered": "'"$USER_COUNT"'",
+          "payments_recovered": "'"$PAYMENT_COUNT"'",
+          "recovery_duration": "'"$(($(date +%s) - $START_TIME))"'s"
+        }
+      }'
+    
+    echo "DISASTER RECOVERY COMPLETED SUCCESSFULLY at $(date)"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: disaster-recovery-controller
+  namespace: waqiti-system
+spec:
+  selector:
+    app: disaster-recovery-controller
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+  - name: metrics
+    port: 8090
+    targetPort: 8090

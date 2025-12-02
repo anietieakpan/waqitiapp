@@ -1,0 +1,132 @@
+{
+  "type": "record",
+  "name": "TransferInitiatedEvent",
+  "namespace": "com.waqiti.events.v1",
+  "doc": "Event published when a transfer is initiated",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "Unique event identifier (UUID)"
+    },
+    {
+      "name": "eventType",
+      "type": "string",
+      "default": "transfer-initiated",
+      "doc": "Type of event"
+    },
+    {
+      "name": "timestamp",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "Event timestamp in epoch milliseconds"
+    },
+    {
+      "name": "correlationId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Correlation ID for distributed tracing"
+    },
+    {
+      "name": "version",
+      "type": "string",
+      "default": "1.0",
+      "doc": "Schema version"
+    },
+    {
+      "name": "transferId",
+      "type": "string",
+      "doc": "Unique transfer identifier (UUID)"
+    },
+    {
+      "name": "transferType",
+      "type": {
+        "type": "enum",
+        "name": "TransferType",
+        "symbols": ["P2P", "BANK", "WIRE", "ACH", "INTERNATIONAL", "INTERNAL"]
+      },
+      "doc": "Type of transfer"
+    },
+    {
+      "name": "amount",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 19,
+        "scale": 4
+      },
+      "doc": "Transfer amount"
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "default": "USD",
+      "doc": "Currency code (ISO 4217)"
+    },
+    {
+      "name": "fromUserId",
+      "type": "string",
+      "doc": "Sender user ID (UUID)"
+    },
+    {
+      "name": "fromWalletId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Sender wallet ID (UUID)"
+    },
+    {
+      "name": "toUserId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Recipient user ID (UUID)"
+    },
+    {
+      "name": "toWalletId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Recipient wallet ID (UUID)"
+    },
+    {
+      "name": "toBankAccount",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Recipient bank account number"
+    },
+    {
+      "name": "description",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Transfer description"
+    },
+    {
+      "name": "status",
+      "type": {
+        "type": "enum",
+        "name": "TransferStatus",
+        "symbols": ["INITIATED", "PENDING", "PROCESSING", "COMPLETED", "FAILED", "CANCELLED"]
+      },
+      "default": "INITIATED",
+      "doc": "Transfer status"
+    },
+    {
+      "name": "expectedCompletionDate",
+      "type": ["null", {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      }],
+      "default": null,
+      "doc": "Expected completion timestamp"
+    },
+    {
+      "name": "metadata",
+      "type": ["null", {
+        "type": "map",
+        "values": "string"
+      }],
+      "default": null,
+      "doc": "Additional metadata"
+    }
+  ]
+}

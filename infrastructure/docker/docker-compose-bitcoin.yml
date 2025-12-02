@@ -1,0 +1,209 @@
+version: '3.8'
+
+services:
+  # Bitcoin Core Node - Required for Lightning Network
+  bitcoin-core:
+    image: ruimarinho/bitcoin-core:24-alpine
+    container_name: waqiti-bitcoin-core
+    restart: unless-stopped
+    networks:
+      - waqiti-network
+    ports:
+      - "8332:8332"  # JSON-RPC port
+      - "8333:8333"  # P2P port
+      - "28332:28332" # ZMQ block notifications
+      - "28333:28333" # ZMQ tx notifications
+    volumes:
+      - bitcoin-data:/home/bitcoin/.bitcoin
+      - ./bitcoin.conf:/home/bitcoin/.bitcoin/bitcoin.conf
+    environment:
+      BITCOIN_NETWORK: ${BITCOIN_NETWORK:-testnet}  # Use testnet for development
+      BITCOIN_RPC_USER: ${BITCOIN_RPC_USER:-waqiti}
+      BITCOIN_RPC_PASSWORD: ${BITCOIN_RPC_PASSWORD}
+      BITCOIN_RPC_AUTH: ${BITCOIN_RPC_AUTH}
+      BITCOIN_ZMQ_ENABLED: "true"
+      BITCOIN_ZMQ_PUBRAWBLOCK: "tcp://0.0.0.0:28332"
+      BITCOIN_ZMQ_PUBRAWTX: "tcp://0.0.0.0:28333"
+      BITCOIN_ZMQ_PUBHASHBLOCK: "tcp://0.0.0.0:28334"
+      BITCOIN_TXINDEX: "1"  # Required for Lightning
+      BITCOIN_PRUNE: "0"     # Don't prune for Lightning
+    command: |
+      bitcoind
+        -server=1
+        -rest=1
+        -rpcallowip=0.0.0.0/0
+        -rpcbind=0.0.0.0
+        -zmqpubrawblock=tcp://0.0.0.0:28332
+        -zmqpubrawtx=tcp://0.0.0.0:28333
+        -txindex=1
+        -${BITCOIN_NETWORK:-testnet}
+    healthcheck:
+      test: ["CMD", "bitcoin-cli", "-rpcuser=${BITCOIN_RPC_USER:-waqiti}", "-rpcpassword=${BITCOIN_RPC_PASSWORD}", "getblockchaininfo"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Lightning Network Daemon (LND)
+  lnd:
+    image: lightninglabs/lnd:v0.17.0-beta
+    container_name: waqiti-lnd
+    restart: unless-stopped
+    depends_on:
+      bitcoin-core:
+        condition: service_healthy
+    networks:
+      - waqiti-network
+    ports:
+      - "9735:9735"   # Lightning P2P port
+      - "10009:10009" # gRPC port
+      - "8080:8080"   # REST API port
+      - "9092:9092"   # Prometheus metrics
+    volumes:
+      - lnd-data:/root/.lnd
+      - ./lnd.conf:/root/.lnd/lnd.conf
+      - shared-data:/shared
+    environment:
+      LND_CHAIN: bitcoin
+      LND_BACKEND: bitcoind
+      LND_NETWORK: ${BITCOIN_NETWORK:-testnet}
+      LND_BITCOIN_NODE: bitcoind
+      LND_BITCOIND_HOST: bitcoin-core
+      LND_BITCOIND_RPCUSER: ${BITCOIN_RPC_USER:-waqiti}
+      LND_BITCOIND_RPCPASS: ${BITCOIN_RPC_PASSWORD}
+      LND_BITCOIND_ZMQPUBRAWBLOCK: "tcp://bitcoin-core:28332"
+      LND_BITCOIND_ZMQPUBRAWTX: "tcp://bitcoin-core:28333"
+      LND_EXTERNALIP: ${LND_EXTERNAL_IP}
+      LND_ALIAS: "Waqiti-Lightning"
+      LND_COLOR: "#3399FF"
+      LND_ACCEPT_KEYSEND: "true"
+      LND_ACCEPT_AMP: "true"
+      LND_PROTOCOL_WUMBO_CHANNELS: "true"
+    command: |
+      lnd
+        --bitcoin.active
+        --bitcoin.${BITCOIN_NETWORK:-testnet}
+        --bitcoin.node=bitcoind
+        --bitcoind.rpchost=bitcoin-core:8332
+        --bitcoind.rpcuser=${BITCOIN_RPC_USER:-waqiti}
+        --bitcoind.rpcpass=${BITCOIN_RPC_PASSWORD}
+        --bitcoind.zmqpubrawblock=tcp://bitcoin-core:28332
+        --bitcoind.zmqpubrawtx=tcp://bitcoin-core:28333
+        --restlisten=0.0.0.0:8080
+        --rpclisten=0.0.0.0:10009
+        --prometheus.enable
+        --prometheus.listen=0.0.0.0:9092
+    healthcheck:
+      test: ["CMD", "lncli", "--network=${BITCOIN_NETWORK:-testnet}", "getinfo"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Lightning Terminal (Optional - provides nice UI)
+  lightning-terminal:
+    image: lightninglabs/lightning-terminal:v0.12.0-alpha
+    container_name: waqiti-lightning-terminal
+    restart: unless-stopped
+    depends_on:
+      - lnd
+    networks:
+      - waqiti-network
+    ports:
+      - "8443:8443"  # Web UI port
+    volumes:
+      - lnd-data:/root/.lnd
+      - lit-data:/root/.lit
+    environment:
+      LIT_NETWORK: ${BITCOIN_NETWORK:-testnet}
+      LIT_LND_MODE: remote
+      LIT_LND_REMOTE_HOST: lnd:10009
+      LIT_UI_PASSWORD: ${LIT_UI_PASSWORD}
+
+  # BTCPay Server (Optional - for merchant services)
+  btcpay:
+    image: btcpayserver/btcpayserver:1.11.7
+    container_name: waqiti-btcpay
+    restart: unless-stopped
+    depends_on:
+      - bitcoin-core
+      - lnd
+    networks:
+      - waqiti-network
+    ports:
+      - "3003:3003"
+    volumes:
+      - btcpay-data:/datadir
+      - lnd-data:/root/.lnd:ro
+    environment:
+      BTCPAY_NETWORK: ${BITCOIN_NETWORK:-testnet}
+      BTCPAY_BIND: 0.0.0.0:3003
+      BTCPAY_ROOTPATH: /
+      BTCPAY_DEBUGLOG: btcpay.log
+      BTCPAY_CHAINS: btc
+      BTCPAY_BTCEXPLORERURL: http://bitcoin-core:8332/
+      BTCPAY_BTCLIGHTNING: type=lnd-rest;server=https://lnd:8080/;macaroonfilepath=/root/.lnd/data/chain/bitcoin/${BITCOIN_NETWORK:-testnet}/admin.macaroon;certfilepath=/root/.lnd/tls.cert
+
+  # Electrum Server (Optional - for wallet connectivity)
+  electrs:
+    image: getumbrel/electrs:v0.10.2
+    container_name: waqiti-electrs
+    restart: unless-stopped
+    depends_on:
+      - bitcoin-core
+    networks:
+      - waqiti-network
+    ports:
+      - "50001:50001"  # Electrum protocol port
+    volumes:
+      - bitcoin-data:/data/.bitcoin:ro
+      - electrs-data:/data
+    environment:
+      ELECTRS_NETWORK: ${BITCOIN_NETWORK:-testnet}
+      ELECTRS_DAEMON_RPC_ADDR: bitcoin-core:8332
+      ELECTRS_DAEMON_P2P_ADDR: bitcoin-core:8333
+      ELECTRS_ELECTRUM_RPC_ADDR: 0.0.0.0:50001
+      ELECTRS_DB_DIR: /data/db
+      ELECTRS_MONITORING_ADDR: 0.0.0.0:4224
+
+  # RTL - Ride The Lightning Web UI (Optional - for management)
+  rtl:
+    image: shahanafarooqui/rtl:0.14.1
+    container_name: waqiti-rtl
+    restart: unless-stopped
+    depends_on:
+      - lnd
+    networks:
+      - waqiti-network
+    ports:
+      - "3000:3000"
+    volumes:
+      - lnd-data:/root/.lnd:ro
+      - rtl-data:/database
+    environment:
+      LN_IMPLEMENTATION: LND
+      LN_SERVER_URL: https://lnd:8080
+      CONFIG_PATH: /root/.lnd
+      MACAROON_PATH: /root/.lnd/data/chain/bitcoin/${BITCOIN_NETWORK:-testnet}
+      RTL_CONFIG_PATH: /database
+      RTL_SSO: 0
+      RTL_COOKIE_PATH: /database/.cookie
+      RTL_PASSWORD: ${RTL_PASSWORD}
+
+networks:
+  waqiti-network:
+    external: true
+
+volumes:
+  bitcoin-data:
+    driver: local
+  lnd-data:
+    driver: local
+  lit-data:
+    driver: local
+  btcpay-data:
+    driver: local
+  electrs-data:
+    driver: local
+  rtl-data:
+    driver: local
+  shared-data:
+    driver: local

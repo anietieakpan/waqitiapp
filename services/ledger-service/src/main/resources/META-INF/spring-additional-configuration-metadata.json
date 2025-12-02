@@ -1,0 +1,331 @@
+{
+  "properties": [
+    {
+      "name": "keycloak.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Keycloak authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "keycloak.realm",
+      "type": "java.lang.String",
+      "description": "Keycloak realm name",
+      "defaultValue": "waqiti"
+    },
+    {
+      "name": "keycloak.auth-server-url",
+      "type": "java.lang.String",
+      "description": "Keycloak authentication server URL",
+      "defaultValue": "https://localhost:8080"
+    },
+    {
+      "name": "keycloak.ssl-required",
+      "type": "java.lang.String",
+      "description": "SSL requirement level for Keycloak",
+      "defaultValue": "external"
+    },
+    {
+      "name": "keycloak.resource",
+      "type": "java.lang.String",
+      "description": "Keycloak resource/client ID",
+      "defaultValue": "ledger-service"
+    },
+    {
+      "name": "keycloak.bearer-only",
+      "type": "java.lang.Boolean",
+      "description": "Configure Keycloak as bearer-only client",
+      "defaultValue": true
+    },
+    {
+      "name": "keycloak.use-resource-role-mappings",
+      "type": "java.lang.Boolean",
+      "description": "Use resource-level role mappings in Keycloak",
+      "defaultValue": true
+    },
+    {
+      "name": "keycloak.cors",
+      "type": "java.lang.Boolean",
+      "description": "Enable CORS for Keycloak",
+      "defaultValue": true
+    },
+    {
+      "name": "keycloak.cors-allowed-methods",
+      "type": "java.lang.String",
+      "description": "Allowed HTTP methods for CORS",
+      "defaultValue": "GET,POST,PUT,DELETE,OPTIONS"
+    },
+    {
+      "name": "keycloak.cors-allowed-headers",
+      "type": "java.lang.String",
+      "description": "Allowed headers for CORS",
+      "defaultValue": "Authorization,Content-Type,X-Requested-With"
+    },
+    {
+      "name": "keycloak.cors-max-age",
+      "type": "java.lang.Integer",
+      "description": "Max age for CORS preflight requests",
+      "defaultValue": 3600
+    },
+    {
+      "name": "keycloak.public-client",
+      "type": "java.lang.Boolean",
+      "description": "Configure Keycloak as public client",
+      "defaultValue": false
+    },
+    {
+      "name": "keycloak.credentials.secret",
+      "type": "java.lang.String",
+      "description": "Keycloak client secret"
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "Service authentication client ID",
+      "defaultValue": "ledger-service"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "Service authentication client secret"
+    },
+    {
+      "name": "ledger.accounting.currency.default",
+      "type": "java.lang.String",
+      "description": "Default currency for accounting operations",
+      "defaultValue": "USD"
+    },
+    {
+      "name": "ledger.accounting.currency.supported",
+      "type": "java.lang.String",
+      "description": "Supported currencies for accounting operations",
+      "defaultValue": "USD,EUR,GBP,JPY,CAD,AUD"
+    },
+    {
+      "name": "ledger.accounting.precision",
+      "type": "java.lang.Integer",
+      "description": "Decimal precision for accounting calculations",
+      "defaultValue": 4
+    },
+    {
+      "name": "ledger.accounting.rounding-mode",
+      "type": "java.math.RoundingMode",
+      "description": "Rounding mode for accounting calculations",
+      "defaultValue": "HALF_UP"
+    },
+    {
+      "name": "ledger.journal-entry.auto-reference",
+      "type": "java.lang.Boolean",
+      "description": "Enable automatic reference generation for journal entries",
+      "defaultValue": true
+    },
+    {
+      "name": "ledger.journal-entry.reference-prefix",
+      "type": "java.lang.String",
+      "description": "Prefix for journal entry references",
+      "defaultValue": "JE"
+    },
+    {
+      "name": "ledger.journal-entry.require-attachments",
+      "type": "java.lang.Boolean",
+      "description": "Require attachments for journal entries",
+      "defaultValue": false
+    },
+    {
+      "name": "ledger.journal-entry.max-entries-per-journal",
+      "type": "java.lang.Integer",
+      "description": "Maximum number of entries per journal",
+      "defaultValue": 1000
+    },
+    {
+      "name": "ledger.validation.enforce-balance",
+      "type": "java.lang.Boolean",
+      "description": "Enforce balance validation for journal entries",
+      "defaultValue": true
+    },
+    {
+      "name": "ledger.validation.allow-negative-balances",
+      "type": "java.lang.Boolean",
+      "description": "Allow negative account balances",
+      "defaultValue": false
+    },
+    {
+      "name": "ledger.validation.require-approval-above",
+      "type": "java.math.BigDecimal",
+      "description": "Amount threshold requiring approval",
+      "defaultValue": 100000
+    },
+    {
+      "name": "ledger.period-end.auto-close",
+      "type": "java.lang.Boolean",
+      "description": "Enable automatic period-end closing",
+      "defaultValue": false
+    },
+    {
+      "name": "ledger.period-end.close-after-days",
+      "type": "java.lang.Integer",
+      "description": "Days after which to auto-close periods",
+      "defaultValue": 35
+    },
+    {
+      "name": "ledger.period-end.require-reconciliation",
+      "type": "java.lang.Boolean",
+      "description": "Require reconciliation before period close",
+      "defaultValue": true
+    },
+    {
+      "name": "ledger.period-end.backup-before-close",
+      "type": "java.lang.Boolean",
+      "description": "Create backup before period close",
+      "defaultValue": true
+    },
+    {
+      "name": "ledger.chart-of-accounts.account-code-length",
+      "type": "java.lang.Integer",
+      "description": "Length of account codes in chart of accounts",
+      "defaultValue": 10
+    },
+    {
+      "name": "ledger.chart-of-accounts.enforce-hierarchy",
+      "type": "java.lang.Boolean",
+      "description": "Enforce hierarchical account structure",
+      "defaultValue": true
+    },
+    {
+      "name": "ledger.chart-of-accounts.max-depth",
+      "type": "java.lang.Integer",
+      "description": "Maximum depth of account hierarchy",
+      "defaultValue": 5
+    },
+    {
+      "name": "ledger.reconciliation.auto-match-threshold",
+      "type": "java.math.BigDecimal",
+      "description": "Threshold for automatic matching in reconciliation",
+      "defaultValue": 0.99
+    },
+    {
+      "name": "ledger.reconciliation.tolerance-amount",
+      "type": "java.math.BigDecimal",
+      "description": "Tolerance amount for reconciliation matching",
+      "defaultValue": 0.01
+    },
+    {
+      "name": "ledger.reconciliation.max-age-days",
+      "type": "java.lang.Integer",
+      "description": "Maximum age of transactions for reconciliation",
+      "defaultValue": 90
+    },
+    {
+      "name": "ledger.reports.cache-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable caching for financial reports",
+      "defaultValue": true
+    },
+    {
+      "name": "ledger.reports.cache-ttl",
+      "type": "java.lang.Integer",
+      "description": "Cache TTL for reports in seconds",
+      "defaultValue": 3600
+    },
+    {
+      "name": "ledger.reports.max-export-rows",
+      "type": "java.lang.Integer",
+      "description": "Maximum rows allowed in report exports",
+      "defaultValue": 100000
+    },
+    {
+      "name": "ledger.audit.log-all-changes",
+      "type": "java.lang.Boolean",
+      "description": "Log all changes for audit purposes",
+      "defaultValue": true
+    },
+    {
+      "name": "ledger.audit.retention-days",
+      "type": "java.lang.Integer",
+      "description": "Audit log retention period in days",
+      "defaultValue": 2555
+    },
+    {
+      "name": "ledger.integration.transaction-service.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable integration with transaction service",
+      "defaultValue": true
+    },
+    {
+      "name": "ledger.integration.transaction-service.auto-post",
+      "type": "java.lang.Boolean",
+      "description": "Enable automatic posting from transaction service",
+      "defaultValue": true
+    },
+    {
+      "name": "ledger.integration.transaction-service.batch-interval",
+      "type": "java.time.Duration",
+      "description": "Batch interval for transaction service integration",
+      "defaultValue": "60s"
+    },
+    {
+      "name": "ledger.integration.payment-service.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable integration with payment service",
+      "defaultValue": true
+    },
+    {
+      "name": "ledger.integration.payment-service.auto-reconcile",
+      "type": "java.lang.Boolean",
+      "description": "Enable automatic reconciliation with payment service",
+      "defaultValue": true
+    },
+    {
+      "name": "services.audit-service.url",
+      "type": "java.lang.String",
+      "description": "URL for audit service",
+      "defaultValue": "http://localhost:8090"
+    },
+    {
+      "name": "services.audit-service.timeout",
+      "type": "java.time.Duration",
+      "description": "Timeout for audit service calls",
+      "defaultValue": "30s"
+    },
+    {
+      "name": "services.transaction-service.url",
+      "type": "java.lang.String",
+      "description": "URL for transaction service",
+      "defaultValue": "http://localhost:8087"
+    },
+    {
+      "name": "services.transaction-service.timeout",
+      "type": "java.time.Duration",
+      "description": "Timeout for transaction service calls",
+      "defaultValue": "30s"
+    },
+    {
+      "name": "services.payment-service.url",
+      "type": "java.lang.String",
+      "description": "URL for payment service",
+      "defaultValue": "http://localhost:8083"
+    },
+    {
+      "name": "services.payment-service.timeout",
+      "type": "java.time.Duration",
+      "description": "Timeout for payment service calls",
+      "defaultValue": "30s"
+    },
+    {
+      "name": "security.jwt.secret",
+      "type": "java.lang.String",
+      "description": "JWT secret for security"
+    },
+    {
+      "name": "security.jwt.expiration",
+      "type": "java.lang.Long",
+      "description": "JWT token expiration time in milliseconds",
+      "defaultValue": 86400000
+    }
+  ]
+}

@@ -1,0 +1,453 @@
+# Kafka DLQ Topics Configuration for Waqiti Banking Platform
+#
+# This file defines all Dead Letter Queue (DLQ) topics for critical consumers
+# DLQ topics capture failed messages for manual review and retry
+#
+# Related to: P1-1 (Kafka DLQ for Critical Consumers)
+
+---
+# DLQ Topic Configuration Template
+# Each main topic gets a corresponding .dlq topic
+# Retention: 7 days (168 hours)
+# Partitions: Same as main topic for parallel processing
+# Replication: 3 for high availability
+
+topics:
+  # Payment Service DLQ Topics
+  - name: payment-created.dlq
+    partitions: 12
+    replication_factor: 3
+    config:
+      retention.ms: 604800000  # 7 days
+      cleanup.policy: delete
+      compression.type: snappy
+      min.insync.replicas: 2
+      max.message.bytes: 1048576  # 1MB
+
+  - name: payment-completed.dlq
+    partitions: 12
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+      compression.type: snappy
+      min.insync.replicas: 2
+
+  - name: payment-failed.dlq
+    partitions: 8
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+      compression.type: snappy
+
+  - name: payment-refunded.dlq
+    partitions: 6
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+      compression.type: snappy
+
+  # Wallet Service DLQ Topics
+  - name: wallet-balance-updated.dlq
+    partitions: 10
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+      compression.type: snappy
+      min.insync.replicas: 2
+
+  - name: wallet-transaction-created.dlq
+    partitions: 12
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+      compression.type: snappy
+      min.insync.replicas: 2
+
+  - name: wallet-frozen.dlq
+    partitions: 4
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+
+  - name: wallet-unfrozen.dlq
+    partitions: 4
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+
+  # Transaction Service DLQ Topics
+  - name: transaction-created.dlq
+    partitions: 12
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+      compression.type: snappy
+      min.insync.replicas: 2
+
+  - name: transaction-settled.dlq
+    partitions: 12
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+      compression.type: snappy
+      min.insync.replicas: 2
+
+  - name: transaction-disputed.dlq
+    partitions: 6
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+
+  # Settlement Service DLQ Topics
+  - name: settlement-initiated.dlq
+    partitions: 8
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+      compression.type: snappy
+      min.insync.replicas: 2
+
+  - name: settlement-completed.dlq
+    partitions: 8
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+      compression.type: snappy
+      min.insync.replicas: 2
+
+  - name: settlement-failed.dlq
+    partitions: 6
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+
+  # Ledger Service DLQ Topics
+  - name: ledger-entry-created.dlq
+    partitions: 12
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+      compression.type: snappy
+      min.insync.replicas: 2
+
+  - name: ledger-balance-updated.dlq
+    partitions: 10
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+      compression.type: snappy
+      min.insync.replicas: 2
+
+  # Compliance Service DLQ Topics
+  - name: aml-check-requested.dlq
+    partitions: 6
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+      compression.type: snappy
+      min.insync.replicas: 2
+
+  - name: ctr-filing-required.dlq
+    partitions: 4
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+
+  - name: suspicious-activity-detected.dlq
+    partitions: 6
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+      min.insync.replicas: 2
+
+  - name: kyb-verification-completed.dlq
+    partitions: 4
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+
+  # Fraud Detection DLQ Topics
+  - name: fraud-check-requested.dlq
+    partitions: 10
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+      compression.type: snappy
+      min.insync.replicas: 2
+
+  - name: fraud-alert-triggered.dlq
+    partitions: 6
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+      min.insync.replicas: 2
+
+  # ML Service DLQ Topics
+  - name: ml-prediction-requested.dlq
+    partitions: 8
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+      compression.type: snappy
+
+  - name: ml-model-updated.dlq
+    partitions: 4
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+
+  # Notification Service DLQ Topics
+  - name: notification-send-requested.dlq
+    partitions: 12
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+      compression.type: snappy
+      min.insync.replicas: 2
+
+  - name: notification-delivered.dlq
+    partitions: 10
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+
+  - name: notification-failed.dlq
+    partitions: 8
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+
+  # KYC Service DLQ Topics
+  - name: kyc-verification-initiated.dlq
+    partitions: 6
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+      compression.type: snappy
+
+  - name: kyc-verification-completed.dlq
+    partitions: 6
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+      min.insync.replicas: 2
+
+  - name: kyc-document-uploaded.dlq
+    partitions: 6
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+
+  # Audit Service DLQ Topics
+  - name: audit-event-created.dlq
+    partitions: 12
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+      compression.type: snappy
+      min.insync.replicas: 2
+
+  - name: audit-alert-triggered.dlq
+    partitions: 6
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+      min.insync.replicas: 2
+
+  # Reconciliation Service DLQ Topics
+  - name: reconciliation-initiated.dlq
+    partitions: 6
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+      compression.type: snappy
+
+  - name: reconciliation-completed.dlq
+    partitions: 6
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+
+  - name: reconciliation-discrepancy-found.dlq
+    partitions: 4
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+      min.insync.replicas: 2
+
+  # Reporting Service DLQ Topics
+  - name: report-generation-requested.dlq
+    partitions: 6
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+      compression.type: snappy
+
+  - name: report-generated.dlq
+    partitions: 6
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+
+  # Virtual Card Service DLQ Topics
+  - name: virtual-card-created.dlq
+    partitions: 6
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+      compression.type: snappy
+
+  - name: virtual-card-transaction.dlq
+    partitions: 10
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+      compression.type: snappy
+      min.insync.replicas: 2
+
+  # International Transfer DLQ Topics
+  - name: international-transfer-initiated.dlq
+    partitions: 8
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+      compression.type: snappy
+      min.insync.replicas: 2
+
+  - name: international-transfer-completed.dlq
+    partitions: 8
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+      min.insync.replicas: 2
+
+  # Investment Service DLQ Topics
+  - name: investment-order-created.dlq
+    partitions: 6
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+      compression.type: snappy
+
+  - name: investment-order-executed.dlq
+    partitions: 6
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+      min.insync.replicas: 2
+
+  # Rewards Service DLQ Topics
+  - name: rewards-earned.dlq
+    partitions: 8
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+      compression.type: snappy
+
+  - name: rewards-redeemed.dlq
+    partitions: 6
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+
+  # Crypto Service DLQ Topics
+  - name: crypto-transaction-initiated.dlq
+    partitions: 8
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+      compression.type: snappy
+      min.insync.replicas: 2
+
+  - name: crypto-transaction-confirmed.dlq
+    partitions: 8
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+      min.insync.replicas: 2
+
+  # BNPL Service DLQ Topics
+  - name: bnpl-application-submitted.dlq
+    partitions: 6
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+      compression.type: snappy
+
+  - name: bnpl-installment-due.dlq
+    partitions: 8
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+      min.insync.replicas: 2
+
+  - name: bnpl-payment-received.dlq
+    partitions: 8
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+
+  # Webhook Service DLQ Topics
+  - name: webhook-delivery-requested.dlq
+    partitions: 10
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete
+      compression.type: snappy
+
+  - name: webhook-delivery-failed.dlq
+    partitions: 8
+    replication_factor: 3
+    config:
+      retention.ms: 604800000
+      cleanup.policy: delete

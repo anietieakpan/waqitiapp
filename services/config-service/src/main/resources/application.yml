@@ -1,0 +1,247 @@
+spring:
+  application:
+    name: config-service
+  profiles:
+    active: native, vault
+  cloud:
+    config:
+      server:
+        native:
+          searchLocations:
+            - classpath:/config
+            - file:./config
+            - file:${CONFIG_REPO_PATH:./config-repo}
+        vault:
+          host: ${VAULT_HOST:localhost}
+          port: ${VAULT_PORT:8200}
+          scheme: ${VAULT_SCHEME:https}
+          authentication: TOKEN
+          token: ${VAULT_TOKEN}
+          kv-version: 2
+          profile-separator: '/'
+          default-context: waqiti-fintech
+          backend: secret
+        encrypt:
+          enabled: true
+        git:
+          uri: ${CONFIG_GIT_URI:https://github.com/waqiti/config-repo}
+          username: ${GIT_USERNAME:}
+          password: ${GIT_PASSWORD:}
+          clone-on-start: true
+          default-label: main
+          search-paths:
+            - '{application}'
+            - '{application}/{profile}'
+          force-pull: true
+          refresh-rate: 60
+  security:
+    oauth2:
+          resourceserver:
+            jwt:
+              issuer-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti
+              jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/certs
+          client:
+            registration:
+              keycloak:
+                client-id: config-service
+                client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+                authorization-grant-type: client_credentials
+                scope: openid,profile,email,config
+            provider:
+              keycloak:
+                issuer-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti
+                token-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/token
+                authorization-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/auth
+                userinfo-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/userinfo
+                jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/certs
+
+server:
+  port: ${CONFIG_SERVICE_PORT:8888}
+  ssl:
+    enabled: ${SSL_ENABLED:false}
+    key-store: ${SSL_KEYSTORE_PATH:classpath:ssl/waqiti-keystore.p12}
+    key-store-password: ${SSL_KEYSTORE_PASSWORD:}
+    key-store-type: PKCS12
+    key-alias: config-service
+    trust-store: ${SSL_TRUSTSTORE_PATH:classpath:ssl/waqiti-truststore.p12}
+    trust-store-password: ${SSL_TRUSTSTORE_PASSWORD:}
+    trust-store-type: PKCS12
+    client-auth: want
+    protocol: TLS
+    enabled-protocols: TLSv1.3,TLSv1.2
+  http2:
+    enabled: true
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:https://eureka-server:8761/eureka/}
+  instance:
+    prefer-ip-address: true
+    secure-port-enabled: true
+    secure-port: 8888
+    non-secure-port-enabled: false
+    secure-virtual-host-name: config-service
+    status-page-url: https://${eureka.instance.hostname}:${server.port}/actuator/info
+    health-check-url: https://${eureka.instance.hostname}:${server.port}/actuator/health
+    metadata-map:
+      startup: ${random.int}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,refresh,bus-refresh
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+    metrics:
+      enabled: true
+    prometheus:
+      enabled: true
+  health:
+    vault:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+        step: 1m
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+        config.read.duration: true
+        config.write.duration: true
+        config.encryption.duration: true
+        config.decryption.duration: true
+        config.batch.decryption.duration: true
+      slo:
+        http.server.requests: 100ms,200ms,500ms,1s,2s
+        config.read.duration: 50ms,100ms,200ms
+        config.write.duration: 100ms,200ms,500ms
+    tags:
+      application: ${spring.application.name}
+      environment: ${spring.profiles.active:default}
+
+logging:
+  level:
+    org.springframework.cloud.config: INFO
+    org.springframework.vault: INFO
+    com.waqiti.config: DEBUG
+
+encrypt:
+  key: ${ENCRYPT_KEY}
+  
+# Legacy Config Server Authentication (for backward compatibility)
+config:
+  server:
+    username: ${CONFIG_SERVER_USERNAME:${VAULT_CONFIG_USERNAME}}
+    password: ${CONFIG_SERVER_PASSWORD:${VAULT_CONFIG_PASSWORD}}
+
+vault:
+  host: ${VAULT_HOST:localhost}
+  port: ${VAULT_PORT:8200}
+  scheme: ${VAULT_SCHEME:https}
+  token: ${VAULT_TOKEN:}
+
+# Keycloak Configuration - CRITICAL SECURITY IMPLEMENTATION
+keycloak:
+  enabled: true
+  realm: waqiti-fintech
+  auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}
+  ssl-required: external
+  resource: config-service
+  bearer-only: true
+  use-resource-role-mappings: true
+  cors: true
+  cors-allowed-origins: ${CORS_ALLOWED_ORIGINS:https://localhost:3000,https://localhost:3001,https://admin.waqiti.local}
+  cors-allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+  cors-allowed-headers: Authorization,Content-Type,X-Requested-With,X-CSRF-TOKEN
+  cors-max-age: 3600
+  cors-allow-credentials: true
+  public-client: false
+  credentials:
+    secret: ${KEYCLOAK_CLIENT_SECRET:}
+
+# Spring Security OAuth2 Configuration
+
+# Service-to-Service Authentication
+service:
+  auth:
+    enabled: true
+    client-id: config-service
+    client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+
+# Resilience4j Configuration - Circuit Breakers, Retry, Rate Limiting
+resilience4j:
+  circuitbreaker:
+    instances:
+      vaultService:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 10s
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10
+        recordExceptions:
+          - org.springframework.vault.VaultException
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+      notificationService:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        waitDurationInOpenState: 5s
+        failureRateThreshold: 60
+        eventConsumerBufferSize: 10
+      externalServices:
+        registerHealthIndicator: true
+        slidingWindowSize: 20
+        minimumNumberOfCalls: 10
+        permittedNumberOfCallsInHalfOpenState: 5
+        waitDurationInOpenState: 15s
+        failureRateThreshold: 50
+  retry:
+    instances:
+      vaultService:
+        maxAttempts: 3
+        waitDuration: 1s
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - org.springframework.vault.VaultException
+          - java.io.IOException
+      notificationService:
+        maxAttempts: 2
+        waitDuration: 500ms
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 1.5
+      databaseService:
+        maxAttempts: 3
+        waitDuration: 500ms
+        retryExceptions:
+          - org.springframework.dao.TransientDataAccessException
+          - org.springframework.dao.RecoverableDataAccessException
+  ratelimiter:
+    instances:
+      configApi:
+        registerHealthIndicator: true
+        limitForPeriod: 100
+        limitRefreshPeriod: 1s
+        timeoutDuration: 0
+      adminApi:
+        registerHealthIndicator: true
+        limitForPeriod: 50
+        limitRefreshPeriod: 1s
+        timeoutDuration: 0
+      refreshApi:
+        registerHealthIndicator: true
+        limitForPeriod: 10
+        limitRefreshPeriod: 1m
+        timeoutDuration: 0

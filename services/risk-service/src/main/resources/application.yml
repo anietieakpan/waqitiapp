@@ -1,0 +1,196 @@
+spring:
+  application:
+    name: risk-service
+
+  # MongoDB Configuration
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/waqiti-risk}
+      auto-index-creation: true
+
+  # Redis Configuration
+  redis:
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD:}
+    timeout: 2000ms
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
+
+  # Kafka Configuration
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}}
+    consumer:
+      group-id: ${KAFKA_CONSUMER_GROUP_ID:risk-service-group}
+      enable-auto-commit: false  # Manual acknowledgment for DLQ support
+      max-poll-records: 50  # Batch size control
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+
+    listener:
+      ack-mode: record  # Acknowledge each record individually for better error handling
+      missing-topics-fatal: false  # Don't fail on missing topics
+      type: batch  # Support batch processing
+      concurrency: 3  # Number of concurrent consumer threads
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+
+  # Cache Configuration
+  cache:
+    type: redis
+    redis:
+      time-to-live: 300000 # 5 minutes
+      cache-null-values: false
+
+# Server Configuration
+server:
+  port: ${SERVER_PORT:8090}
+  compression:
+    enabled: true
+  http2:
+    enabled: true
+
+# Eureka Client Configuration
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER:${EUREKA_SERVER_URL:https://discovery-service:8761/eureka}/}
+    registry-fetch-interval-seconds: 5
+    instance-info-replication-interval-seconds: 5
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 5
+    lease-expiration-duration-in-seconds: 10
+    metadata-map:
+      zone: ${ZONE:zone1}
+      version: ${VERSION:1.0.0}
+
+# Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,env,loggers
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: always
+      show-components: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: ${spring.application.name}
+  health:
+    circuitbreakers:
+      enabled: true
+
+# Resilience4j Circuit Breaker Configuration
+resilience4j:
+  circuitbreaker:
+    instances:
+      risk-ml-model:
+        sliding-window-size: 100
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 60s
+        permitted-number-of-calls-in-half-open-state: 10
+        automatic-transition-from-open-to-half-open-enabled: true
+      rule-engine:
+        sliding-window-size: 50
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+  retry:
+    instances:
+      default:
+        max-attempts: 3
+        wait-duration: 1s
+  timelimiter:
+    instances:
+      default:
+        timeout-duration: 5s
+
+# Risk Service Configuration
+risk:
+  scoring:
+    ml:
+      enabled: true
+      model-path: ${ML_MODEL_PATH:/models/risk-model.pkl}
+      confidence-threshold: 0.7
+    cache:
+      ttl: 300 # seconds
+    high-risk-threshold: 0.7
+    medium-risk-threshold: 0.4
+    velocity:
+      window-minutes: 60
+    behavior:
+      history-days: 90
+    device:
+      trust:
+        threshold: 0.8
+
+  rules:
+    reload:
+      interval: 300000 # 5 minutes
+    enabled: true
+
+  thresholds:
+    transaction:
+      max-amount: 10000
+      daily-limit: 50000
+    velocity:
+      max-per-hour: 10
+      max-per-day: 50
+
+  ml:
+    batch-size: 100
+    prediction-timeout-ms: 5000
+    feature-version: 2.0
+
+# Kafka Topics Configuration
+kafka:
+  topics:
+    # Input Topics
+    transaction-events: transaction-events
+    user-events: user-events
+    merchant-events: merchant-events
+    device-events: device-events
+
+    # Output Topics
+    risk-assessment-events: risk-assessment-events
+    high-risk-alerts: high-risk-alerts
+    fraud-alerts: fraud-alerts
+
+    # DLQ Topics (Auto-generated, following pattern: {consumer-name}.dlq)
+    HighRiskReviewQueueConsumer:
+      dlq: HighRiskReviewQueueConsumer.dlq
+
+  consumer:
+    group-id: risk-service-group
+    concurrency: 3
+    max-poll-records: 500
+    auto-offset-reset: earliest
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    com.waqiti.risk: DEBUG
+    org.springframework.kafka: INFO
+    org.springframework.data.mongodb: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/risk-service.log
+    max-size: 100MB
+    max-history: 30

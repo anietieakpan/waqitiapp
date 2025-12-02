@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-service
+  namespace: waqiti
+  labels:
+    app: notification-service
+    component: backend
+spec:
+  type: ClusterIP
+  selector:
+    app: notification-service
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+    protocol: TCP
+  - name: metrics
+    port: 9090
+    targetPort: 9090
+    protocol: TCP

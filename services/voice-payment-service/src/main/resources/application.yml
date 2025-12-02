@@ -1,0 +1,429 @@
+spring:
+  application:
+    name: voice-payment-service
+  
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+    include: keycloak
+  
+  cloud:
+    config:
+      uri: ${CONFIG_SERVER_URL:http://localhost:8888}
+      fail-fast: true
+      retry:
+        max-attempts: 3
+  
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/waqiti_voice_payment}
+    username: ${DATABASE_USERNAME:waqiti}
+    password: ${DATABASE_PASSWORD:${VAULT_DATABASE_PASSWORD}}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 300000
+      connection-timeout: 30000
+      validation-timeout: 5000
+      max-lifetime: 1800000
+      leak-detection-threshold: 60000
+  
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        jdbc:
+          batch_size: 25
+        order_inserts: true
+        order_updates: true
+    show-sql: false
+  
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.trusted.packages: "*"
+    consumer:
+      group-id: voice-payment-service
+      enable-auto-commit: false  # Manual acknowledgment for DLQ support
+      max-poll-records: 50  # Batch size control
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+      auto-offset-reset: earliest
+  
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+  
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:${EUREKA_SERVER_URL:https://discovery-service:8761/eureka}/}
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+    metadata-map:
+      version: ${info.version}
+      region: ${DEPLOYMENT_REGION:us-east-1}
+
+server:
+  port: ${PORT:8097}
+  servlet:
+    context-path: /api/v1
+  error:
+    include-message: always
+    include-binding-errors: always
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+
+# Feign client configuration
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 5000
+        readTimeout: 10000
+        loggerLevel: FULL
+      payment-service:
+        url: ${PAYMENT_SERVICE_URL:http://payment-service/api/v1}
+      wallet-service:
+        url: ${WALLET_SERVICE_URL:http://wallet-service/api/v1}
+      user-service:
+        url: ${USER_SERVICE_URL:http://user-service/api/v1}
+      gamification-service:
+        url: ${GAMIFICATION_SERVICE_URL:http://gamification-service/api/v1}
+      notification-service:
+        url: ${NOTIFICATION_SERVICE_URL:http://notification-service/api/v1}
+      fraud-detection-service:
+        url: ${FRAUD_DETECTION_SERVICE_URL:http://fraud-detection-service/api/v1}
+
+# Kafka topics
+kafka:
+  topics:
+    voice-command-received: voice-command-received-events
+    voice-payment-initiated: voice-payment-initiated-events
+    voice-payment-completed: voice-payment-completed-events
+    voice-authentication-requested: voice-authentication-requested-events
+    voice-profile-created: voice-profile-created-events
+    voice-biometric-verified: voice-biometric-verified-events
+    voice-command-failed: voice-command-failed-events
+    voice-session-started: voice-session-started-events
+    voice-session-ended: voice-session-ended-events
+
+# Voice Payment Configuration
+voice-payment:
+  # Core Voice Recognition Engine
+  recognition:
+    enabled: ${VOICE_RECOGNITION_ENABLED:true}
+    engine: ${VOICE_RECOGNITION_ENGINE:AZURE_SPEECH} # AZURE_SPEECH, GOOGLE_SPEECH, AWS_TRANSCRIBE, IBM_WATSON
+    timeout-ms: 10000
+    confidence-threshold: 0.85
+    language-model: "en-US"
+    continuous-recognition: true
+    interim-results: true
+    
+    # Multi-language support
+    supported-languages:
+      - "en-US"
+      - "es-ES"
+      - "fr-FR"
+      - "de-DE"
+      - "zh-CN"
+      - "ja-JP"
+      - "ko-KR"
+      - "pt-BR"
+      - "it-IT"
+      - "ru-RU"
+    
+    # Audio processing
+    audio:
+      sample-rate: 16000
+      channels: 1
+      bit-depth: 16
+      format: "WAV"
+      max-duration-seconds: 30
+      noise-reduction: true
+      echo-cancellation: true
+      automatic-gain-control: true
+      
+  # Natural Language Processing
+  nlp:
+    enabled: true
+    processor: ${NLP_PROCESSOR:SPACY} # SPACY, NLTK, GOOGLE_NLP, AZURE_TEXT_ANALYTICS
+    intent-classification:
+      confidence-threshold: 0.8
+      max-intents: 5
+    
+    # Payment intents and commands
+    payment-intents:
+      - intent: "SEND_MONEY"
+        phrases: ["send money", "transfer funds", "pay", "send payment", "wire money"]
+        required-entities: ["amount", "recipient"]
+        
+      - intent: "REQUEST_MONEY"
+        phrases: ["request money", "ask for payment", "request funds", "bill someone"]
+        required-entities: ["amount", "recipient"]
+        
+      - intent: "CHECK_BALANCE"
+        phrases: ["check balance", "balance inquiry", "how much money", "account balance"]
+        required-entities: []
+        
+      - intent: "PAY_BILL"
+        phrases: ["pay bill", "pay utility", "pay subscription", "pay invoice"]
+        required-entities: ["amount", "payee"]
+        
+      - intent: "SCHEDULE_PAYMENT"
+        phrases: ["schedule payment", "set up autopay", "recurring payment", "future payment"]
+        required-entities: ["amount", "recipient", "schedule"]
+        
+      - intent: "CANCEL_PAYMENT"
+        phrases: ["cancel payment", "stop payment", "abort transaction", "cancel transfer"]
+        required-entities: ["payment_id"]
+        
+      - intent: "TRANSACTION_HISTORY"
+        phrases: ["transaction history", "payment history", "recent transactions", "show payments"]
+        required-entities: []
+        
+    # Entity recognition
+    entities:
+      - name: "amount"
+        type: "CURRENCY"
+        patterns: ["$\\d+", "\\d+ dollars", "\\d+\\.\\d+ USD"]
+        
+      - name: "recipient"
+        type: "PERSON"
+        patterns: ["@\\w+", "\\w+@\\w+\\.\\w+", "\\+\\d{10,15}"]
+        
+      - name: "payee"
+        type: "ORGANIZATION"
+        patterns: ["\\w+ company", "\\w+ corp", "\\w+ inc"]
+        
+      - name: "schedule"
+        type: "DATETIME"
+        patterns: ["tomorrow", "next week", "monthly", "weekly"]
+        
+  # Voice Biometric Authentication
+  biometrics:
+    enabled: ${VOICE_BIOMETRICS_ENABLED:true}
+    provider: ${VOICE_BIOMETRICS_PROVIDER:NUANCE} # NUANCE, PINDROP, VOICE_VAULT, SENSORY
+    enrollment:
+      min-samples: 3
+      sample-duration-seconds: 10
+      quality-threshold: 0.8
+      
+    verification:
+      confidence-threshold: 0.85
+      max-attempts: 3
+      liveness-detection: true
+      anti-spoofing: true
+      
+    # Voice characteristics analysis
+    analysis:
+      pitch-analysis: true
+      formant-analysis: true
+      spectral-analysis: true
+      prosodic-features: true
+      vocal-tract-features: true
+      
+  # Payment Processing
+  payment:
+    # Security requirements
+    security:
+      require-biometric-verification: true
+      require-pin-above: 100.00
+      require-2fa-above: 500.00
+      max-transaction-amount: 5000.00
+      daily-limit: 10000.00
+      
+    # Transaction limits per authentication method
+    limits:
+      voice-only:
+        single-transaction: 50.00
+        daily: 200.00
+      voice-plus-pin:
+        single-transaction: 500.00
+        daily: 2000.00
+      voice-plus-biometric:
+        single-transaction: 1000.00
+        daily: 5000.00
+      voice-plus-2fa:
+        single-transaction: 5000.00
+        daily: 10000.00
+        
+    # Confirmation requirements
+    confirmation:
+      verbal-confirmation: true
+      repeat-amount: true
+      repeat-recipient: true
+      timeout-seconds: 30
+      
+  # Conversation Management
+  conversation:
+    enabled: true
+    max-turns: 10
+    context-timeout-minutes: 5
+    confirmation-prompts: true
+    
+    # Response templates
+    responses:
+      greeting: "Hello! I'm your voice payment assistant. How can I help you today?"
+      confirmation: "I understand you want to {intent} {amount} to {recipient}. Is that correct?"
+      success: "Payment of {amount} to {recipient} has been completed successfully."
+      error: "I'm sorry, I couldn't process that payment. {error_reason}"
+      clarification: "Could you please clarify {unclear_entity}?"
+      authentication: "Please provide your voice authentication."
+      
+    # Error handling
+    error-handling:
+      max-retries: 3
+      fallback-to-dtmf: true
+      escalate-to-human: true
+      
+  # Voice User Interface
+  vui:
+    # Speech synthesis
+    text-to-speech:
+      enabled: true
+      provider: ${TTS_PROVIDER:AZURE_SPEECH} # AZURE_SPEECH, GOOGLE_TTS, AWS_POLLY, IBM_WATSON
+      voice: "en-US-AriaNeural"
+      speed: 1.0
+      pitch: 1.0
+      volume: 0.8
+      
+    # Prompts and messages
+    prompts:
+      welcome: "Welcome to Waqiti Voice Payments. Please state your request."
+      listening: "I'm listening..."
+      processing: "Processing your request..."
+      authentication-required: "Voice authentication required. Please say 'My voice is my password'."
+      confirmation-required: "Please confirm by saying 'yes' or 'confirm'."
+      goodbye: "Thank you for using Waqiti Voice Payments. Goodbye!"
+      
+    # DTMF fallback
+    dtmf:
+      enabled: true
+      timeout-seconds: 10
+      inter-digit-timeout: 3
+      
+  # Accessibility Features
+  accessibility:
+    enabled: true
+    speech-rate-adjustment: true
+    volume-control: true
+    pause-resume: true
+    repeat-command: true
+    spelling-mode: true
+    phonetic-alphabet: true
+    
+  # Multi-modal Integration
+  multimodal:
+    enabled: true
+    sms-fallback: true
+    push-notification-confirmation: true
+    email-receipt: true
+    visual-confirmation: true
+    
+  # Analytics and Monitoring
+  analytics:
+    enabled: true
+    voice-analytics: true
+    conversation-analytics: true
+    performance-metrics: true
+    user-satisfaction: true
+    
+    # Metrics collection
+    metrics:
+      - "recognition_accuracy"
+      - "intent_classification_accuracy" 
+      - "conversation_completion_rate"
+      - "authentication_success_rate"
+      - "payment_completion_rate"
+      - "response_time"
+      - "user_satisfaction_score"
+      
+  # Security and Privacy
+  privacy:
+    audio-retention-days: 30
+    transcription-encryption: true
+    biometric-data-encryption: true
+    gdpr-compliant: true
+    ccpa-compliant: true
+    voice-data-anonymization: true
+    
+  # Integration Services
+  integrations:
+    payment-gateway: true
+    fraud-detection: true
+    aml-screening: true
+    kyc-verification: true
+    notification-service: true
+    audit-logging: true
+    
+  # Performance Optimization
+  performance:
+    audio-preprocessing: true
+    model-caching: true
+    response-streaming: true
+    concurrent-processing: true
+    load-balancing: true
+    
+    # Resource limits
+    resources:
+      max-concurrent-sessions: 100
+      max-audio-buffer-mb: 64
+      max-processing-time-seconds: 30
+      connection-pool-size: 20
+      
+  # Development and Testing
+  development:
+    mock-recognition: ${VOICE_MOCK_RECOGNITION:false}
+    simulation-mode: ${VOICE_SIMULATION_MODE:false}
+    debug-logging: ${VOICE_DEBUG_LOGGING:false}
+    test-voices: ${VOICE_TEST_VOICES:false}
+
+logging:
+  level:
+    com.waqiti.voice: INFO
+    org.springframework.web: INFO
+    org.springframework.kafka: INFO
+    org.hibernate.SQL: INFO
+    org.hibernate.type.descriptor.sql.BasicBinder: INFO
+    org.springframework.security: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

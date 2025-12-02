@@ -1,0 +1,273 @@
+# =============================================================================
+# WAQITI APPLICATION - .GITIGNORE (Security-Hardened for Open Source)
+# =============================================================================
+
+# =============================================================================
+# SECTION 1: ENVIRONMENT FILES (CRITICAL)
+# =============================================================================
+
+# Environment files
+.env
+.env.*
+.env.backup
+.env.crypto
+.env.vault
+*.env.backup
+credential-backups/
+!.env.example
+!.env.template
+!.env.crypto.template
+
+# Additional env patterns for security
+.env.local
+.env.*.local
+.env.production
+.env.staging
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.template
+
+# =============================================================================
+# SECTION 2: SECRETS AND CREDENTIALS (CRITICAL)
+# =============================================================================
+
+# CRITICAL: Never commit secrets or credentials
+**/generated-secrets.env
+**/client-secrets.env
+**/*-secrets.env
+**/*-credentials.env
+**/.secrets/
+**/secrets/
+**/*.pem
+**/*.key
+**/*.keystore
+**/*.jks
+**/*.p12
+**/*.pfx
+
+# Additional security patterns
+**/*.crt
+**/*.cer
+**/id_rsa
+**/id_dsa
+**/id_ecdsa
+**/id_ed25519
+.vault-token
+
+# Cloud provider credentials
+.aws/credentials
+**/.aws/
+**/gcp-credentials*.json
+**/service-account*.json
+**/*-sa-key.json
+**/azure-credentials*
+**/.azure/
+
+# =============================================================================
+# SECTION 3: LOGS
+# =============================================================================
+
+# Log files - NEVER commit logs
+*.log
+logs/
+**/logs/
+**/*.log
+**/*.log.*
+services/*/logs/
+
+# =============================================================================
+# SECTION 4: OS AND IDE FILES
+# =============================================================================
+
+# OS files
+.DS_Store
+**/.DS_Store
+._*
+Thumbs.db
+Desktop.ini
+
+# IDE files
+.idea/
+code*
+improv*
+more-readme.md
+run-goose.sh
+run-tests.sh
+sqlfiles.txt
+testing-strategy.md
+target
+.summary_files
+*target*
+integration-service/target
+services/discovery-service/target
+notification-service/target
+payment-service/target
+wallet-service/target
+user-service/target
+phatutree.txt
+notification-service/notificationscodesummaryy.txt
+notification-service/testerrors.txt
+notification-service/raydonovan.txt
+notification-service/someerror-29.txt
+notification-service/treet.txt
+notification-service/.summary_files
+notification-service/logs
+notification-service/evatest.txt
+notification-service/eva*
+notification-service/logs/*
+notification-service/logs/notification-service.log
+repomix-output.xml
+codesummary.md
+p2p-finance-app.llm
+*.llm
+*/*.llm
+*/*/*.llm
+*/*/*/*.llm
+*/*/*/*/*.llm
+*/*/*/*/*/*.llm
+*tree*
+me.sh
+config/secrets/.env.example
+config/secrets/*
+services/user-service/logs/*
+config/*
+config/secrets/*.env
+**/config/secrets/.env
+**/config/secrets/*.env
+*.und/
+.claude/*
+.claude
+qodana-results/
+# Security: Prevent accidental secret and backup file commits
+*.backup
+*.backup.*
+*.bak
+*.old
+*-secret.*
+credentials.yml
+credentials.yaml
+secrets.yml
+secrets.yaml
+
+# --- INFRASTRUCTURE STATE ---
+# Terraform state and credentials
+**/*.tfstate
+**/*.tfstate.backup
+**/.terraform/
+**/*.tfvars
+!**/*.tfvars.example # Keep examples if they don't contain real secrets
+
+# Kubernetes manifests generated from templates if they contain secrets
+k8s/production/
+k8s/security/*.yaml
+
+# --- SECURITY/FORENSIC TOOL OUTPUTS ---
+forensic_analysis_output/
+*.json.bak
+*.xml.bak
+COMPREHENSIVE_SECURITY_VULNERABILITY_FORENSICS_REPORT.json
+KAFKA_EVENT_DRIVEN_ARCHITECTURE_FORENSIC_AUDIT.json
+FORENSIC_SERVICE_DISCOVERY_REPORT.json
+PRODUCTION_GAPS_FORENSIC_SCAN_REPORT.json
+test_coverage_analysis.json
+# --- TEMPORARY / AD-HOC FILES ---
+*.und/
+*.und
+.claude/*
+.claude
+.mvn
+.mvn/*
+.zap
+.zap/*
+
+# --- PROJECT-SPECIFIC CONFIGURATION & SECRETS ---
+# Ignore environment files in config/secrets directly
+config/secrets/.env
+config/secrets/*.env
+# Ignore sensitive keys and certificates in the infrastructure
+infrastructure/secrets/
+infrastructure/vault-backup.sh.bak # Ignore backups of sensitive scripts
+# Ignore Keycloak realm config if it contains production secrets/keys
+keycloak-config/*.json
+!keycloak-config/waqiti-realm.json # If this is a template, keep it, otherwise ignore it
+
+# --- SECRETS AND CREDENTIALS (Enhanced) ---
+# Catch-all for common secret file names
+secret.txt
+private.key
+server.crt
+server.key
+.vault-token
+# Explicitly ignore Kubernetes secret manifests if they are not encrypted externally
+k8s/secrets/*.yaml
+# Helm chart value files that might hold secrets
+**/values.yaml
+
+# --- TEMPORARY / LOCAL DEVELOPMENT FILES ---
+# Local IDE/OS files (you already have .idea/, but good to double-check)
+*.iml
+*.iws
+.vscode/
+# History files from shells/tools
+.bash_history
+.zsh_history
+# Any files generated during dependency analysis or quick checks
+dependency-check-report.*
+dependency-analysis-output.txt
+
+# --- JAVA / SPRING BOOT BUILD ARTIFACTS ---
+# Maven/Gradle specific outputs
+**/*.class
+**/build/
+**/bin/
+**/target/
+**/target/*
+# Wrapper files
+!**/gradle-wrapper.jar
+!**/maven-wrapper.jar
+# Junit/Test reports
+**/surefire-reports/
+**/failsafe-reports/
+
+# --- NODE / FRONTEND ARTIFACTS ---
+**/node_modules
+**/dist/
+**/out/
+**/cache/
+# Lerna/pnpm/yarn artifacts
+**/lerna-debug.log
+**/npm-debug.log
+.pnpm-debug.log
+.pnpm-store
+.yarn/cache
+
+# --- TESTING / CI/CD OUTPUTS ---
+# Reports from various testing and auditing tools
+**/coverage/
+**/reports/
+**/test-results/
+**/jacoco-reports/
+# Temporary files generated by Python scripts (if used for analysis)
+*.pyc
+__pycache__/
+# Outputs from temporary deployment scripts
+deploy-output.log
+setup-staging-temp.txt
+*.sh
+*.txt
+*.cmd
+
+# Documentation and database fixes
+docs/
+documentation/
+database-fixes/
+
+# Forensic outputs
+forensic_analysis_output/
+*mockup*
+kafka_orphaned_events_analysis.json
+
+# =============================================================================
+# END OF .GITIGNORE
+# =============================================================================

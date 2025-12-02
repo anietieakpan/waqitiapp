@@ -1,0 +1,63 @@
+{
+  "properties": [
+    {
+      "name": "saga.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable saga orchestration functionality",
+      "defaultValue": true
+    },
+    {
+      "name": "saga.timeout.default-minutes",
+      "type": "java.lang.Integer",
+      "description": "Default saga timeout in minutes",
+      "defaultValue": 60
+    },
+    {
+      "name": "saga.retry.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable saga retry on failure",
+      "defaultValue": true
+    },
+    {
+      "name": "saga.retry.max-attempts",
+      "type": "java.lang.Integer",
+      "description": "Maximum retry attempts for saga steps",
+      "defaultValue": 3
+    },
+    {
+      "name": "saga.compensation.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable compensation actions",
+      "defaultValue": true
+    },
+    {
+      "name": "saga.monitoring.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable saga monitoring",
+      "defaultValue": true
+    },
+    {
+      "name": "saga.persistence.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable saga state persistence",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "OAuth2 client ID for service",
+      "defaultValue": "saga-orchestration-service"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "OAuth2 client secret for service"
+    }
+  ]
+}

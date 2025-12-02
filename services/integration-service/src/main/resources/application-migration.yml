@@ -1,0 +1,50 @@
+# Configuration for Internal Services Only
+# Migration from legacy systems completed
+
+spring:
+  profiles:
+    active: migration
+
+# Integration Service Configuration
+integration:
+  # All operations use internal services
+  internal:
+    users-enabled: true
+    accounts-enabled: true
+    balance-enabled: true
+    payments-enabled: true
+
+# Service Health Monitoring
+management:
+  health:
+    custom:
+      migration-status:
+        enabled: false
+    circuit-breakers:
+      enabled: true
+  metrics:
+    tags:
+      service-mode: "internal-only"
+
+# Enhanced logging
+logging:
+  level:
+    com.waqiti.integration.service.RoutingIntegrationService: INFO
+    com.waqiti.integration.service.InternalCoreBankingService: INFO
+    com.example.common.client: DEBUG
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+# Circuit breaker configuration
+resilience4j:
+  circuitbreaker:
+    instances:
+      core-banking:
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        slidingWindowSize: 20
+        
+      internal-service:
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        slidingWindowSize: 20

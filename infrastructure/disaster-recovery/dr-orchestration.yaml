@@ -1,0 +1,383 @@
+# Disaster Recovery and Business Continuity Orchestration
+# Implements comprehensive DR strategy with RPO < 1 hour, RTO < 4 hours
+
+version: '3.8'
+
+services:
+  # PostgreSQL Primary with Streaming Replication
+  postgres-primary:
+    image: postgres:14-alpine
+    container_name: waqiti-postgres-primary
+    environment:
+      POSTGRES_DB: waqiti
+      POSTGRES_USER: waqiti
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_REPLICATION_MODE: master
+      POSTGRES_REPLICATION_USER: replicator
+      POSTGRES_REPLICATION_PASSWORD: ${REPL_PASSWORD}
+      POSTGRES_MAX_CONNECTIONS: 200
+      POSTGRES_SHARED_BUFFERS: 2GB
+      POSTGRES_EFFECTIVE_CACHE_SIZE: 6GB
+      POSTGRES_MAINTENANCE_WORK_MEM: 512MB
+      POSTGRES_CHECKPOINT_COMPLETION_TARGET: 0.9
+      POSTGRES_WAL_BUFFERS: 16MB
+      POSTGRES_DEFAULT_STATISTICS_TARGET: 100
+      POSTGRES_RANDOM_PAGE_COST: 1.1
+      POSTGRES_EFFECTIVE_IO_CONCURRENCY: 200
+      POSTGRES_WORK_MEM: 10MB
+      POSTGRES_HUGE_PAGES: try
+      POSTGRES_MIN_WAL_SIZE: 1GB
+      POSTGRES_MAX_WAL_SIZE: 4GB
+      POSTGRES_MAX_WORKER_PROCESSES: 8
+      POSTGRES_MAX_PARALLEL_WORKERS_PER_GATHER: 4
+      POSTGRES_MAX_PARALLEL_WORKERS: 8
+      POSTGRES_MAX_PARALLEL_MAINTENANCE_WORKERS: 4
+    volumes:
+      - postgres-primary-data:/var/lib/postgresql/data
+      - ./postgres/primary/postgresql.conf:/etc/postgresql/postgresql.conf
+      - ./postgres/primary/pg_hba.conf:/etc/postgresql/pg_hba.conf
+      - postgres-wal-archive:/var/lib/postgresql/wal_archive
+    ports:
+      - "5432:5432"
+    networks:
+      - dr-network
+    command: >
+      postgres
+      -c config_file=/etc/postgresql/postgresql.conf
+      -c hba_file=/etc/postgresql/pg_hba.conf
+      -c wal_level=replica
+      -c hot_standby=on
+      -c max_wal_senders=10
+      -c max_replication_slots=10
+      -c hot_standby_feedback=on
+      -c archive_mode=on
+      -c archive_command='test ! -f /var/lib/postgresql/wal_archive/%f && cp %p /var/lib/postgresql/wal_archive/%f'
+      -c archive_timeout=300
+
+  # PostgreSQL Standby (Hot Standby)
+  postgres-standby:
+    image: postgres:14-alpine
+    container_name: waqiti-postgres-standby
+    environment:
+      POSTGRES_REPLICATION_MODE: slave
+      POSTGRES_MASTER_HOST: postgres-primary
+      POSTGRES_MASTER_PORT: 5432
+      POSTGRES_REPLICATION_USER: replicator
+      POSTGRES_REPLICATION_PASSWORD: ${REPL_PASSWORD}
+    volumes:
+      - postgres-standby-data:/var/lib/postgresql/data
+      - ./postgres/standby/recovery.conf:/var/lib/postgresql/data/recovery.conf
+    ports:
+      - "5433:5432"
+    depends_on:
+      - postgres-primary
+    networks:
+      - dr-network
+
+  # WAL-E/WAL-G for Point-in-Time Recovery
+  wal-backup:
+    image: waqiti/wal-g:latest
+    container_name: waqiti-wal-backup
+    environment:
+      WALG_S3_PREFIX: s3://waqiti-backup/postgres
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_REGION: ${AWS_REGION}
+      WALG_COMPRESSION_METHOD: brotli
+      WALG_DELTA_MAX_STEPS: 7
+      POSTGRES_HOST: postgres-primary
+      POSTGRES_PORT: 5432
+      POSTGRES_DATABASE: waqiti
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres-wal-archive:/var/lib/postgresql/wal_archive
+      - ./scripts/wal-backup.sh:/usr/local/bin/backup.sh
+    networks:
+      - dr-network
+    command: >
+      sh -c "
+        while true; do
+          /usr/local/bin/backup.sh
+          sleep 3600
+        done
+      "
+
+  # Redis with Persistence and Replication
+  redis-primary:
+    image: redis:7-alpine
+    container_name: waqiti-redis-primary
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD}
+      --appendonly yes
+      --appendfsync everysec
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+      --maxmemory 2gb
+      --maxmemory-policy allkeys-lru
+      --tcp-backlog 511
+      --timeout 0
+      --tcp-keepalive 300
+    volumes:
+      - redis-primary-data:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf
+    ports:
+      - "6379:6379"
+    networks:
+      - dr-network
+
+  # Redis Replica
+  redis-replica:
+    image: redis:7-alpine
+    container_name: waqiti-redis-replica
+    command: >
+      redis-server
+      --replicaof redis-primary 6379
+      --masterauth ${REDIS_PASSWORD}
+      --requirepass ${REDIS_PASSWORD}
+      --appendonly yes
+    volumes:
+      - redis-replica-data:/data
+    ports:
+      - "6380:6379"
+    depends_on:
+      - redis-primary
+    networks:
+      - dr-network
+
+  # Redis Sentinel for Automatic Failover
+  redis-sentinel:
+    image: redis:7-alpine
+    container_name: waqiti-redis-sentinel
+    command: redis-sentinel /etc/redis/sentinel.conf
+    volumes:
+      - ./redis/sentinel.conf:/etc/redis/sentinel.conf
+    ports:
+      - "26379:26379"
+    networks:
+      - dr-network
+
+  # Kafka Cluster with Replication
+  kafka-1:
+    image: confluentinc/cp-kafka:latest
+    container_name: waqiti-kafka-1
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-1:9092
+      KAFKA_MIN_INSYNC_REPLICAS: 2
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 3
+      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_COMPRESSION_TYPE: snappy
+      KAFKA_LOG_RETENTION_HOURS: 168
+      KAFKA_LOG_SEGMENT_BYTES: 1073741824
+      KAFKA_LOG_RETENTION_CHECK_INTERVAL_MS: 300000
+      KAFKA_UNCLEAN_LEADER_ELECTION_ENABLE: "false"
+    volumes:
+      - kafka-1-data:/var/lib/kafka/data
+    depends_on:
+      - zookeeper
+    networks:
+      - dr-network
+
+  kafka-2:
+    image: confluentinc/cp-kafka:latest
+    container_name: waqiti-kafka-2
+    environment:
+      KAFKA_BROKER_ID: 2
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-2:9092
+      KAFKA_MIN_INSYNC_REPLICAS: 2
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 3
+    volumes:
+      - kafka-2-data:/var/lib/kafka/data
+    depends_on:
+      - zookeeper
+    networks:
+      - dr-network
+
+  kafka-3:
+    image: confluentinc/cp-kafka:latest
+    container_name: waqiti-kafka-3
+    environment:
+      KAFKA_BROKER_ID: 3
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-3:9092
+      KAFKA_MIN_INSYNC_REPLICAS: 2
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 3
+    volumes:
+      - kafka-3-data:/var/lib/kafka/data
+    depends_on:
+      - zookeeper
+    networks:
+      - dr-network
+
+  # Zookeeper for Kafka
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    container_name: waqiti-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_SYNC_LIMIT: 2
+    volumes:
+      - zookeeper-data:/var/lib/zookeeper/data
+      - zookeeper-logs:/var/lib/zookeeper/log
+    networks:
+      - dr-network
+
+  # Elasticsearch Cluster with Snapshots
+  elasticsearch-master:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.10.2
+    container_name: waqiti-es-master
+    environment:
+      - cluster.name=waqiti-cluster
+      - node.name=es-master
+      - node.roles=master
+      - discovery.seed_hosts=es-data-1,es-data-2
+      - cluster.initial_master_nodes=es-master
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+      - xpack.security.enabled=true
+      - xpack.security.transport.ssl.enabled=true
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+      - path.repo=/usr/share/elasticsearch/snapshots
+    volumes:
+      - es-master-data:/usr/share/elasticsearch/data
+      - es-snapshots:/usr/share/elasticsearch/snapshots
+    networks:
+      - dr-network
+
+  # Vault for Secrets Management with Auto-unseal
+  vault:
+    image: vault:latest
+    container_name: waqiti-vault-primary
+    cap_add:
+      - IPC_LOCK
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: ${VAULT_ROOT_TOKEN}
+      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+      VAULT_ADDR: http://0.0.0.0:8200
+      VAULT_API_ADDR: http://vault:8200
+      VAULT_CLUSTER_ADDR: http://vault:8201
+    volumes:
+      - vault-data:/vault/file
+      - vault-logs:/vault/logs
+      - ./vault/config.hcl:/vault/config/config.hcl
+    ports:
+      - "8200:8200"
+    networks:
+      - dr-network
+    command: server
+
+  # Backup Orchestrator
+  backup-orchestrator:
+    image: waqiti/backup-orchestrator:latest
+    container_name: waqiti-backup-orchestrator
+    environment:
+      BACKUP_SCHEDULE: "0 */6 * * *"  # Every 6 hours
+      S3_BUCKET: ${BACKUP_S3_BUCKET}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY}
+      RETENTION_DAYS: 30
+      POSTGRES_BACKUP_ENABLED: "true"
+      REDIS_BACKUP_ENABLED: "true"
+      KAFKA_BACKUP_ENABLED: "true"
+      ELASTICSEARCH_BACKUP_ENABLED: "true"
+      VAULT_BACKUP_ENABLED: "true"
+      NOTIFICATION_WEBHOOK: ${BACKUP_NOTIFICATION_WEBHOOK}
+    volumes:
+      - ./scripts/backup:/scripts
+      - backup-temp:/tmp/backups
+    depends_on:
+      - postgres-primary
+      - redis-primary
+      - elasticsearch-master
+      - vault
+    networks:
+      - dr-network
+
+  # Disaster Recovery Controller
+  dr-controller:
+    image: waqiti/dr-controller:latest
+    container_name: waqiti-dr-controller
+    ports:
+      - "8888:8888"
+    environment:
+      DR_MODE: ${DR_MODE:-active}  # active, standby, failover
+      HEALTH_CHECK_INTERVAL: 30
+      FAILOVER_THRESHOLD: 3
+      AUTO_FAILOVER_ENABLED: ${AUTO_FAILOVER:-false}
+      PRIMARY_REGION: ${PRIMARY_REGION:-us-east-1}
+      DR_REGION: ${DR_REGION:-us-west-2}
+      NOTIFICATION_CHANNELS: "email,slack,pagerduty"
+      RTO_TARGET_MINUTES: 240  # 4 hours
+      RPO_TARGET_MINUTES: 60   # 1 hour
+    volumes:
+      - ./dr-plans:/dr-plans
+      - dr-state:/var/lib/dr-controller
+    networks:
+      - dr-network
+
+  # Health Monitor
+  health-monitor:
+    image: waqiti/health-monitor:latest
+    container_name: waqiti-health-monitor
+    ports:
+      - "9091:9091"
+    environment:
+      MONITOR_TARGETS: "postgres,redis,kafka,elasticsearch,vault"
+      CHECK_INTERVAL: 30
+      ALERT_THRESHOLD: 2
+      PROMETHEUS_ENDPOINT: http://prometheus:9090
+      GRAFANA_ENDPOINT: http://grafana:3000
+    volumes:
+      - ./monitoring/health-checks:/health-checks
+    networks:
+      - dr-network
+
+  # Chaos Engineering Tool (for DR testing)
+  chaos-monkey:
+    image: waqiti/chaos-monkey:latest
+    container_name: waqiti-chaos-monkey
+    environment:
+      ENABLED: ${CHAOS_ENABLED:-false}
+      SCHEDULE: "0 0 * * SUN"  # Weekly on Sunday
+      CHAOS_LEVEL: ${CHAOS_LEVEL:-1}  # 1=low, 2=medium, 3=high
+      TARGET_SERVICES: "all"
+      EXCLUDED_SERVICES: "dr-controller,backup-orchestrator"
+      NOTIFICATION_WEBHOOK: ${CHAOS_NOTIFICATION_WEBHOOK}
+    volumes:
+      - ./chaos/scenarios:/scenarios
+      - chaos-reports:/reports
+    networks:
+      - dr-network
+
+networks:
+  dr-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.27.0.0/16
+
+volumes:
+  postgres-primary-data:
+  postgres-standby-data:
+  postgres-wal-archive:
+  redis-primary-data:
+  redis-replica-data:
+  kafka-1-data:
+  kafka-2-data:
+  kafka-3-data:
+  zookeeper-data:
+  zookeeper-logs:
+  es-master-data:
+  es-snapshots:
+  vault-data:
+  vault-logs:
+  backup-temp:
+  dr-state:
+  chaos-reports:

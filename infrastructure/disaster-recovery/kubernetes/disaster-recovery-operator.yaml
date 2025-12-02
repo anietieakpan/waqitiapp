@@ -1,0 +1,525 @@
+# Disaster Recovery Operator for Waqiti P2P Platform
+# Custom Kubernetes operator for automated disaster recovery
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: waqiti-dr-operator
+  namespace: waqiti-system
+  labels:
+    app.kubernetes.io/name: disaster-recovery-operator
+    app.kubernetes.io/component: disaster-recovery
+    app.kubernetes.io/part-of: waqiti-platform
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: disaster-recovery-operator
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: disaster-recovery-operator
+        app.kubernetes.io/component: disaster-recovery
+    spec:
+      serviceAccountName: waqiti-dr-operator
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        fsGroup: 65532
+      
+      containers:
+      - name: operator
+        image: waqiti/disaster-recovery-operator:v1.0.0
+        imagePullPolicy: IfNotPresent
+        
+        env:
+        - name: WATCH_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: OPERATOR_NAME
+          value: "waqiti-dr-operator"
+        - name: AWS_REGION
+          value: "us-west-2"
+        - name: ENVIRONMENT
+          value: "production"
+        - name: LOG_LEVEL
+          value: "info"
+        
+        ports:
+        - containerPort: 8080
+          name: metrics
+          protocol: TCP
+        - containerPort: 8081
+          name: health
+          protocol: TCP
+        
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: health
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: health
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        
+        volumeMounts:
+        - name: dr-config
+          mountPath: /etc/disaster-recovery
+          readOnly: true
+        - name: aws-credentials
+          mountPath: /etc/aws
+          readOnly: true
+      
+      volumes:
+      - name: dr-config
+        configMap:
+          name: disaster-recovery-config
+      - name: aws-credentials
+        secret:
+          secretName: aws-credentials
+      
+      nodeSelector:
+        node-type: system
+      
+      tolerations:
+      - key: node-type
+        operator: Equal
+        value: system
+        effect: NoSchedule
+      
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: disaster-recovery-operator
+              topologyKey: kubernetes.io/hostname
+
+---
+# Service for the DR operator
+apiVersion: v1
+kind: Service
+metadata:
+  name: waqiti-dr-operator
+  namespace: waqiti-system
+  labels:
+    app.kubernetes.io/name: disaster-recovery-operator
+spec:
+  type: ClusterIP
+  ports:
+  - name: metrics
+    port: 8080
+    targetPort: metrics
+    protocol: TCP
+  - name: health
+    port: 8081
+    targetPort: health
+    protocol: TCP
+  selector:
+    app.kubernetes.io/name: disaster-recovery-operator
+
+---
+# ServiceAccount for the DR operator
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: waqiti-dr-operator
+  namespace: waqiti-system
+  labels:
+    app.kubernetes.io/name: disaster-recovery-operator
+
+---
+# ClusterRole for the DR operator
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: waqiti-dr-operator
+  labels:
+    app.kubernetes.io/name: disaster-recovery-operator
+rules:
+# Disaster Recovery CRDs
+- apiGroups: ["example.com"]
+  resources: ["disasterrecoveryplans", "backupjobs", "recoveryjobs"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+# Core resources for monitoring and recovery
+- apiGroups: [""]
+  resources: ["pods", "services", "endpoints", "persistentvolumes", "persistentvolumeclaims", "configmaps", "secrets"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+# Deployments and StatefulSets for service recovery
+- apiGroups: ["apps"]
+  resources: ["deployments", "statefulsets", "replicasets", "daemonsets"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+# HPA for scaling during recovery
+- apiGroups: ["autoscaling"]
+  resources: ["horizontalpodautoscalers"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+# Ingress for traffic routing during failover
+- apiGroups: ["networking.k8s.io"]
+  resources: ["ingresses", "networkpolicies"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+# Events for logging DR activities
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["create", "patch"]
+
+# Nodes for health monitoring
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["get", "list", "watch"]
+
+# Storage classes for backup operations
+- apiGroups: ["storage.k8s.io"]
+  resources: ["storageclasses"]
+  verbs: ["get", "list", "watch"]
+
+---
+# ClusterRoleBinding for the DR operator
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: waqiti-dr-operator
+  labels:
+    app.kubernetes.io/name: disaster-recovery-operator
+subjects:
+- kind: ServiceAccount
+  name: waqiti-dr-operator
+  namespace: waqiti-system
+roleRef:
+  kind: ClusterRole
+  name: waqiti-dr-operator
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# ConfigMap for DR operator configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: disaster-recovery-config
+  namespace: waqiti-system
+  labels:
+    app.kubernetes.io/name: disaster-recovery-operator
+data:
+  config.yaml: |
+    # Disaster Recovery Configuration
+    recovery:
+      # Recovery Time Objective (minutes)
+      rto: 15
+      # Recovery Point Objective (minutes)
+      rpo: 5
+      # Automatic recovery enabled
+      autoRecovery: true
+      # Notification settings
+      notifications:
+        slack:
+          enabled: true
+          webhookUrl: "${SLACK_WEBHOOK_URL}"
+        email:
+          enabled: true
+          smtpServer: "smtp.example.com"
+          recipients: ["ops@example.com", "engineering@example.com"]
+    
+    # Health check configuration
+    healthChecks:
+      interval: "1m"
+      timeout: "30s"
+      retries: 3
+      
+      # Critical services to monitor
+      services:
+      - name: "api-gateway"
+        namespace: "waqiti"
+        healthEndpoint: "/actuator/health"
+        port: 8080
+        criticality: "high"
+      - name: "user-service"
+        namespace: "waqiti"
+        healthEndpoint: "/actuator/health"
+        port: 8081
+        criticality: "high"
+      - name: "payment-service"
+        namespace: "waqiti"
+        healthEndpoint: "/actuator/health"
+        port: 8082
+        criticality: "critical"
+      - name: "transaction-service"
+        namespace: "waqiti"
+        healthEndpoint: "/actuator/health"
+        port: 8087
+        criticality: "critical"
+      - name: "wallet-service"
+        namespace: "waqiti"
+        healthEndpoint: "/actuator/health"
+        port: 8083
+        criticality: "high"
+      
+      # External dependencies
+      external:
+      - name: "database"
+        type: "postgresql"
+        endpoint: "waqiti-db.cluster-xyz.us-west-2.rds.amazonaws.com:5432"
+        criticality: "critical"
+      - name: "elasticsearch"
+        type: "http"
+        endpoint: "https://waqiti-elasticsearch:9200"
+        criticality: "medium"
+      - name: "kafka"
+        type: "tcp"
+        endpoint: "waqiti-kafka:9092"
+        criticality: "high"
+    
+    # Backup configuration
+    backup:
+      schedule: "0 */6 * * *"  # Every 6 hours
+      retention: "30d"
+      
+      targets:
+      - name: "database"
+        type: "postgresql"
+        enabled: true
+        schedule: "0 */1 * * *"  # Every hour
+      - name: "persistent-volumes"
+        type: "volume-snapshot"
+        enabled: true
+        schedule: "0 */6 * * *"  # Every 6 hours
+      - name: "kubernetes-manifests"
+        type: "etcd"
+        enabled: true
+        schedule: "0 */12 * * *"  # Every 12 hours
+      - name: "vault-secrets"
+        type: "vault"
+        enabled: true
+        schedule: "0 */6 * * *"  # Every 6 hours
+    
+    # Recovery scenarios
+    scenarios:
+      serviceFailure:
+        enabled: true
+        triggers:
+        - "service_health_check_failed"
+        - "pod_crash_loop"
+        actions:
+        - "restart_service"
+        - "scale_up_replicas"
+        - "drain_and_reschedule"
+      
+      databaseFailure:
+        enabled: true
+        triggers:
+        - "database_connection_failed"
+        - "database_high_error_rate"
+        actions:
+        - "failover_to_replica"
+        - "restore_from_backup"
+        - "create_new_instance"
+      
+      nodeFailure:
+        enabled: true
+        triggers:
+        - "node_not_ready"
+        - "node_unreachable"
+        actions:
+        - "cordon_node"
+        - "drain_workloads"
+        - "replace_node"
+      
+      regionFailure:
+        enabled: false  # Manual activation required
+        triggers:
+        - "region_wide_outage"
+        actions:
+        - "activate_secondary_region"
+        - "update_dns_routing"
+        - "notify_stakeholders"
+
+---
+# ServiceMonitor for Prometheus monitoring
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: waqiti-dr-operator
+  namespace: waqiti-system
+  labels:
+    app.kubernetes.io/name: disaster-recovery-operator
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: disaster-recovery-operator
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /metrics
+
+---
+# Custom Resource Definition for Disaster Recovery Plans
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: disasterrecoveryplans.example.com
+  labels:
+    app.kubernetes.io/name: disaster-recovery-operator
+spec:
+  group: example.com
+  versions:
+  - name: v1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              rto:
+                type: integer
+                description: "Recovery Time Objective in minutes"
+              rpo:
+                type: integer
+                description: "Recovery Point Objective in minutes"
+              criticality:
+                type: string
+                enum: ["low", "medium", "high", "critical"]
+              services:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    namespace:
+                      type: string
+                    recoveryOrder:
+                      type: integer
+              backupPolicy:
+                type: object
+                properties:
+                  schedule:
+                    type: string
+                  retention:
+                    type: string
+          status:
+            type: object
+            properties:
+              phase:
+                type: string
+                enum: ["Ready", "InProgress", "Failed", "Completed"]
+              lastBackup:
+                type: string
+                format: date-time
+              lastRecoveryTest:
+                type: string
+                format: date-time
+  scope: Namespaced
+  names:
+    plural: disasterrecoveryplans
+    singular: disasterrecoveryplan
+    kind: DisasterRecoveryPlan
+    shortNames:
+    - drp
+
+---
+# Network Policy for DR operator
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: waqiti-dr-operator-netpol
+  namespace: waqiti-system
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: disaster-recovery-operator
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Allow Prometheus to scrape metrics
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: waqiti-monitoring
+    ports:
+    - protocol: TCP
+      port: 8080
+  
+  egress:
+  # Allow DNS resolution
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+  
+  # Allow Kubernetes API access
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 6443
+  
+  # Allow AWS API access
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443
+  
+  # Allow access to monitored services
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 8080
+    - protocol: TCP
+      port: 8081
+    - protocol: TCP
+      port: 8082
+    - protocol: TCP
+      port: 8083
+    - protocol: TCP
+      port: 8084
+    - protocol: TCP
+      port: 8085
+    - protocol: TCP
+      port: 8086
+    - protocol: TCP
+      port: 8087
+
+---
+# Pod Disruption Budget
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: waqiti-dr-operator-pdb
+  namespace: waqiti-system
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: disaster-recovery-operator

@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" 
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" 
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" 
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn" 
+             id="determine-kyc-workflow" 
+             name="Determine KYC Workflow" 
+             namespace="http://waqiti.com/kyc">
+             
+  <decision id="determine-kyc-workflow" name="Determine KYC Workflow Type">
+    <decisionTable id="decisionTable_1">
+      <input id="input_1" label="User Type" camunda:inputVariable="userType">
+        <inputExpression id="inputExpression_1" typeRef="string">
+          <text>userType</text>
+        </inputExpression>
+        <inputValues id="inputValues_1">
+          <text>"INDIVIDUAL","BUSINESS"</text>
+        </inputValues>
+      </input>
+      
+      <input id="input_2" label="Transaction Volume" camunda:inputVariable="expectedTransactionVolume">
+        <inputExpression id="inputExpression_2" typeRef="double">
+          <text>expectedTransactionVolume</text>
+        </inputExpression>
+      </input>
+      
+      <input id="input_3" label="Country Risk" camunda:inputVariable="countryRisk">
+        <inputExpression id="inputExpression_3" typeRef="string">
+          <text>countryRisk</text>
+        </inputExpression>
+        <inputValues id="inputValues_3">
+          <text>"LOW","MEDIUM","HIGH"</text>
+        </inputValues>
+      </input>
+      
+      <input id="input_4" label="PEP Status" camunda:inputVariable="isPEP">
+        <inputExpression id="inputExpression_4" typeRef="boolean">
+          <text>isPEP</text>
+        </inputExpression>
+      </input>
+      
+      <output id="output_1" label="Workflow Type" name="workflowType" typeRef="string">
+        <outputValues id="outputValues_1">
+          <text>"STANDARD","ENHANCED","BUSINESS"</text>
+        </outputValues>
+      </output>
+      
+      <!-- Decision Rules -->
+      
+      <!-- Business users always go through business workflow -->
+      <rule id="rule_1">
+        <inputEntry id="inputEntry_1_1">
+          <text>"BUSINESS"</text>
+        </inputEntry>
+        <inputEntry id="inputEntry_1_2">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="inputEntry_1_3">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="inputEntry_1_4">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="outputEntry_1">
+          <text>"BUSINESS"</text>
+        </outputEntry>
+      </rule>
+      
+      <!-- High-risk countries require enhanced KYC -->
+      <rule id="rule_2">
+        <inputEntry id="inputEntry_2_1">
+          <text>"INDIVIDUAL"</text>
+        </inputEntry>
+        <inputEntry id="inputEntry_2_2">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="inputEntry_2_3">
+          <text>"HIGH"</text>
+        </inputEntry>
+        <inputEntry id="inputEntry_2_4">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="outputEntry_2">
+          <text>"ENHANCED"</text>
+        </outputEntry>
+      </rule>
+      
+      <!-- PEPs require enhanced KYC -->
+      <rule id="rule_3">
+        <inputEntry id="inputEntry_3_1">
+          <text>"INDIVIDUAL"</text>
+        </inputEntry>
+        <inputEntry id="inputEntry_3_2">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="inputEntry_3_3">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="inputEntry_3_4">
+          <text>true</text>
+        </inputEntry>
+        <outputEntry id="outputEntry_3">
+          <text>"ENHANCED"</text>
+        </outputEntry>
+      </rule>
+      
+      <!-- High transaction volume requires enhanced KYC -->
+      <rule id="rule_4">
+        <inputEntry id="inputEntry_4_1">
+          <text>"INDIVIDUAL"</text>
+        </inputEntry>
+        <inputEntry id="inputEntry_4_2">
+          <text>&gt; 50000</text>
+        </inputEntry>
+        <inputEntry id="inputEntry_4_3">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="inputEntry_4_4">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="outputEntry_4">
+          <text>"ENHANCED"</text>
+        </outputEntry>
+      </rule>
+      
+      <!-- Medium risk with moderate volume -->
+      <rule id="rule_5">
+        <inputEntry id="inputEntry_5_1">
+          <text>"INDIVIDUAL"</text>
+        </inputEntry>
+        <inputEntry id="inputEntry_5_2">
+          <text>[10000..50000]</text>
+        </inputEntry>
+        <inputEntry id="inputEntry_5_3">
+          <text>"MEDIUM"</text>
+        </inputEntry>
+        <inputEntry id="inputEntry_5_4">
+          <text>false</text>
+        </inputEntry>
+        <outputEntry id="outputEntry_5">
+          <text>"ENHANCED"</text>
+        </outputEntry>
+      </rule>
+      
+      <!-- Default to standard KYC for low-risk individuals -->
+      <rule id="rule_6">
+        <inputEntry id="inputEntry_6_1">
+          <text>"INDIVIDUAL"</text>
+        </inputEntry>
+        <inputEntry id="inputEntry_6_2">
+          <text>&lt; 10000</text>
+        </inputEntry>
+        <inputEntry id="inputEntry_6_3">
+          <text>"LOW"</text>
+        </inputEntry>
+        <inputEntry id="inputEntry_6_4">
+          <text>false</text>
+        </inputEntry>
+        <outputEntry id="outputEntry_6">
+          <text>"STANDARD"</text>
+        </outputEntry>
+      </rule>
+      
+      <!-- Catch-all for standard KYC -->
+      <rule id="rule_7">
+        <inputEntry id="inputEntry_7_1">
+          <text>"INDIVIDUAL"</text>
+        </inputEntry>
+        <inputEntry id="inputEntry_7_2">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="inputEntry_7_3">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="inputEntry_7_4">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="outputEntry_7">
+          <text>"STANDARD"</text>
+        </outputEntry>
+      </rule>
+      
+    </decisionTable>
+  </decision>
+</definitions>

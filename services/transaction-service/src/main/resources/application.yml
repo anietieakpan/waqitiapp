@@ -1,0 +1,540 @@
+server:
+  port: 8087
+  servlet:
+    context-path: /
+
+spring:
+  application:
+    name: transaction-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:production}
+    include: keycloak
+  
+  # OAuth2 Resource Server Configuration for Keycloak
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+  
+  # OPTIMIZED with PgBouncer
+  # ARCHITECTURE: transaction-service -> PgBouncer (port 6432) -> PostgreSQL (port 5432)
+  # CONNECTION MATH: 10 replicas × 20 pool = 200 client connections -> 20 PostgreSQL connections
+  datasource:
+    # CRITICAL: Use PgBouncer endpoint for connection pooling
+    url: jdbc:postgresql://${DB_HOST:${PGBOUNCER_HOST:pgbouncer}}:${DB_PORT:${PGBOUNCER_PORT:6432}}/${DB_NAME:waqiti_transactions}
+    username: ${DB_USERNAME:${vault.database.username:${TRANSACTION_DB_USERNAME}}}
+    password: ${DB_PASSWORD:${vault.database.password:${TRANSACTION_DB_PASSWORD}}}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      # Pool size kept at 20 (already reasonable)
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:20}
+      minimum-idle: ${DB_POOL_MIN_IDLE:5}
+
+      # Optimized timeouts for PgBouncer
+      idle-timeout: ${DB_IDLE_TIMEOUT:300000}
+      connection-timeout: ${DB_CONNECTION_TIMEOUT:5000}
+      validation-timeout: ${DB_VALIDATION_TIMEOUT:3000}
+      max-lifetime: ${DB_MAX_LIFETIME:900000}
+
+      # Stricter leak detection for transaction service
+      leak-detection-threshold: ${DB_LEAK_DETECTION_THRESHOLD:20000}
+
+      pool-name: ${DB_POOL_NAME:transaction-service-pgbouncer-pool}
+      initialization-fail-timeout: ${DB_INIT_FAIL_TIMEOUT:1}
+      connection-test-query: SELECT 1
+      health-check-registry: true
+  
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        use_sql_comments: true
+        jdbc:
+          batch_size: 20
+          order_inserts: true
+          order_updates: true
+        cache:
+          use_second_level_cache: true
+          use_query_cache: true
+  
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+  
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      # SECURITY: Password must be provided via environment variable or Vault
+      # Service will fail to start if Redis requires password and none is provided (fail-secure)
+      password: ${REDIS_PASSWORD:${vault.redis.password:}}
+      timeout: ${REDIS_TIMEOUT:2000ms}
+      database: ${REDIS_DATABASE:0}
+      lettuce:
+        pool:
+          max-active: ${REDIS_POOL_MAX_ACTIVE:8}
+          max-idle: ${REDIS_POOL_MAX_IDLE:8}
+          min-idle: ${REDIS_POOL_MIN_IDLE:0}
+          max-wait: ${REDIS_POOL_MAX_WAIT:-1ms}
+        shutdown-timeout: ${REDIS_SHUTDOWN_TIMEOUT:100ms}
+
+# Keycloak Configuration
+keycloak:
+  enabled: ${KEYCLOAK_ENABLED:true}
+  auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8180}
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  resource: transaction-service
+  bearer-only: true
+  ssl-required: ${KEYCLOAK_SSL_REQUIRED:external}
+  use-resource-role-mappings: true
+  principal-attribute: preferred_username
+  credentials:
+    secret: ${KEYCLOAK_CLIENT_SECRET:${vault.keycloak.transaction-service.client-secret}}
+  public-client: false
+  verify-token-audience: true
+
+# Feature Flags for Authentication Migration
+features:
+  auth:
+    mode: ${AUTH_MODE:KEYCLOAK}  # KEYCLOAK only - Legacy JWT retired
+    keycloak:
+      enabled: ${KEYCLOAK_ENABLED:true}
+    legacy:
+      enabled: ${LEGACY_AUTH_ENABLED:false}
+  
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false
+    consumer:
+      group-id: transaction-service
+      enable-auto-commit: false  # Manual acknowledgment for DLQ support
+      max-poll-records: 50  # Batch size control
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.waqiti.*,java.util.*,java.time.*,java.math.*"
+        spring.json.use.type.headers: false
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:${EUREKA_SERVER_URL:https://discovery-service:8761/eureka}/}
+    healthcheck:
+      enabled: true
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+
+logging:
+  level:
+    com.waqiti: DEBUG
+    org.springframework.kafka: INFO
+    org.hibernate.SQL: ${LOG_LEVEL_SQL:WARN}  # WARN for production
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# Service-specific configuration
+transaction:
+  processing:
+    max-retry-attempts: 3
+    retry-delay-seconds: 30
+    timeout-seconds: 300
+  
+  fraud-detection:
+    enabled: true
+    velocity-checks:
+      enabled: true
+      daily-limit: 10000
+      transaction-limit: 5000
+    risk-scoring:
+      enabled: true
+      threshold: 0.75
+  
+  export:
+    max-records: 10000
+    supported-formats: csv,pdf
+  
+  notifications:
+    enabled: true
+    channels: email,sms,push
+
+# External service configurations
+services:
+  saga-orchestration-service:
+    url: ${SAGA_SERVICE_URL:http://localhost:8088}
+    timeout: 30s
+  wallet-service:
+    url: ${WALLET_SERVICE_URL:http://localhost:8082}
+    timeout: 30s
+  security-service:
+    url: ${SECURITY_SERVICE_URL:http://localhost:8089}
+    timeout: 30s
+  notification-service:
+    url: ${NOTIFICATION_SERVICE_URL:http://localhost:8084}
+    timeout: 30s
+
+# Circuit breaker configuration for saga steps
+resilience4j:
+  circuitbreaker:
+    instances:
+      # Fraud Detection Service Circuit Breaker
+      fraudDetection:
+        registerHealthIndicator: true
+        slidingWindowSize: 100
+        slidingWindowType: COUNT_BASED
+        minimumNumberOfCalls: 10
+        permittedNumberOfCallsInHalfOpenState: 5
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 10s
+        failureRateThreshold: 50
+        slowCallRateThreshold: 80
+        slowCallDurationThreshold: 5s
+        recordExceptions:
+          - org.springframework.web.client.ResourceAccessException
+          - java.util.concurrent.TimeoutException
+          - feign.RetryableException
+        ignoreExceptions:
+          - com.example.common.exception.BusinessException
+
+      # Wallet Service Circuit Breaker (CRITICAL - stricter)
+      walletService:
+        registerHealthIndicator: true
+        slidingWindowSize: 100
+        slidingWindowType: COUNT_BASED
+        minimumNumberOfCalls: 10
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 15s
+        failureRateThreshold: 40  # Stricter threshold for critical service
+        slowCallRateThreshold: 70
+        slowCallDurationThreshold: 3s
+        recordExceptions:
+          - org.springframework.web.client.ResourceAccessException
+          - java.util.concurrent.TimeoutException
+          - feign.RetryableException
+
+      # Ledger Service Circuit Breaker
+      ledgerService:
+        registerHealthIndicator: true
+        slidingWindowSize: 100
+        slidingWindowType: COUNT_BASED
+        minimumNumberOfCalls: 10
+        permittedNumberOfCallsInHalfOpenState: 5
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 10s
+        failureRateThreshold: 50
+        slowCallRateThreshold: 80
+        slowCallDurationThreshold: 5s
+
+      # Compliance Service Circuit Breaker
+      complianceService:
+        registerHealthIndicator: true
+        slidingWindowSize: 100
+        slidingWindowType: COUNT_BASED
+        minimumNumberOfCalls: 10
+        permittedNumberOfCallsInHalfOpenState: 5
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 10s
+        failureRateThreshold: 50
+        slowCallRateThreshold: 80
+        slowCallDurationThreshold: 5s
+
+      # Notification Service Circuit Breaker (non-critical)
+      notificationService:
+        registerHealthIndicator: true
+        slidingWindowSize: 100
+        slidingWindowType: COUNT_BASED
+        minimumNumberOfCalls: 10
+        permittedNumberOfCallsInHalfOpenState: 10
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 5s
+        failureRateThreshold: 70  # More lenient for non-critical service
+        slowCallRateThreshold: 90
+        slowCallDurationThreshold: 10s
+
+      # Saga Orchestration Service Circuit Breaker
+      saga-service:
+        registerHealthIndicator: true
+        slidingWindowSize: 100
+        minimumNumberOfCalls: 10
+        permittedNumberOfCallsInHalfOpenState: 5
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 10s
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10
+
+  # Retry configuration for saga steps
+  retry:
+    instances:
+      # Fraud Detection Retry Policy
+      fraudDetection:
+        maxAttempts: 3
+        waitDuration: 1s
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - org.springframework.web.client.ResourceAccessException
+          - java.util.concurrent.TimeoutException
+          - feign.RetryableException
+        ignoreExceptions:
+          - com.example.common.exception.BusinessException
+
+      # Wallet Service Retry Policy
+      walletService:
+        maxAttempts: 3
+        waitDuration: 500ms
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - org.springframework.web.client.ResourceAccessException
+          - java.util.concurrent.TimeoutException
+          - feign.RetryableException
+
+      # Ledger Service Retry Policy
+      ledgerService:
+        maxAttempts: 3
+        waitDuration: 1s
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - org.springframework.web.client.ResourceAccessException
+          - java.util.concurrent.TimeoutException
+          - feign.RetryableException
+
+      # Compliance Service Retry Policy
+      complianceService:
+        maxAttempts: 3
+        waitDuration: 1s
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - org.springframework.web.client.ResourceAccessException
+          - java.util.concurrent.TimeoutException
+          - feign.RetryableException
+
+      # Notification Service Retry Policy (more retries for non-critical)
+      notificationService:
+        maxAttempts: 5
+        waitDuration: 500ms
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - org.springframework.web.client.ResourceAccessException
+          - java.util.concurrent.TimeoutException
+          - feign.RetryableException
+
+      # Default retry policy
+      default:
+        maxAttempts: 3
+        waitDuration: 500ms
+        exponentialBackoffMultiplier: 2
+
+  # Bulkhead configuration for thread isolation
+  bulkhead:
+    instances:
+      fraudDetection:
+        maxConcurrentCalls: 50
+        maxWaitDuration: 100ms
+
+      walletService:
+        maxConcurrentCalls: 100  # Higher for critical service
+        maxWaitDuration: 50ms
+
+      ledgerService:
+        maxConcurrentCalls: 50
+        maxWaitDuration: 100ms
+
+      complianceService:
+        maxConcurrentCalls: 50
+        maxWaitDuration: 100ms
+
+      notificationService:
+        maxConcurrentCalls: 100
+        maxWaitDuration: 200ms
+
+  # Rate limiter configuration
+  ratelimiter:
+    instances:
+      fraudDetection:
+        limitForPeriod: 2100  # 2,100 TPS capacity
+        limitRefreshPeriod: 1s
+        timeoutDuration: 100ms
+
+      walletService:
+        limitForPeriod: 1500
+        limitRefreshPeriod: 1s
+        timeoutDuration: 50ms
+
+      ledgerService:
+        limitForPeriod: 1000
+        limitRefreshPeriod: 1s
+        timeoutDuration: 100ms
+
+      complianceService:
+        limitForPeriod: 500  # PEP screening limited to 120 TPS with cache
+        limitRefreshPeriod: 1s
+        timeoutDuration: 100ms
+
+  # Time limiter configuration
+  timelimiter:
+    instances:
+      fraudDetection:
+        timeoutDuration: 5s
+        cancelRunningFuture: true
+
+      walletService:
+        timeoutDuration: 3s  # Stricter timeout for critical service
+        cancelRunningFuture: true
+
+      ledgerService:
+        timeoutDuration: 5s
+        cancelRunningFuture: true
+
+      complianceService:
+        timeoutDuration: 10s  # Longer for compliance checks
+        cancelRunningFuture: true
+
+      notificationService:
+        timeoutDuration: 10s  # Longer for non-critical
+        cancelRunningFuture: false
+
+# Security configuration
+security:
+  jwt:
+    secret: ${JWT_SECRET:${vault.jwt.transaction-service.secret}}
+    expiration: 86400000 # 24 hours in milliseconds
+
+---
+spring:
+  profiles: test
+  
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+  
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    database-platform: org.hibernate.dialect.H2Dialect
+  
+  kafka:
+    bootstrap-servers: ${spring.embedded.kafka.brokers}
+
+transaction:
+  fraud-detection:
+    enabled: false
+  notifications:
+    enabled: false
+
+---
+spring:
+  profiles: production
+  
+  jpa:
+    show-sql: false
+    properties:
+      hibernate:
+        generate_statistics: false
+
+logging:
+  level:
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+
+# Rate Limiting Configuration
+rate-limiting:
+  enabled: true
+  key-prefix: "waqiti:transaction:rate-limit:"
+  bucket-expiration-minutes: 60
+  default:
+    capacity: 100
+    refill-tokens: 100
+    refill-period-minutes: 1
+  services:
+    transaction-service:
+      capacity: 100
+      refill-tokens: 100
+      refill-period-minutes: 1
+      endpoints:
+        "/api/v1/transactions/transfer":
+          capacity: 10
+          refill-tokens: 10
+          refill-period-minutes: 5
+          tokens: 1
+        "/api/v1/transactions/deposit":
+          capacity: 20
+          refill-tokens: 20
+          refill-period-minutes: 5
+          tokens: 1
+        "/api/v1/transactions/withdrawal":
+          capacity: 15
+          refill-tokens: 15
+          refill-period-minutes: 10
+          tokens: 1
+        "/api/v1/transactions/*/retry":
+          capacity: 5
+          refill-tokens: 5
+          refill-period-minutes: 15
+          tokens: 1
+        "/api/v1/transactions/bulk/export":
+          capacity: 5
+          refill-tokens: 5
+          refill-period-minutes: 60
+          tokens: 3
+        "/api/v1/transactions/*/dispute":
+          capacity: 3
+          refill-tokens: 3
+          refill-period-minutes: 60
+          tokens: 1
+        "/api/v1/transactions/scheduled":
+          capacity: 10
+          refill-tokens: 10
+          refill-period-minutes: 5
+          tokens: 1
+
+# Keycloak Configuration
+keycloak:
+  enabled: ${KEYCLOAK_ENABLED:true}
+  auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8180}
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  resource: transaction-service
+  bearer-only: true
+  ssl-required: ${KEYCLOAK_SSL_REQUIRED:external}
+  verify-token-audience: true
+  use-resource-role-mappings: true
+  principal-attribute: preferred_username
+
+# Authentication Mode Configuration
+authentication:
+  mode: ${AUTH_MODE:KEYCLOAK}
+  legacy-jwt-enabled: ${LEGACY_JWT_ENABLED:false}
+  keycloak-enabled: ${KEYCLOAK_ENABLED:true}
+  circuit-breaker:
+    failure-threshold: 5
+    timeout-duration: 10000
+    half-open-requests: 3

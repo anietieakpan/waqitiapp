@@ -1,0 +1,392 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: vault
+  labels:
+    name: vault
+    istio-injection: disabled
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vault
+  namespace: vault
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: vault-server-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:auth-delegator
+subjects:
+- kind: ServiceAccount
+  name: vault
+  namespace: vault
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vault-config
+  namespace: vault
+data:
+  vault.hcl: |
+    listener "tcp" {
+      address = "0.0.0.0:8200"
+      cluster_address = "0.0.0.0:8201"
+      tls_cert_file = "/vault/tls/tls.crt"
+      tls_key_file = "/vault/tls/tls.key"
+      tls_client_ca_file = "/vault/tls/ca.crt"
+      tls_min_version = "tls12"
+      tls_cipher_suites = [
+        "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
+        "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"
+      ]
+    }
+
+    storage "raft" {
+      path = "/vault/data"
+      node_id = "vault-0"
+      
+      retry_join {
+        leader_api_addr = "https://vault-0.vault-internal:8200"
+      }
+      retry_join {
+        leader_api_addr = "https://vault-1.vault-internal:8200"
+      }
+      retry_join {
+        leader_api_addr = "https://vault-2.vault-internal:8200"
+      }
+    }
+
+    seal "awskms" {
+      region = "us-east-1"
+      kms_key_id = "${AWS_KMS_KEY_ID}"
+    }
+
+    service_registration "kubernetes" {
+      namespace = "vault"
+      pod_name = "${HOSTNAME}"
+    }
+
+    telemetry {
+      prometheus_retention_time = "30s"
+      disable_hostname = true
+    }
+
+    api_addr = "https://${HOSTNAME}.vault-internal:8200"
+    cluster_addr = "https://${HOSTNAME}.vault-internal:8201"
+    ui = true
+    log_level = "info"
+    log_format = "json"
+    max_lease_ttl = "768h"
+    default_lease_ttl = "768h"
+    cluster_name = "waqiti-vault-prod"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vault
+  namespace: vault
+  labels:
+    app: vault
+spec:
+  type: ClusterIP
+  ports:
+    - name: vault
+      port: 8200
+      targetPort: 8200
+      protocol: TCP
+    - name: vault-cluster
+      port: 8201
+      targetPort: 8201
+      protocol: TCP
+  selector:
+    app: vault
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vault-internal
+  namespace: vault
+  labels:
+    app: vault
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - name: vault
+      port: 8200
+      targetPort: 8200
+      protocol: TCP
+    - name: vault-cluster
+      port: 8201
+      targetPort: 8201
+      protocol: TCP
+  selector:
+    app: vault
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vault-ui
+  namespace: vault
+  labels:
+    app: vault
+spec:
+  type: LoadBalancer
+  ports:
+    - name: vault-ui
+      port: 443
+      targetPort: 8200
+      protocol: TCP
+  selector:
+    app: vault
+    vault-active: "true"
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: vault
+  namespace: vault
+  labels:
+    app: vault
+spec:
+  serviceName: vault-internal
+  replicas: 3
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: vault
+  template:
+    metadata:
+      labels:
+        app: vault
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8200"
+        prometheus.io/path: "/v1/sys/metrics"
+    spec:
+      serviceAccountName: vault
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 100
+        fsGroup: 1000
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: vault
+              topologyKey: kubernetes.io/hostname
+      terminationGracePeriodSeconds: 10
+      containers:
+        - name: vault
+          image: vault:1.15.4
+          imagePullPolicy: IfNotPresent
+          command:
+            - "/bin/sh"
+            - "-c"
+          args:
+            - |
+              cp /vault/config/vault.hcl /tmp/vault.hcl
+              sed -i "s/\${HOSTNAME}/$HOSTNAME/g" /tmp/vault.hcl
+              sed -i "s/\${AWS_KMS_KEY_ID}/$AWS_KMS_KEY_ID/g" /tmp/vault.hcl
+              vault server -config=/tmp/vault.hcl
+          env:
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: VAULT_ADDR
+              value: "https://127.0.0.1:8200"
+            - name: VAULT_API_ADDR
+              value: "https://$(HOSTNAME).vault-internal:8200"
+            - name: VAULT_CLUSTER_ADDR
+              value: "https://$(HOSTNAME).vault-internal:8201"
+            - name: SKIP_CHOWN
+              value: "true"
+            - name: SKIP_SETCAP
+              value: "true"
+            - name: AWS_KMS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: vault-kms
+                  key: key-id
+            - name: AWS_REGION
+              value: "us-east-1"
+            - name: VAULT_AWSKMS_SEAL_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: vault-kms
+                  key: key-id
+          ports:
+            - name: vault
+              containerPort: 8200
+              protocol: TCP
+            - name: vault-cluster
+              containerPort: 8201
+              protocol: TCP
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              add:
+                - IPC_LOCK
+          volumeMounts:
+            - name: vault-config
+              mountPath: /vault/config
+            - name: vault-data
+              mountPath: /vault/data
+            - name: vault-tls
+              mountPath: /vault/tls
+              readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /v1/sys/health?standbyok=true&uninitcode=204&sealedcode=204
+              port: 8200
+              scheme: HTTPS
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            successThreshold: 1
+            failureThreshold: 3
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /v1/sys/health?standbyok=true&uninitcode=204&sealedcode=204
+              port: 8200
+              scheme: HTTPS
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
+            timeoutSeconds: 5
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - vault operator step-down
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+      volumes:
+        - name: vault-config
+          configMap:
+            name: vault-config
+        - name: vault-tls
+          secret:
+            secretName: vault-tls
+  volumeClaimTemplates:
+    - metadata:
+        name: vault-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: gp3-encrypted
+        resources:
+          requests:
+            storage: 50Gi
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: vault
+  namespace: vault
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: vault
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: vault
+  namespace: vault
+spec:
+  podSelector:
+    matchLabels:
+      app: vault
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: waqiti
+        - podSelector:
+            matchLabels:
+              app: vault
+      ports:
+        - protocol: TCP
+          port: 8200
+        - protocol: TCP
+          port: 8201
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: vault
+      ports:
+        - protocol: TCP
+          port: 8200
+        - protocol: TCP
+          port: 8201
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: TCP
+          port: 443
+    - ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 53
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: vault
+  namespace: vault
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: StatefulSet
+    name: vault
+  minReplicas: 3
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80

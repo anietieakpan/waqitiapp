@@ -1,0 +1,345 @@
+# FRAUD DETECTION SERVICE - PRODUCTION CONFIGURATION
+# Version: 1.0.0
+# Last Updated: October 16, 2025
+# Environment: Production
+
+server:
+  port: 8080
+  servlet:
+    context-path: /fraud-detection
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/xml,text/plain
+  tomcat:
+    max-threads: 200
+    min-spare-threads: 10
+    connection-timeout: 20000
+    max-connections: 10000
+
+spring:
+  application:
+    name: fraud-detection-service
+
+  # Database Configuration (PostgreSQL)
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:fraud_detection}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      leak-detection-threshold: 60000
+      pool-name: FraudDetectionHikariPool
+
+  # JPA Configuration
+  jpa:
+    hibernate:
+      ddl-auto: validate # Never auto-create in production
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: false
+        show_sql: false
+        use_sql_comments: false
+        jdbc:
+          batch_size: 20
+          fetch_size: 50
+        cache:
+          use_second_level_cache: true
+          use_query_cache: true
+          region:
+            factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
+        order_inserts: true
+        order_updates: true
+    open-in-view: false
+
+  # Redis Configuration
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: 0
+      timeout: 2000
+      lettuce:
+        pool:
+          max-active: 20
+          max-idle: 10
+          min-idle: 5
+          max-wait: 2000
+        shutdown-timeout: 200
+
+  # Neo4j Configuration (Graph Database)
+  neo4j:
+    uri: ${NEO4J_URI:bolt://localhost:7687}
+    authentication:
+      username: ${NEO4J_USERNAME}
+      password: ${NEO4J_PASSWORD}
+    connection-timeout: 30s
+    max-transaction-retry-time: 30s
+
+  # Kafka Configuration
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: fraud-detection-service
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      max-poll-records: 100
+      session-timeout-ms: 30000
+      heartbeat-interval-ms: 10000
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.waqiti.*"
+        isolation.level: read_committed
+        max.poll.interval.ms: 300000
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      compression-type: snappy
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+    listener:
+      ack-mode: manual
+      concurrency: 3
+      missing-topics-fatal: false
+
+  # Cache Configuration
+  cache:
+    type: redis
+    redis:
+      time-to-live: 3600000 # 1 hour
+      cache-null-values: false
+    cache-names:
+      - customerProfiles
+      - merchantProfiles
+      - deviceProfiles
+      - locationProfiles
+      - deviceRiskAssessment
+      - locationRiskAssessment
+
+  # Security
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8080/realms/waqiti}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:http://localhost:8080/realms/waqiti/protocol/openid-connect/certs}
+
+# Fraud Detection ML Configuration
+fraud:
+  ml:
+    # XGBoost Model
+    xgboost:
+      enabled: true
+      model-path: ${ML_MODEL_PATH:/models/xgboost_fraud_model.onnx}
+      feature-count: 50
+      threshold: 0.75
+
+    # Random Forest Model (Backup)
+    random-forest:
+      enabled: true
+      model-path: ${ML_MODEL_PATH_RF:/models/random_forest_fraud_model.onnx}
+      feature-count: 50
+      threshold: 0.70
+
+    # TensorFlow Model (Deep Learning)
+    # CRITICAL P0 FIX: ML fraud detection enabled for production (Oct 2025)
+    tensorflow:
+      enabled: true
+      model-path: ${ML_MODEL_PATH_TF:/models/tensorflow_fraud_model}
+      threshold: 0.80
+
+    # Fallback Configuration
+    fallback:
+      enabled: true
+      default-risk-score: 0.70 # Fail secure - high risk default
+      high-value-threshold: 5000.00
+      medium-value-threshold: 1000.00
+
+    # Ensemble Configuration
+    ensemble:
+      enabled: true
+      primary-model: xgboost
+      confidence-threshold: 0.75
+      use-voting: true
+
+  # Risk Thresholds
+  risk:
+    critical-threshold: 0.90
+    high-threshold: 0.75
+    medium-threshold: 0.50
+    low-threshold: 0.25
+
+    # Auto-block thresholds
+    auto-block-threshold: 0.95
+    auto-approve-threshold: 0.20
+    manual-review-threshold: 0.75
+
+  # Velocity Limits
+  velocity:
+    max-transactions-per-minute: 5
+    max-transactions-per-5-minutes: 15
+    max-transactions-per-hour: 50
+    max-transactions-per-day: 200
+
+    max-amount-per-minute: 10000.00
+    max-amount-per-hour: 50000.00
+    max-amount-per-day: 100000.00
+
+  # Device Detection
+  device:
+    max-users-per-device: 3
+    device-farm-threshold: 10
+    impossible-travel-km-per-hour: 800
+
+  # Location Detection
+  location:
+    vpn-detection-enabled: true
+    high-risk-countries:
+      - IR # Iran
+      - KP # North Korea
+      - SY # Syria
+      - CU # Cuba
+      - SD # Sudan
+      - MM # Myanmar
+      - BY # Belarus
+      - VE # Venezuela
+      - AF # Afghanistan
+      - YE # Yemen
+      - IQ # Iraq
+      - LY # Libya
+      - SO # Somalia
+      - CF # Central African Republic
+
+  # Pattern Detection
+  patterns:
+    enabled: true
+    min-confidence: 0.70
+    lookback-days: 30
+
+  # External Services
+  external:
+    # MaxMind GeoIP
+    maxmind:
+      enabled: ${MAXMIND_ENABLED:false}
+      account-id: ${MAXMIND_ACCOUNT_ID:}
+      license-key: ${MAXMIND_LICENSE_KEY:}
+      database-path: /data/maxmind/GeoLite2-City.mmdb
+
+    # Threat Intelligence
+    threat-intel:
+      enabled: ${THREAT_INTEL_ENABLED:false}
+      api-url: ${THREAT_INTEL_URL:}
+      api-key: ${THREAT_INTEL_KEY:}
+      cache-ttl: 3600
+
+    # AWS SageMaker (for ML model serving)
+    sagemaker:
+      enabled: ${SAGEMAKER_ENABLED:false}
+      endpoint-name: ${SAGEMAKER_ENDPOINT:fraud-detection-endpoint}
+      region: ${AWS_REGION:us-east-1}
+
+# Monitoring & Observability
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  health:
+    redis:
+      enabled: true
+    db:
+      enabled: true
+    kafka:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: ${spring.application.name}
+      environment: production
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    com.waqiti: INFO
+    com.waqiti.frauddetection: INFO
+    com.waqiti.frauddetection.ml: DEBUG # ML predictions need visibility
+    org.springframework.web: INFO
+    org.springframework.kafka: WARN
+    org.hibernate: WARN
+    org.neo4j: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: /var/log/fraud-detection/application.log
+    max-size: 100MB
+    max-history: 30
+    total-size-cap: 3GB
+
+# Resilience4j Circuit Breaker
+resilience4j:
+  circuitbreaker:
+    instances:
+      fraudDetectionML:
+        register-health-indicator: true
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        wait-duration-in-open-state: 30s
+        failure-rate-threshold: 50
+        slow-call-rate-threshold: 100
+        slow-call-duration-threshold: 5s
+
+      externalServices:
+        register-health-indicator: true
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 60
+        wait-duration-in-open-state: 60s
+
+  retry:
+    instances:
+      fraudDetectionML:
+        max-attempts: 3
+        wait-duration: 1s
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - org.springframework.web.client.RestClientException
+          - java.io.IOException
+
+  bulkhead:
+    instances:
+      fraudDetectionML:
+        max-concurrent-calls: 25
+        max-wait-duration: 1s
+
+# Application Info
+info:
+  app:
+    name: Fraud Detection Service
+    description: Real-time fraud detection and prevention for Waqiti P2P Finance Platform
+    version: 1.0.0
+    environment: production

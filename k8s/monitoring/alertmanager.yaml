@@ -1,0 +1,471 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config
+  namespace: monitoring
+data:
+  alertmanager.yml: |
+    global:
+      smtp_smarthost: 'smtp.gmail.com:587'
+      smtp_from: 'alerts@example.com'
+      smtp_auth_username: 'alerts@example.com'
+      smtp_auth_password: 'smtp_password_here'
+      
+    # Define notification templates
+    templates:
+    - '/etc/alertmanager/templates/*.tmpl'
+    
+    # Routing rules for alerts
+    route:
+      group_by: ['alertname', 'cluster', 'service']
+      group_wait: 10s
+      group_interval: 10s
+      repeat_interval: 1h
+      receiver: 'default-receiver'
+      routes:
+      
+      # Critical financial alerts - immediate notification
+      - match:
+          severity: critical
+        group_wait: 0s
+        group_interval: 5s
+        repeat_interval: 15m
+        receiver: 'critical-alerts'
+        
+      # Payment service specific alerts
+      - match:
+          service: payment
+        receiver: 'payment-team'
+        routes:
+        - match:
+            severity: critical
+          receiver: 'payment-critical'
+          
+      # Security and fraud alerts
+      - match:
+          team: security
+        receiver: 'security-team'
+        routes:
+        - match:
+            severity: critical
+          receiver: 'security-critical'
+          
+      # Database alerts
+      - match:
+          service: database
+        receiver: 'platform-team'
+        routes:
+        - match:
+            severity: critical
+          receiver: 'database-critical'
+          
+      # Business metrics alerts
+      - match:
+          team: business
+        receiver: 'business-team'
+        
+      # Platform infrastructure alerts
+      - match:
+          team: platform
+        receiver: 'platform-team'
+    
+    # Inhibition rules to prevent spam
+    inhibit_rules:
+    - source_match:
+        severity: 'critical'
+      target_match:
+        severity: 'warning'
+      equal: ['alertname', 'cluster', 'service']
+      
+    - source_match:
+        alertname: 'PaymentServiceDown'
+      target_match_re:
+        alertname: '.*Payment.*'
+      equal: ['instance']
+    
+    # Notification receivers
+    receivers:
+    
+    # Default receiver
+    - name: 'default-receiver'
+      slack_configs:
+      - api_url: 'REPLACE_WITH_SLACK_WEBHOOK_URL'
+        channel: '#alerts-general'
+        title: 'Waqiti Alert - {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          *Alert:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          *Severity:* {{ .Labels.severity }}
+          *Service:* {{ .Labels.service }}
+          {{ end }}
+        
+    # Critical alerts - multiple channels
+    - name: 'critical-alerts'
+      slack_configs:
+      - api_url: 'REPLACE_WITH_SLACK_WEBHOOK_URL'
+        channel: '#alerts-critical'
+        title: '🚨 CRITICAL ALERT - {{ .GroupLabels.alertname }}'
+        text: |
+          @channel 🚨 **CRITICAL ALERT** 🚨
+          {{ range .Alerts }}
+          *Alert:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          *Service:* {{ .Labels.service }}
+          *Runbook:* {{ .Annotations.runbook }}
+          {{ end }}
+        send_resolved: true
+      
+      email_configs:
+      - to: 'oncall@example.com'
+        subject: '🚨 CRITICAL: {{ .GroupLabels.alertname }}'
+        body: |
+          Critical alert fired in Waqiti production environment.
+          
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Service: {{ .Labels.service }}
+          Severity: {{ .Labels.severity }}
+          Runbook: {{ .Annotations.runbook }}
+          {{ end }}
+          
+      webhook_configs:
+      - url: 'https://api.pagerduty.com/integration/v1/api_key/events'
+        send_resolved: true
+        http_config:
+          basic_auth:
+            username: 'pagerduty_integration_key'
+            password: 'pagerduty_password'
+    
+    # Payment team alerts
+    - name: 'payment-team'
+      slack_configs:
+      - api_url: 'REPLACE_WITH_SLACK_WEBHOOK_URL'
+        channel: '#team-payments'
+        title: 'Payment Alert - {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          *Payment Service Alert*
+          *Summary:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          *Severity:* {{ .Labels.severity }}
+          {{ end }}
+      
+    # Payment critical alerts
+    - name: 'payment-critical'
+      slack_configs:
+      - api_url: 'REPLACE_WITH_SLACK_WEBHOOK_URL'
+        channel: '#team-payments'
+        title: '🚨 CRITICAL PAYMENT ALERT'
+        text: |
+          @here 🚨 **CRITICAL PAYMENT ISSUE** 🚨
+          {{ range .Alerts }}
+          This requires immediate attention as it affects payment processing.
+          
+          *Alert:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          *Runbook:* {{ .Annotations.runbook }}
+          {{ end }}
+      
+      email_configs:
+      - to: 'payments-oncall@example.com'
+        subject: '🚨 CRITICAL PAYMENT ALERT: {{ .GroupLabels.alertname }}'
+        body: |
+          Critical payment system alert requiring immediate attention.
+          
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Runbook: {{ .Annotations.runbook }}
+          {{ end }}
+    
+    # Security team alerts
+    - name: 'security-team'
+      slack_configs:
+      - api_url: 'REPLACE_WITH_SLACK_WEBHOOK_URL'
+        channel: '#team-security'
+        title: 'Security Alert - {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          *Security Alert*
+          *Summary:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          *Severity:* {{ .Labels.severity }}
+          {{ end }}
+    
+    # Security critical alerts
+    - name: 'security-critical'
+      slack_configs:
+      - api_url: 'REPLACE_WITH_SLACK_WEBHOOK_URL'
+        channel: '#team-security'
+        title: '🔒 CRITICAL SECURITY ALERT'
+        text: |
+          @channel 🔒 **CRITICAL SECURITY INCIDENT** 🔒
+          {{ range .Alerts }}
+          Potential security threat detected requiring immediate investigation.
+          
+          *Alert:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          *Severity:* {{ .Labels.severity }}
+          {{ end }}
+      
+      email_configs:
+      - to: 'security@example.com'
+        subject: '🔒 CRITICAL SECURITY ALERT: {{ .GroupLabels.alertname }}'
+        body: |
+          Critical security alert detected in production environment.
+          
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Severity: {{ .Labels.severity }}
+          {{ end }}
+    
+    # Database critical alerts
+    - name: 'database-critical'
+      slack_configs:
+      - api_url: 'REPLACE_WITH_SLACK_WEBHOOK_URL'
+        channel: '#team-platform'
+        title: '💾 CRITICAL DATABASE ALERT'
+        text: |
+          @here 💾 **CRITICAL DATABASE ISSUE** 💾
+          {{ range .Alerts }}
+          Database issue affecting system stability.
+          
+          *Alert:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          *Runbook:* {{ .Annotations.runbook }}
+          {{ end }}
+      
+      webhook_configs:
+      - url: 'https://api.pagerduty.com/integration/v1/api_key/events'
+        send_resolved: true
+    
+    # Platform team alerts
+    - name: 'platform-team'
+      slack_configs:
+      - api_url: 'REPLACE_WITH_SLACK_WEBHOOK_URL'
+        channel: '#team-platform'
+        title: 'Platform Alert - {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          *Platform Alert*
+          *Summary:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          *Severity:* {{ .Labels.severity }}
+          {{ end }}
+    
+    # Business team alerts
+    - name: 'business-team'
+      slack_configs:
+      - api_url: 'REPLACE_WITH_SLACK_WEBHOOK_URL'
+        channel: '#team-business'
+        title: 'Business Metrics Alert - {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          *Business Metrics Alert*
+          *Summary:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          *Impact:* This may affect business KPIs and revenue
+          {{ end }}
+      
+      email_configs:
+      - to: 'business-team@example.com'
+        subject: 'Business Metrics Alert: {{ .GroupLabels.alertname }}'
+        body: |
+          Business metrics alert detected.
+          
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Impact: This may affect business KPIs and revenue tracking
+          {{ end }}
+
+  alert-templates.tmpl: |
+    {{ define "slack.waqiti.title" }}
+    [{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}] Waqiti Alert
+    {{ end }}
+    
+    {{ define "slack.waqiti.text" }}
+    {{ range .Alerts }}
+    {{- if .Annotations.summary }}
+    *Summary:* {{ .Annotations.summary }}
+    {{- end }}
+    {{- if .Annotations.description }}
+    *Description:* {{ .Annotations.description }}
+    {{- end }}
+    *Severity:* {{ .Labels.severity | title }}
+    *Service:* {{ .Labels.service | title }}
+    {{- if .Annotations.runbook }}
+    *Runbook:* {{ .Annotations.runbook }}
+    {{- end }}
+    *Started:* {{ .StartsAt.Format "2006-01-02 15:04:05 UTC" }}
+    {{ end }}
+    {{ end }}
+    
+    {{ define "email.waqiti.subject" }}
+    [{{ .Status | toUpper }}] {{ .GroupLabels.alertname }} - Waqiti Production
+    {{ end }}
+    
+    {{ define "email.waqiti.body" }}
+    <h2>Waqiti Production Alert</h2>
+    <p><strong>Status:</strong> {{ .Status | title }}</p>
+    
+    {{ range .Alerts }}
+    <div style="border-left: 4px solid #ff6b6b; padding-left: 10px; margin: 10px 0;">
+      <h3>{{ .Annotations.summary }}</h3>
+      <p><strong>Description:</strong> {{ .Annotations.description }}</p>
+      <p><strong>Severity:</strong> {{ .Labels.severity | title }}</p>
+      <p><strong>Service:</strong> {{ .Labels.service | title }}</p>
+      <p><strong>Started:</strong> {{ .StartsAt.Format "2006-01-02 15:04:05 UTC" }}</p>
+      {{ if .Annotations.runbook }}
+      <p><strong>Runbook:</strong> <a href="{{ .Annotations.runbook }}">{{ .Annotations.runbook }}</a></p>
+      {{ end }}
+    </div>
+    {{ end }}
+    
+    <hr>
+    <p><small>This alert was generated by the Waqiti monitoring system.</small></p>
+    {{ end }}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alertmanager
+  namespace: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alertmanager
+  template:
+    metadata:
+      labels:
+        app: alertmanager
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        fsGroup: 65534
+      containers:
+      - name: alertmanager
+        image: prom/alertmanager:v0.25.0
+        args:
+          - '--config.file=/etc/alertmanager/alertmanager.yml'
+          - '--storage.path=/alertmanager'
+          - '--web.external-url=https://alertmanager.example.com'
+          - '--web.route-prefix=/'
+          - '--cluster.listen-address=0.0.0.0:9094'
+        ports:
+        - containerPort: 9093
+          name: web
+        - containerPort: 9094
+          name: cluster
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "200m"
+        volumeMounts:
+        - name: alertmanager-config
+          mountPath: /etc/alertmanager
+          readOnly: true
+        - name: alertmanager-storage
+          mountPath: /alertmanager
+        livenessProbe:
+          httpGet:
+            path: /-/healthy
+            port: 9093
+          initialDelaySeconds: 30
+          timeoutSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /-/ready
+            port: 9093
+          initialDelaySeconds: 30
+          timeoutSeconds: 30
+      volumes:
+      - name: alertmanager-config
+        configMap:
+          name: alertmanager-config
+      - name: alertmanager-storage
+        persistentVolumeClaim:
+          claimName: alertmanager-storage
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: alertmanager-storage
+  namespace: monitoring
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: gp3
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager
+  namespace: monitoring
+  labels:
+    app: alertmanager
+spec:
+  type: ClusterIP
+  ports:
+  - port: 9093
+    targetPort: 9093
+    name: web
+  - port: 9094
+    targetPort: 9094
+    name: cluster
+  selector:
+    app: alertmanager
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: alertmanager-ingress
+  namespace: monitoring
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/auth-type: basic
+    nginx.ingress.kubernetes.io/auth-secret: alertmanager-auth
+spec:
+  tls:
+  - hosts:
+    - alertmanager.example.com
+    secretName: alertmanager-tls
+  rules:
+  - host: alertmanager.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: alertmanager
+            port:
+              number: 9093
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: alertmanager-auth
+  namespace: monitoring
+type: Opaque
+data:
+  # CONFIGURE_IN_VAULT: Replace with actual base64-encoded htpasswd auth
+  # Generate with: htpasswd -nb admin <password> | base64
+  auth: CHANGE_ME_BASE64_ENCODED

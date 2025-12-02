@@ -1,0 +1,32 @@
+package com.waqiti.recurringpayment.dto;
+
+import lombok.Builder;
+import lombok.Data;
+
+import jakarta.validation.constraints.*;
+import java.math.BigDecimal;
+import java.time.Instant;
+
+@Data
+@Builder
+public class CreateFromTemplateRequest {
+    
+    private String recipientId;
+    
+    @DecimalMin(value = "0.01", message = "Amount must be greater than 0")
+    @Digits(integer = 10, fraction = 4, message = "Invalid amount format")
+    private BigDecimal amount;
+    
+    @Size(max = 500, message = "Description cannot exceed 500 characters")
+    private String description;
+    
+    @NotNull(message = "Start date is required")
+    @Future(message = "Start date must be in the future")
+    private Instant startDate;
+    
+    private Instant endDate;
+    
+    @Min(value = 1, message = "Maximum occurrences must be at least 1")
+    @Max(value = 1000, message = "Maximum occurrences cannot exceed 1000")
+    private Integer maxOccurrences;
+}

@@ -1,0 +1,552 @@
+---
+# ===========================================================================
+# WAQITI SERVICE MESH CONFIGURATION - ISTIO
+# ===========================================================================
+# Features:
+# - Traffic management (load balancing, routing)
+# - Security (mTLS, authorization)
+# - Observability (distributed tracing, metrics)
+# - Resilience (circuit breaking, retries, timeouts)
+# ===========================================================================
+
+---
+# Enable Istio sidecar injection for waqiti namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: waqiti-services
+  labels:
+    istio-injection: enabled
+    monitoring: "true"
+
+---
+# Istio Gateway for ingress traffic
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: waqiti-gateway
+  namespace: istio-system
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  # HTTPS traffic
+  - port:
+      number: 443
+      name: https
+      protocol: HTTPS
+    tls:
+      mode: SIMPLE
+      credentialName: waqiti-tls-cert
+    hosts:
+    - "api.example.com"
+    - "*.api.example.com"
+
+  # HTTP traffic (redirect to HTTPS)
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "api.example.com"
+    - "*.api.example.com"
+    tls:
+      httpsRedirect: true
+
+---
+# Virtual Service for payment-service routing
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: payment-service
+  namespace: waqiti-services
+spec:
+  hosts:
+  - "api.example.com"
+  gateways:
+  - istio-system/waqiti-gateway
+  http:
+  # Canary deployment routing (10% to v2)
+  - match:
+    - uri:
+        prefix: "/v1/payments"
+    route:
+    - destination:
+        host: payment-service
+        subset: v1
+      weight: 90
+    - destination:
+        host: payment-service
+        subset: v2
+      weight: 10
+    retries:
+      attempts: 3
+      perTryTimeout: 10s
+      retryOn: 5xx,reset,connect-failure,refused-stream
+    timeout: 30s
+    corsPolicy:
+      allowOrigins:
+      - exact: "https://app.example.com"
+      - exact: "https://admin.example.com"
+      allowMethods:
+      - POST
+      - GET
+      - PUT
+      - DELETE
+      - OPTIONS
+      allowHeaders:
+      - authorization
+      - content-type
+      - x-request-id
+      - idempotency-key
+      maxAge: "24h"
+      allowCredentials: true
+
+  # ACH transfers endpoint
+  - match:
+    - uri:
+        prefix: "/v1/ach-transfers"
+    route:
+    - destination:
+        host: payment-service
+        subset: v1
+    retries:
+      attempts: 2
+      perTryTimeout: 15s
+      retryOn: 5xx
+    timeout: 60s
+
+  # Instant deposits endpoint
+  - match:
+    - uri:
+        prefix: "/v1/instant-deposits"
+    route:
+    - destination:
+        host: payment-service
+        subset: v1
+    retries:
+      attempts: 2
+      perTryTimeout: 10s
+    timeout: 30s
+
+---
+# Destination rules for payment-service
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: payment-service
+  namespace: waqiti-services
+spec:
+  host: payment-service
+  trafficPolicy:
+    loadBalancer:
+      consistentHash:
+        httpHeaderName: "x-user-id"  # Session affinity by user
+    connectionPool:
+      tcp:
+        maxConnections: 1000
+      http:
+        http1MaxPendingRequests: 1000
+        http2MaxRequests: 1000
+        maxRequestsPerConnection: 100
+        idleTimeout: 90s
+    outlierDetection:
+      consecutiveErrors: 5
+      interval: 30s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+      minHealthPercent: 50
+    tls:
+      mode: ISTIO_MUTUAL  # Enforce mTLS
+
+  subsets:
+  # Version 1 (stable)
+  - name: v1
+    labels:
+      version: v1
+    trafficPolicy:
+      connectionPool:
+        tcp:
+          maxConnections: 1000
+        http:
+          http1MaxPendingRequests: 1000
+          maxRequestsPerConnection: 100
+
+  # Version 2 (canary)
+  - name: v2
+    labels:
+      version: v2
+    trafficPolicy:
+      connectionPool:
+        tcp:
+          maxConnections: 100  # Limited during canary
+        http:
+          http1MaxPendingRequests: 100
+
+---
+# Circuit breaker for external payment providers
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: stripe-circuit-breaker
+  namespace: waqiti-services
+spec:
+  host: "*.stripe.com"
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 100
+      http:
+        http1MaxPendingRequests: 100
+        maxRequestsPerConnection: 10
+    outlierDetection:
+      consecutiveGatewayErrors: 3
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 100
+      minHealthPercent: 0
+
+---
+# Rate limiting for payment endpoints
+apiVersion: networking.istio.io/v1beta1
+kind: EnvoyFilter
+metadata:
+  name: payment-rate-limit
+  namespace: waqiti-services
+spec:
+  workloadSelector:
+    labels:
+      app: payment-service
+  configPatches:
+  - applyTo: HTTP_FILTER
+    match:
+      context: SIDECAR_INBOUND
+      listener:
+        filterChain:
+          filter:
+            name: "envoy.filters.network.http_connection_manager"
+            subFilter:
+              name: "envoy.filters.http.router"
+    patch:
+      operation: INSERT_BEFORE
+      value:
+        name: envoy.filters.http.local_ratelimit
+        typed_config:
+          "@type": type.googleapis.com/udpa.type.v1.TypedStruct
+          type_url: type.googleapis.com/envoy.extensions.filters.http.local_ratelimit.v3.LocalRateLimit
+          value:
+            stat_prefix: http_local_rate_limiter
+            token_bucket:
+              max_tokens: 100
+              tokens_per_fill: 100
+              fill_interval: 60s
+            filter_enabled:
+              runtime_key: local_rate_limit_enabled
+              default_value:
+                numerator: 100
+                denominator: HUNDRED
+            filter_enforced:
+              runtime_key: local_rate_limit_enforced
+              default_value:
+                numerator: 100
+                denominator: HUNDRED
+
+---
+# PeerAuthentication - Enforce mTLS
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: waqiti-services
+spec:
+  mtls:
+    mode: STRICT  # Enforce mTLS for all services
+
+---
+# Authorization Policy - Payment Service Access Control
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: payment-service-authz
+  namespace: waqiti-services
+spec:
+  selector:
+    matchLabels:
+      app: payment-service
+  action: ALLOW
+  rules:
+  # Allow API Gateway
+  - from:
+    - source:
+        principals: ["cluster.local/ns/waqiti-services/sa/api-gateway"]
+    to:
+    - operation:
+        methods: ["GET", "POST", "PUT", "DELETE", "PATCH"]
+        paths: ["/v1/*"]
+
+  # Allow wallet service for balance checks
+  - from:
+    - source:
+        principals: ["cluster.local/ns/waqiti-services/sa/wallet-service"]
+    to:
+    - operation:
+        methods: ["POST"]
+        paths: ["/internal/v1/payments/validate"]
+
+  # Allow fraud detection service
+  - from:
+    - source:
+        principals: ["cluster.local/ns/waqiti-services/sa/fraud-detection-service"]
+    to:
+    - operation:
+        methods: ["POST"]
+        paths: ["/internal/v1/payments/*/fraud-check"]
+
+  # Allow compliance service
+  - from:
+    - source:
+        principals: ["cluster.local/ns/waqiti-services/sa/compliance-service"]
+    to:
+    - operation:
+        methods: ["POST"]
+        paths: ["/internal/v1/payments/*/compliance-check"]
+
+---
+# Telemetry configuration for distributed tracing
+apiVersion: telemetry.istio.io/v1alpha1
+kind: Telemetry
+metadata:
+  name: payment-service-telemetry
+  namespace: waqiti-services
+spec:
+  selector:
+    matchLabels:
+      app: payment-service
+  tracing:
+  - providers:
+    - name: zipkin
+    randomSamplingPercentage: 100.0  # 100% sampling for critical service
+    customTags:
+      payment_id:
+        header:
+          name: x-payment-id
+      user_id:
+        header:
+          name: x-user-id
+      idempotency_key:
+        header:
+          name: idempotency-key
+  metrics:
+  - providers:
+    - name: prometheus
+    dimensions:
+      payment_method:
+        value: request.headers['x-payment-method'] | 'unknown'
+      payment_status:
+        value: response.headers['x-payment-status'] | 'unknown'
+
+---
+# Service Entry for external payment providers
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: stripe-api
+  namespace: waqiti-services
+spec:
+  hosts:
+  - "api.stripe.com"
+  - "*.stripe.com"
+  ports:
+  - number: 443
+    name: https
+    protocol: HTTPS
+  location: MESH_EXTERNAL
+  resolution: DNS
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: plaid-api
+  namespace: waqiti-services
+spec:
+  hosts:
+  - "production.plaid.com"
+  - "sandbox.plaid.com"
+  ports:
+  - number: 443
+    name: https
+    protocol: HTTPS
+  location: MESH_EXTERNAL
+  resolution: DNS
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: dwolla-api
+  namespace: waqiti-services
+spec:
+  hosts:
+  - "api.dwolla.com"
+  - "api-sandbox.dwolla.com"
+  ports:
+  - number: 443
+    name: https
+    protocol: HTTPS
+  location: MESH_EXTERNAL
+  resolution: DNS
+
+---
+# Fault injection for chaos testing (disabled by default)
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: payment-service-fault-injection
+  namespace: waqiti-services
+spec:
+  hosts:
+  - payment-service
+  http:
+  - match:
+    - headers:
+        x-chaos-test:
+          exact: "true"
+    fault:
+      delay:
+        percentage:
+          value: 10
+        fixedDelay: 5s
+      abort:
+        percentage:
+          value: 5
+        httpStatus: 503
+    route:
+    - destination:
+        host: payment-service
+        subset: v1
+
+---
+# Traffic mirroring for testing (shadow traffic)
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: payment-service-mirror
+  namespace: waqiti-services
+spec:
+  hosts:
+  - payment-service
+  http:
+  - match:
+    - headers:
+        x-mirror-traffic:
+          exact: "true"
+    route:
+    - destination:
+        host: payment-service
+        subset: v1
+      weight: 100
+    mirror:
+      host: payment-service
+      subset: v2
+    mirrorPercentage:
+      value: 100.0
+
+---
+# Sidecar resource limits
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: istio-sidecar-injector
+  namespace: istio-system
+data:
+  values: |-
+    {
+      "global": {
+        "proxy": {
+          "resources": {
+            "requests": {
+              "cpu": "100m",
+              "memory": "128Mi"
+            },
+            "limits": {
+              "cpu": "200m",
+              "memory": "256Mi"
+            }
+          }
+        }
+      }
+    }
+
+---
+# Request authentication via JWT
+apiVersion: security.istio.io/v1beta1
+kind: RequestAuthentication
+metadata:
+  name: jwt-auth
+  namespace: waqiti-services
+spec:
+  selector:
+    matchLabels:
+      app: payment-service
+  jwtRules:
+  - issuer: "https://keycloak.example.com/realms/waqiti-fintech"
+    jwksUri: "https://keycloak.example.com/realms/waqiti-fintech/protocol/openid-connect/certs"
+    audiences:
+    - "payment-service"
+    - "waqiti-api"
+    forwardOriginalToken: true
+
+---
+# Authorization policy based on JWT claims
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: payment-jwt-authz
+  namespace: waqiti-services
+spec:
+  selector:
+    matchLabels:
+      app: payment-service
+  action: ALLOW
+  rules:
+  # Allow authenticated users with valid JWT
+  - from:
+    - source:
+        requestPrincipals: ["*"]
+    when:
+    - key: request.auth.claims[iss]
+      values: ["https://keycloak.example.com/realms/waqiti-fintech"]
+
+  # Admin-only endpoints
+  - to:
+    - operation:
+        paths: ["/v1/admin/*"]
+    when:
+    - key: request.auth.claims[role]
+      values: ["admin"]
+
+---
+# Observability - Custom metrics
+apiVersion: telemetry.istio.io/v1alpha1
+kind: Telemetry
+metadata:
+  name: custom-metrics
+  namespace: waqiti-services
+spec:
+  metrics:
+  - providers:
+    - name: prometheus
+    overrides:
+    - match:
+        metric: REQUEST_COUNT
+      tagOverrides:
+        payment_type:
+          value: request.headers['x-payment-type'] | 'unknown'
+        payment_provider:
+          value: request.headers['x-payment-provider'] | 'unknown'
+    - match:
+        metric: REQUEST_DURATION
+      tagOverrides:
+        payment_status:
+          value: response.headers['x-payment-status'] | 'unknown'

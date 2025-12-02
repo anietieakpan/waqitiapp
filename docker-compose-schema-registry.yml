@@ -1,0 +1,86 @@
+version: '3.8'
+
+services:
+  # Schema Registry Service
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.5.0
+    hostname: schema-registry
+    container_name: waqiti-schema-registry
+    depends_on:
+      - kafka
+    ports:
+      - "8081:8081"
+    environment:
+      # Basic Configuration
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: 'kafka:9092'
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+
+      # Schema Storage
+      SCHEMA_REGISTRY_KAFKASTORE_TOPIC: _schemas
+      SCHEMA_REGISTRY_KAFKASTORE_TOPIC_REPLICATION_FACTOR: 3
+
+      # Compatibility Settings
+      SCHEMA_REGISTRY_SCHEMA_COMPATIBILITY_LEVEL: BACKWARD
+
+      # Security
+      SCHEMA_REGISTRY_AUTHENTICATION_METHOD: BASIC
+      SCHEMA_REGISTRY_AUTHENTICATION_REALM: SchemaRegistry
+      SCHEMA_REGISTRY_AUTHENTICATION_ROLES: admin,developer,readonly
+
+      # Performance
+      SCHEMA_REGISTRY_KAFKASTORE_TIMEOUT_MS: 10000
+      SCHEMA_REGISTRY_MASTER_ELIGIBILITY: 'true'
+
+      # Logging
+      SCHEMA_REGISTRY_DEBUG: 'false'
+      SCHEMA_REGISTRY_LOG4J_ROOT_LOGLEVEL: INFO
+
+      # JVM Settings
+      SCHEMA_REGISTRY_HEAP_OPTS: "-Xms512M -Xmx1G"
+
+    volumes:
+      - schema-registry-data:/var/lib/schema-registry
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+    restart: unless-stopped
+
+    networks:
+      - waqiti-network
+
+    labels:
+      - "com.waqiti.service=schema-registry"
+      - "com.waqiti.environment=production"
+
+  # Schema Registry UI (Optional - for visualization)
+  schema-registry-ui:
+    image: landoop/schema-registry-ui:latest
+    hostname: schema-registry-ui
+    container_name: waqiti-schema-registry-ui
+    depends_on:
+      - schema-registry
+    ports:
+      - "8082:8000"
+    environment:
+      SCHEMAREGISTRY_URL: http://schema-registry:8081
+      PROXY: 'true'
+    restart: unless-stopped
+    networks:
+      - waqiti-network
+    labels:
+      - "com.waqiti.service=schema-registry-ui"
+      - "com.waqiti.environment=production"
+
+volumes:
+  schema-registry-data:
+    driver: local
+
+networks:
+  waqiti-network:
+    external: true

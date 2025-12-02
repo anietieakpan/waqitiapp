@@ -1,0 +1,136 @@
+spring:
+  application:
+    name: tokenization-service
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/waqiti_tokenization
+    username: ${DB_USERNAME:waqiti}
+    password: ${DB_PASSWORD:?DB_PASSWORD_REQUIRED}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: false
+        show_sql: false
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+    open-in-view: false
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      group-id: tokenization-service
+      enable-auto-commit: false  # Manual acknowledgment for DLQ support
+      max-poll-records: 50  # Batch size control
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      auto-offset-reset: earliest
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8080/realms/waqiti}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8080/realms/waqiti/protocol/openid-connect/certs}
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+
+server:
+  port: ${SERVER_PORT:8093}
+  servlet:
+    context-path: /
+  compression:
+    enabled: true
+
+# Eureka Service Discovery
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: ${EUREKA_SERVER_URL:${EUREKA_SERVER_URL:https://discovery-service:8761/eureka}/}
+    enabled: ${EUREKA_ENABLED:true}
+  instance:
+    preferIpAddress: true
+    instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}
+
+# Tokenization Configuration
+tokenization:
+  kms:
+    enabled: ${KMS_ENABLED:true}
+    key-id: ${AWS_KMS_MASTER_KEY_ID:}
+    region: ${AWS_REGION:us-east-1}
+
+  expiration:
+    card: 90  # days
+    bank-account: 365
+    ssn: 3650
+    tax-id: 3650
+    drivers-license: 1825
+    passport: 1825
+    sensitive-data: 90
+
+  max-retries: 3
+
+  rate-limit:
+    tokenize: 100  # per minute per user
+    detokenize: 500
+
+  audit:
+    enabled: true
+    kafka-topic: tokenization-events
+
+  cache:
+    enabled: true
+    ttl-minutes: 60
+
+# Actuator / Metrics
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: ${spring.application.name}
+
+# Logging
+logging:
+  level:
+    root: INFO
+    com.waqiti.tokenization: DEBUG
+    org.springframework.security: INFO
+    org.springframework.web: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"

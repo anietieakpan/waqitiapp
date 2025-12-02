@@ -1,0 +1,494 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: database-backup
+  labels:
+    name: database-backup
+    environment: production
+    
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backup-config
+  namespace: database-backup
+data:
+  backup-script.sh: |
+    #!/bin/bash
+    set -e
+    
+    # Database backup script for Waqiti production environment
+    # Performs full backup with encryption and multi-region replication
+    
+    TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+    BACKUP_DIR="/backups"
+    S3_BUCKET="waqiti-db-backups-prod"
+    RETENTION_DAYS=30
+    
+    # Database configurations
+    DATABASES=(
+      "waqiti_core"
+      "waqiti_payments" 
+      "waqiti_transactions"
+      "waqiti_users"
+      "waqiti_kyc"
+      "waqiti_compliance"
+      "waqiti_analytics"
+      "waqiti_audit"
+    )
+    
+    echo "Starting database backup at $(date)"
+    
+    # Create backup directory
+    mkdir -p $BACKUP_DIR/$TIMESTAMP
+    
+    # Backup each database
+    for db in "${DATABASES[@]}"; do
+      echo "Backing up database: $db"
+      
+      # Create compressed backup with encryption
+      pg_dump -h $POSTGRES_HOST -U $POSTGRES_USER -d $db \
+        --verbose --no-password --format=custom --compress=9 \
+        | gpg --cipher-algo AES256 --compress-algo 1 --symmetric \
+              --passphrase "$BACKUP_ENCRYPTION_KEY" \
+        > $BACKUP_DIR/$TIMESTAMP/${db}_${TIMESTAMP}.sql.gz.gpg
+      
+      # Verify backup integrity
+      if [ $? -eq 0 ]; then
+        echo "✅ Successfully backed up $db"
+        
+        # Upload to S3 with versioning
+        aws s3 cp $BACKUP_DIR/$TIMESTAMP/${db}_${TIMESTAMP}.sql.gz.gpg \
+          s3://$S3_BUCKET/daily/$TIMESTAMP/ \
+          --storage-class STANDARD_IA \
+          --server-side-encryption AES256
+          
+        # Cross-region replication
+        aws s3 cp $BACKUP_DIR/$TIMESTAMP/${db}_${TIMESTAMP}.sql.gz.gpg \
+          s3://$S3_BUCKET-dr/daily/$TIMESTAMP/ \
+          --storage-class STANDARD_IA \
+          --server-side-encryption AES256
+          
+      else
+        echo "❌ Failed to backup $db"
+        exit 1
+      fi
+    done
+    
+    # Backup Redis data
+    echo "Backing up Redis data..."
+    redis-cli -h $REDIS_HOST --rdb $BACKUP_DIR/$TIMESTAMP/redis_${TIMESTAMP}.rdb
+    
+    # Encrypt and upload Redis backup
+    gpg --cipher-algo AES256 --symmetric \
+        --passphrase "$BACKUP_ENCRYPTION_KEY" \
+        $BACKUP_DIR/$TIMESTAMP/redis_${TIMESTAMP}.rdb
+    
+    aws s3 cp $BACKUP_DIR/$TIMESTAMP/redis_${TIMESTAMP}.rdb.gpg \
+      s3://$S3_BUCKET/redis/$TIMESTAMP/ \
+      --storage-class STANDARD_IA
+    
+    # Generate backup manifest
+    cat > $BACKUP_DIR/$TIMESTAMP/manifest.json << EOF
+    {
+      "timestamp": "$TIMESTAMP",
+      "databases": [$(printf '"%s",' "${DATABASES[@]}" | sed 's/,$//')]
+      "backup_size": "$(du -sh $BACKUP_DIR/$TIMESTAMP | cut -f1)",
+      "retention_until": "$(date -d '+30 days' +%Y-%m-%d)",
+      "encryption": "AES256",
+      "storage_class": "STANDARD_IA",
+      "cross_region_backup": true
+    }
+    EOF
+    
+    # Upload manifest
+    aws s3 cp $BACKUP_DIR/$TIMESTAMP/manifest.json \
+      s3://$S3_BUCKET/manifests/${TIMESTAMP}_manifest.json
+    
+    # Clean up old local backups
+    find $BACKUP_DIR -type d -mtime +7 -exec rm -rf {} +
+    
+    # Clean up old S3 backups (older than retention period)
+    aws s3api list-objects-v2 --bucket $S3_BUCKET --prefix "daily/" \
+      --query "Contents[?LastModified<='$(date -d "-$RETENTION_DAYS days" --iso-8601)'].Key" \
+      --output text | xargs -r aws s3 rm s3://$S3_BUCKET/
+    
+    echo "Backup completed successfully at $(date)"
+    
+    # Send notification
+    curl -X POST "$SLACK_WEBHOOK_URL" \
+      -H 'Content-type: application/json' \
+      --data "{\"text\":\"✅ Database backup completed successfully for $TIMESTAMP\"}"
+
+  restore-script.sh: |
+    #!/bin/bash
+    set -e
+    
+    # Database restore script for disaster recovery
+    # Usage: ./restore-script.sh <backup_timestamp> <target_database>
+    
+    BACKUP_TIMESTAMP=$1
+    TARGET_DB=$2
+    S3_BUCKET="waqiti-db-backups-prod"
+    
+    if [ -z "$BACKUP_TIMESTAMP" ] || [ -z "$TARGET_DB" ]; then
+      echo "Usage: $0 <backup_timestamp> <target_database>"
+      exit 1
+    fi
+    
+    echo "Starting restore for $TARGET_DB from backup $BACKUP_TIMESTAMP"
+    
+    # Download backup from S3
+    aws s3 cp s3://$S3_BUCKET/daily/$BACKUP_TIMESTAMP/${TARGET_DB}_${BACKUP_TIMESTAMP}.sql.gz.gpg \
+      /tmp/restore.sql.gz.gpg
+    
+    # Decrypt backup
+    gpg --batch --yes --passphrase "$BACKUP_ENCRYPTION_KEY" \
+        --decrypt /tmp/restore.sql.gz.gpg > /tmp/restore.sql.gz
+    
+    # Verify target database exists
+    if ! psql -h $POSTGRES_HOST -U $POSTGRES_USER -lqt | cut -d \| -f 1 | grep -qw $TARGET_DB; then
+      echo "Creating target database $TARGET_DB"
+      createdb -h $POSTGRES_HOST -U $POSTGRES_USER $TARGET_DB
+    fi
+    
+    # Perform restore
+    echo "Restoring database..."
+    pg_restore -h $POSTGRES_HOST -U $POSTGRES_USER -d $TARGET_DB \
+      --verbose --clean --if-exists /tmp/restore.sql.gz
+    
+    # Cleanup
+    rm -f /tmp/restore.sql.gz.gpg /tmp/restore.sql.gz
+    
+    echo "✅ Database restore completed successfully"
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: database-backup-daily
+  namespace: database-backup
+spec:
+  schedule: "0 2 * * *"  # Daily at 2 AM UTC
+  timeZone: "UTC"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 7
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            app: database-backup
+            type: daily
+        spec:
+          restartPolicy: Never
+          serviceAccountName: backup-service-account
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            fsGroup: 1000
+          containers:
+          - name: backup
+            image: postgres:15-alpine
+            imagePullPolicy: Always
+            command: ["/bin/bash", "/scripts/backup-script.sh"]
+            env:
+            - name: POSTGRES_HOST
+              value: "postgres-primary.database"
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: username
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: password
+            - name: REDIS_HOST
+              value: "redis-primary.redis"
+            - name: BACKUP_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: backup-encryption
+                  key: encryption-key
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: access-key-id
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: secret-access-key
+            - name: SLACK_WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: notification-secrets
+                  key: slack-webhook-url
+            resources:
+              requests:
+                memory: "1Gi"
+                cpu: "500m"
+              limits:
+                memory: "2Gi"
+                cpu: "1000m"
+            volumeMounts:
+            - name: backup-scripts
+              mountPath: /scripts
+              readOnly: true
+            - name: backup-storage
+              mountPath: /backups
+          volumes:
+          - name: backup-scripts
+            configMap:
+              name: backup-config
+              defaultMode: 0755
+          - name: backup-storage
+            persistentVolumeClaim:
+              claimName: backup-storage-pvc
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: database-backup-weekly
+  namespace: database-backup
+spec:
+  schedule: "0 1 * * 0"  # Weekly on Sunday at 1 AM UTC
+  timeZone: "UTC"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 4
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            app: database-backup
+            type: weekly
+        spec:
+          restartPolicy: Never
+          serviceAccountName: backup-service-account
+          containers:
+          - name: backup
+            image: postgres:15-alpine
+            command: ["/bin/bash", "-c"]
+            args:
+            - |
+              # Weekly full backup with enhanced compression
+              TIMESTAMP=$(date +%Y%m%d_%H%M%S)_weekly
+              
+              # Create weekly backup with higher compression
+              for db in waqiti_core waqiti_payments waqiti_transactions waqiti_users waqiti_kyc waqiti_compliance waqiti_analytics waqiti_audit; do
+                pg_dump -h $POSTGRES_HOST -U $POSTGRES_USER -d $db \
+                  --verbose --no-password --format=custom --compress=9 \
+                  | gpg --cipher-algo AES256 --compress-algo 2 --symmetric \
+                        --passphrase "$BACKUP_ENCRYPTION_KEY" \
+                  > /backups/${db}_${TIMESTAMP}.sql.gz.gpg
+                
+                # Upload to weekly S3 folder with GLACIER storage class
+                aws s3 cp /backups/${db}_${TIMESTAMP}.sql.gz.gpg \
+                  s3://waqiti-db-backups-prod/weekly/$TIMESTAMP/ \
+                  --storage-class GLACIER
+              done
+            env:
+            - name: POSTGRES_HOST
+              value: "postgres-primary.database"
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: username
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: password
+            - name: BACKUP_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: backup-encryption
+                  key: encryption-key
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: access-key-id
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: secret-access-key
+            resources:
+              requests:
+                memory: "2Gi"
+                cpu: "1000m"
+              limits:
+                memory: "4Gi"
+                cpu: "2000m"
+            volumeMounts:
+            - name: backup-storage
+              mountPath: /backups
+          volumes:
+          - name: backup-storage
+            persistentVolumeClaim:
+              claimName: backup-storage-pvc
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: backup-storage-pvc
+  namespace: database-backup
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 500Gi
+  storageClassName: gp3
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: backup-service-account
+  namespace: database-backup
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: backup-role
+  namespace: database-backup
+rules:
+- apiGroups: [""]
+  resources: ["secrets", "configmaps"]
+  verbs: ["get", "list"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "create"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: backup-role-binding
+  namespace: database-backup
+subjects:
+- kind: ServiceAccount
+  name: backup-service-account
+  namespace: database-backup
+roleRef:
+  kind: Role
+  name: backup-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# IMPORTANT: These secrets are placeholders for demonstration purposes.
+# In production, use External Secrets Operator, Sealed Secrets, or HashiCorp Vault
+# to inject real credentials. NEVER commit actual secrets to version control.
+#
+# To use with External Secrets Operator:
+# apiVersion: external-secrets.io/v1beta1
+# kind: ExternalSecret
+# metadata:
+#   name: postgres-credentials
+# spec:
+#   secretStoreRef:
+#     name: vault-backend
+#     kind: ClusterSecretStore
+#   target:
+#     name: postgres-credentials
+#   data:
+#   - secretKey: username
+#     remoteRef:
+#       key: database/postgres
+#       property: username
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-credentials
+  namespace: database-backup
+  annotations:
+    description: "PLACEHOLDER - Replace with actual credentials via secrets management"
+type: Opaque
+stringData:
+  username: "${POSTGRES_BACKUP_USERNAME}"
+  password: "${POSTGRES_BACKUP_PASSWORD}"
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: backup-encryption
+  namespace: database-backup
+  annotations:
+    description: "PLACEHOLDER - Replace with actual encryption key via secrets management"
+type: Opaque
+stringData:
+  encryption-key: "${BACKUP_ENCRYPTION_KEY}"
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: aws-credentials
+  namespace: database-backup
+  annotations:
+    description: "PLACEHOLDER - Use IAM roles for service accounts (IRSA) in production"
+type: Opaque
+stringData:
+  access-key-id: "${AWS_ACCESS_KEY_ID}"
+  secret-access-key: "${AWS_SECRET_ACCESS_KEY}"
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: notification-secrets
+  namespace: database-backup
+  annotations:
+    description: "PLACEHOLDER - Replace with actual webhook URL via secrets management"
+type: Opaque
+stringData:
+  slack-webhook-url: "${SLACK_WEBHOOK_URL}"
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: backup-monitoring
+  namespace: database-backup
+  labels:
+    app: database-backup
+spec:
+  selector:
+    matchLabels:
+      app: database-backup
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /metrics
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backup-metrics
+  namespace: database-backup
+  labels:
+    app: database-backup
+spec:
+  selector:
+    app: database-backup
+  ports:
+  - name: metrics
+    port: 8080
+    targetPort: 8080

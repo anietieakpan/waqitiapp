@@ -1,0 +1,515 @@
+# Waqiti Platform - Production-Ready Configuration Template
+# Version: 1.0.0
+# Last Updated: 2025-01-16
+#
+# This configuration enables all production-readiness features:
+# - DLQ recovery with comprehensive error handling
+# - Idempotency protection against duplicate events
+# - PagerDuty integration for critical incident alerting
+# - Slack integration for team notifications
+# - Redis-backed event tracking
+#
+# INSTRUCTIONS:
+# 1. Copy this file to each service's application-production.yml
+# 2. Replace ${ENVIRONMENT_VARIABLES} with actual values from vault/secrets
+# 3. Enable features gradually: staging → canary → production
+
+---
+spring:
+  application:
+    name: ${SERVICE_NAME:waqiti-service}
+
+  # ===================================
+  # Redis Configuration (Idempotency)
+  # ===================================
+  redis:
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD:}
+    database: ${REDIS_DATABASE:0}
+    timeout: 2000ms
+
+    lettuce:
+      pool:
+        max-active: 20      # Max connections in pool
+        max-idle: 10        # Max idle connections
+        min-idle: 5         # Min idle connections
+        max-wait: 2000ms    # Max wait time for connection
+
+      shutdown-timeout: 200ms
+
+    # Cluster configuration (for production)
+    cluster:
+      nodes: ${REDIS_CLUSTER_NODES:}
+      max-redirects: 3
+
+    # Sentinel configuration (for HA)
+    sentinel:
+      master: ${REDIS_SENTINEL_MASTER:}
+      nodes: ${REDIS_SENTINEL_NODES:}
+
+  # ===================================
+  # Kafka Configuration
+  # ===================================
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+    # Consumer Configuration
+    consumer:
+      group-id: ${spring.application.name}-group
+      auto-offset-reset: earliest
+      enable-auto-commit: false  # Manual acknowledgment for idempotency
+      max-poll-records: 500
+      max-poll-interval-ms: 300000
+      session-timeout-ms: 30000
+      heartbeat-interval-ms: 3000
+
+      # Serialization
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+
+      properties:
+        spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
+        spring.json.trusted.packages: "*"
+        spring.json.use.type.headers: false
+
+    # Producer Configuration
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all  # Wait for all replicas to acknowledge
+      retries: 3
+      compression-type: snappy
+      batch-size: 16384
+      buffer-memory: 33554432
+      linger-ms: 10
+
+      properties:
+        max.in.flight.requests.per.connection: 5
+        enable.idempotence: true
+
+    # Listener Configuration
+    listener:
+      ack-mode: manual  # Required for idempotency
+      concurrency: 3
+      poll-timeout: 3000
+
+    # Topics Configuration (DLQ naming convention)
+    topics:
+      # Payment Service Topics
+      PaymentInitiatedConsumer:
+        name: payment-initiated
+        dlq: payment-initiated.dlq
+        partitions: 6
+        replication-factor: 3
+
+      PaymentReconciliationFailedConsumer:
+        name: payment-reconciliation-failed
+        dlq: PaymentReconciliationFailedConsumer.dlq
+        partitions: 3
+        replication-factor: 3
+
+      # Wallet Service Topics
+      WalletTransactionConsumer:
+        name: wallet-transaction-events
+        dlq: wallet-transaction-events.dlq
+        partitions: 6
+        replication-factor: 3
+
+      # Ledger Service Topics
+      PaymentEventsConsumer:
+        name: payment-events
+        dlq: PaymentEventsConsumer.dlq
+        partitions: 6
+        replication-factor: 3
+
+---
+# ===================================
+# PagerDuty Configuration
+# ===================================
+pagerduty:
+  enabled: ${PAGERDUTY_ENABLED:true}
+  integration-key: ${PAGERDUTY_INTEGRATION_KEY}
+  api-url: https://events.pagerduty.com/v2/enqueue
+
+  # Severity mapping
+  severity:
+    p0: critical
+    p1: error
+    p2: warning
+    p3: info
+
+  # Incident routing rules
+  routing:
+    payment-service: ${PAGERDUTY_ROUTING_KEY_PAYMENTS:${pagerduty.integration-key}}
+    wallet-service: ${PAGERDUTY_ROUTING_KEY_WALLET:${pagerduty.integration-key}}
+    ledger-service: ${PAGERDUTY_ROUTING_KEY_LEDGER:${pagerduty.integration-key}}
+    fraud-service: ${PAGERDUTY_ROUTING_KEY_FRAUD:${pagerduty.integration-key}}
+
+---
+# ===================================
+# Slack Configuration
+# ===================================
+slack:
+  enabled: ${SLACK_ENABLED:true}
+
+  webhook:
+    # Critical alerts channel (P0/P1 incidents)
+    critical-alerts: ${SLACK_WEBHOOK_CRITICAL_ALERTS}
+
+    # Finance operations channel
+    finance-ops: ${SLACK_WEBHOOK_FINANCE_OPS}
+
+    # Engineering alerts channel
+    engineering-alerts: ${SLACK_WEBHOOK_ENGINEERING_ALERTS}
+
+    # Compliance channel (AML, KYC, sanctions)
+    compliance: ${SLACK_WEBHOOK_COMPLIANCE}
+
+    # Risk operations channel (fraud, suspicious activity)
+    risk-ops: ${SLACK_WEBHOOK_RISK_OPS}
+
+    # Security operations channel (security incidents)
+    security-ops: ${SLACK_WEBHOOK_SECURITY_OPS}
+
+  # Alert routing rules
+  routing:
+    payment-failures: finance-ops
+    reconciliation-errors: finance-ops
+    fraud-detected: risk-ops
+    wallet-frozen: risk-ops
+    compliance-violation: compliance
+    security-breach: security-ops
+    system-error: engineering-alerts
+
+---
+# ===================================
+# Idempotency Configuration
+# ===================================
+idempotency:
+  enabled: ${IDEMPOTENCY_ENABLED:true}
+
+  # Redis key configuration
+  key-prefix: ${spring.application.name}:idempotency
+  ttl-days: 7  # Keep processed events for 7 days
+
+  # Performance tuning
+  check-timeout-ms: 100  # Timeout for idempotency check
+  async-marking: true    # Mark as processed asynchronously
+
+  # Circuit breaker for Redis failures
+  circuit-breaker:
+    enabled: true
+    failure-threshold: 5
+    wait-duration-seconds: 30
+    permitted-calls-in-half-open: 3
+
+  # Graceful degradation
+  fallback:
+    on-redis-failure: log-and-continue  # Options: log-and-continue, fail-fast
+    redis-unavailable-metric: true
+
+---
+# ===================================
+# DLQ Recovery Configuration
+# ===================================
+dlq:
+  # Retry configuration
+  retry:
+    max-attempts: 5
+    initial-backoff-ms: 1000
+    max-backoff-ms: 30000
+    multiplier: 2.0
+
+  # Transient error patterns (will be retried)
+  transient-errors:
+    - timeout
+    - connection
+    - network
+    - deadlock
+    - temporarily unavailable
+    - 503
+    - 504
+
+  # Manual review thresholds
+  manual-review:
+    # Financial thresholds
+    payment-amount-threshold: 1000.00    # >$1K requires review
+    settlement-amount-threshold: 10000.00 # >$10K requires review
+    chargeback-amount-threshold: 5000.00  # >$5K requires review
+
+    # Always require review for these event types
+    always-review:
+      - fraud-detected
+      - compliance-violation
+      - reconciliation-error
+      - security-breach
+
+  # Alert routing
+  alerts:
+    critical-threshold: 1000.00  # >$1K = critical alert
+    pagerduty-threshold: 10000.00 # >$10K = PagerDuty incident
+
+    # Team routing
+    finance-events:
+      - payment-reconciliation-failed
+      - settlement-failures
+      - chargeback-events
+      - transaction-reversal
+
+    compliance-events:
+      - wallet-freeze-request
+      - aml-check-failed
+      - sanctions-hit
+      - pep-match
+
+    risk-events:
+      - fraud-detected
+      - velocity-exceeded
+      - suspicious-activity
+
+---
+# ===================================
+# Metrics & Monitoring
+# ===================================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus,info
+
+  metrics:
+    tags:
+      application: ${spring.application.name}
+      environment: ${ENVIRONMENT:production}
+
+    export:
+      prometheus:
+        enabled: true
+
+    # Custom metrics
+    enable:
+      idempotency: true
+      dlq-recovery: true
+      financial-integrity: true
+
+  # Health checks
+  health:
+    redis:
+      enabled: true
+    kafka:
+      enabled: true
+
+---
+# ===================================
+# Logging Configuration
+# ===================================
+logging:
+  level:
+    root: INFO
+    com.waqiti: INFO
+
+    # DLQ & Idempotency logging
+    com.example.common.idempotency: INFO
+    com.example.common.dlq: INFO
+    com.example.common.alerting: INFO
+
+    # Financial operations logging (audit trail)
+    com.waqiti.payment: INFO
+    com.waqiti.wallet: INFO
+    com.waqiti.ledger: INFO
+
+    # Kafka logging
+    org.apache.kafka: WARN
+    org.springframework.kafka: WARN
+
+  pattern:
+    console: '%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n'
+    file: '%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n'
+
+  # Log to file for audit compliance
+  file:
+    name: /var/log/${spring.application.name}/application.log
+    max-size: 100MB
+    max-history: 30
+    total-size-cap: 3GB
+
+---
+# ===================================
+# Feature Flags
+# ===================================
+features:
+  # Idempotency
+  idempotency-enabled: ${FEATURE_IDEMPOTENCY:true}
+  idempotency-async-marking: ${FEATURE_IDEMPOTENCY_ASYNC:true}
+
+  # DLQ Recovery
+  dlq-recovery-enabled: ${FEATURE_DLQ_RECOVERY:true}
+  dlq-manual-review-enabled: ${FEATURE_DLQ_MANUAL_REVIEW:true}
+
+  # Alerting
+  pagerduty-enabled: ${FEATURE_PAGERDUTY:true}
+  slack-enabled: ${FEATURE_SLACK:true}
+
+  # Circuit breakers
+  circuit-breaker-redis: ${FEATURE_CB_REDIS:true}
+  circuit-breaker-kafka: ${FEATURE_CB_KAFKA:true}
+
+---
+# ===================================
+# Environment-Specific Overrides
+# ===================================
+
+# Development
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+idempotency:
+  enabled: false  # Disable for local development
+
+dlq:
+  retry:
+    max-attempts: 2  # Fewer retries in dev
+
+pagerduty:
+  enabled: false
+
+slack:
+  enabled: false
+
+---
+# Staging
+---
+spring:
+  config:
+    activate:
+      on-profile: staging
+
+idempotency:
+  enabled: true
+  ttl-days: 1  # Shorter TTL in staging
+
+pagerduty:
+  enabled: true
+
+slack:
+  enabled: true
+
+---
+# Production
+---
+spring:
+  config:
+    activate:
+      on-profile: production
+
+idempotency:
+  enabled: true
+  ttl-days: 7
+
+dlq:
+  retry:
+    max-attempts: 5
+
+pagerduty:
+  enabled: true
+
+slack:
+  enabled: true
+
+# Production-specific logging
+logging:
+  level:
+    root: WARN
+    com.waqiti: INFO
+
+---
+# ===================================
+# Security Configuration
+# ===================================
+security:
+  # Sensitive data masking in logs
+  sensitive-fields:
+    - password
+    - token
+    - apiKey
+    - secret
+    - cvv
+    - pin
+    - cardNumber
+
+  # PII masking
+  pii-fields:
+    - email
+    - phone
+    - ssn
+    - taxId
+
+---
+# ===================================
+# Circuit Breaker Configuration
+# (Resilience4j)
+# ===================================
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-size: 100
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 10
+        automatic-transition-from-open-to-half-open-enabled: true
+
+    instances:
+      redis:
+        base-config: default
+        failure-rate-threshold: 30
+
+      kafka:
+        base-config: default
+        failure-rate-threshold: 40
+
+      pagerduty:
+        base-config: default
+        failure-rate-threshold: 20
+
+      slack:
+        base-config: default
+        failure-rate-threshold: 20
+
+  # Retry configuration
+  retry:
+    configs:
+      default:
+        max-attempts: 3
+        wait-duration: 1s
+        retry-exceptions:
+          - java.net.SocketTimeoutException
+          - java.net.ConnectException
+          - org.springframework.web.client.ResourceAccessException
+
+---
+# ===================================
+# Database Connection Pool
+# (HikariCP)
+# ===================================
+spring:
+  datasource:
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+      # Health check
+      connection-test-query: SELECT 1
+
+      # Leak detection (development only)
+      leak-detection-threshold: 60000
+
+---
+# END OF CONFIGURATION

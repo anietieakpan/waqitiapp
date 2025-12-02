@@ -1,0 +1,230 @@
+# Enhanced Bootstrap configuration for Spring Cloud Vault
+# This is loaded before application.yml and configures Vault integration
+# ENHANCEMENT: Added production-ready Vault configuration with HA support
+
+spring:
+  cloud:
+    vault:
+      # Vault server configuration with HA support
+      uri: ${VAULT_URI:https://vault.example.internal:8200}
+      scheme: ${VAULT_SCHEME:https}
+      host: ${VAULT_HOST:vault.example.internal}
+      port: ${VAULT_PORT:8200}
+      
+      # Enhanced authentication configuration with multiple methods
+      authentication: ${VAULT_AUTH_METHOD:KUBERNETES}
+      
+      # Kubernetes authentication (preferred for production)
+      kubernetes:
+        role: ${VAULT_K8S_ROLE:${spring.application.name}-role}
+        kubernetes-path: ${VAULT_K8S_PATH:kubernetes}
+        service-account-token-file: ${VAULT_SA_TOKEN_FILE:/var/run/secrets/kubernetes.io/serviceaccount/token}
+      
+      # AppRole authentication (fallback)
+      app-role:
+        role-id: ${VAULT_ROLE_ID:}
+        secret-id: ${VAULT_SECRET_ID:}
+        role: ${spring.application.name}-role
+        app-role-path: ${VAULT_APPROLE_PATH:approle}
+      
+      # Token authentication (development only)
+      token: ${VAULT_TOKEN:}
+      
+      # Enhanced connection settings with retries
+      connection-timeout: ${VAULT_CONNECTION_TIMEOUT:10000}
+      read-timeout: ${VAULT_READ_TIMEOUT:30000}
+      open-timeout: ${VAULT_OPEN_TIMEOUT:5000}
+      
+      # Enhanced KV engine configuration with versioning
+      kv:
+        enabled: true
+        backend: ${VAULT_KV_BACKEND:secret}
+        backend-version: ${VAULT_KV_VERSION:2}
+        profile-separator: ${VAULT_PROFILE_SEPARATOR:/}
+        default-context: ${VAULT_DEFAULT_CONTEXT:shared}
+        application-name: ${spring.application.name}
+        profiles: ${spring.profiles.active:default}
+        # Support for multiple environments
+        additional-contexts:
+          - ${VAULT_ADDITIONAL_CONTEXT_1:common}
+          - ${VAULT_ADDITIONAL_CONTEXT_2:infrastructure}
+      
+      # Enhanced database secret configuration with dynamic credentials
+      database:
+        enabled: ${VAULT_DATABASE_ENABLED:true}
+        role: ${VAULT_DB_ROLE:${spring.application.name}-db-role}
+        backend: ${VAULT_DB_BACKEND:database}
+        username-property: spring.datasource.username
+        password-property: spring.datasource.password
+        # Dynamic credential renewal settings
+        ttl: ${VAULT_DB_TTL:24h}
+        max-ttl: ${VAULT_DB_MAX_TTL:168h}
+        # Multiple database support
+        static-role: ${VAULT_DB_STATIC_ROLE:${spring.application.name}-static}
+        # Read replica support
+        read-replica-role: ${VAULT_DB_READ_ROLE:${spring.application.name}-read}
+      
+      # Enhanced generic secret backends
+      generic:
+        enabled: true
+        backend: ${VAULT_GENERIC_BACKEND:secret}
+        default-context: ${VAULT_GENERIC_CONTEXT:application}
+        application-name: ${spring.application.name}
+        # Support for different secret engines
+        additional-backends:
+          - name: ${VAULT_PKI_BACKEND:pki}
+            type: pki
+          - name: ${VAULT_TRANSIT_BACKEND:transit}
+            type: transit
+          - name: ${VAULT_TOTP_BACKEND:totp}
+            type: totp
+        
+      # Enhanced session management with proactive renewal
+      session:
+        lifecycle:
+          enabled: true
+          expiry-threshold: ${VAULT_SESSION_EXPIRY_THRESHOLD:7200s}
+          refresh-before-expiry: ${VAULT_SESSION_REFRESH_BEFORE_EXPIRY:600s}
+          # Proactive renewal settings
+          min-renewal: ${VAULT_SESSION_MIN_RENEWAL:300s}
+          # Lease renewal settings
+          lease-endpoints: ${VAULT_LEASE_ENDPOINTS:SysLeases}
+          # Token renewal settings
+          token-renewal:
+            enabled: ${VAULT_TOKEN_RENEWAL_ENABLED:true}
+            grace-period: ${VAULT_TOKEN_GRACE_PERIOD:60s}
+      
+      # Enhanced SSL configuration for production
+      ssl:
+        trust-store: ${VAULT_TRUST_STORE:/etc/ssl/certs/vault-ca.jks}
+        trust-store-password: ${VAULT_TRUST_STORE_PASSWORD:${VAULT_SSL_TRUST_STORE_PASSWORD}}
+        trust-store-type: ${VAULT_TRUST_STORE_TYPE:JKS}
+        # Additional SSL settings
+        key-store: ${VAULT_KEY_STORE:}
+        key-store-password: ${VAULT_KEY_STORE_PASSWORD:}
+        key-store-type: ${VAULT_KEY_STORE_TYPE:PKCS12}
+        # Certificate validation
+        cert-auth-path: ${VAULT_CERT_AUTH_PATH:cert}
+        # TLS settings
+        enabled-protocols: ${VAULT_TLS_PROTOCOLS:TLSv1.2,TLSv1.3}
+        enabled-cipher-suites: ${VAULT_CIPHER_SUITES:}
+        # Certificate verification
+        verify-hostname: ${VAULT_VERIFY_HOSTNAME:true}
+        
+      # Enhanced fail fast and retry configuration
+      fail-fast: ${VAULT_FAIL_FAST:false}
+      # Retry configuration for resilience
+      retry:
+        enabled: ${VAULT_RETRY_ENABLED:true}
+        max-attempts: ${VAULT_RETRY_MAX_ATTEMPTS:5}
+        initial-interval: ${VAULT_RETRY_INITIAL_INTERVAL:1000ms}
+        max-interval: ${VAULT_RETRY_MAX_INTERVAL:10000ms}
+        multiplier: ${VAULT_RETRY_MULTIPLIER:2.0}
+        # Retry on specific exceptions
+        retry-on:
+          - org.springframework.vault.VaultException
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
+      
+      # Enhanced config data properties with caching
+      config:
+        order: ${VAULT_CONFIG_ORDER:-10}
+        lifecycle:
+          enabled: true
+          min-renewal: ${VAULT_CONFIG_MIN_RENEWAL:300s}
+          expiry-threshold: ${VAULT_CONFIG_EXPIRY_THRESHOLD:10m}
+          lease-endpoints: ${VAULT_LEASE_ENDPOINTS:SysLeases}
+        # Configuration caching
+        cache:
+          enabled: ${VAULT_CONFIG_CACHE_ENABLED:true}
+          ttl: ${VAULT_CONFIG_CACHE_TTL:300s}
+          max-size: ${VAULT_CONFIG_CACHE_MAX_SIZE:1000}
+        # Configuration refresh
+        refresh:
+          enabled: ${VAULT_CONFIG_REFRESH_ENABLED:true}
+          period: ${VAULT_CONFIG_REFRESH_PERIOD:30m}
+        
+  # Application configuration
+  application:
+    name: ${SERVICE_NAME:waqiti-service}
+    
+  # Profile configuration
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:development}
+
+# Logging configuration for Vault
+logging:
+  level:
+    org.springframework.vault: INFO
+    org.springframework.cloud.vault: INFO
+    com.example.common.security: DEBUG
+    
+# Management endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,vault
+  endpoint:
+    vault:
+      enabled: true
+      cache:
+        time-to-live: 30s
+
+# Enhanced service-specific Vault paths with environment support
+vault:
+  paths:
+    # Database credentials
+    database: database/${spring.application.name}
+    database-read: database/${spring.application.name}-read
+    database-static: database/${spring.application.name}-static
+    
+    # JWT secrets
+    jwt: jwt/${spring.application.name}
+    jwt-refresh: jwt/${spring.application.name}/refresh
+    
+    # API keys and external service credentials
+    api-keys: api-keys/${spring.application.name}
+    external-apis: external-apis
+    payment-providers: payment-providers
+    
+    # Encryption keys
+    encryption: encryption/${spring.application.name}
+    transit-key: transit/${spring.application.name}
+    
+    # Infrastructure secrets
+    redis: infrastructure/redis
+    kafka: infrastructure/kafka
+    elasticsearch: infrastructure/elasticsearch
+    
+    # Monitoring and observability
+    monitoring: monitoring
+    alerts: alerts
+    
+    # Certificates and PKI
+    pki: pki/${spring.application.name}
+    tls-certs: certificates/${spring.application.name}
+    
+    # Application-specific secrets
+    application: application/${spring.application.name}
+    features: features/${spring.application.name}
+    
+  # Environment-specific path prefixes
+  environment:
+    prefix: ${VAULT_ENV_PREFIX:${spring.profiles.active:development}}
+    
+  # Health check configuration
+  health:
+    enabled: ${VAULT_HEALTH_ENABLED:true}
+    endpoint: ${VAULT_HEALTH_ENDPOINT:sys/health}
+    
+  # Metrics and monitoring
+  metrics:
+    enabled: ${VAULT_METRICS_ENABLED:true}
+    prefix: vault.client
+    
+  # Audit logging
+  audit:
+    enabled: ${VAULT_AUDIT_ENABLED:true}
+    log-requests: ${VAULT_AUDIT_LOG_REQUESTS:false}
+    log-responses: ${VAULT_AUDIT_LOG_RESPONSES:false}

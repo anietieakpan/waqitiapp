@@ -1,0 +1,274 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backup-strategy-config
+  namespace: waqiti-backup
+  labels:
+    app: backup-system
+    component: configuration
+data:
+  backup-policy.yaml: |
+    # Waqiti Backup and Disaster Recovery Strategy
+    # Enterprise-grade backup solution with multi-tier recovery
+    
+    global:
+      retention:
+        daily: 30   # Keep daily backups for 30 days
+        weekly: 12  # Keep weekly backups for 12 weeks
+        monthly: 12 # Keep monthly backups for 12 months
+        yearly: 7   # Keep yearly backups for 7 years
+      
+      encryption:
+        enabled: true
+        algorithm: "AES-256-GCM"
+        key_rotation_days: 90
+        vault_path: "secret/backup/encryption-keys"
+      
+      compression:
+        enabled: true
+        algorithm: "gzip"
+        level: 6
+      
+      verification:
+        enabled: true
+        frequency: "daily"
+        integrity_checks: true
+        restore_tests: "weekly"
+    
+    databases:
+      postgresql:
+        backup_type: "logical"
+        frequency: "every_6_hours"
+        parallel_jobs: 4
+        include_schemas:
+          - "public"
+          - "audit"
+          - "analytics"
+        exclude_tables:
+          - "temp_*"
+          - "session_*"
+        custom_options:
+          - "--verbose"
+          - "--compress=9"
+          - "--no-owner"
+          - "--no-privileges"
+        
+        critical_databases:
+          - name: "payment_db"
+            frequency: "every_2_hours"
+            priority: "critical"
+            retention_override:
+              daily: 90
+              weekly: 24
+          
+          - name: "wallet_db"
+            frequency: "every_2_hours"
+            priority: "critical"
+            retention_override:
+              daily: 90
+              weekly: 24
+          
+          - name: "user_db"
+            frequency: "every_4_hours"
+            priority: "high"
+          
+          - name: "transaction_db"
+            frequency: "every_2_hours"
+            priority: "critical"
+            retention_override:
+              daily: 90
+              weekly: 24
+              yearly: 10
+          
+          - name: "ledger_db"
+            frequency: "every_1_hour"
+            priority: "critical"
+            retention_override:
+              daily: 180
+              weekly: 52
+              yearly: 10
+        
+        standard_databases:
+          - name: "analytics_db"
+            frequency: "every_12_hours"
+            priority: "medium"
+          
+          - name: "notification_db"
+            frequency: "every_8_hours"
+            priority: "medium"
+          
+          - name: "social_db"
+            frequency: "every_8_hours"
+            priority: "medium"
+          
+          - name: "family_account_db"
+            frequency: "every_6_hours"
+            priority: "high"
+    
+    storage:
+      primary:
+        type: "s3"
+        bucket: "waqiti-backups-primary"
+        region: "us-east-1"
+        storage_class: "STANDARD_IA"
+        lifecycle:
+          transition_to_glacier_days: 30
+          transition_to_deep_archive_days: 90
+        versioning: true
+        mfa_delete: true
+      
+      secondary:
+        type: "s3"
+        bucket: "waqiti-backups-secondary"
+        region: "us-west-2"
+        storage_class: "STANDARD_IA"
+        cross_region_replication: true
+        versioning: true
+      
+      offsite:
+        type: "glacier"
+        vault: "waqiti-long-term-archive"
+        region: "eu-west-1"
+        retrieval_tier: "expedited"
+        notification_topic: "backup-retrieval-notifications"
+    
+    applications:
+      kubernetes_manifests:
+        frequency: "daily"
+        include_namespaces:
+          - "waqiti"
+          - "waqiti-monitoring"
+          - "waqiti-backup"
+        include_resources:
+          - "deployments"
+          - "services"
+          - "configmaps"
+          - "secrets"
+          - "persistentvolumeclaims"
+          - "ingress"
+        tools:
+          - "velero"
+          - "kubectl"
+      
+      persistent_volumes:
+        frequency: "every_6_hours"
+        snapshot_storage_class: "fast-ssd"
+        cross_zone_replication: true
+        encryption: true
+        
+        critical_volumes:
+          - "prometheus-storage"
+          - "grafana-storage"
+          - "vault-storage"
+          - "elasticsearch-storage"
+        
+        standard_volumes:
+          - "redis-storage"
+          - "kafka-storage"
+          - "jaeger-storage"
+      
+      configuration:
+        frequency: "daily"
+        include_paths:
+          - "/etc/kubernetes"
+          - "/opt/vault/config"
+          - "/etc/prometheus"
+          - "/etc/grafana"
+        git_backup: true
+        repository: "git@github.com:waqiti/infrastructure-backup.git"
+    
+    disaster_recovery:
+      rto: # Recovery Time Objective
+        critical_services: "15_minutes"
+        high_priority_services: "1_hour"
+        standard_services: "4_hours"
+        low_priority_services: "24_hours"
+      
+      rpo: # Recovery Point Objective
+        critical_data: "5_minutes"
+        high_priority_data: "30_minutes"
+        standard_data: "2_hours"
+        low_priority_data: "24_hours"
+      
+      failover:
+        automatic: true
+        manual_approval_required: false
+        notification_channels:
+          - "slack://waqiti-incidents"
+          - "email://ops@example.com"
+          - "pagerduty://waqiti-critical"
+      
+      testing:
+        full_dr_test_frequency: "quarterly"
+        partial_restore_test_frequency: "monthly"
+        backup_verification_frequency: "daily"
+        documentation_update_frequency: "monthly"
+    
+    monitoring:
+      metrics:
+        backup_success_rate: true
+        backup_duration: true
+        backup_size: true
+        restore_time: true
+        storage_utilization: true
+      
+      alerts:
+        backup_failure:
+          threshold: "1_failure"
+          severity: "critical"
+        backup_duration_exceeded:
+          threshold: "2x_average"
+          severity: "warning"
+        storage_utilization_high:
+          threshold: "85_percent"
+          severity: "warning"
+        verification_failure:
+          threshold: "1_failure"
+          severity: "high"
+      
+      dashboards:
+        - "backup-overview"
+        - "storage-utilization"
+        - "restore-performance"
+        - "compliance-status"
+    
+    compliance:
+      data_residency:
+        primary_region: "us-east-1"
+        allowed_regions:
+          - "us-east-1"
+          - "us-west-2"
+          - "eu-west-1"
+        prohibited_regions:
+          - "ap-*"
+          - "cn-*"
+      
+      retention_compliance:
+        pci_dss: true
+        sox: true
+        gdpr: true
+        local_regulations: true
+      
+      audit:
+        log_all_operations: true
+        integrity_verification: true
+        access_logging: true
+        compliance_reporting: "monthly"
+    
+    automation:
+      tools:
+        primary: "velero"
+        secondary: "restic"
+        orchestration: "kubernetes_cronjobs"
+      
+      notifications:
+        success: false  # Only notify on failures to reduce noise
+        failure: true
+        verification_failure: true
+        storage_alerts: true
+      
+      recovery_automation:
+        auto_failover: true
+        auto_scaling: true
+        health_checks: true
+        rollback_capability: true

@@ -1,0 +1,45 @@
+{
+  "properties": [
+    {
+      "name": "user-service.url",
+      "type": "java.lang.String",
+      "description": "User service URL",
+      "defaultValue": "http://localhost:8081"
+    },
+    {
+      "name": "firebase.config-file",
+      "type": "java.lang.String",
+      "description": "Firebase configuration file path",
+      "defaultValue": "firebase-service-account.json"
+    },
+    {
+      "name": "security.jwt.token.secret-key",
+      "type": "java.lang.String",
+      "description": "JWT secret key for token validation"
+    },
+    {
+      "name": "notification.email.from",
+      "type": "java.lang.String",
+      "description": "Default sender email address",
+      "defaultValue": "no-reply@example.com"
+    },
+    {
+      "name": "notification.email.personal",
+      "type": "java.lang.String",
+      "description": "Sender personal name",
+      "defaultValue": "waqiti"
+    },
+    {
+      "name": "notification.sms.from",
+      "type": "java.lang.String",
+      "description": "Default SMS sender number",
+      "defaultValue": "+270785046229"
+    },
+    {
+      "name": "cache.templates.ttl",
+      "type": "java.lang.Integer",
+      "description": "Template cache TTL in seconds",
+      "defaultValue": 3600
+    }
+  ]
+}

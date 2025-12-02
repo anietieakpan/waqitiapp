@@ -1,0 +1,11 @@
+databaseChangeLog:
+  - include:
+      file: db/changelog/changes/V1__create_initial_schema.sql
+  - include:
+      file: db/changelog/changes/V2__add_missing_foreign_key_indexes.sql
+  - include:
+      file: db/changelog/changes/V3__fix_decimal_precision_to_19_4.sql
+  - include:
+      file: db/changelog/changes/V4__add_missing_entity_tables.sql
+  - include:
+      file: db/changelog/changes/V5__add_optimistic_locking.sql

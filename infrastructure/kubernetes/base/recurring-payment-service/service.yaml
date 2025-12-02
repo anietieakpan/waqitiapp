@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: recurring-payment-service
+  namespace: waqiti-system
+  labels:
+    app: recurring-payment-service
+    component: backend
+    tier: application
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8099"
+    prometheus.io/path: "/actuator/prometheus"
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  ports:
+  - name: http
+    port: 8099
+    targetPort: 8099
+    protocol: TCP
+  - name: management
+    port: 8100
+    targetPort: 8100
+    protocol: TCP
+  selector:
+    app: recurring-payment-service

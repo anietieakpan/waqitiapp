@@ -1,0 +1,156 @@
+spring:
+  application:
+    name: legal-service
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:legal_db}
+    username: ${DB_USERNAME:legal_user}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+    table: flyway_schema_history
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}}
+    consumer:
+      group-id: legal-service-group
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      retries: 3
+    listener:
+      ack-mode: manual
+  # Redis Cache Configuration
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD}  # SECURITY: No default - service must fail if password not provided
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 2
+
+  cache:
+    type: redis
+    redis:
+      time-to-live: 3600000  # 1 hour
+      cache-null-values: false
+      enable-statistics: true
+
+
+server:
+  port: ${SERVER_PORT:8090}
+  servlet:
+    context-path: /
+  error:
+    include-message: always
+    include-binding-errors: always
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+eureka:
+  client:
+    enabled: ${EUREKA_ENABLED:true}
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:${EUREKA_SERVER_URL:https://discovery-service:8761/eureka}/}
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
+
+logging:
+  level:
+    root: INFO
+    com.waqiti.legal: DEBUG
+    org.springframework.web: INFO
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: ${LOG_LEVEL_SQL:WARN}  # WARN for production
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      bankruptcy-notification-consumer:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 10s
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10
+      subpoena-response-consumer:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 10s
+        failureRateThreshold: 50
+
+  retry:
+    instances:
+      bankruptcy-notification-consumer:
+        maxAttempts: 3
+        waitDuration: 1s
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+      subpoena-response-consumer:
+        maxAttempts: 3
+        waitDuration: 1s
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+
+legal:
+  documents:
+    output-directory: ${LEGAL_DOCS_DIR:/var/waqiti/legal/documents}
+    company-name: Waqiti Financial Services
+    records-custodian: Legal Records Custodian
+
+  kafka:
+    topics:
+      bankruptcy-notifications: bankruptcy-notification-events
+      subpoena-responses: subpoena-response-events
+      collection-stop-commands: collection-stop-commands
+      account-freeze-commands: account-freeze-commands

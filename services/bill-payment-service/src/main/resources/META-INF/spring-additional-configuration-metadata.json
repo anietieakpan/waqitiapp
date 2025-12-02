@@ -1,0 +1,68 @@
+{
+  "properties": [
+    {
+      "name": "bill-payment.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable bill payment functionality",
+      "defaultValue": true
+    },
+    {
+      "name": "bill-payment.providers.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable bill payment providers",
+      "defaultValue": true
+    },
+    {
+      "name": "bill-payment.auto-pay.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable automatic bill payments",
+      "defaultValue": true
+    },
+    {
+      "name": "bill-payment.auto-pay.max-amount",
+      "type": "java.math.BigDecimal",
+      "description": "Maximum auto-pay amount",
+      "defaultValue": "1000.00"
+    },
+    {
+      "name": "bill-payment.limits.daily-limit",
+      "type": "java.math.BigDecimal",
+      "description": "Daily bill payment limit",
+      "defaultValue": "5000.00"
+    },
+    {
+      "name": "bill-payment.limits.monthly-limit",
+      "type": "java.math.BigDecimal",
+      "description": "Monthly bill payment limit",
+      "defaultValue": "50000.00"
+    },
+    {
+      "name": "bill-payment.notifications.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable bill payment notifications",
+      "defaultValue": true
+    },
+    {
+      "name": "bill-payment.categories",
+      "type": "java.util.List",
+      "description": "Supported bill payment categories"
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "OAuth2 client ID for service",
+      "defaultValue": "bill-payment-service"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "OAuth2 client secret for service"
+    }
+  ]
+}

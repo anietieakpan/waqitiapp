@@ -1,0 +1,218 @@
+# ===============================================
+# WALLET FUND RESERVATION CONFIGURATION
+# Production-Grade Settings for Distributed Locking
+# ===============================================
+
+wallet:
+  reservation:
+    # Fund reservation time-to-live
+    default-ttl-minutes: 5      # Default reservation expires after 5 minutes
+    max-ttl-minutes: 60          # Maximum allowed TTL is 60 minutes
+
+    # Distributed locking configuration
+    lock:
+      timeout-seconds: 10        # Max time to wait for lock acquisition
+      lease-seconds: 30          # Auto-release lock after 30 seconds (safety)
+      retry-attempts: 3          # Max retry attempts on optimistic lock failure
+      retry-delay-ms: 100        # Initial retry delay (exponential backoff)
+      retry-max-delay-ms: 1000   # Maximum retry delay
+
+    # Cleanup job configuration
+    cleanup:
+      enabled: true              # Enable automatic cleanup of expired reservations
+      cron: "0 * * * * ?"        # Run every minute
+      batch-size: 100            # Process up to 100 expired reservations per run
+
+    # Archive cleanup (data retention)
+    archive-cleanup:
+      enabled: true
+      cron: "0 0 2 * * ?"        # Run daily at 2 AM
+      retention-days: 90         # Keep reservation records for 90 days
+
+    # Monitoring and alerts
+    monitoring:
+      alert-on-high-cleanup-count: true  # Alert if > 100 expired reservations
+      alert-threshold: 100
+      alert-on-slow-cleanup: true        # Alert if cleanup takes > 30 seconds
+      slow-cleanup-threshold-ms: 30000
+
+# ===============================================
+# REDIS DISTRIBUTED LOCKING CONFIGURATION
+# ===============================================
+
+spring:
+  data:
+    redis:
+      # Primary Redis configuration
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DATABASE:0}
+
+      # Connection pool settings (HikariCP-style for Redis)
+      lettuce:
+        pool:
+          max-active: 20         # Maximum connections in pool
+          max-idle: 10           # Maximum idle connections
+          min-idle: 5            # Minimum idle connections
+          max-wait: 2000ms       # Max wait time for connection
+
+        # Timeouts
+        shutdown-timeout: 100ms
+
+      # Connection timeout
+      timeout: 3000ms
+
+      # SSL/TLS (enable for production)
+      ssl:
+        enabled: ${REDIS_SSL_ENABLED:false}
+
+      # Sentinel configuration (for HA)
+      sentinel:
+        master: ${REDIS_SENTINEL_MASTER:mymaster}
+        nodes: ${REDIS_SENTINEL_NODES:}
+        password: ${REDIS_SENTINEL_PASSWORD:}
+
+# ===============================================
+# REDISSON DISTRIBUTED LOCK CONFIGURATION
+# ===============================================
+
+redisson:
+  # Single server mode
+  single-server-config:
+    address: redis://${REDIS_HOST:localhost}:${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD:}
+    database: ${REDIS_DATABASE:0}
+    connection-pool-size: 64     # Connection pool size
+    connection-minimum-idle-size: 24
+    idle-connection-timeout: 10000
+    connect-timeout: 10000
+    timeout: 3000
+    retry-attempts: 3
+    retry-interval: 1500
+
+  # Cluster mode (use in production)
+  cluster-servers-config:
+    enabled: ${REDISSON_CLUSTER_ENABLED:false}
+    node-addresses: ${REDISSON_CLUSTER_NODES:}
+    password: ${REDIS_PASSWORD:}
+    scan-interval: 1000
+
+  # Lock watchdog timeout (auto-renewal)
+  lock-watchdog-timeout: 30000   # 30 seconds
+
+  # Netty threads
+  netty-threads: 32
+  threads: 16
+
+# ===============================================
+# SHEDLOCK CONFIGURATION (Distributed Scheduler)
+# ===============================================
+
+shedlock:
+  defaults:
+    lock-at-most-for: 50s        # Job must complete within this time
+    lock-at-least-for: 10s       # Min time between executions
+
+  # JDBC provider (uses existing datasource)
+  provider: jdbc
+
+  # Table name for lock storage
+  table-name: shedlock
+
+# ===============================================
+# DATABASE CONFIGURATION FOR RESERVATIONS
+# ===============================================
+
+spring:
+  datasource:
+    hikari:
+      # Connection pool tuning for high-concurrency reservations
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 20000
+      idle-timeout: 300000
+      max-lifetime: 1200000
+
+      # Connection test query
+      connection-test-query: SELECT 1
+
+      # Leak detection (enable in staging/production)
+      leak-detection-threshold: 60000  # 60 seconds
+
+  jpa:
+    properties:
+      hibernate:
+        # Enable second-level cache for fund reservations (optional)
+        cache:
+          use_second_level_cache: false  # Disabled for strong consistency
+          use_query_cache: false
+
+        # Batch processing
+        jdbc:
+          batch_size: 20
+          fetch_size: 50
+
+        # Statement logging (disable in production)
+        show_sql: false
+        format_sql: false
+
+        # Statistics (enable for monitoring)
+        generate_statistics: true
+
+# ===============================================
+# MONITORING & OBSERVABILITY
+# ===============================================
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+    tags:
+      application: wallet-service
+      service: fund-reservation
+
+    distribution:
+      # Percentiles for timing metrics
+      percentiles-histogram:
+        "[wallet.reservation.duration]": true
+        "[wallet.lock.acquisition]": true
+
+      slo:
+        # Service level objectives
+        "[wallet.reservation.duration]": 50ms,100ms,200ms,500ms,1s
+        "[wallet.lock.acquisition]": 5ms,10ms,50ms,100ms
+
+# ===============================================
+# RETRY CONFIGURATION
+# ===============================================
+
+spring:
+  retry:
+    # Enable Spring Retry
+    enabled: true
+
+# Resilience4j (alternative to Spring Retry)
+resilience4j:
+  retry:
+    instances:
+      walletReservation:
+        max-attempts: 3
+        wait-duration: 100ms
+        exponential-backoff-multiplier: 2
+        enable-exponential-backoff: true
+
+  circuitbreaker:
+    instances:
+      walletReservation:
+        failure-rate-threshold: 50          # Open circuit at 50% failure rate
+        wait-duration-in-open-state: 10s    # Wait 10s before half-open
+        sliding-window-size: 100             # Track last 100 calls
+        minimum-number-of-calls: 10          # Min calls before calculating rate

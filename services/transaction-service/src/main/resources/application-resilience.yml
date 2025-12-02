@@ -1,0 +1,133 @@
+# Resilience4j Configuration for Transaction Service
+resilience4j:
+  circuitbreaker:
+    instances:
+      fraud-detection:
+        register-health-indicator: true
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        permitted-number-of-calls-in-half-open-state: 3
+        wait-duration-in-open-state: 30s
+        failure-rate-threshold: 50
+        slow-call-rate-threshold: 50
+        slow-call-duration-threshold: 2s
+        automatic-transition-from-open-to-half-open-enabled: true
+        record-exceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+          - feign.FeignException
+          - org.springframework.web.client.ResourceAccessException
+        ignore-exceptions:
+          - java.lang.IllegalArgumentException
+          - jakarta.validation.ValidationException
+      
+      notification-service:
+        register-health-indicator: true
+        sliding-window-size: 15
+        minimum-number-of-calls: 8
+        permitted-number-of-calls-in-half-open-state: 5
+        wait-duration-in-open-state: 20s
+        failure-rate-threshold: 60
+        slow-call-rate-threshold: 60
+        slow-call-duration-threshold: 3s
+        
+  retry:
+    instances:
+      fraud-detection:
+        max-attempts: 3
+        wait-duration: 1s
+        exponential-backoff-multiplier: 2.0
+        retry-exceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+          - feign.RetryableException
+        ignore-exceptions:
+          - java.lang.IllegalArgumentException
+          - jakarta.validation.ValidationException
+          
+      notification-service:
+        max-attempts: 2
+        wait-duration: 500ms
+        exponential-backoff-multiplier: 1.5
+        
+  timelimiter:
+    instances:
+      fraud-detection:
+        timeout-duration: 10s
+        cancel-running-future: true
+        
+      notification-service:
+        timeout-duration: 5s
+        cancel-running-future: true
+        
+  bulkhead:
+    instances:
+      fraud-detection:
+        max-concurrent-calls: 10
+        max-wait-duration: 0ms
+        
+      notification-service:
+        max-concurrent-calls: 15
+        max-wait-duration: 100ms
+
+# Service-specific configurations
+services:
+  fraud-detection:
+    url: ${FRAUD_DETECTION_SERVICE_URL:http://fraud-detection-service:8080}
+    timeout:
+      connect: 5000
+      read: 10000
+    retry:
+      maxAttempts: 3
+      period: 1000
+      maxPeriod: 5000
+      
+  notification:
+    url: ${NOTIFICATION_SERVICE_URL:http://notification-service:8080}
+    timeout:
+      connect: 3000
+      read: 5000
+    retry:
+      maxAttempts: 2
+      period: 500
+      maxPeriod: 2000
+
+# Fraud detection specific settings
+fraud:
+  detection:
+    enabled: true
+    high-value-threshold: 10000
+    critical-value-threshold: 50000
+    cache:
+      ttl: 300 # 5 minutes
+      max-size: 1000
+    batch:
+      size: 100
+      timeout: 30s
+
+# Caching configuration
+spring:
+  cache:
+    type: caffeine
+    caffeine:
+      spec: maximumSize=1000,expireAfterWrite=5m
+    cache-names:
+      - fraudScores
+      - userRiskProfiles
+      - merchantRiskData
+
+# Actuator endpoints for monitoring
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,circuitbreakers,retries,timelimiters,bulkheads
+  endpoint:
+    health:
+      show-details: when-authorized
+      show-components: always
+  health:
+    circuitbreakers:
+      enabled: true
+    ratelimiters:
+      enabled: true

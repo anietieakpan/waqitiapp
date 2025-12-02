@@ -1,0 +1,409 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-service
+  namespace: default
+  labels:
+    app: payment-service
+    strategy: blue-green
+spec:
+  selector:
+    app: payment-service
+    version: blue  # This will be updated during deployment
+  ports:
+  - port: 8080
+    targetPort: 8080
+    name: http
+  - port: 8443
+    targetPort: 8443
+    name: https
+  - port: 9090
+    targetPort: 9090
+    name: metrics
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-service-blue
+  namespace: default
+  labels:
+    app: payment-service
+    version: blue
+    strategy: blue-green
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: payment-service
+      version: blue
+  template:
+    metadata:
+      labels:
+        app: payment-service
+        version: blue
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: payment-service
+      containers:
+      - name: payment-service
+        image: waqiti/payment-service:v1.0.0
+        ports:
+        - containerPort: 8080
+          name: http
+        - containerPort: 8443
+          name: https
+        - containerPort: 9090
+          name: metrics
+        env:
+        - name: VERSION
+          value: "blue"
+        - name: DATABASE_HOST
+          value: "waqiti-postgres-primary.database.svc.cluster.local"
+        - name: REDIS_HOST
+          value: "redis-cluster.database.svc.cluster.local"
+        - name: KAFKA_BROKERS
+          value: "kafka-cluster.kafka.svc.cluster.local:9092"
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: 8080
+          initialDelaySeconds: 20
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /health/startup
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "2000m"
+        volumeMounts:
+        - name: config
+          mountPath: /app/config
+          readOnly: true
+        - name: secrets
+          mountPath: /app/secrets
+          readOnly: true
+      volumes:
+      - name: config
+        configMap:
+          name: payment-service-config
+      - name: secrets
+        secret:
+          secretName: payment-service-secrets
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - payment-service
+            topologyKey: kubernetes.io/hostname
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-service-green
+  namespace: default
+  labels:
+    app: payment-service
+    version: green
+    strategy: blue-green
+spec:
+  replicas: 0  # Initially scaled to 0
+  selector:
+    matchLabels:
+      app: payment-service
+      version: green
+  template:
+    metadata:
+      labels:
+        app: payment-service
+        version: green
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: payment-service
+      containers:
+      - name: payment-service
+        image: waqiti/payment-service:v1.1.0  # New version
+        ports:
+        - containerPort: 8080
+          name: http
+        - containerPort: 8443
+          name: https
+        - containerPort: 9090
+          name: metrics
+        env:
+        - name: VERSION
+          value: "green"
+        - name: DATABASE_HOST
+          value: "waqiti-postgres-primary.database.svc.cluster.local"
+        - name: REDIS_HOST
+          value: "redis-cluster.database.svc.cluster.local"
+        - name: KAFKA_BROKERS
+          value: "kafka-cluster.kafka.svc.cluster.local:9092"
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: 8080
+          initialDelaySeconds: 20
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /health/startup
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "2000m"
+        volumeMounts:
+        - name: config
+          mountPath: /app/config
+          readOnly: true
+        - name: secrets
+          mountPath: /app/secrets
+          readOnly: true
+      volumes:
+      - name: config
+        configMap:
+          name: payment-service-config
+      - name: secrets
+        secret:
+          secretName: payment-service-secrets
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - payment-service
+            topologyKey: kubernetes.io/hostname
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: blue-green-deployment-validator
+  namespace: default
+  labels:
+    app: deployment-validator
+    strategy: blue-green
+spec:
+  template:
+    spec:
+      serviceAccountName: deployment-validator
+      containers:
+      - name: validator
+        image: waqiti/deployment-validator:latest
+        command:
+        - /bin/bash
+        - -c
+        - |
+          set -e
+          
+          echo "Starting Blue-Green deployment validation..."
+          
+          # Configuration
+          SERVICE_NAME="payment-service"
+          GREEN_DEPLOYMENT="${SERVICE_NAME}-green"
+          BLUE_DEPLOYMENT="${SERVICE_NAME}-blue"
+          NAMESPACE="default"
+          MIN_READY_SECONDS=60
+          
+          # Function to check deployment health
+          check_deployment_health() {
+            local deployment=$1
+            local replicas=$(kubectl get deployment $deployment -n $NAMESPACE -o jsonpath='{.spec.replicas}')
+            local ready_replicas=$(kubectl get deployment $deployment -n $NAMESPACE -o jsonpath='{.status.readyReplicas}')
+            
+            if [ "$replicas" == "$ready_replicas" ]; then
+              echo "✓ Deployment $deployment is healthy: $ready_replicas/$replicas replicas ready"
+              return 0
+            else
+              echo "✗ Deployment $deployment is not healthy: $ready_replicas/$replicas replicas ready"
+              return 1
+            fi
+          }
+          
+          # Function to run smoke tests
+          run_smoke_tests() {
+            local service_endpoint=$1
+            
+            echo "Running smoke tests against $service_endpoint..."
+            
+            # Health check
+            if curl -s -f "$service_endpoint/health/ready" > /dev/null; then
+              echo "✓ Health check passed"
+            else
+              echo "✗ Health check failed"
+              return 1
+            fi
+            
+            # API version check
+            VERSION=$(curl -s "$service_endpoint/api/version" | jq -r '.version')
+            echo "✓ API version: $VERSION"
+            
+            # Basic transaction test
+            RESPONSE=$(curl -s -X POST "$service_endpoint/api/v1/payments/validate" \
+              -H "Content-Type: application/json" \
+              -d '{"amount":100,"currency":"USD"}')
+            
+            if [ "$(echo $RESPONSE | jq -r '.status')" == "valid" ]; then
+              echo "✓ Transaction validation passed"
+            else
+              echo "✗ Transaction validation failed"
+              return 1
+            fi
+            
+            # Performance test
+            START=$(date +%s%N)
+            for i in {1..10}; do
+              curl -s "$service_endpoint/health/ready" > /dev/null
+            done
+            END=$(date +%s%N)
+            DURATION=$((($END - $START) / 10000000))  # Convert to milliseconds
+            
+            if [ $DURATION -lt 500 ]; then
+              echo "✓ Performance test passed: avg ${DURATION}ms"
+            else
+              echo "⚠ Performance degradation detected: avg ${DURATION}ms"
+            fi
+            
+            return 0
+          }
+          
+          # Main validation flow
+          echo "Checking current Blue deployment..."
+          if ! check_deployment_health "$BLUE_DEPLOYMENT"; then
+            echo "ERROR: Blue deployment is not healthy"
+            exit 1
+          fi
+          
+          echo "Scaling up Green deployment..."
+          kubectl scale deployment $GREEN_DEPLOYMENT -n $NAMESPACE --replicas=3
+          
+          echo "Waiting for Green deployment to be ready..."
+          kubectl rollout status deployment/$GREEN_DEPLOYMENT -n $NAMESPACE --timeout=5m
+          
+          if ! check_deployment_health "$GREEN_DEPLOYMENT"; then
+            echo "ERROR: Green deployment failed health check"
+            kubectl scale deployment $GREEN_DEPLOYMENT -n $NAMESPACE --replicas=0
+            exit 1
+          fi
+          
+          echo "Waiting for pods to stabilize..."
+          sleep $MIN_READY_SECONDS
+          
+          # Get Green service endpoint
+          GREEN_POD=$(kubectl get pods -n $NAMESPACE -l app=$SERVICE_NAME,version=green -o jsonpath='{.items[0].metadata.name}')
+          kubectl port-forward -n $NAMESPACE pod/$GREEN_POD 8081:8080 &
+          PF_PID=$!
+          sleep 5
+          
+          echo "Running smoke tests on Green deployment..."
+          if ! run_smoke_tests "http://localhost:8081"; then
+            echo "ERROR: Green deployment failed smoke tests"
+            kill $PF_PID
+            kubectl scale deployment $GREEN_DEPLOYMENT -n $NAMESPACE --replicas=0
+            exit 1
+          fi
+          
+          kill $PF_PID
+          
+          echo "✓ Green deployment validation successful"
+          echo ""
+          echo "To complete the deployment, run:"
+          echo "  kubectl patch service $SERVICE_NAME -n $NAMESPACE -p '{\"spec\":{\"selector\":{\"version\":\"green\"}}}'"
+          echo ""
+          echo "To rollback if needed, run:"
+          echo "  kubectl patch service $SERVICE_NAME -n $NAMESPACE -p '{\"spec\":{\"selector\":{\"version\":\"blue\"}}}'"
+          
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+      restartPolicy: Never
+  backoffLimit: 2
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: deployment-validator
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: default
+  name: deployment-validator
+rules:
+- apiGroups: ["apps"]
+  resources: ["deployments", "replicasets"]
+  verbs: ["get", "list", "patch", "update"]
+- apiGroups: [""]
+  resources: ["pods", "services"]
+  verbs: ["get", "list", "create", "delete"]
+- apiGroups: [""]
+  resources: ["pods/portforward"]
+  verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: deployment-validator
+  namespace: default
+subjects:
+- kind: ServiceAccount
+  name: deployment-validator
+  namespace: default
+roleRef:
+  kind: Role
+  name: deployment-validator
+  apiGroup: rbac.authorization.k8s.io

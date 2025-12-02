@@ -1,0 +1,465 @@
+package com.waqiti.compliance.rules.aml;
+
+import com.waqiti.compliance.model.AMLTransaction;
+import com.waqiti.compliance.model.AMLTransaction.RiskIndicator;
+import com.waqiti.compliance.model.AMLTransaction.ComplianceAlert;
+import com.waqiti.compliance.model.AMLTransaction.RiskScore;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+
+global org.slf4j.Logger logger;
+
+// ============================================================================
+// TRANSACTION MONITORING RULES
+// ============================================================================
+
+rule "High Value Transaction - CTR Required"
+    when
+        $tx : AMLTransaction(
+            amount != null,
+            amount >= 10000,
+            currency == "USD"
+        )
+    then
+        logger.info("CTR required for transaction: {}", $tx.getTransactionId());
+        $tx.addRiskIndicator("CTR_REQUIRED", "Transaction exceeds CTR threshold ($10,000)", 20);
+        $tx.addAlert("REGULATORY", "HIGH", "Currency Transaction Report (CTR) required");
+        $tx.getRuleOutputs().put("ctr_required", true);
+        update($tx);
+end
+
+rule "Structuring Detection - Multiple Transactions Below CTR"
+    when
+        $tx : AMLTransaction(
+            dailyTransactionCount != null,
+            dailyTransactionCount >= 3,
+            dailyTransactionVolume != null,
+            dailyTransactionVolume >= 9000,
+            dailyTransactionVolume < 10000
+        )
+    then
+        logger.warn("Potential structuring detected for customer: {}", $tx.getCustomerId());
+        $tx.addRiskIndicator("STRUCTURING", "Potential structuring to avoid CTR", 50);
+        $tx.addAlert("AML", "CRITICAL", "Suspected structuring activity - multiple transactions below CTR threshold");
+        $tx.setRequiresSAR(true);
+        update($tx);
+end
+
+rule "Rapid Movement of Funds"
+    when
+        $tx : AMLTransaction(
+            type == "WITHDRAWAL" || type == "TRANSFER",
+            dailyTransactionCount != null,
+            dailyTransactionCount >= 5,
+            amount != null
+        )
+    then
+        logger.info("Rapid fund movement detected: {}", $tx.getTransactionId());
+        $tx.addRiskIndicator("RAPID_MOVEMENT", "Rapid movement of funds detected", 30);
+        $tx.addAlert("AML", "MEDIUM", "Unusual rapid movement of funds");
+        update($tx);
+end
+
+rule "Round Amount Transaction"
+    when
+        $tx : AMLTransaction(
+            isRoundAmount() == true,
+            amount >= 5000
+        )
+    then
+        $tx.addRiskIndicator("ROUND_AMOUNT", "Round amount transaction", 10);
+        update($tx);
+end
+
+rule "Transaction Just Below Reporting Threshold"
+    when
+        $tx : AMLTransaction(
+            isNearThreshold(new BigDecimal("10000"), new BigDecimal("500")) == true
+        )
+    then
+        logger.info("Near-threshold transaction detected: {}", $tx.getTransactionId());
+        $tx.addRiskIndicator("NEAR_THRESHOLD", "Transaction near reporting threshold", 25);
+        $tx.addAlert("AML", "MEDIUM", "Transaction amount suspiciously close to reporting threshold");
+        update($tx);
+end
+
+// ============================================================================
+// CUSTOMER RISK RULES
+// ============================================================================
+
+rule "PEP Transaction Monitoring"
+    when
+        $tx : AMLTransaction(
+            isPEP == true,
+            amount != null,
+            amount >= 5000
+        )
+    then
+        logger.info("PEP transaction requiring enhanced monitoring: {}", $tx.getTransactionId());
+        $tx.addRiskIndicator("PEP_TRANSACTION", "Transaction by Politically Exposed Person", 35);
+        $tx.addAlert("PEP", "HIGH", "Enhanced due diligence required for PEP transaction");
+        $tx.setRequiresReview(true);
+        update($tx);
+end
+
+rule "High Risk Customer Large Transaction"
+    when
+        $tx : AMLTransaction(
+            customerRiskRating in ("HIGH", "VERY_HIGH"),
+            amount != null,
+            amount >= 3000
+        )
+    then
+        $tx.addRiskIndicator("HIGH_RISK_CUSTOMER", "Transaction by high-risk customer", 30);
+        $tx.addAlert("CUSTOMER_RISK", "HIGH", "Large transaction by high-risk customer");
+        $tx.setRequiresReview(true);
+        update($tx);
+end
+
+rule "New Account Large Transaction"
+    when
+        $tx : AMLTransaction(
+            accountAgeInDays != null,
+            accountAgeInDays < 30,
+            amount != null,
+            amount >= 5000
+        )
+    then
+        logger.info("Large transaction on new account: {}", $tx.getTransactionId());
+        $tx.addRiskIndicator("NEW_ACCOUNT", "Large transaction on new account", 25);
+        $tx.addAlert("ACCOUNT", "MEDIUM", "Unusually large transaction for new account");
+        update($tx);
+end
+
+rule "Transaction Unusual for Customer Profile"
+    when
+        $tx : AMLTransaction(
+            isUnusualForCustomer() == true
+        )
+    then
+        $tx.addRiskIndicator("UNUSUAL_PATTERN", "Transaction unusual for customer profile", 20);
+        $tx.addAlert("BEHAVIOR", "MEDIUM", "Transaction significantly exceeds customer's normal pattern");
+        update($tx);
+end
+
+rule "Income Inconsistency"
+    when
+        $tx : AMLTransaction(
+            declaredIncome != null,
+            monthlyTransactionVolume != null,
+            monthlyTransactionVolume > declaredIncome
+        )
+    then
+        logger.warn("Transaction volume exceeds declared income: {}", $tx.getCustomerId());
+        $tx.addRiskIndicator("INCOME_INCONSISTENT", "Transaction volume exceeds declared income", 40);
+        $tx.addAlert("AML", "HIGH", "Monthly transaction volume inconsistent with declared income");
+        $tx.setRequiresSAR(true);
+        update($tx);
+end
+
+// ============================================================================
+// SANCTIONS AND HIGH-RISK JURISDICTION RULES
+// ============================================================================
+
+rule "Sanctioned Counterparty"
+    when
+        $tx : AMLTransaction(
+            counterpartyIsSanctioned == true
+        )
+    then
+        logger.error("Transaction with sanctioned entity: {}", $tx.getTransactionId());
+        $tx.addRiskIndicator("SANCTIONS_HIT", "Counterparty is sanctioned", 100);
+        $tx.addAlert("SANCTIONS", "CRITICAL", "Transaction involves sanctioned entity - MUST BLOCK");
+        $tx.setShouldBlock(true);
+        $tx.setRequiresSAR(true);
+        update($tx);
+end
+
+rule "High Risk Jurisdiction - Destination"
+    when
+        $tx : AMLTransaction(
+            destinationCountry != null,
+            destinationCountry in ("Iran", "North Korea", "Syria", "Cuba", "Myanmar", "Sudan", "Venezuela")
+        )
+    then
+        logger.warn("Transaction to high-risk jurisdiction: {}", $tx.getDestinationCountry());
+        $tx.addRiskIndicator("HIGH_RISK_COUNTRY", "Transaction to high-risk jurisdiction", 45);
+        $tx.addAlert("JURISDICTION", "HIGH", "Transaction involves high-risk jurisdiction");
+        $tx.setRequiresReview(true);
+        update($tx);
+end
+
+rule "FATF Grey List Country"
+    when
+        $tx : AMLTransaction(
+            destinationCountry != null || originCountry != null,
+            destinationCountry in ("Albania", "Barbados", "Burkina Faso", "Cambodia", "Cayman Islands", 
+                                  "Haiti", "Jamaica", "Jordan", "Mali", "Morocco", "Myanmar", "Nicaragua",
+                                  "Pakistan", "Panama", "Philippines", "Senegal", "South Sudan", "Syria",
+                                  "Tanzania", "Turkey", "Uganda", "United Arab Emirates", "Yemen", "Zimbabwe") ||
+            originCountry in ("Albania", "Barbados", "Burkina Faso", "Cambodia", "Cayman Islands", 
+                             "Haiti", "Jamaica", "Jordan", "Mali", "Morocco", "Myanmar", "Nicaragua",
+                             "Pakistan", "Panama", "Philippines", "Senegal", "South Sudan", "Syria",
+                             "Tanzania", "Turkey", "Uganda", "United Arab Emirates", "Yemen", "Zimbabwe")
+        )
+    then
+        $tx.addRiskIndicator("FATF_GREY_LIST", "Transaction involves FATF grey list country", 30);
+        $tx.addAlert("JURISDICTION", "MEDIUM", "Enhanced monitoring - FATF grey list country");
+        update($tx);
+end
+
+// ============================================================================
+// CROSS-BORDER AND WIRE TRANSFER RULES
+// ============================================================================
+
+rule "International Wire Transfer - Large Amount"
+    when
+        $tx : AMLTransaction(
+            isInternational == true,
+            type == "TRANSFER",
+            amount != null,
+            amount >= 5000
+        )
+    then
+        logger.info("Large international wire transfer: {}", $tx.getTransactionId());
+        $tx.addRiskIndicator("INTL_WIRE", "Large international wire transfer", 25);
+        $tx.addAlert("WIRE_TRANSFER", "MEDIUM", "Large international wire transfer requires monitoring");
+        update($tx);
+end
+
+rule "Wire Stripping Detection"
+    when
+        $tx : AMLTransaction(
+            isInternational == true,
+            description != null,
+            (description.toLowerCase().contains("payment") || 
+             description.toLowerCase().contains("invoice") ||
+             description.toLowerCase().contains("goods")),
+            reference == null || reference.length() < 5
+        )
+    then
+        logger.warn("Potential wire stripping detected: {}", $tx.getTransactionId());
+        $tx.addRiskIndicator("WIRE_STRIPPING", "Potential wire stripping detected", 35);
+        $tx.addAlert("AML", "HIGH", "Missing or inadequate wire transfer information");
+        update($tx);
+end
+
+rule "Trade-Based Money Laundering Indicator"
+    when
+        $tx : AMLTransaction(
+            type == "PAYMENT",
+            isInternational == true,
+            description != null,
+            (description.toLowerCase().contains("trade") ||
+             description.toLowerCase().contains("export") ||
+             description.toLowerCase().contains("import")),
+            amount != null,
+            amount >= 10000
+        )
+    then
+        $tx.addRiskIndicator("TBML_RISK", "Potential trade-based money laundering", 30);
+        $tx.addAlert("TBML", "MEDIUM", "Trade transaction requires enhanced review");
+        update($tx);
+end
+
+// ============================================================================
+// CASH TRANSACTION RULES
+// ============================================================================
+
+rule "Large Cash Deposit"
+    when
+        $tx : AMLTransaction(
+            type == "DEPOSIT",
+            isCashTransaction == true,
+            amount != null,
+            amount >= 5000
+        )
+    then
+        logger.info("Large cash deposit: {}", $tx.getTransactionId());
+        $tx.addRiskIndicator("LARGE_CASH", "Large cash deposit", 20);
+        $tx.addAlert("CASH", "MEDIUM", "Large cash transaction requires monitoring");
+        update($tx);
+end
+
+rule "Multiple Cash Transactions"
+    when
+        $tx : AMLTransaction(
+            isCashTransaction == true,
+            dailyTransactionCount != null,
+            dailyTransactionCount >= 5
+        )
+    then
+        $tx.addRiskIndicator("MULTIPLE_CASH", "Multiple cash transactions in a day", 25);
+        $tx.addAlert("CASH", "MEDIUM", "Unusual frequency of cash transactions");
+        update($tx);
+end
+
+// ============================================================================
+// PATTERN AND BEHAVIOR RULES
+// ============================================================================
+
+rule "Dormant Account Sudden Activity"
+    when
+        $tx : AMLTransaction(
+            monthlyTransactionCount != null,
+            monthlyTransactionCount <= 2,
+            amount != null,
+            largestPreviousTransaction != null,
+            amount > largestPreviousTransaction * 2
+        )
+    then
+        logger.info("Dormant account sudden activity: {}", $tx.getAccountId());
+        $tx.addRiskIndicator("DORMANT_ACTIVITY", "Sudden activity in dormant account", 35);
+        $tx.addAlert("BEHAVIOR", "HIGH", "Unusual activity in previously dormant account");
+        $tx.setRequiresReview(true);
+        update($tx);
+end
+
+rule "Funnel Account Pattern"
+    when
+        $tx : AMLTransaction(
+            type == "TRANSFER",
+            dailyTransactionCount != null,
+            dailyTransactionCount >= 10,
+            dailyTransactionVolume != null,
+            amount != null,
+            dailyTransactionVolume > amount * 10
+        )
+    then
+        logger.warn("Potential funnel account detected: {}", $tx.getAccountId());
+        $tx.addRiskIndicator("FUNNEL_ACCOUNT", "Potential funnel account pattern", 45);
+        $tx.addAlert("AML", "HIGH", "Account shows funnel pattern - rapid in/out transactions");
+        $tx.setRequiresSAR(true);
+        update($tx);
+end
+
+rule "Unusual Transaction Timing"
+    when
+        $tx : AMLTransaction(
+            timestamp != null,
+            timestamp.getHour() >= 2,
+            timestamp.getHour() <= 5,
+            amount != null,
+            amount >= 5000
+        )
+    then
+        $tx.addRiskIndicator("UNUSUAL_TIMING", "Transaction at unusual hour", 15);
+        $tx.addAlert("BEHAVIOR", "LOW", "Large transaction during unusual hours");
+        update($tx);
+end
+
+// ============================================================================
+// PREVIOUS ALERT HISTORY RULES
+// ============================================================================
+
+rule "Customer with Previous SARs"
+    when
+        $tx : AMLTransaction(
+            previousSARCount != null,
+            previousSARCount > 0,
+            amount != null,
+            amount >= 3000
+        )
+    then
+        logger.info("Transaction by customer with SAR history: {}", $tx.getCustomerId());
+        $tx.addRiskIndicator("SAR_HISTORY", "Customer has previous SARs filed", 40);
+        $tx.addAlert("HISTORY", "HIGH", "Customer has " + $tx.getPreviousSARCount() + " previous SARs");
+        $tx.setRequiresReview(true);
+        update($tx);
+end
+
+rule "Recent Alert Activity"
+    when
+        $tx : AMLTransaction(
+            previousAlertCount != null,
+            previousAlertCount >= 3,
+            lastAlertDate != null,
+            eval(ChronoUnit.DAYS.between(lastAlertDate, LocalDateTime.now()) <= 30)
+        )
+    then
+        $tx.addRiskIndicator("RECENT_ALERTS", "Multiple recent compliance alerts", 25);
+        $tx.addAlert("HISTORY", "MEDIUM", "Customer has multiple recent alerts");
+        update($tx);
+end
+
+// ============================================================================
+// RISK SCORING AND FINAL DECISION RULES
+// ============================================================================
+
+rule "Calculate Risk Score"
+    salience -100
+    when
+        $tx : AMLTransaction(
+            riskIndicators.size() > 0
+        )
+    then
+        Integer totalScore = $tx.getTotalRiskScore();
+        String riskLevel;
+        String recommendation;
+        
+        if (totalScore >= 100) {
+            riskLevel = "CRITICAL";
+            recommendation = "BLOCK";
+        } else if (totalScore >= 75) {
+            riskLevel = "VERY_HIGH";
+            recommendation = "ESCALATE";
+        } else if (totalScore >= 50) {
+            riskLevel = "HIGH";
+            recommendation = "REVIEW";
+        } else if (totalScore >= 25) {
+            riskLevel = "MEDIUM";
+            recommendation = "MONITOR";
+        } else {
+            riskLevel = "LOW";
+            recommendation = "APPROVE";
+        }
+        
+        ArrayList<String> reasons = new ArrayList<>();
+        for (RiskIndicator indicator : $tx.getRiskIndicators()) {
+            reasons.add(indicator.getDescription());
+        }
+        
+        RiskScore score = RiskScore.builder()
+            .totalScore(totalScore)
+            .riskLevel(riskLevel)
+            .recommendation(recommendation)
+            .reasons(reasons)
+            .build();
+            
+        $tx.setRiskScore(score);
+        
+        logger.info("Transaction {} risk assessment: Score={}, Level={}, Recommendation={}", 
+                   $tx.getTransactionId(), totalScore, riskLevel, recommendation);
+        
+        update($tx);
+end
+
+rule "Auto-Block Critical Risk Transactions"
+    salience -200
+    when
+        $tx : AMLTransaction(
+            riskScore != null,
+            riskScore.riskLevel == "CRITICAL" || shouldBlock == true
+        )
+    then
+        logger.error("Auto-blocking transaction {}: Critical risk level", $tx.getTransactionId());
+        $tx.setShouldBlock(true);
+        $tx.setRequiresSAR(true);
+        $tx.addAlert("SYSTEM", "CRITICAL", "Transaction automatically blocked due to critical risk");
+        update($tx);
+end
+
+rule "Flag for Manual Review"
+    salience -200
+    when
+        $tx : AMLTransaction(
+            riskScore != null,
+            riskScore.riskLevel in ("HIGH", "VERY_HIGH") || requiresReview == true
+        )
+    then
+        logger.info("Flagging transaction {} for manual review", $tx.getTransactionId());
+        $tx.setRequiresReview(true);
+        update($tx);
+end

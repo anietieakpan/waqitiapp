@@ -1,0 +1,274 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: notification-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:development}
+    include: keycloak
+  
+  # OAuth2 Resource Server Configuration for Keycloak
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+  # Database configuration with comprehensive fallback chain
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:waqiti_notifications}
+    username: ${DB_USERNAME:${vault.database.username:${NOTIFICATION_DB_USERNAME:waqiti_notification_service}}
+    password: ${DB_PASSWORD:${vault.database.password:${NOTIFICATION_DB_PASSWORD:${spring.datasource.fallback-password:notification_dev_pass}}}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:20}
+      minimum-idle: ${DB_POOL_MIN_IDLE:5}
+      connection-timeout: ${DB_CONNECTION_TIMEOUT:20000}
+      idle-timeout: ${DB_IDLE_TIMEOUT:300000}
+      max-lifetime: ${DB_MAX_LIFETIME:1200000}
+      leak-detection-threshold: ${DB_LEAK_DETECTION_THRESHOLD:60000}
+      pool-name: ${DB_POOL_NAME:notification-service-db-pool}
+      validation-timeout: ${DB_VALIDATION_TIMEOUT:5000}
+      initialization-fail-timeout: ${DB_INIT_FAIL_TIMEOUT:1}
+      connection-test-query: SELECT 1
+  
+  # Vault configuration
+  cloud:
+    vault:
+      enabled: true
+      uri: ${VAULT_URI:https://vault.example.internal:8200}
+      authentication: kubernetes
+      kubernetes:
+        role: waqiti-app
+        kubernetes-path: kubernetes
+      database:
+        enabled: true
+        role: waqiti-app
+        backend: database
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+    show-sql: false
+
+  # Database migrations
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+  # Kafka configuration
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}
+    consumer:
+      group-id: notification-service
+      enable-auto-commit: false  # Manual acknowledgment for DLQ support
+      max-poll-records: 50  # Batch size control
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: com.waqiti.notification.event
+
+    listener:
+      ack-mode: record  # Acknowledge each record individually for better error handling
+      missing-topics-fatal: false  # Don't fail on missing topics
+      type: batch  # Support batch processing
+      concurrency: 3  # Number of concurrent consumer threads
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+  # Redis cache
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+  # Email configuration
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail.smtp.auth: ${MAIL_SMTP_AUTH:false}
+      mail.smtp.starttls.enable: ${MAIL_SMTP_STARTTLS:false}
+
+  # Thymeleaf configuration
+  thymeleaf:
+    enabled: true
+    cache: false
+    check-template: true
+    check-template-location: true
+    prefix: classpath:/templates/
+    suffix: .html
+    encoding: UTF-8
+
+# External services
+user-service:
+  url: http://localhost:8081
+
+# Firebase configuration
+firebase:
+  config-file: ${FIREBASE_CONFIG_FILE:firebase-service-account.json}
+
+# Security
+security:
+  jwt:
+    token:
+      secret-key: ${JWT_SECRET} # Must be provided via environment variable or Kubernetes secret
+
+# Notification settings
+notification:
+  email:
+    from: no-reply@example.com
+    personal: waqiti-fintech
+  sms:
+    from: ${SMS_FROM:+270785046229}
+
+# Resilience4j configuration
+resilience4j:
+  circuitbreaker:
+    instances:
+      userService:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 5s
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10
+  retry:
+    instances:
+      userService:
+        maxAttempts: 3
+        waitDuration: 1s
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+
+# Cache configuration
+cache:
+  templates:
+    ttl: 3600 # Cache templates for 1 hour
+
+# Logging
+logging:
+  level:
+    root: INFO
+    com.waqiti: DEBUG
+    org.hibernate.SQL: ${LOG_LEVEL_SQL:WARN}  # WARN for production
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/${spring.application.name}.log
+
+# Management endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  health:
+    circuitbreakers:
+      enabled: true
+
+# Add to services/notification-service/src/main/resources/application.yml
+
+# Third-Party Integration Configuration
+twilio:
+  enabled: ${TWILIO_ENABLED:true}
+  account:
+    sid: ${TWILIO_ACCOUNT_SID:${vault.api-keys.twilio.account-sid}}
+    token: ${TWILIO_AUTH_TOKEN:${vault.api-keys.twilio.auth-token}}
+  messaging:
+    service-sid: ${TWILIO_MESSAGING_SERVICE_SID:${vault.api-keys.twilio.messaging-service-sid}}
+  phone-numbers:
+    voice: ${TWILIO_VOICE_NUMBER:${vault.api-keys.twilio.voice-number}}
+    sms: ${TWILIO_SMS_NUMBER:${vault.api-keys.twilio.sms-number}}
+
+# SendGrid Configuration  
+sendgrid:
+  enabled: ${SENDGRID_ENABLED:true}
+  api-key: ${SENDGRID_API_KEY:${vault.api-keys.sendgrid.api-key}}
+  from-email: ${SENDGRID_FROM_EMAIL:notifications@example.com}
+  templates:
+    welcome: ${SENDGRID_TEMPLATE_WELCOME:d-123456789}
+    verification: ${SENDGRID_TEMPLATE_VERIFICATION:d-987654321}
+    
+# Firebase Cloud Messaging Configuration
+fcm:
+  enabled: ${FCM_ENABLED:true}
+  credentials-path: ${FCM_CREDENTIALS_PATH:${vault.api-keys.firebase.credentials-path}}
+  project-id: ${FCM_PROJECT_ID:${vault.api-keys.firebase.project-id}}
+
+# Rate Limiting Configuration
+rate-limiting:
+  enabled: true
+  key-prefix: "waqiti:notification:rate-limit:"
+  bucket-expiration-minutes: 60
+  default:
+    capacity: 200
+    refill-tokens: 200
+    refill-period-minutes: 1
+  services:
+    notification-service:
+      capacity: 200
+      refill-tokens: 200
+      refill-period-minutes: 1
+      endpoints:
+        "/api/v1/notifications/send":
+          capacity: 100
+          refill-tokens: 100
+          refill-period-minutes: 1
+          tokens: 1
+        "/api/v1/notifications/2fa/sms":
+          capacity: 5
+          refill-tokens: 5
+          refill-period-minutes: 15
+          tokens: 1
+        "/api/v1/notifications/2fa/email":
+          capacity: 5
+          refill-tokens: 5
+          refill-period-minutes: 15
+          tokens: 1
+        "/api/v1/notifications/read-all":
+          capacity: 10
+          refill-tokens: 10
+          refill-period-minutes: 5
+          tokens: 1
+
+# Keycloak Configuration
+keycloak:
+  enabled: ${KEYCLOAK_ENABLED:true}
+  auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8180}
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  resource: notification-service
+  bearer-only: true
+  ssl-required: ${KEYCLOAK_SSL_REQUIRED:external}
+  use-resource-role-mappings: true
+  principal-attribute: preferred_username
+  credentials:
+    secret: ${KEYCLOAK_CLIENT_SECRET:${vault.keycloak.notification-service.client-secret}}
+
+# Feature Flags for Authentication Migration
+features:
+  auth:
+    mode: ${AUTH_MODE:KEYCLOAK}  # LEGACY, KEYCLOAK, or DUAL
+    keycloak:
+      enabled: ${KEYCLOAK_ENABLED:true}
+    legacy:
+      enabled: ${LEGACY_AUTH_ENABLED:false}

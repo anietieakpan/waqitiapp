@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/action_button"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center"
+    android:background="@drawable/action_button_background"
+    android:padding="8dp"
+    android:clickable="true"
+    android:focusable="true">
+
+    <ImageView
+        android:id="@+id/action_icon"
+        android:layout_width="16dp"
+        android:layout_height="16dp"
+        android:src="@drawable/ic_help_circle"
+        android:layout_marginEnd="6dp" />
+
+    <TextView
+        android:id="@+id/action_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Action"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:textColor="@android:color/white"
+        android:maxLines="1"
+        android:ellipsize="end" />
+
+</LinearLayout>

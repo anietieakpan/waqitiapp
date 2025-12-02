@@ -1,0 +1,117 @@
+{
+  "type": "record",
+  "name": "TransactionCreatedEvent",
+  "namespace": "com.waqiti.events.v1",
+  "doc": "Event published when a transaction is created",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "Unique event identifier (UUID)"
+    },
+    {
+      "name": "eventType",
+      "type": "string",
+      "default": "transaction-created",
+      "doc": "Type of event"
+    },
+    {
+      "name": "timestamp",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "Event timestamp in epoch milliseconds"
+    },
+    {
+      "name": "correlationId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Correlation ID for distributed tracing"
+    },
+    {
+      "name": "version",
+      "type": "string",
+      "default": "1.0",
+      "doc": "Schema version"
+    },
+    {
+      "name": "transactionId",
+      "type": "string",
+      "doc": "Unique transaction identifier (UUID)"
+    },
+    {
+      "name": "transactionType",
+      "type": {
+        "type": "enum",
+        "name": "TransactionType",
+        "symbols": ["PAYMENT", "TRANSFER", "DEPOSIT", "WITHDRAWAL", "FEE", "REFUND", "ADJUSTMENT"]
+      },
+      "doc": "Type of transaction"
+    },
+    {
+      "name": "amount",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 19,
+        "scale": 4
+      },
+      "doc": "Transaction amount"
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "default": "USD",
+      "doc": "Currency code (ISO 4217)"
+    },
+    {
+      "name": "userId",
+      "type": "string",
+      "doc": "User initiating the transaction (UUID)"
+    },
+    {
+      "name": "accountId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Account ID (UUID)"
+    },
+    {
+      "name": "walletId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Wallet ID (UUID)"
+    },
+    {
+      "name": "status",
+      "type": {
+        "type": "enum",
+        "name": "TransactionStatus",
+        "symbols": ["PENDING", "PROCESSING", "COMPLETED", "FAILED", "CANCELLED", "REVERSED"]
+      },
+      "default": "PENDING",
+      "doc": "Transaction status"
+    },
+    {
+      "name": "description",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Transaction description"
+    },
+    {
+      "name": "referenceId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "External reference ID"
+    },
+    {
+      "name": "metadata",
+      "type": ["null", {
+        "type": "map",
+        "values": "string"
+      }],
+      "default": null,
+      "doc": "Additional metadata"
+    }
+  ]
+}

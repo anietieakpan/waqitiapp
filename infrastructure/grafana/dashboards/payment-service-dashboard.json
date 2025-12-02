@@ -1,0 +1,304 @@
+{
+  "dashboard": {
+    "title": "Payment Service - Production Metrics",
+    "tags": ["payment", "financial", "production"],
+    "timezone": "browser",
+    "schemaVersion": 38,
+    "version": 1,
+    "refresh": "30s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Payment Processing Rate",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(payment_processing_total{status=\"SUCCESS\"}[5m])",
+            "legendFormat": "Successful Payments/sec",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(payment_processing_total{status=\"FAILED\"}[5m])",
+            "legendFormat": "Failed Payments/sec",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {"format": "ops", "label": "Operations/sec"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Payment Success Rate",
+        "type": "gauge",
+        "gridPos": {"x": 12, "y": 0, "w": 6, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(payment_processing_total{status=\"SUCCESS\"}[5m])) / sum(rate(payment_processing_total[5m])) * 100",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 95, "color": "yellow"},
+                {"value": 99, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 3,
+        "title": "Payment Processing Latency (p95, p99)",
+        "type": "graph",
+        "gridPos": {"x": 18, "y": 0, "w": 6, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(payment_processing_duration_seconds_bucket[5m]))",
+            "legendFormat": "p95",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.99, rate(payment_processing_duration_seconds_bucket[5m]))",
+            "legendFormat": "p99",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {"format": "s", "label": "Latency"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Payment Volume by Provider",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum by (provider) (rate(payment_processing_total[5m]))",
+            "legendFormat": "{{provider}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "ops", "label": "Payments/sec"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Payment Amount (Total/Hour)",
+        "type": "stat",
+        "gridPos": {"x": 12, "y": 8, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(rate(payment_amount_total[1h])) * 3600",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyUSD",
+            "decimals": 2
+          }
+        }
+      },
+      {
+        "id": 6,
+        "title": "Failed Payments (Last Hour)",
+        "type": "stat",
+        "gridPos": {"x": 18, "y": 8, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(increase(payment_processing_total{status=\"FAILED\"}[1h]))",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 10, "color": "yellow"},
+                {"value": 50, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 7,
+        "title": "Refund Rate",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 12, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(payment_refunds_total[5m])) / sum(rate(payment_processing_total{status=\"SUCCESS\"}[5m])) * 100",
+            "legendFormat": "Refund Rate %",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "percent", "label": "Refund Rate"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 8,
+        "title": "Payment Method Distribution",
+        "type": "piechart",
+        "gridPos": {"x": 0, "y": 16, "w": 8, "h": 8},
+        "targets": [
+          {
+            "expr": "sum by (payment_method) (increase(payment_processing_total[1h]))",
+            "legendFormat": "{{payment_method}}",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 9,
+        "title": "Idempotency Cache Hit Rate",
+        "type": "gauge",
+        "gridPos": {"x": 8, "y": 16, "w": 8, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(payment_idempotency_cache_hits[5m])) / sum(rate(payment_idempotency_checks[5m])) * 100",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 80, "color": "yellow"},
+                {"value": 95, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 10,
+        "title": "Database Connection Pool",
+        "type": "graph",
+        "gridPos": {"x": 16, "y": 16, "w": 8, "h": 8},
+        "targets": [
+          {
+            "expr": "hikaricp_connections_active{pool=\"payment-service-db-pool\"}",
+            "legendFormat": "Active Connections",
+            "refId": "A"
+          },
+          {
+            "expr": "hikaricp_connections_idle{pool=\"payment-service-db-pool\"}",
+            "legendFormat": "Idle Connections",
+            "refId": "B"
+          },
+          {
+            "expr": "hikaricp_connections_max{pool=\"payment-service-db-pool\"}",
+            "legendFormat": "Max Connections",
+            "refId": "C"
+          }
+        ]
+      },
+      {
+        "id": 11,
+        "title": "High-Value Transactions (>$10k)",
+        "type": "table",
+        "gridPos": {"x": 0, "y": 24, "w": 24, "h": 6},
+        "targets": [
+          {
+            "expr": "topk(10, payment_amount_total{amount_range=\"high\"})",
+            "format": "table",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 12,
+        "title": "Payment Gateway Health",
+        "type": "stat",
+        "gridPos": {"x": 0, "y": 30, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "payment_gateway_health{gateway=\"stripe\"}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [
+              {"type": "value", "options": {"1": {"text": "Healthy", "color": "green"}}},
+              {"type": "value", "options": {"0": {"text": "Down", "color": "red"}}}
+            ]
+          }
+        }
+      },
+      {
+        "id": 13,
+        "title": "Settlement Processing Time",
+        "type": "graph",
+        "gridPos": {"x": 6, "y": 30, "w": 9, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(settlement_processing_duration_seconds_bucket[5m]))",
+            "legendFormat": "p95",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "s", "label": "Duration"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 14,
+        "title": "Chargeback Rate",
+        "type": "graph",
+        "gridPos": {"x": 15, "y": 30, "w": 9, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(payment_chargebacks_total[24h])) / sum(rate(payment_processing_total{status=\"SUCCESS\"}[24h])) * 100",
+            "legendFormat": "Chargeback Rate %",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "percent", "label": "Chargeback Rate"},
+          {"format": "short"}
+        ],
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": {"type": "gt", "params": [1.0]},
+              "operator": {"type": "and"},
+              "query": {"params": ["A", "5m", "now"]},
+              "type": "query"
+            }
+          ],
+          "frequency": "5m",
+          "handler": 1,
+          "name": "High Chargeback Rate Alert",
+          "message": "Chargeback rate exceeds 1% threshold"
+        }
+      }
+    ]
+  }
+}

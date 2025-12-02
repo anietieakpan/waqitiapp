@@ -1,0 +1,105 @@
+# Keycloak Security Configuration for AR Payment Service
+
+keycloak:
+  enabled: true
+  server-url: ${KEYCLOAK_SERVER_URL:https://localhost:8180}
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  client-id: ${KEYCLOAK_CLIENT_ID:ar-payment-service}
+  client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+  
+  # OAuth2/OIDC Endpoints
+  issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8080/realms/waqiti}
+  jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:https://auth.example.com/realms/waqiti/protocol/openid-connect/certs}
+  
+  # JWT Configuration
+  jwk-cache-duration: PT5M
+  token-validity-duration: PT30M
+  validate-issuer: true
+  validate-audience: true
+  
+  # CORS Configuration
+  development-mode: ${DEVELOPMENT_MODE:false}
+  allowed-origins:
+    - ${FRONTEND_URL:http://localhost:3000}
+    - ${AR_APP_URL:http://localhost:3003}
+    - ${MOBILE_APP_URL:http://localhost:3004}
+  
+  # Service-specific Configuration
+  services:
+    ar-payment-service:
+      client-id: ar-payment-service
+      client-secret: ${AR_PAYMENT_SERVICE_CLIENT_SECRET:}
+      required-roles:
+        - ar_user
+        - verified_user
+        - mobile_user
+      required-scopes:
+        - ar:read
+        - ar:write
+        - ar:payment
+        - ar:session
+        - ar:calibration
+        - ar:environment
+      additional-claims:
+        device-verified: required
+        ar-capable: true
+  
+  # Security Configuration
+  security:
+    log-security-events: true
+    enable-audit-log: true
+    strict-mode: true  # AR payments require strict security
+
+# Spring Security Configuration
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${keycloak.issuer-uri}
+          
+# AR Payment Service Specific Security Configuration
+ar-payment:
+  security:
+    # Public endpoints for AR discovery
+    public-endpoints:
+      - /api/v1/ar/capabilities
+      - /api/v1/ar/environment/public
+      - /api/v1/ar/status
+    
+    # AR-specific security requirements
+    device-verification: ${DEVICE_VERIFICATION:true}
+    biometric-required: ${BIOMETRIC_REQUIRED:true}
+    ar-session-timeout: ${AR_SESSION_TIMEOUT:PT10M}
+    
+    # Required authorities for different operations
+    authorities:
+      read:
+        - SCOPE_ar:read
+        - ROLE_VERIFIED_USER
+      session:
+        - SCOPE_ar:session
+        - ROLE_AR_USER
+        - ROLE_DEVICE_VERIFIED
+      payment:
+        - SCOPE_ar:payment
+        - ROLE_AR_USER
+        - ROLE_VERIFIED_USER
+        - ROLE_BIOMETRIC_VERIFIED
+      calibration:
+        - SCOPE_ar:calibration
+        - ROLE_AR_USER
+      environment:
+        - SCOPE_ar:environment
+        - ROLE_AR_USER
+      high-value-payment:
+        - SCOPE_ar:payment
+        - ROLE_AR_USER
+        - ROLE_HIGH_VALUE_APPROVED
+        - ROLE_ENHANCED_VERIFICATION
+      admin:
+        - ROLE_AR_ADMIN
+        - SCOPE_ar:admin
+      management:
+        - ROLE_AR_MANAGER
+        - SCOPE_ar:management

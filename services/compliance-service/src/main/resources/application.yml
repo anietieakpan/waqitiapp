@@ -1,0 +1,473 @@
+# ============================================================================
+# Waqiti Compliance Service Configuration
+# ============================================================================
+
+server:
+  port: 8080
+  servlet:
+    context-path: /
+  error:
+    include-message: always
+    include-binding-errors: always
+
+spring:
+  application:
+    name: compliance-service
+    
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:development}
+    
+  # Database Configuration
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:waqiti_compliance}
+    username: ${DB_USERNAME:waqiti_compliance}
+    password: ${COMPLIANCE_DB_PASSWORD:${vault.database.compliance-service.password}}
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 300000
+      max-lifetime: 1800000
+      leak-detection-threshold: 60000
+      
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQL95Dialect
+        format_sql: true
+        use_sql_comments: true
+        jdbc:
+          batch_size: 25
+        order_inserts: true
+        order_updates: true
+        
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+    schemas: public
+    
+  # Kafka Configuration
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+    consumer:
+      group-id: compliance-service
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      properties:
+        spring.json.trusted.packages: com.waqiti.*
+        
+  # Redis Configuration (for caching)
+  redis:
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD:}
+    timeout: 2000ms
+    jedis:
+      pool:
+        max-active: 20
+        max-idle: 10
+        min-idle: 5
+        
+  # Security Configuration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8543/realms/waqiti}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:https://localhost:8543/realms/waqiti/protocol/openid-connect/certs}
+
+# Keycloak Configuration
+keycloak:
+  auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8543}
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  resource: ${KEYCLOAK_CLIENT_ID:compliance-service}
+  credentials:
+    secret: ${KEYCLOAK_CLIENT_SECRET:compliance-service-secret}
+  use-resource-role-mappings: true
+  bearer-only: true
+  
+# Kafka Topics Configuration
+kafka:
+  topics:
+    transaction-events: transaction-events
+    high-value-transactions: high-value-transactions
+    compliance-alerts: compliance-alerts
+    compliance-review-queue: compliance-review-queue
+    compliance-screening-completed: compliance-screening-completed
+    compliance-screening-errors: compliance-screening-errors
+    compliance-audit-trail: compliance-audit-trail
+    sar-filing-queue: sar-filing-queue
+    transaction-blocks: transaction-blocks
+    critical-alerts: critical-alerts
+    circuit-breaker-metrics: circuit-breaker-metrics
+
+# Compliance Service Configuration
+compliance:
+  # AML/CTF Settings
+  aml:
+    screening:
+      enabled: true
+      async-processing: true
+      batch-size: 100
+      timeout-seconds: 30
+    
+    thresholds:
+      ctr-amount: 10000
+      high-value: 5000
+      structuring-threshold: 9000
+      daily-volume-limit: 50000
+      monthly-volume-limit: 500000
+      
+    risk-scoring:
+      max-score: 100
+      high-risk-threshold: 75
+      medium-risk-threshold: 50
+      low-risk-threshold: 25
+      
+  # Sanctions Screening
+  sanctions:
+    ofac:
+      enabled: true
+      url: ${OFAC_API_URL:https://api.treasury.gov/v1/sanctions}
+      api-key: ${OFAC_API_KEY:}
+      timeout: 30s
+      cache-duration: 6h
+      
+    pep:
+      enabled: true
+      providers:
+        - world-check
+        - dow-jones
+      cache-duration: 24h
+      
+  # Document Storage
+  documents:
+    storage-type: ${DOCUMENT_STORAGE_TYPE:S3}
+    s3:
+      bucket: ${S3_BUCKET:waqiti-compliance-docs}
+      region: ${AWS_REGION:us-east-1}
+      encryption: true
+    retention:
+      kyc-documents: 2555 # 7 years in days
+      sar-documents: 1825 # 5 years in days
+      
+  # Reporting
+  reporting:
+    auto-generation: true
+    schedules:
+      daily-reports: "0 0 6 * * ?" # 6 AM daily
+      weekly-reports: "0 0 6 ? * MON" # 6 AM Mondays
+      monthly-reports: "0 0 6 1 * ?" # 6 AM 1st of month
+      
+  # Rule Engine
+  rules:
+    drools:
+      enabled: true
+      auto-reload: false # Set to true for development
+      reload-interval: 3600 # seconds
+      
+    decision-tables:
+      enabled: true
+      auto-refresh: true
+      refresh-interval: 1800 # seconds
+
+# Management and Monitoring
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,circuitbreakers
+  endpoint:
+    health:
+      show-details: when-authorized
+      show-components: always
+      group:
+        custom:
+          include: diskSpace,db,kafka
+  health:
+    redis:
+      enabled: true
+    kafka:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+        step: 10s
+    tags:
+      application: ${spring.application.name}
+      environment: ${ENVIRONMENT:development}
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    com.waqiti: DEBUG
+    com.example.compliance.service.DroolsAMLRuleEngine: INFO
+    org.springframework.kafka: INFO
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: ${LOG_LEVEL_SQL:WARN}  # WARN for production
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    
+  pattern:
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    
+  file:
+    name: logs/compliance-service.log
+    max-size: 100MB
+    max-history: 30
+
+# Circuit Breaker Configuration (Resilience4j)
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        registerHealthIndicator: true
+        slidingWindowSize: 100
+        minimumNumberOfCalls: 10
+        permittedNumberOfCallsInHalfOpenState: 5
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 60s
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10
+        
+      sanctions-screening:
+        registerHealthIndicator: true
+        slidingWindowSize: 50
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 120s
+        failureRateThreshold: 30
+        
+    instances:
+      ofac-api:
+        baseConfig: sanctions-screening
+        recordExceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+          - org.springframework.web.client.ResourceAccessException
+          - org.springframework.web.client.HttpServerErrorException
+        ignoreExceptions:
+          - com.example.compliance.exception.ValidationException
+      ofac-fallback-api:
+        baseConfig: sanctions-screening
+        slidingWindowSize: 30
+        minimumNumberOfCalls: 3
+        waitDurationInOpenState: 60s
+        failureRateThreshold: 40
+      pep-screening:
+        baseConfig: sanctions-screening
+      customer-service:
+        baseConfig: default
+        
+  retry:
+    configs:
+      default:
+        maxAttempts: 3
+        waitDuration: 1s
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - java.io.IOException
+          - org.springframework.web.client.ResourceAccessException
+    instances:
+      ofac-api:
+        maxAttempts: 3
+        waitDuration: 1s
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+          - org.springframework.web.client.ResourceAccessException
+      ofac-fallback-api:
+        maxAttempts: 2
+        waitDuration: 500ms
+        exponentialBackoffMultiplier: 2
+        
+  bulkhead:
+    configs:
+      default:
+        maxConcurrentCalls: 25
+        maxWaitDuration: 10s
+    instances:
+      ofac-api:
+        maxConcurrentCalls: 10
+        maxWaitDuration: 5s
+      ofac-fallback-api:
+        maxConcurrentCalls: 5
+        maxWaitDuration: 3s
+
+  ratelimiter:
+    configs:
+      default:
+        limitForPeriod: 100
+        limitRefreshPeriod: 1s
+        timeoutDuration: 5s
+
+# OpenAPI Documentation
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+  show-actuator: true
+  
+# Custom Configuration
+waqiti:
+  compliance:
+    # Service URLs
+    services:
+      customer-service:
+        url: ${CUSTOMER_SERVICE_URL:http://customer-service:8080}
+      transaction-service:
+        url: ${TRANSACTION_SERVICE_URL:http://transaction-service:8080}
+      notification-service:
+        url: ${NOTIFICATION_SERVICE_URL:http://notification-service:8080}
+        
+    # External Integrations
+    integrations:
+      fincen:
+        enabled: ${FINCEN_ENABLED:true}
+        url: ${FINCEN_API_URL:https://bsaefiling.fincen.treas.gov/api}
+        credentials: ${FINCEN_CREDENTIALS:${vault.credentials.fincen.api-key}}
+        filing-institution-id: ${FINCEN_INSTITUTION_ID:${vault.credentials.fincen.institution-id}}
+        timeout-seconds: ${FINCEN_TIMEOUT:30}
+        retry-attempts: ${FINCEN_RETRY_ATTEMPTS:3}
+        
+      regulatory-authorities:
+        enabled: false
+        endpoints:
+          ctr-filing: ${CTR_FILING_ENDPOINT:}
+          sar-filing: ${SAR_FILING_ENDPOINT:}
+          
+    # Performance Settings
+    performance:
+      async-processing: true
+      batch-processing-size: 50
+      max-concurrent-screenings: 20
+      screening-timeout-seconds: 30
+      
+    # Audit Settings
+    audit:
+      enabled: true
+      sensitive-operations: true
+      retention-days: 2555 # 7 years
+
+    # Financial Institution Information (for SAR/CTR Filing)
+    institution:
+      name: ${INSTITUTION_NAME:Waqiti Financial Services Inc.}
+      ein: ${INSTITUTION_EIN:XX-XXXXXXX}
+      address:
+        street: ${INSTITUTION_ADDRESS_STREET:123 Financial Plaza}
+        city: ${INSTITUTION_ADDRESS_CITY:New York}
+        state: ${INSTITUTION_ADDRESS_STATE:NY}
+        zip: ${INSTITUTION_ADDRESS_ZIP:10001}
+        country: ${INSTITUTION_ADDRESS_COUNTRY:United States}
+      contact:
+        compliance-officer-name: ${COMPLIANCE_OFFICER_NAME:Chief Compliance Officer}
+        compliance-officer-title: ${COMPLIANCE_OFFICER_TITLE:Chief Compliance Officer}
+        compliance-officer-phone: ${COMPLIANCE_OFFICER_PHONE:+1-800-555-0100}
+        compliance-officer-email: ${COMPLIANCE_OFFICER_EMAIL:compliance@example.com}
+      regulatory:
+        filing-institution-code: ${FILING_INSTITUTION_CODE:WAQITI001}
+        rssd-id: ${RSSD_ID:}  # Reserve System Research & Statistics Division ID
+        primary-regulator: ${PRIMARY_REGULATOR:FinCEN}
+        charter-type: ${CHARTER_TYPE:Money Services Business}
+      
+---
+# Development Profile
+spring:
+  config:
+    activate:
+      on-profile: development
+      
+  datasource:
+    url: jdbc:postgresql://localhost:5432/waqiti_compliance_dev
+    
+logging:
+  level:
+    com.waqiti: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: ${LOG_LEVEL_SQL:WARN}  # WARN for production
+    
+compliance:
+  rules:
+    drools:
+      auto-reload: true
+      
+---
+# Test Profile
+spring:
+  config:
+    activate:
+      on-profile: test
+      
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+    
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    database-platform: org.hibernate.dialect.H2Dialect
+    
+  kafka:
+    consumer:
+      auto-offset-reset: earliest
+    producer:
+      bootstrap-servers: ${spring.embedded.kafka.brokers}
+      
+logging:
+  level:
+    root: WARN
+    com.waqiti: INFO
+    
+---
+# Production Profile
+spring:
+  config:
+    activate:
+      on-profile: production
+      
+logging:
+  level:
+    root: WARN
+    com.waqiti: INFO
+    com.example.compliance.service.DroolsAMLRuleEngine: WARN
+    org.springframework.security: ERROR
+    org.hibernate.SQL: ERROR
+    org.hibernate.type.descriptor.sql.BasicBinder: ERROR
+    org.springframework.kafka: WARN
+    
+compliance:
+  rules:
+    drools:
+      auto-reload: false
+      
+# Production-specific security settings
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized

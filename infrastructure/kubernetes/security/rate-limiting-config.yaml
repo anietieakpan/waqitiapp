@@ -1,0 +1,299 @@
+# Rate Limiting Configuration for Waqiti Financial APIs
+# SECURITY: Comprehensive rate limiting to prevent abuse and DDoS attacks
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rate-limiting-config
+  namespace: waqiti-system
+  labels:
+    security.example.com/component: "rate-limiting"
+data:
+  application.yml: |
+    # Rate Limiting Configuration
+    rate-limiting:
+      enabled: true
+      
+      # Global rate limiting
+      global:
+        requests-per-second: 1000
+        burst-capacity: 2000
+        
+      # Financial API Endpoints (Most Restrictive)
+      financial-endpoints:
+        payment-transfer:
+          path: "/api/v1/payments/transfer"
+          requests-per-minute: 5
+          burst-multiplier: 2
+        payment-withdraw:
+          path: "/api/v1/payments/withdraw" 
+          requests-per-minute: 3
+          burst-multiplier: 1
+        payment-send:
+          path: "/api/v1/payments/send"
+          requests-per-minute: 5
+          burst-multiplier: 2
+        crypto-buy:
+          path: "/api/v1/crypto/buy"
+          requests-per-minute: 3
+          burst-multiplier: 1
+        crypto-sell:
+          path: "/api/v1/crypto/sell"
+          requests-per-minute: 3
+          burst-multiplier: 1
+          
+      # Authentication Endpoints (Prevent Brute Force)
+      auth-endpoints:
+        login:
+          path: "/api/v1/auth/login"
+          requests-per-minute: 5
+          requests-per-hour: 20
+          lockout-duration: 900  # 15 minutes
+        password-reset:
+          path: "/api/v1/auth/forgot-password"
+          requests-per-minute: 2
+          requests-per-hour: 6
+        password-change:
+          path: "/api/v1/auth/reset-password"
+          requests-per-minute: 2
+          requests-per-hour: 6
+          
+      # Wallet Endpoints
+      wallet-endpoints:
+        balance-check:
+          path: "/api/v1/wallet/balance"
+          requests-per-minute: 30
+          burst-multiplier: 2
+        transaction-history:
+          path: "/api/v1/wallet/transactions"
+          requests-per-minute: 10
+          burst-multiplier: 1
+          
+      # User Management Endpoints  
+      user-endpoints:
+        registration:
+          path: "/api/v1/users/register"
+          requests-per-minute: 2
+          requests-per-hour: 10
+        profile-update:
+          path: "/api/v1/users/profile"
+          requests-per-minute: 10
+          burst-multiplier: 1
+          
+      # Reporting Endpoints
+      reporting-endpoints:
+        custom-reports:
+          path: "/api/v1/reports"
+          requests-per-minute: 5
+          requests-per-hour: 50
+        analytics:
+          path: "/api/v1/analytics"
+          requests-per-minute: 10
+          requests-per-hour: 100
+          
+      # Administrative Endpoints
+      admin-endpoints:
+        admin-operations:
+          path: "/api/v1/admin"
+          requests-per-minute: 10
+          requests-per-hour: 100
+          
+      # Penalty Box Configuration
+      penalty-box:
+        enabled: true
+        violation-threshold: 3
+        penalty-duration: 3600  # 1 hour
+        escalation-factor: 2
+        
+      # Suspicious Activity Detection
+      suspicious-activity:
+        velocity-check: true
+        geo-anomaly-check: true
+        device-fingerprinting: true
+        behavioral-analysis: true
+        
+      # Rate Limit Headers
+      headers:
+        include-headers: true
+        limit-header: "X-RateLimit-Limit"
+        remaining-header: "X-RateLimit-Remaining" 
+        reset-header: "X-RateLimit-Reset"
+        retry-after-header: "Retry-After"
+        
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: security-headers-config
+  namespace: waqiti-system
+  labels:
+    security.example.com/component: "security-headers"
+data:
+  nginx.conf: |
+    # Security Headers Configuration
+    
+    # HSTS (HTTP Strict Transport Security)
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
+    
+    # Content Security Policy
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.example.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' wss: https:; frame-ancestors 'none'; base-uri 'self'; form-action 'self';" always;
+    
+    # X-Frame-Options
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    
+    # X-Content-Type-Options
+    add_header X-Content-Type-Options "nosniff" always;
+    
+    # X-XSS-Protection
+    add_header X-XSS-Protection "1; mode=block" always;
+    
+    # Referrer Policy
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    
+    # Permissions Policy
+    add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
+    
+    # Remove server information
+    server_tokens off;
+    
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rate-limiter
+  namespace: waqiti-system
+  labels:
+    app: rate-limiter
+    security.example.com/component: "rate-limiting"
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: rate-limiter
+  template:
+    metadata:
+      labels:
+        app: rate-limiter
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+      containers:
+      - name: rate-limiter
+        image: nginx:1.21-alpine
+        ports:
+        - containerPort: 8080
+          name: http
+        - containerPort: 8090
+          name: metrics
+        env:
+        - name: REDIS_HOST
+          value: "redis.example.internal"
+        - name: REDIS_PORT
+          value: "6379"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "250m"
+        volumeMounts:
+        - name: rate-limiting-config
+          mountPath: /etc/nginx/conf.d
+        - name: security-headers-config
+          mountPath: /etc/nginx/security
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+      volumes:
+      - name: rate-limiting-config
+        configMap:
+          name: rate-limiting-config
+      - name: security-headers-config
+        configMap:
+          name: security-headers-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rate-limiter
+  namespace: waqiti-system
+  labels:
+    app: rate-limiter
+spec:
+  selector:
+    app: rate-limiter
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+  - name: metrics
+    port: 8090
+    targetPort: 8090
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: rate-limiter
+  namespace: waqiti-system
+  labels:
+    app: rate-limiter
+spec:
+  selector:
+    matchLabels:
+      app: rate-limiter
+  endpoints:
+  - port: metrics
+    path: /metrics
+    interval: 30s
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: rate-limiting-vs
+  namespace: waqiti-system
+spec:
+  hosts:
+  - api.example.com
+  - api-staging.example.com
+  gateways:
+  - waqiti-gateway
+  http:
+  - match:
+    - uri:
+        prefix: "/api/v1/"
+    route:
+    - destination:
+        host: api-gateway.waqiti-system.svc.cluster.local
+        port:
+          number: 8080
+    fault:
+      delay:
+        percentage:
+          value: 0.1
+        fixedDelay: 5s
+    retries:
+      attempts: 3
+      perTryTimeout: 10s
+    timeout: 30s

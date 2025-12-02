@@ -1,0 +1,103 @@
+# Keycloak Configuration for User Service
+
+keycloak:
+  enabled: true
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  ssl-required: external
+  resource: user-service
+  bearer-only: true
+  credentials:
+    secret: ${USER_SERVICE_CLIENT_SECRET:CHANGE_ME_SECURE_SECRET_REQUIRED}
+  use-resource-role-mappings: true
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# User Service Security Configuration
+user:
+  security:
+    # Public endpoints that don't require authentication
+    public-endpoints:
+      - /actuator/health
+      - /actuator/info
+      - /api/v1/auth/register
+      - /api/v1/auth/verify-email
+      - /api/v1/auth/forgot-password
+      - /api/v1/auth/reset-password
+      - /api/v1/auth/check-email
+      - /api/v1/auth/check-phone
+      - /swagger-ui/**
+      - /v3/api-docs/**
+    
+    # Service-to-service endpoints
+    service-endpoints:
+      - /internal/users/**
+    
+    # Required roles for user operations
+    required-roles:
+      read:
+        - USER
+        - USER_VIEWER
+      write:
+        - USER
+        - USER_MANAGER
+      management:
+        - USER_MANAGER
+        - USER_OPERATOR
+      admin:
+        - USER_ADMIN
+        - SYSTEM_ADMIN
+    
+    # Required scopes for operations
+    required-scopes:
+      profile-read: user:profile:read
+      profile-write: user:profile:write
+      kyc-read: user:kyc:read
+      kyc-write: user:kyc:write
+      security-read: user:security:read
+      security-write: user:security:write
+      device-read: user:device:read
+      device-write: user:device:write
+      preferences-read: user:preferences:read
+      preferences-write: user:preferences:write
+      admin-read: user:admin:read
+      admin-write: user:admin:write
+      analytics: user:analytics
+      export: user:export
+    
+    # User security features
+    features:
+      password-validation-enabled: true
+      mfa-enabled: true
+      device-fingerprinting-enabled: true
+      rate-limiting-enabled: true
+      audit-logging-enabled: true
+      encryption-enabled: true
+      
+    # User limits and thresholds
+    limits:
+      max-devices-per-user: 5
+      max-sessions-per-user: 3
+      max-login-attempts: 5
+      max-password-reset-attempts: 3
+      
+    # Security thresholds requiring additional verification
+    verification-thresholds:
+      suspicious-login-count: 3
+      device-change-count: 2
+      location-change-count: 2
+      
+    # Advanced security features
+    advanced-security:
+      require-mfa-new-device: true
+      require-verification-high-risk: true
+      automatic-account-lock: true
+      behavioral-analysis: true
+      fraud-detection: true
+      geo-blocking: true

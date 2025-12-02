@@ -1,0 +1,280 @@
+# Docker Compose Secure Configuration for Cryptocurrency Services
+#
+# PURPOSE: This file provides secure credential management for crypto services
+# replacing hardcoded passwords with environment variables and Vault integration
+#
+# USAGE:
+#   1. Copy .env.crypto.template to .env.crypto
+#   2. Generate strong passwords for each service
+#   3. Run: docker-compose -f docker-compose.yml -f docker-compose.secure.yml up
+#
+# SECURITY NOTES:
+#   - NEVER commit .env.crypto to version control (add to .gitignore)
+#   - Rotate passwords every 90 days minimum
+#   - Use Docker secrets in production (not environment variables)
+#   - Enable Vault for production deployments
+#
+# @author Waqiti DevOps Team
+# @date 2025-11-08
+
+version: '3.8'
+
+services:
+  # Bitcoin Core with secure credentials
+  bitcoin-core:
+    image: ruimarinho/bitcoin-core:24.0
+    container_name: waqiti-bitcoin-core
+    networks:
+      - crypto-network
+    ports:
+      - "18332:18332"  # regtest RPC
+      - "28332:28332"  # ZMQ block notifications
+      - "28333:28333"  # ZMQ tx notifications
+    volumes:
+      - bitcoin-data:/home/bitcoin/.bitcoin
+      - ./docker/bitcoin/bitcoin.conf:/home/bitcoin/.bitcoin/bitcoin.conf:ro
+    environment:
+      # SECURITY: Load credentials from environment (sourced from .env.crypto or Vault)
+      BITCOIN_RPC_USER: ${BITCOIN_RPC_USER}
+      BITCOIN_RPC_PASSWORD: ${BITCOIN_RPC_PASSWORD}
+    command: >
+      bitcoind
+      -regtest
+      -server
+      -rest
+      -rpcuser=${BITCOIN_RPC_USER}
+      -rpcpassword=${BITCOIN_RPC_PASSWORD}
+      -rpcbind=0.0.0.0
+      -rpcallowip=0.0.0.0/0
+      -zmqpubrawblock=tcp://0.0.0.0:28332
+      -zmqpubrawtx=tcp://0.0.0.0:28333
+      -fallbackfee=0.00001
+      -printtoconsole=1
+    healthcheck:
+      test: ["CMD", "bitcoin-cli", "-regtest", "-rpcuser=${BITCOIN_RPC_USER}", "-rpcpassword=${BITCOIN_RPC_PASSWORD}", "getblockchaininfo"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # Litecoin Core with secure credentials
+  litecoin-core:
+    image: uphold/litecoin-core:0.21
+    container_name: waqiti-litecoin-core
+    networks:
+      - crypto-network
+    ports:
+      - "19332:19332"  # regtest RPC
+      - "29332:29332"  # ZMQ block notifications
+      - "29333:29333"  # ZMQ tx notifications
+    volumes:
+      - litecoin-data:/home/litecoin/.litecoin
+      - ./docker/litecoin/litecoin.conf:/home/litecoin/.litecoin/litecoin.conf:ro
+    environment:
+      # SECURITY: Load credentials from environment (sourced from .env.crypto or Vault)
+      LITECOIN_RPC_USER: ${LITECOIN_RPC_USER}
+      LITECOIN_RPC_PASSWORD: ${LITECOIN_RPC_PASSWORD}
+    command: >
+      litecoind
+      -regtest
+      -server
+      -rest
+      -rpcuser=${LITECOIN_RPC_USER}
+      -rpcpassword=${LITECOIN_RPC_PASSWORD}
+      -rpcbind=0.0.0.0
+      -rpcallowip=0.0.0.0/0
+      -zmqpubrawblock=tcp://0.0.0.0:29332
+      -zmqpubrawtx=tcp://0.0.0.0:29333
+      -fallbackfee=0.00001
+      -printtoconsole=1
+    healthcheck:
+      test: ["CMD", "litecoin-cli", "-regtest", "-rpcuser=${LITECOIN_RPC_USER}", "-rpcpassword=${LITECOIN_RPC_PASSWORD}", "getblockchaininfo"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # Lightning Network Daemon (LND) with secure credentials
+  lnd:
+    image: lightninglabs/lnd:v0.17.0-beta
+    container_name: waqiti-lnd
+    networks:
+      - crypto-network
+    ports:
+      - "10009:10009"  # gRPC
+      - "8080:8080"    # REST
+      - "9735:9735"    # P2P
+    volumes:
+      - lnd-data:/root/.lnd
+      - ./src/main/resources/lnd.conf:/root/.lnd/lnd.conf:ro
+      - lnd-shared:/shared
+    environment:
+      BITCOIN_RPC_USER: ${BITCOIN_RPC_USER}
+      BITCOIN_RPC_PASSWORD: ${BITCOIN_RPC_PASSWORD}
+      LND_DATABASE_URL: ${LND_DATABASE_URL}
+    depends_on:
+      bitcoin-core:
+        condition: service_healthy
+    command: >
+      lnd
+      --bitcoin.active
+      --bitcoin.regtest
+      --bitcoin.node=bitcoind
+      --bitcoind.rpchost=bitcoin-core:18332
+      --bitcoind.rpcuser=${BITCOIN_RPC_USER}
+      --bitcoind.rpcpass=${BITCOIN_RPC_PASSWORD}
+      --bitcoind.zmqpubrawblock=tcp://bitcoin-core:28332
+      --bitcoind.zmqpubrawtx=tcp://bitcoin-core:28333
+      --restlisten=0.0.0.0:8080
+      --rpclisten=0.0.0.0:10009
+      --prometheus.enable=true
+      --prometheus.listen=0.0.0.0:9092
+      --tlsextradomain=lnd
+      --tlsautorefresh=true
+    healthcheck:
+      test: ["CMD", "lncli", "--network=regtest", "getinfo"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+  # Crypto Service Application
+  crypto-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: waqiti-crypto-service
+    networks:
+      - crypto-network
+      - waqiti-network
+    ports:
+      - "8087:8087"
+    environment:
+      # Database
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: waqiti_crypto
+      DB_USERNAME: waqiti_crypto
+      DB_PASSWORD: ${CRYPTO_DB_PASSWORD}
+
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+
+      # Kafka
+      KAFKA_BROKERS: kafka:29092
+
+      # Eureka
+      EUREKA_URL: http://discovery-service:8761/eureka/
+
+      # Keycloak
+      KEYCLOAK_AUTH_SERVER_URL: ${KEYCLOAK_AUTH_SERVER_URL}
+      KEYCLOAK_CLIENT_SECRET: ${CRYPTO_SERVICE_KEYCLOAK_SECRET}
+
+      # Bitcoin
+      BITCOIN_RPC_HOST: bitcoin-core
+      BITCOIN_RPC_PORT: 18332
+      BITCOIN_RPC_USER: ${BITCOIN_RPC_USER}
+      BITCOIN_RPC_PASSWORD: ${BITCOIN_RPC_PASSWORD}
+      BITCOIN_NETWORK: regtest
+
+      # Litecoin
+      LITECOIN_RPC_HOST: litecoin-core
+      LITECOIN_RPC_PORT: 19332
+      LITECOIN_RPC_USER: ${LITECOIN_RPC_USER}
+      LITECOIN_RPC_PASSWORD: ${LITECOIN_RPC_PASSWORD}
+      LITECOIN_NETWORK: regtest
+
+      # Ethereum
+      ETHEREUM_RPC_URL: ${ETHEREUM_RPC_URL}
+      ETHEREUM_RPC_API_KEY: ${ETHEREUM_RPC_API_KEY}
+      ETHEREUM_NETWORK: ${ETHEREUM_NETWORK:-sepolia}
+
+      # Lightning
+      LND_GRPC_HOST: lnd
+      LND_GRPC_PORT: 10009
+      LND_TLS_CERT_PATH: /shared/tls.cert
+      LND_MACAROON_PATH: /shared/admin.macaroon
+
+      # AWS KMS (for key management)
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_KMS_MASTER_KEY_ID: ${AWS_KMS_MASTER_KEY_ID}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+
+      # Vault Integration
+      VAULT_ENABLED: ${VAULT_ENABLED:-false}
+      VAULT_ADDR: ${VAULT_ADDR:-http://vault:8200}
+      VAULT_TOKEN: ${VAULT_TOKEN}
+      VAULT_NAMESPACE: ${VAULT_NAMESPACE:-}
+
+      # External APIs
+      CMC_API_KEY: ${CMC_API_KEY}
+      COINGECKO_API_KEY: ${COINGECKO_API_KEY}
+      CHAINALYSIS_API_KEY: ${CHAINALYSIS_API_KEY}
+
+      # Spring Profile
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+
+    volumes:
+      - lnd-shared:/shared:ro
+    depends_on:
+      bitcoin-core:
+        condition: service_healthy
+      litecoin-core:
+        condition: service_healthy
+      lnd:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8087/api/v1/crypto/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+  # HashiCorp Vault (optional, for production)
+  vault:
+    image: hashicorp/vault:1.15
+    container_name: waqiti-vault
+    networks:
+      - crypto-network
+    ports:
+      - "8200:8200"
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: ${VAULT_DEV_ROOT_TOKEN_ID:-root}
+      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - vault-data:/vault/data
+      - vault-logs:/vault/logs
+      - ./infrastructure/vault/config.hcl:/vault/config/vault.hcl:ro
+    command: server
+    profiles:
+      - vault  # Only start Vault when explicitly enabled
+    healthcheck:
+      test: ["CMD", "vault", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  crypto-network:
+    driver: bridge
+  waqiti-network:
+    external: true  # Assumes main waqiti network exists
+
+volumes:
+  bitcoin-data:
+    driver: local
+  litecoin-data:
+    driver: local
+  lnd-data:
+    driver: local
+  lnd-shared:
+    driver: local
+  vault-data:
+    driver: local
+  vault-logs:
+    driver: local

@@ -1,0 +1,42 @@
+RuleSet,com.waqiti.compliance.rules.thresholds
+Import,com.waqiti.compliance.model.AMLTransaction
+Variables,$tx:AMLTransaction
+
+RuleTable Transaction Amount Thresholds
+CONDITION,CONDITION,CONDITION,ACTION,ACTION
+$tx.getType(),amount >= $1,currency == "$1",$tx.addRiskIndicator("$1","$2",$3),$tx.addAlert("$1","$2","$3")
+Transaction Type,Min Amount,Currency,Risk Code,Risk Description,Risk Score,Alert Type,Alert Severity,Alert Message
+
+DEPOSIT,50000,USD,VERY_LARGE_DEPOSIT,Very large deposit transaction,40,THRESHOLD,HIGH,Very large deposit requires enhanced review
+DEPOSIT,25000,USD,LARGE_DEPOSIT,Large deposit transaction,25,THRESHOLD,MEDIUM,Large deposit flagged for review
+WITHDRAWAL,50000,USD,VERY_LARGE_WITHDRAWAL,Very large withdrawal transaction,45,THRESHOLD,HIGH,Very large withdrawal requires enhanced review
+WITHDRAWAL,25000,USD,LARGE_WITHDRAWAL,Large withdrawal transaction,30,THRESHOLD,MEDIUM,Large withdrawal flagged for review
+TRANSFER,100000,USD,VERY_LARGE_TRANSFER,Very large transfer transaction,50,THRESHOLD,HIGH,Very large transfer requires enhanced review
+TRANSFER,50000,USD,LARGE_TRANSFER,Large transfer transaction,30,THRESHOLD,MEDIUM,Large transfer flagged for review
+PAYMENT,75000,USD,VERY_LARGE_PAYMENT,Very large payment transaction,35,THRESHOLD,HIGH,Very large payment requires enhanced review
+PAYMENT,30000,USD,LARGE_PAYMENT,Large payment transaction,20,THRESHOLD,MEDIUM,Large payment flagged for review
+
+RuleTable Country Risk Scoring
+CONDITION,CONDITION,ACTION,ACTION
+$tx.getDestinationCountry(),$tx.getOriginCountry(),$tx.addRiskIndicator("$1","$2",$3),$tx.setRequiresReview($1)
+Destination Country,Origin Country,Risk Code,Risk Description,Risk Score,Requires Review
+
+Afghanistan,,VERY_HIGH_RISK_DEST,Transaction to very high risk country,60,true
+Yemen,,VERY_HIGH_RISK_DEST,Transaction to very high risk country,60,true
+Libya,,VERY_HIGH_RISK_DEST,Transaction to very high risk country,60,true
+Somalia,,VERY_HIGH_RISK_DEST,Transaction to very high risk country,60,true
+,Afghanistan,VERY_HIGH_RISK_ORIGIN,Transaction from very high risk country,55,true
+,Yemen,VERY_HIGH_RISK_ORIGIN,Transaction from very high risk country,55,true
+,Libya,VERY_HIGH_RISK_ORIGIN,Transaction from very high risk country,55,true
+,Somalia,VERY_HIGH_RISK_ORIGIN,Transaction from very high risk country,55,true
+
+RuleTable Customer Type Risk Multipliers
+CONDITION,CONDITION,CONDITION,ACTION
+$tx.getCustomerType(),$tx.getOccupation(),$tx.getAmount() >= $1,$tx.addRiskIndicator("$1","$2",$3)
+Customer Type,Occupation,Min Amount,Risk Code,Risk Description,Risk Score
+
+BUSINESS,Money Services,10000,MSB_LARGE_TXN,Large MSB transaction,35
+BUSINESS,Cryptocurrency Exchange,5000,CRYPTO_EXCHANGE_TXN,Cryptocurrency exchange transaction,40
+BUSINESS,Casino,10000,CASINO_LARGE_TXN,Large casino-related transaction,45
+INDIVIDUAL,Precious Metals Dealer,5000,PRECIOUS_METALS_TXN,Precious metals dealer transaction,30
+INDIVIDUAL,Real Estate Agent,50000,REAL_ESTATE_LARGE_TXN,Large real estate transaction,25

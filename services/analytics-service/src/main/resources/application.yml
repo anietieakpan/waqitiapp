@@ -1,0 +1,480 @@
+# Analytics Service Configuration
+# Advanced analytics, machine learning, and business intelligence service
+
+server:
+  port: 8087
+  servlet:
+    context-path: /api/analytics
+
+spring:
+  application:
+    name: analytics-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:development}
+    include: keycloak
+  
+  # Database Configuration
+  datasource:
+    url: jdbc:postgresql://localhost:5432/waqiti_analytics
+    username: ${DB_USERNAME:waqiti_user}
+    password: ${ANALYTICS_DB_PASSWORD:${vault.database.analytics-service.password}}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 25
+      minimum-idle: 10
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      leak-detection-threshold: 60000
+
+  # JPA Configuration
+  jpa:
+    hibernate:
+      ddl-auto: validate
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.SnakeCasePhysicalNamingStrategy
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        show_sql: false
+        generate_statistics: true
+        cache:
+          use_second_level_cache: true
+          use_query_cache: true
+          region:
+            factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
+    show-sql: false
+
+  # Flyway Configuration
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    validate-on-migrate: true
+    locations: classpath:db/migration
+    schemas: public
+
+  # Elasticsearch Configuration
+  elasticsearch:
+    uris: ${ELASTICSEARCH_URIS:http://localhost:9200}
+    username: ${ELASTICSEARCH_USERNAME:}
+    password: ${ELASTICSEARCH_PASSWORD:}
+    connection-timeout: 30s
+    socket-timeout: 60s
+
+  # Redis Configuration
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: ${REDIS_PASSWORD:}
+      timeout: 5000ms
+      jedis:
+        pool:
+          max-active: 30
+          max-idle: 10
+          min-idle: 5
+          max-wait: 5000ms
+
+  # Kafka Configuration
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false
+        enable.idempotence: true
+        acks: all
+        retries: 3
+        max.in.flight.requests.per.connection: 1
+    consumer:
+      group-id: analytics-service
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.example.common.events,com.waqiti.analytics.events"
+        enable.auto.commit: false
+      enable-auto-commit: false
+      auto-offset-reset: earliest
+
+  # Cache Configuration
+  cache:
+    type: redis
+    redis:
+      time-to-live: 900000 # 15 minutes
+
+  # Security Configuration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${JWT_ISSUER_URI:http://localhost:8081/auth/realms/waqiti}
+          jwk-set-uri: ${JWT_JWK_SET_URI:http://localhost:8081/auth/realms/waqiti/protocol/openid-connect/certs}
+
+# Resilience4j Configuration
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        registerHealthIndicator: true
+        slidingWindowSize: 100
+        minimumNumberOfCalls: 10
+        permittedNumberOfCallsInHalfOpenState: 10
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 60s
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10
+        recordExceptions:
+          - org.springframework.web.client.HttpServerErrorException
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+          - feign.RetryableException
+        ignoreExceptions:
+          - java.lang.IllegalArgumentException
+          - jakarta.validation.ValidationException
+    instances:
+      notificationService:
+        baseConfig: default
+        slidingWindowSize: 100
+        failureRateThreshold: 50
+        waitDurationInOpenState: 60s
+        permittedNumberOfCallsInHalfOpenState: 10
+      pagerDutyService:
+        baseConfig: default
+        slidingWindowSize: 50
+        failureRateThreshold: 50
+        waitDurationInOpenState: 30s
+        permittedNumberOfCallsInHalfOpenState: 5
+      slackService:
+        baseConfig: default
+        slidingWindowSize: 50
+        failureRateThreshold: 60
+        waitDurationInOpenState: 30s
+        permittedNumberOfCallsInHalfOpenState: 5
+      jiraService:
+        baseConfig: default
+        slidingWindowSize: 50
+        failureRateThreshold: 50
+        waitDurationInOpenState: 60s
+      serviceNowService:
+        baseConfig: default
+        slidingWindowSize: 50
+        failureRateThreshold: 50
+        waitDurationInOpenState: 60s
+  retry:
+    configs:
+      default:
+        maxAttempts: 3
+        waitDuration: 1000ms
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - org.springframework.web.client.ResourceAccessException
+          - feign.RetryableException
+          - java.io.IOException
+        ignoreExceptions:
+          - java.lang.IllegalArgumentException
+          - jakarta.validation.ValidationException
+    instances:
+      notificationService:
+        baseConfig: default
+        maxAttempts: 3
+        waitDuration: 1000ms
+      pagerDutyService:
+        baseConfig: default
+        maxAttempts: 2
+        waitDuration: 500ms
+      slackService:
+        baseConfig: default
+        maxAttempts: 2
+        waitDuration: 500ms
+  timelimiter:
+    configs:
+      default:
+        timeoutDuration: 10s
+        cancelRunningFuture: true
+    instances:
+      notificationService:
+        timeoutDuration: 10s
+      pagerDutyService:
+        timeoutDuration: 5s
+      slackService:
+        timeoutDuration: 5s
+  ratelimiter:
+    configs:
+      default:
+        limitForPeriod: 100
+        limitRefreshPeriod: 1s
+        timeoutDuration: 0s
+    instances:
+      slackService:
+        limitForPeriod: 50
+        limitRefreshPeriod: 1s
+
+# Feign Client Configuration
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 10000
+        readTimeout: 10000
+        loggerLevel: basic
+      notification-service:
+        connectTimeout: 5000
+        readTimeout: 10000
+        loggerLevel: full
+      pagerduty:
+        connectTimeout: 5000
+        readTimeout: 5000
+        loggerLevel: basic
+      slack:
+        connectTimeout: 5000
+        readTimeout: 5000
+        loggerLevel: basic
+  compression:
+    request:
+      enabled: true
+    response:
+      enabled: true
+
+# PagerDuty Configuration
+pagerduty:
+  api:
+    url: ${PAGERDUTY_API_URL:https://events.pagerduty.com}
+  routing-key: ${PAGERDUTY_ROUTING_KEY:}
+  enabled: ${PAGERDUTY_ENABLED:false}
+
+# Slack Configuration
+slack:
+  api:
+    url: ${SLACK_API_URL:https://slack.com/api}
+  token: ${SLACK_BOT_TOKEN:}
+  enabled: ${SLACK_ENABLED:false}
+  channels:
+    analytics-alerts: ${SLACK_CHANNEL_ANALYTICS:#analytics-alerts}
+    operations: ${SLACK_CHANNEL_OPERATIONS:#operations}
+    escalations: ${SLACK_CHANNEL_ESCALATIONS:#escalations}
+
+# Eureka Configuration
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:https://discovery-service:8761/eureka}/
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${server.port}
+
+# Management Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  tracing:
+    sampling:
+      probability: 0.1
+
+# Analytics Service Specific Configuration
+analytics:
+  # Data Processing Configuration
+  processing:
+    batch-size: 10000
+    parallel-processing: true
+    max-threads: 10
+    chunk-size: 1000
+    retention-days: 2555 # 7 years
+  
+  # Real-time Analytics
+  real-time:
+    enabled: true
+    window-size-minutes: 5
+    aggregation-interval-seconds: 30
+    alert-thresholds:
+      transaction-volume: 1000
+      error-rate: 0.05
+      response-time-ms: 5000
+  
+  # Machine Learning Configuration
+  ml:
+    enabled: true
+    model-training:
+      auto-retrain: true
+      retrain-interval-hours: 24
+      min-data-points: 10000
+    fraud-detection:
+      model-path: "/opt/ml/models/fraud-detection"
+      threshold: 0.75
+      feature-extraction: true
+    recommendation:
+      model-path: "/opt/ml/models/recommendation"
+      collaborative-filtering: true
+      content-based: true
+  
+  # ETL Configuration
+  etl:
+    enabled: true
+    schedule: "0 0 2 * * ?" # Daily at 2 AM
+    parallel-jobs: 5
+    data-sources:
+      user-service: true
+      wallet-service: true
+      payment-service: true
+      security-service: true
+      core-banking-service: true
+    transformations:
+      data-cleansing: true
+      data-enrichment: true
+      feature-engineering: true
+  
+  # Reporting Configuration
+  reporting:
+    enabled: true
+    formats: ["PDF", "EXCEL", "CSV", "JSON"]
+    scheduled-reports:
+      daily-summary: "0 0 8 * * ?"
+      weekly-report: "0 0 8 ? * MON"
+      monthly-report: "0 0 8 1 * ?"
+    distribution:
+      email: true
+      dashboard: true
+      api: true
+  
+  # Dashboard Configuration
+  dashboard:
+    refresh-interval-seconds: 30
+    cache-duration-minutes: 5
+    real-time-updates: true
+    max-data-points: 1000
+    widgets:
+      transaction-volume: true
+      revenue-metrics: true
+      user-growth: true
+      fraud-alerts: true
+      system-health: true
+  
+  # Data Retention
+  retention:
+    raw-data-days: 90
+    aggregated-data-days: 2555 # 7 years
+    ml-training-data-days: 365
+    audit-logs-days: 2555 # 7 years
+    cleanup-schedule: "0 0 3 * * ?" # Daily at 3 AM
+  
+  # Performance Optimization
+  performance:
+    query-timeout-seconds: 300
+    connection-pool-size: 20
+    cache-size-mb: 512
+    index-optimization: true
+    query-optimization: true
+  
+  # Data Quality
+  quality:
+    validation-enabled: true
+    anomaly-detection: true
+    data-profiling: true
+    completeness-threshold: 0.95
+    accuracy-threshold: 0.98
+
+# InfluxDB Configuration (Time Series Data)
+influxdb:
+  url: ${INFLUXDB_URL:http://localhost:8086}
+  token: ${INFLUXDB_TOKEN:}
+  org: ${INFLUXDB_ORG:waqiti}
+  bucket: ${INFLUXDB_BUCKET:analytics}
+
+# Apache Spark Configuration
+spark:
+  app-name: "Waqiti Analytics Service"
+  master: ${SPARK_MASTER:local[*]}
+  sql:
+    adaptive:
+      enabled: true
+      coalescePartitions:
+        enabled: true
+  executor:
+    memory: "2g"
+    cores: 2
+  driver:
+    memory: "1g"
+
+# Logging Configuration
+logging:
+  level:
+    com.waqiti.analytics: DEBUG
+    org.springframework.data.elasticsearch: INFO
+    org.apache.spark: WARN
+    org.elasticsearch: WARN
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+  pattern:
+    console: "%clr(%d{yyyy-MM-dd HH:mm:ss}){faint} %clr(${LOG_LEVEL_PATTERN:-%5p}) %clr([%t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n${LOG_EXCEPTION_CONVERSION_WORD:-%wEx}"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# Health Check Configuration
+health:
+  circuit-breaker:
+    enabled: true
+  rate-limiter:
+    enabled: true
+
+# OpenAPI Configuration
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+
+# Keycloak Configuration
+keycloak:
+  enabled: ${KEYCLOAK_ENABLED:true}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  resource: analytics-service
+  credentials:
+    secret: ${KEYCLOAK_CLIENT_SECRET:${vault.keycloak.analytics-service.secret}}
+  use-resource-role-mappings: true
+  bearer-only: true
+  ssl-required: external
+  confidential-port: 8443
+  
+# OAuth2 Resource Server (Keycloak)
+spring.security:
+  oauth2:
+    resourceserver:
+      jwt:
+        issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+        jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+    client:
+      registration:
+        analytics-service:
+          client-id: ${keycloak.resource}
+          client-secret: ${keycloak.credentials.secret}
+          authorization-grant-type: client_credentials
+          scope: openid
+      provider:
+        keycloak:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          
+# Feature Flags for Dual-Mode Authentication
+feature:
+  flags:
+    dual-auth-mode:
+      enabled: ${DUAL_AUTH_MODE_ENABLED:false}
+    keycloak-only:
+      enabled: ${KEYCLOAK_ONLY_MODE:true}
+    legacy-jwt-deprecation-warning:
+      enabled: ${LEGACY_JWT_WARNING:true}

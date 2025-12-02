@@ -1,0 +1,140 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: analytics-service
+  namespace: waqiti
+  labels:
+    app: analytics-service
+    version: v1
+    component: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: analytics-service
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: analytics-service
+        version: v1
+        component: backend
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      serviceAccountName: analytics-service
+      initContainers:
+      - name: wait-for-dependencies
+        image: busybox:latest
+        command: ['sh', '-c', 'until nc -z postgres 5432 && nc -z kafka-0.kafka 9092 && nc -z clickhouse 8123; do echo waiting for dependencies; sleep 2; done']
+      containers:
+      - name: analytics-service
+        image: waqiti/analytics-service:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        - containerPort: 9090
+          name: metrics
+          protocol: TCP
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "kubernetes"
+        - name: JAVA_OPTS
+          value: "-Xms1g -Xmx2g -XX:+UseG1GC -XX:MaxGCPauseMillis=200"
+        - name: SERVER_PORT
+          value: "8080"
+        - name: MANAGEMENT_SERVER_PORT
+          value: "9090"
+        - name: SPRING_DATASOURCE_URL
+          value: "jdbc:postgresql://postgres:5432/analytics_db"
+        - name: SPRING_DATASOURCE_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: analytics-db-secret
+              key: username
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: analytics-db-secret
+              key: password
+        - name: CLICKHOUSE_URL
+          value: "jdbc:clickhouse://clickhouse:8123/analytics"
+        - name: CLICKHOUSE_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: clickhouse-secret
+              key: username
+        - name: CLICKHOUSE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: clickhouse-secret
+              key: password
+        - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+          value: "kafka-0.kafka:9092,kafka-1.kafka:9092,kafka-2.kafka:9092"
+        - name: SPRING_REDIS_HOST
+          value: "redis-master"
+        - name: SPRING_REDIS_PORT
+          value: "6379"
+        - name: SPRING_REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-password
+              key: password
+        - name: EUREKA_CLIENT_SERVICE_URL_DEFAULT_ZONE
+          value: "http://discovery-service:8761/eureka/"
+        - name: SPRING_CLOUD_CONFIG_URI
+          value: "http://config-service:8888"
+        - name: VAULT_ADDR
+          value: "http://vault:8200"
+        - name: VAULT_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: vault-token
+              key: token
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "1000m"
+          limits:
+            memory: "3Gi"
+            cpu: "2000m"
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 9090
+          initialDelaySeconds: 90
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 9090
+          initialDelaySeconds: 45
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        volumeMounts:
+        - name: config
+          mountPath: /app/config
+          readOnly: true
+      volumes:
+      - name: config
+        configMap:
+          name: analytics-service-config
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - analytics-service
+              topologyKey: kubernetes.io/hostname

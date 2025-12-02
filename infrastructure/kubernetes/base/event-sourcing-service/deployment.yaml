@@ -1,0 +1,195 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: event-sourcing-service
+  namespace: waqiti-system
+  labels:
+    app: event-sourcing-service
+    component: backend
+    tier: application
+    version: v1.0.0
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: event-sourcing-service
+  template:
+    metadata:
+      labels:
+        app: event-sourcing-service
+        component: backend
+        tier: application
+        version: v1.0.0
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8096"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      serviceAccountName: event-sourcing-service-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 3000
+        fsGroup: 2000
+      containers:
+      - name: event-sourcing-service
+        image: waqiti/event-sourcing-service:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8096
+          name: http
+          protocol: TCP
+        - containerPort: 8097
+          name: management
+          protocol: TCP
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "production"
+        - name: DB_HOST
+          valueFrom:
+            secretKeyRef:
+              name: event-sourcing-secrets
+              key: db-host
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_NAME
+          value: "waqiti_events"
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: event-sourcing-secrets
+              key: db-username
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: event-sourcing-secrets
+              key: db-password
+        - name: REDIS_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: event-sourcing-config
+              key: redis-host
+        - name: REDIS_PORT
+          value: "6379"
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: event-sourcing-secrets
+              key: redis-password
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          valueFrom:
+            configMapKeyRef:
+              name: event-sourcing-config
+              key: kafka-bootstrap-servers
+        - name: EUREKA_CLIENT_SERVICE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: event-sourcing-config
+              key: eureka-service-url
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: event-sourcing-secrets
+              key: jwt-secret
+        - name: SAGA_SERVICE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: event-sourcing-config
+              key: saga-service-url
+        - name: NOTIFICATION_SERVICE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: event-sourcing-config
+              key: notification-service-url
+        - name: AUDIT_SERVICE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: event-sourcing-config
+              key: audit-service-url
+        - name: ARCHIVE_LOCATION
+          value: "/app/archives/events"
+        - name: JVM_OPTS
+          value: "-Xmx2g -Xms1g -XX:+UseG1GC -XX:+UseContainerSupport"
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+          limits:
+            cpu: 2000m
+            memory: 4Gi
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8097
+          initialDelaySeconds: 90
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8097
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        volumeMounts:
+        - name: event-archives
+          mountPath: /app/archives/events
+          readOnly: false
+        - name: temp-dir
+          mountPath: /tmp
+        - name: logs
+          mountPath: /app/logs
+      - name: sidecar-log-collector
+        image: fluent/fluent-bit:latest
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi
+        volumeMounts:
+        - name: logs
+          mountPath: /app/logs
+          readOnly: true
+        - name: fluent-bit-config
+          mountPath: /fluent-bit/etc
+      volumes:
+      - name: event-archives
+        persistentVolumeClaim:
+          claimName: event-archives-pvc
+      - name: temp-dir
+        emptyDir:
+          sizeLimit: 1Gi
+      - name: logs
+        emptyDir:
+          sizeLimit: 500Mi
+      - name: fluent-bit-config
+        configMap:
+          name: fluent-bit-config
+      nodeSelector:
+        workload: event-processing
+      tolerations:
+      - key: "event-processing"
+        operator: "Equal"
+        value: "true"
+        effect: "NoSchedule"
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - event-sourcing-service
+              topologyKey: kubernetes.io/hostname

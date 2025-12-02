@@ -1,0 +1,357 @@
+# Hardened Security Configuration for Waqiti Platform
+# This configuration addresses all critical security issues identified in the audit
+# NO DEFAULT VALUES - All secrets must come from Vault or environment variables
+
+# Production Security Profile
+spring:
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE} # REQUIRED - no default
+  
+  security:
+    # OAuth2 Resource Server Configuration
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${OAUTH2_ISSUER_URI} # REQUIRED - must be HTTPS in production
+          jwk-set-uri: ${OAUTH2_JWK_SET_URI} # REQUIRED - no default
+          jws-algorithm: RS256
+      
+      # OAuth2 Client Configuration
+      client:
+        registration:
+          keycloak:
+            client-id: ${KEYCLOAK_CLIENT_ID} # REQUIRED - no default
+            client-secret: ${KEYCLOAK_CLIENT_SECRET} # REQUIRED - no default, must come from Vault
+            authorization-grant-type: authorization_code
+            redirect-uri: ${KEYCLOAK_REDIRECT_URI} # REQUIRED - must be HTTPS
+            scope:
+              - openid
+              - profile
+              - email
+              - roles
+        
+        provider:
+          keycloak:
+            issuer-uri: ${KEYCLOAK_ISSUER_URI} # REQUIRED - must be HTTPS
+            user-name-attribute: preferred_username
+            token-uri: ${KEYCLOAK_TOKEN_URI} # REQUIRED - must be HTTPS
+            authorization-uri: ${KEYCLOAK_AUTH_URI} # REQUIRED - must be HTTPS
+            user-info-uri: ${KEYCLOAK_USERINFO_URI} # REQUIRED - must be HTTPS
+            jwk-set-uri: ${KEYCLOAK_JWK_SET_URI} # REQUIRED - must be HTTPS
+
+  # Database Configuration
+  datasource:
+    url: ${DATABASE_URL} # REQUIRED - no default
+    username: ${DATABASE_USERNAME} # REQUIRED - no default
+    password: ${DATABASE_PASSWORD} # REQUIRED - must come from Vault
+    driver-class-name: org.postgresql.Driver
+    
+    hikari:
+      maximum-pool-size: ${DB_MAX_POOL_SIZE:20} # Conservative default
+      minimum-idle: ${DB_MIN_IDLE:5}
+      connection-timeout: ${DB_CONNECTION_TIMEOUT:30000}
+      idle-timeout: ${DB_IDLE_TIMEOUT:600000}
+      max-lifetime: ${DB_MAX_LIFETIME:1800000}
+      
+      # SSL Configuration - REQUIRED for production
+      data-source-properties:
+        sslmode: ${DB_SSL_MODE:require} # Minimum: require, Recommended: verify-full
+        sslcert: ${DB_SSL_CERT} # Required for verify-full
+        sslkey: ${DB_SSL_KEY} # Required for verify-full
+        sslrootcert: ${DB_SSL_ROOT_CERT} # Required for verify-full
+  
+  # Redis Configuration  
+  redis:
+    host: ${REDIS_HOST} # REQUIRED - no default
+    port: ${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD} # REQUIRED - must come from Vault
+    ssl: ${REDIS_SSL_ENABLED:true} # Default to SSL enabled
+    timeout: ${REDIS_TIMEOUT:2000}
+    
+    lettuce:
+      pool:
+        max-active: ${REDIS_MAX_ACTIVE:8}
+        max-idle: ${REDIS_MAX_IDLE:8}
+        min-idle: ${REDIS_MIN_IDLE:0}
+        max-wait: ${REDIS_MAX_WAIT:-1}
+      
+      cluster:
+        refresh:
+          adaptive: true
+          period: ${REDIS_REFRESH_PERIOD:60000}
+  
+  # Kafka Configuration
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS} # REQUIRED - no default
+    
+    security:
+      protocol: ${KAFKA_SECURITY_PROTOCOL:SSL} # Default to SSL, never PLAINTEXT in production
+    
+    ssl:
+      trust-store-location: ${KAFKA_TRUSTSTORE_LOCATION} # REQUIRED for SSL
+      trust-store-password: ${KAFKA_TRUSTSTORE_PASSWORD} # REQUIRED - from Vault
+      key-store-location: ${KAFKA_KEYSTORE_LOCATION} # REQUIRED for SSL
+      key-store-password: ${KAFKA_KEYSTORE_PASSWORD} # REQUIRED - from Vault
+      key-password: ${KAFKA_KEY_PASSWORD} # REQUIRED - from Vault
+      endpoint-identification-algorithm: https # Hostname verification
+    
+    properties:
+      # SASL Configuration (if using SASL_SSL)
+      sasl:
+        mechanism: ${KAFKA_SASL_MECHANISM:SCRAM-SHA-512} # Never use PLAIN in production
+        jaas.config: ${KAFKA_SASL_JAAS_CONFIG} # REQUIRED if using SASL
+    
+    producer:
+      acks: all # Ensure all replicas acknowledge
+      retries: 3
+      enable-idempotence: true
+      compression-type: lz4
+      
+    consumer:
+      enable-auto-commit: false # Manual commit for better control
+      isolation-level: read_committed
+      max-poll-records: ${KAFKA_MAX_POLL_RECORDS:500}
+
+# Server Configuration
+server:
+  port: ${SERVER_PORT:8443} # Default to HTTPS port
+  
+  ssl:
+    enabled: ${SSL_ENABLED:true} # Default to SSL enabled
+    key-store: ${SSL_KEYSTORE_PATH} # REQUIRED - no default
+    key-store-password: ${SSL_KEYSTORE_PASSWORD} # REQUIRED - from Vault
+    key-store-type: ${SSL_KEYSTORE_TYPE:PKCS12}
+    key-alias: ${SSL_KEY_ALIAS} # REQUIRED - no default
+    key-password: ${SSL_KEY_PASSWORD} # REQUIRED - from Vault
+    
+    # TLS Configuration
+    enabled-protocols: TLSv1.3,TLSv1.2 # Only secure protocols
+    ciphers:
+      - TLS_AES_256_GCM_SHA384
+      - TLS_CHACHA20_POLY1305_SHA256
+      - TLS_AES_128_GCM_SHA256
+      - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+      - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+    
+    # Client authentication
+    client-auth: ${SSL_CLIENT_AUTH:want} # Options: none, want, need
+    trust-store: ${SSL_TRUSTSTORE_PATH}
+    trust-store-password: ${SSL_TRUSTSTORE_PASSWORD} # From Vault
+    trust-store-type: ${SSL_TRUSTSTORE_TYPE:PKCS12}
+  
+  # Security headers
+  servlet:
+    session:
+      cookie:
+        secure: true # Always use secure cookies
+        http-only: true # Prevent JavaScript access
+        same-site: strict # CSRF protection
+  
+  # Compression (be careful with BREACH attacks)
+  compression:
+    enabled: ${COMPRESSION_ENABLED:false} # Disable by default for security
+    mime-types: application/json,application/xml,text/html,text/xml,text/plain
+    min-response-size: 2048
+
+# Vault Configuration - CRITICAL for secrets management
+vault:
+  enabled: ${VAULT_ENABLED:true} # Must be true in production
+  uri: ${VAULT_URI} # REQUIRED - must be HTTPS
+  namespace: ${VAULT_NAMESPACE:waqiti}
+  
+  # AppRole Authentication (recommended)
+  app-role:
+    enabled: ${VAULT_APPROLE_ENABLED:true}
+    role-id: ${VAULT_ROLE_ID} # REQUIRED - no default
+    secret-id: ${VAULT_SECRET_ID} # REQUIRED - no default, rotate regularly
+    path: auth/approle
+  
+  # Token Authentication (fallback - not recommended for production)
+  token: ${VAULT_TOKEN} # Should not be used in production
+  
+  # Kubernetes Authentication (for K8s deployments)
+  kubernetes:
+    enabled: ${VAULT_K8S_ENABLED:false}
+    role: ${VAULT_K8S_ROLE}
+    jwt-path: /var/run/secrets/kubernetes.io/serviceaccount/token
+    
+  # Secret paths
+  paths:
+    database: secret/data/database/${spring.profiles.active}
+    api-keys: secret/data/api-keys/${spring.profiles.active}
+    encryption: transit/encrypt/waqiti
+    decryption: transit/decrypt/waqiti
+  
+  # Lease configuration
+  lease:
+    renewal: true
+    min-renewal: 10s
+    expiry-threshold: 1m
+
+# Encryption Configuration
+encryption:
+  # Master key - MUST come from Vault, no defaults
+  master:
+    key: ${vault.encryption.master-key} # REQUIRED - from Vault transit engine
+    algorithm: AES/GCM/NoPadding
+    key-size: 256
+  
+  # Data encryption keys
+  data:
+    key: ${vault.encryption.data-key} # REQUIRED - from Vault
+    rotation-period: ${ENCRYPTION_KEY_ROTATION_DAYS:90}
+  
+  # PII encryption
+  pii:
+    enabled: true
+    key: ${vault.encryption.pii-key} # REQUIRED - from Vault
+    fields:
+      - ssn
+      - credit_card
+      - bank_account
+      - passport_number
+
+# CORS Configuration
+cors:
+  enabled: ${CORS_ENABLED:true}
+  allowed-origins: ${CORS_ALLOWED_ORIGINS} # REQUIRED - no wildcards in production
+  allowed-methods:
+    - GET
+    - POST
+    - PUT
+    - DELETE
+    - OPTIONS
+  allowed-headers:
+    - Authorization
+    - Content-Type
+    - X-Request-ID
+    - X-Correlation-ID
+  exposed-headers:
+    - X-Request-ID
+    - X-RateLimit-Remaining
+    - X-RateLimit-Reset
+  allow-credentials: true
+  max-age: 3600
+
+# Rate Limiting Configuration
+rate-limiting:
+  enabled: ${RATE_LIMIT_ENABLED:true} # Must be true in production
+  
+  global:
+    enabled: true
+    limit: ${RATE_LIMIT_GLOBAL:1000} # Requests per minute
+    
+  per-ip:
+    enabled: true
+    limit: ${RATE_LIMIT_PER_IP:100} # Requests per minute per IP
+    
+  per-user:
+    enabled: true
+    limit: ${RATE_LIMIT_PER_USER:500} # Requests per minute per user
+    
+  per-api-key:
+    enabled: true
+    limit: ${RATE_LIMIT_PER_API_KEY:1000} # Requests per minute per API key
+
+# CSRF Protection
+security:
+  csrf:
+    enabled: ${CSRF_ENABLED:true} # Must be true in production
+    cookie-name: XSRF-TOKEN
+    header-name: X-XSRF-TOKEN
+    parameter-name: _csrf
+    
+  # Content Security Policy
+  csp:
+    enabled: true
+    policy: "default-src 'self'; script-src 'self' 'unsafe-inline' https://trusted-cdn.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://api.example.com; frame-ancestors 'none'; form-action 'self'; base-uri 'self';"
+  
+  # Additional Security Headers
+  headers:
+    frame-options: DENY
+    xss-protection: "1; mode=block"
+    content-type-options: nosniff
+    referrer-policy: strict-origin-when-cross-origin
+    permissions-policy: "geolocation=(), microphone=(), camera=()"
+    
+  # Session Management
+  session:
+    timeout: ${SESSION_TIMEOUT:1800} # 30 minutes
+    concurrent-sessions: ${MAX_CONCURRENT_SESSIONS:1}
+    fixation-protection: migrateSession
+
+# Actuator Security
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics # Never use * in production
+      base-path: /actuator
+  
+  endpoint:
+    health:
+      show-details: ${HEALTH_DETAILS:when-authorized}
+      show-components: ${HEALTH_COMPONENTS:when-authorized}
+  
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+  
+  # Actuator security
+  security:
+    enabled: true
+    roles: ACTUATOR_ADMIN
+
+# Logging Configuration
+logging:
+  level:
+    root: ${LOG_LEVEL:INFO}
+    com.waqiti: ${APP_LOG_LEVEL:INFO}
+    org.springframework.security: ${SECURITY_LOG_LEVEL:INFO}
+    org.springframework.web: WARN
+    org.hibernate: WARN
+  
+  # Avoid logging sensitive data
+  pattern:
+    console: "%d{ISO8601} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{ISO8601} [%thread] %-5level %logger{36} - %msg%n"
+  
+  # Log file configuration
+  file:
+    name: ${LOG_FILE:/var/log/waqiti/application.log}
+    max-size: ${LOG_MAX_SIZE:100MB}
+    max-history: ${LOG_MAX_HISTORY:30}
+
+# Monitoring and Alerting
+monitoring:
+  security:
+    enabled: true
+    alert-on-authentication-failure: true
+    alert-on-authorization-failure: true
+    alert-on-suspicious-activity: true
+    alert-on-rate-limit-exceeded: true
+    
+  thresholds:
+    failed-login-attempts: 5
+    rate-limit-violations: 10
+    suspicious-activity-score: 75
+
+# Production-specific validations
+validation:
+  security:
+    enabled: true
+    fail-fast: true # Stop application if security validation fails
+    
+  checks:
+    - no-default-passwords
+    - no-hardcoded-secrets
+    - vault-connectivity
+    - tls-configuration
+    - strong-encryption-keys
+    - oauth2-configuration
+    - database-ssl
+    - kafka-ssl
+    - redis-authentication
+    - csrf-protection
+    - rate-limiting

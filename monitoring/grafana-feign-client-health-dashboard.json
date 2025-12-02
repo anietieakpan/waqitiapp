@@ -1,0 +1,473 @@
+{
+  "dashboard": {
+    "title": "Feign Client Health & Endpoint Monitoring",
+    "description": "Monitors all Feign client integrations, endpoint health, circuit breaker status, and detects endpoint mismatches",
+    "tags": ["feign", "microservices", "circuit-breaker", "endpoints", "health"],
+    "timezone": "browser",
+    "schemaVersion": 38,
+    "version": 1,
+    "refresh": "30s",
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "🎯 Overall Feign Client Success Rate",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+        "targets": [
+          {
+            "expr": "sum(rate(feign_client_requests_total{status=~\"2..\"}[5m])) / sum(rate(feign_client_requests_total[5m])) * 100",
+            "legendFormat": "Success Rate",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "graphMode": "area",
+          "colorMode": "value",
+          "orientation": "auto",
+          "textMode": "value_and_name",
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 90, "color": "yellow"},
+                {"value": 95, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "🔴 404 Errors from Feign Clients",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
+        "targets": [
+          {
+            "expr": "sum(rate(feign_client_requests_total{status=\"404\"}[5m])) * 60",
+            "legendFormat": "404 Errors/min",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "graphMode": "area",
+          "colorMode": "value",
+          "textMode": "value_and_name"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqpm",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 1, "color": "yellow"},
+                {"value": 10, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 3,
+        "title": "⚡ Circuit Breaker Fallback Rate",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
+        "targets": [
+          {
+            "expr": "sum(rate(resilience4j_circuitbreaker_fallback_calls_total[5m])) * 60",
+            "legendFormat": "Fallbacks/min",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "graphMode": "area",
+          "colorMode": "value",
+          "textMode": "value_and_name"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "cpm",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 5, "color": "yellow"},
+                {"value": 50, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 4,
+        "title": "💳 Payment Success Rate",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
+        "targets": [
+          {
+            "expr": "sum(rate(payment_processing_success_total[5m])) / sum(rate(payment_processing_total[5m])) * 100",
+            "legendFormat": "Payment Success %",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "graphMode": "area",
+          "colorMode": "value",
+          "textMode": "value_and_name"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 80, "color": "yellow"},
+                {"value": 90, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 5,
+        "title": "📊 Feign Client Request Rate by Service",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
+        "targets": [
+          {
+            "expr": "sum by (service) (rate(feign_client_requests_total[5m]))",
+            "legendFormat": "{{service}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "smooth",
+              "fillOpacity": 10
+            },
+            "unit": "reqps"
+          }
+        }
+      },
+      {
+        "id": 6,
+        "title": "🚨 HTTP Status Codes by Service",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
+        "targets": [
+          {
+            "expr": "sum by (service, status) (rate(feign_client_requests_total[5m]))",
+            "legendFormat": "{{service}} - {{status}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "drawStyle": "bars",
+              "fillOpacity": 80
+            },
+            "unit": "reqps"
+          }
+        }
+      },
+      {
+        "id": 7,
+        "title": "🔍 Fraud Detection Service - Endpoint Health",
+        "type": "table",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12},
+        "targets": [
+          {
+            "expr": "sum by (endpoint, status) (rate(http_server_requests_total{service=\"fraud-detection-service\", uri=~\"/api/v1/fraud/.*\"}[5m]))",
+            "format": "table",
+            "instant": true,
+            "refId": "A"
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "renameByName": {
+                "endpoint": "Endpoint",
+                "status": "HTTP Status",
+                "Value": "Requests/sec"
+              }
+            }
+          }
+        ],
+        "fieldConfig": {
+          "overrides": [
+            {
+              "matcher": {"id": "byName", "options": "HTTP Status"},
+              "properties": [
+                {
+                  "id": "custom.displayMode",
+                  "value": "color-background"
+                },
+                {
+                  "id": "thresholds",
+                  "value": {
+                    "mode": "absolute",
+                    "steps": [
+                      {"value": 200, "color": "green"},
+                      {"value": 400, "color": "yellow"},
+                      {"value": 500, "color": "red"}
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": 8,
+        "title": "✅ Compliance Service - Endpoint Health",
+        "type": "table",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12},
+        "targets": [
+          {
+            "expr": "sum by (endpoint, status) (rate(http_server_requests_total{service=\"compliance-service\", uri=~\"/api/v1/compliance/.*\"}[5m]))",
+            "format": "table",
+            "instant": true,
+            "refId": "A"
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "renameByName": {
+                "endpoint": "Endpoint",
+                "status": "HTTP Status",
+                "Value": "Requests/sec"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": 9,
+        "title": "🔄 Circuit Breaker State",
+        "type": "stat",
+        "gridPos": {"h": 6, "w": 8, "x": 0, "y": 20},
+        "targets": [
+          {
+            "expr": "resilience4j_circuitbreaker_state{service=~\".*\"}",
+            "legendFormat": "{{service}} - {{name}}",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "graphMode": "none",
+          "colorMode": "background",
+          "textMode": "value_and_name"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [
+              {"type": "value", "value": "0", "text": "CLOSED", "color": "green"},
+              {"type": "value", "value": "1", "text": "OPEN", "color": "red"},
+              {"type": "value", "value": "2", "text": "HALF_OPEN", "color": "yellow"}
+            ]
+          }
+        }
+      },
+      {
+        "id": 10,
+        "title": "⏱️ Feign Client Response Time (p95)",
+        "type": "timeseries",
+        "gridPos": {"h": 6, "w": 8, "x": 8, "y": 20},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum by (service, le) (rate(feign_client_request_duration_seconds_bucket[5m])))",
+            "legendFormat": "{{service}} p95",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "smooth"
+            },
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 1, "color": "yellow"},
+                {"value": 3, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 11,
+        "title": "📈 Business Account Creation Success Rate",
+        "type": "timeseries",
+        "gridPos": {"h": 6, "w": 8, "x": 16, "y": 20},
+        "targets": [
+          {
+            "expr": "sum(rate(business_account_creation_success_total[5m])) / sum(rate(business_account_creation_total[5m])) * 100",
+            "legendFormat": "Success Rate",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "custom": {
+              "drawStyle": "line",
+              "fillOpacity": 20
+            },
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 70, "color": "yellow"},
+                {"value": 85, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 12,
+        "title": "🎯 Top 10 Endpoints by 404 Rate",
+        "type": "table",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 26},
+        "targets": [
+          {
+            "expr": "topk(10, sum by (service, endpoint) (rate(feign_client_requests_total{status=\"404\"}[15m])))",
+            "format": "table",
+            "instant": true,
+            "refId": "A"
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "renameByName": {
+                "service": "Service",
+                "endpoint": "Endpoint",
+                "Value": "404 Errors/sec"
+              }
+            }
+          },
+          {
+            "id": "sortBy",
+            "options": {
+              "fields": {},
+              "sort": [{"field": "404 Errors/sec", "desc": true}]
+            }
+          }
+        ],
+        "fieldConfig": {
+          "overrides": [
+            {
+              "matcher": {"id": "byName", "options": "404 Errors/sec"},
+              "properties": [
+                {
+                  "id": "custom.displayMode",
+                  "value": "gradient-gauge"
+                },
+                {
+                  "id": "color",
+                  "value": {"mode": "thresholds"}
+                },
+                {
+                  "id": "thresholds",
+                  "value": {
+                    "mode": "absolute",
+                    "steps": [
+                      {"value": 0, "color": "green"},
+                      {"value": 0.1, "color": "yellow"},
+                      {"value": 1, "color": "red"}
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": 13,
+        "title": "⚠️ Recent Circuit Breaker Events",
+        "type": "logs",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 26},
+        "targets": [
+          {
+            "expr": "{job=\"kubernetes-pods\"} |= \"CircuitBreaker\" |~ \"state.*changed|fallback\"",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "showTime": true,
+          "showLabels": false,
+          "showCommonLabels": true,
+          "wrapLogMessage": true,
+          "sortOrder": "Descending"
+        }
+      }
+    ],
+    "templating": {
+      "list": [
+        {
+          "name": "namespace",
+          "type": "query",
+          "query": "label_values(feign_client_requests_total, namespace)",
+          "current": {"text": "production", "value": "production"},
+          "multi": false,
+          "includeAll": false
+        },
+        {
+          "name": "service",
+          "type": "query",
+          "query": "label_values(feign_client_requests_total{namespace=\"$namespace\"}, service)",
+          "current": {"text": "All", "value": "$__all"},
+          "multi": true,
+          "includeAll": true
+        }
+      ]
+    },
+    "annotations": {
+      "list": [
+        {
+          "name": "Deployments",
+          "datasource": "Prometheus",
+          "expr": "changes(kube_deployment_status_observed_generation{namespace=~\"$namespace\"}[2m]) > 0",
+          "titleFormat": "Deployment: {{deployment}}",
+          "tagKeys": "deployment,namespace",
+          "iconColor": "blue"
+        },
+        {
+          "name": "P0 Fix Deployment",
+          "datasource": "Prometheus",
+          "expr": "changes(kube_deployment_status_observed_generation{deployment=~\"fraud-detection-service|compliance-service\"}[2m]) > 0",
+          "titleFormat": "P0 Fix Deployed: {{deployment}}",
+          "iconColor": "green"
+        }
+      ]
+    }
+  }
+}

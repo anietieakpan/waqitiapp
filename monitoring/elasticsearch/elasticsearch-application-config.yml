@@ -1,0 +1,79 @@
+# Secured Elasticsearch Configuration for Spring Boot Services
+# Add this to your application.yml or application-production.yml
+
+spring:
+  elasticsearch:
+    # Use HTTPS for secured Elasticsearch
+    uris: https://elasticsearch:9200
+    
+    # Authentication (credentials from Vault)
+    username: ${vault:secret/data/waqiti/elasticsearch#username}
+    password: ${vault:secret/data/waqiti/elasticsearch#password}
+    
+    # SSL/TLS Configuration
+    rest:
+      ssl:
+        enabled: true
+        # Trust store containing Elasticsearch CA certificate
+        trust-store: classpath:elasticsearch/truststore.jks
+        trust-store-password: ${vault:secret/data/waqiti/elasticsearch#truststore-password}
+        # Optionally enable client certificate authentication
+        key-store: classpath:elasticsearch/keystore.jks
+        key-store-password: ${vault:secret/data/waqiti/elasticsearch#keystore-password}
+    
+    # Connection settings
+    connection-timeout: 10s
+    socket-timeout: 60s
+    
+    # Connection pool
+    restclient:
+      sniffer:
+        enabled: false
+      
+  # Logstash configuration with security
+  logstash:
+    destination: logstash:5000
+    ssl:
+      enabled: true
+      trust-store: classpath:logstash/truststore.jks
+      trust-store-password: ${vault:secret/data/waqiti/logstash#truststore-password}
+
+# Logging configuration
+logging:
+  level:
+    org.elasticsearch.client: INFO
+    org.springframework.data.elasticsearch: INFO
+    
+---
+# Development profile (security can be relaxed for local dev)
+spring:
+  config:
+    activate:
+      on-profile: dev
+      
+  elasticsearch:
+    # Use HTTP for local development
+    uris: http://localhost:9200
+    username: elastic
+    password: changeme
+    rest:
+      ssl:
+        enabled: false
+
+---
+# Production profile (security MUST be enabled)
+spring:
+  config:
+    activate:
+      on-profile: production
+      
+  elasticsearch:
+    # Enforce HTTPS in production
+    uris: https://elasticsearch-cluster.example.internal:9200
+    username: ${vault:secret/data/waqiti/production/elasticsearch#username}
+    password: ${vault:secret/data/waqiti/production/elasticsearch#password}
+    rest:
+      ssl:
+        enabled: true
+        # Must use certificate validation in production
+        verification-mode: full

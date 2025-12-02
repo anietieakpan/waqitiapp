@@ -1,0 +1,521 @@
+---
+# ============================================================================
+# PGBOUNCER DEPLOYMENT - Connection Pooling for PostgreSQL
+# ============================================================================
+# PgBouncer provides connection pooling to dramatically reduce the number
+# of actual PostgreSQL connections while maintaining high throughput
+#
+# Architecture:
+#   Application Services -> PgBouncer (port 6432) -> PostgreSQL (port 5432)
+#
+# Connection Math:
+#   - 60+ services × 20 connections/service = 1,200+ direct connections (PROBLEM)
+#   - PgBouncer: 1,200 application connections -> 100 PostgreSQL connections (SOLUTION)
+#
+# Security: PCI-DSS Compliant | Encrypted connections | Audit logging
+# ============================================================================
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pgbouncer-config
+  namespace: example-production
+  labels:
+    app: pgbouncer
+    component: database
+    tier: infrastructure
+data:
+  pgbouncer.ini: |
+    [databases]
+    # Database aliases - services connect using these names
+    waqiti = host=postgres port=5432 dbname=waqiti pool_size=25 reserve_pool=5
+    waqiti_payments = host=postgres port=5432 dbname=waqiti_payments pool_size=30 reserve_pool=5
+    waqiti_wallets = host=postgres port=5432 dbname=waqiti_wallets pool_size=25 reserve_pool=5
+    waqiti_transactions = host=postgres port=5432 dbname=waqiti_transactions pool_size=20 reserve_pool=5
+    waqiti_users = host=postgres port=5432 dbname=waqiti_users pool_size=15 reserve_pool=3
+    waqiti_fraud = host=postgres port=5432 dbname=waqiti_fraud pool_size=10 reserve_pool=2
+    waqiti_kyc = host=postgres port=5432 dbname=waqiti_kyc pool_size=10 reserve_pool=2
+    waqiti_compliance = host=postgres port=5432 dbname=waqiti_compliance pool_size=10 reserve_pool=2
+    waqiti_notifications = host=postgres port=5432 dbname=waqiti_notifications pool_size=10 reserve_pool=2
+    waqiti_audit = host=postgres port=5432 dbname=waqiti_audit pool_size=15 reserve_pool=3
+
+    # Special databases
+    * = host=postgres port=5432
+
+    [pgbouncer]
+    ###########################################################################
+    # POOLING MODE
+    ###########################################################################
+    # transaction: Connection returned to pool after transaction finishes
+    # session: Connection returned after client disconnects (default)
+    # statement: Connection returned after each statement (most aggressive)
+    #
+    # RECOMMENDATION: Use 'transaction' for fintech - balances high throughput
+    # with safe transaction handling
+    pool_mode = transaction
+
+    ###########################################################################
+    # CONNECTION LIMITS
+    ###########################################################################
+    # Total connections PgBouncer can handle from all clients
+    max_client_conn = 2000
+
+    # Default pool size per database (if not specified in [databases])
+    default_pool_size = 20
+
+    # Extra connections allowed when pool is full (per database)
+    reserve_pool_size = 5
+
+    # How many additional connections are allowed when reserve_pool_size is not enough
+    reserve_pool_timeout = 3
+
+    # Maximum connections to PostgreSQL per database
+    # CRITICAL: This is what limits actual PostgreSQL connections
+    max_db_connections = 100
+
+    # Maximum number of prepared statements per connection
+    max_prepared_statements = 100
+
+    ###########################################################################
+    # NETWORK & PROTOCOL
+    ###########################################################################
+    listen_addr = 0.0.0.0
+    listen_port = 6432
+
+    # Use SCRAM-SHA-256 for authentication (PostgreSQL 10+)
+    auth_type = scram-sha-256
+    auth_file = /etc/pgbouncer/userlist.txt
+
+    # Admin interface
+    admin_users = pgbouncer_admin
+    stats_users = pgbouncer_stats
+
+    ###########################################################################
+    # TIMEOUTS & HEALTH CHECKS
+    ###########################################################################
+    # Close server connection if it has been idle for this long
+    server_idle_timeout = 600
+
+    # Drop connection if login doesn't happen in this time
+    server_login_retry = 15
+
+    # Cancel connection attempt if server does not respond within this time
+    server_connect_timeout = 15
+
+    # Wait this long before giving up on getting a connection from pool
+    query_wait_timeout = 120
+
+    # Maximum time queries are allowed to spend waiting for execution
+    query_timeout = 0
+
+    # Client connection lifetime
+    client_idle_timeout = 0
+    client_login_timeout = 60
+
+    # Close server connection if it has been connected longer
+    server_lifetime = 3600
+
+    # Check server connections for staleness every so often
+    server_check_delay = 30
+
+    # Query for checking connections: SELECT 1
+    server_check_query = SELECT 1
+
+    # Validate server certificates
+    server_tls_sslmode = prefer
+
+    ###########################################################################
+    # PERFORMANCE TUNING
+    ###########################################################################
+    # Allow use of application_name
+    application_name_add_host = 1
+
+    # Autodb - allow connecting to databases not explicitly listed
+    # SECURITY: Set to 0 in production
+    autodb_idle_timeout = 3600
+
+    # Track counts of queries
+    track_extra_parameters = all
+
+    # Disable pipelining for better error handling
+    disable_pipelining = 0
+
+    # TCP socket options
+    so_reuseport = 1
+    tcp_keepalive = 1
+    tcp_keepcnt = 5
+    tcp_keepidle = 30
+    tcp_keepintvl = 10
+    tcp_user_timeout = 30000
+
+    # DNS lookups
+    dns_max_ttl = 15
+    dns_zone_check_period = 0
+
+    ###########################################################################
+    # LOGGING & MONITORING
+    ###########################################################################
+    # Log verbosity: 0=quiet, 1=critical, 2=error, 3=warning, 4=info, 5=debug
+    verbose = 1
+
+    # Log connections
+    log_connections = 1
+    log_disconnections = 1
+    log_pooler_errors = 1
+
+    # Log stats every X seconds (0=disabled)
+    stats_period = 60
+
+    # Syslog settings
+    syslog = 0
+    syslog_facility = daemon
+    syslog_ident = pgbouncer
+
+    # PID file
+    pidfile = /var/run/pgbouncer/pgbouncer.pid
+
+    # Unix socket
+    unix_socket_dir = /var/run/pgbouncer
+    unix_socket_mode = 0777
+    unix_socket_group = postgres
+
+    ###########################################################################
+    # SECURITY & COMPLIANCE
+    ###########################################################################
+    # Ignore startup parameters from clients that may cause issues
+    ignore_startup_parameters = extra_float_digits,options
+
+    # Validate server round-trip time
+    min_pool_size = 5
+
+    # Close connections when they reach max_db_connections
+    server_round_robin = 1
+
+    # Automatically create databases
+    # SECURITY: Disabled in production
+    # autodb_connstr = host=postgres port=5432
+
+    ###########################################################################
+    # PCI-DSS COMPLIANCE SETTINGS
+    ###########################################################################
+    # Track all connection events for audit
+    log_stats = 1
+
+    # Strict connection handling
+    server_reset_query = DISCARD ALL
+    server_reset_query_always = 1
+
+    # Close connections on server_lifetime to prevent stale auth
+    # (already set above: server_lifetime = 3600)
+
+  userlist.txt: |
+    # PgBouncer user list
+    # Format: "username" "password" "comment"
+    # Password can be: plain text, md5 hash, or SCRAM-SHA-256
+    #
+    # SECURITY: This file should be generated from Vault secrets
+    # The passwords below are placeholders and MUST be replaced
+
+    # Admin user for PgBouncer management
+    "pgbouncer_admin" "SCRAM-SHA-256$4096:placeholder$encrypted_password" "admin"
+
+    # Stats user for monitoring
+    "pgbouncer_stats" "SCRAM-SHA-256$4096:placeholder$encrypted_password" "stats"
+
+    # Application service users (to be populated from Vault)
+    # These should match the PostgreSQL users
+    "waqiti_payment_service" "SCRAM-SHA-256$4096:placeholder$encrypted_password" "payment"
+    "waqiti_wallet_service" "SCRAM-SHA-256$4096:placeholder$encrypted_password" "wallet"
+    "waqiti_transaction_service" "SCRAM-SHA-256$4096:placeholder$encrypted_password" "transaction"
+    "waqiti_user_service" "SCRAM-SHA-256$4096:placeholder$encrypted_password" "user"
+    "waqiti_fraud_service" "SCRAM-SHA-256$4096:placeholder$encrypted_password" "fraud"
+    "waqiti_kyc_service" "SCRAM-SHA-256$4096:placeholder$encrypted_password" "kyc"
+    "waqiti_compliance_service" "SCRAM-SHA-256$4096:placeholder$encrypted_password" "compliance"
+    "waqiti_notification_service" "SCRAM-SHA-256$4096:placeholder$encrypted_password" "notification"
+    "waqiti_audit_service" "SCRAM-SHA-256$4096:placeholder$encrypted_password" "audit"
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: pgbouncer-secret
+  namespace: example-production
+  labels:
+    app: pgbouncer
+    component: database
+type: Opaque
+stringData:
+  # SECURITY: These should be populated from Vault or external secret management
+  # DO NOT commit real credentials to version control
+  admin-password: "CHANGE_ME_FROM_VAULT"
+  stats-password: "CHANGE_ME_FROM_VAULT"
+  # Application user passwords
+  payment-service-password: "CHANGE_ME_FROM_VAULT"
+  wallet-service-password: "CHANGE_ME_FROM_VAULT"
+  transaction-service-password: "CHANGE_ME_FROM_VAULT"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pgbouncer
+  namespace: example-production
+  labels:
+    app: pgbouncer
+    component: database
+    tier: infrastructure
+    version: v1.21.0
+spec:
+  replicas: 3  # HA setup with 3 replicas
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0  # Zero downtime deployments
+  selector:
+    matchLabels:
+      app: pgbouncer
+  template:
+    metadata:
+      labels:
+        app: pgbouncer
+        component: database
+        tier: infrastructure
+        version: v1.21.0
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9127"
+        prometheus.io/path: "/metrics"
+    spec:
+      affinity:
+        # Spread PgBouncer pods across nodes for HA
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - pgbouncer
+                topologyKey: kubernetes.io/hostname
+
+      # Security context
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999  # pgbouncer user
+        fsGroup: 999
+        seccompProfile:
+          type: RuntimeDefault
+
+      containers:
+        # Main PgBouncer container
+        - name: pgbouncer
+          image: edoburu/pgbouncer:1.21.0-p0  # Official PgBouncer image
+          imagePullPolicy: IfNotPresent
+
+          ports:
+            - name: pgbouncer
+              containerPort: 6432
+              protocol: TCP
+
+          env:
+            - name: DATABASES_HOST
+              value: "postgres"
+            - name: DATABASES_PORT
+              value: "5432"
+            - name: POOL_MODE
+              value: "transaction"
+            - name: MAX_CLIENT_CONN
+              value: "2000"
+            - name: DEFAULT_POOL_SIZE
+              value: "20"
+            - name: MAX_DB_CONNECTIONS
+              value: "100"
+            - name: SERVER_IDLE_TIMEOUT
+              value: "600"
+            - name: LOG_CONNECTIONS
+              value: "1"
+            - name: LOG_DISCONNECTIONS
+              value: "1"
+
+          resources:
+            requests:
+              cpu: 500m
+              memory: 256Mi
+            limits:
+              cpu: 2000m
+              memory: 1Gi
+
+          livenessProbe:
+            tcpSocket:
+              port: 6432
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          readinessProbe:
+            tcpSocket:
+              port: 6432
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 2
+
+          volumeMounts:
+            - name: pgbouncer-config
+              mountPath: /etc/pgbouncer
+              readOnly: true
+            - name: pgbouncer-run
+              mountPath: /var/run/pgbouncer
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+
+        # Prometheus exporter sidecar
+        - name: pgbouncer-exporter
+          image: prometheuscommunity/pgbouncer-exporter:v0.7.0
+          imagePullPolicy: IfNotPresent
+
+          ports:
+            - name: metrics
+              containerPort: 9127
+              protocol: TCP
+
+          env:
+            - name: PGBOUNCER_EXPORTER_HOST
+              value: "127.0.0.1"
+            - name: PGBOUNCER_EXPORTER_PORT
+              value: "6432"
+            - name: PGBOUNCER_USER
+              value: "pgbouncer_stats"
+            - name: PGBOUNCER_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: pgbouncer-secret
+                  key: stats-password
+
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: 9127
+            initialDelaySeconds: 10
+            periodSeconds: 15
+
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: 9127
+            initialDelaySeconds: 5
+            periodSeconds: 10
+
+      volumes:
+        - name: pgbouncer-config
+          configMap:
+            name: pgbouncer-config
+        - name: pgbouncer-run
+          emptyDir: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pgbouncer
+  namespace: example-production
+  labels:
+    app: pgbouncer
+    component: database
+    tier: infrastructure
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9127"
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  ports:
+    - name: pgbouncer
+      port: 6432
+      targetPort: 6432
+      protocol: TCP
+    - name: metrics
+      port: 9127
+      targetPort: 9127
+      protocol: TCP
+  selector:
+    app: pgbouncer
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: pgbouncer-pdb
+  namespace: example-production
+spec:
+  minAvailable: 2  # Always keep 2 replicas running
+  selector:
+    matchLabels:
+      app: pgbouncer
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: pgbouncer
+  namespace: example-production
+  labels:
+    app: pgbouncer
+
+---
+# Horizontal Pod Autoscaler for PgBouncer
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: pgbouncer-hpa
+  namespace: example-production
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: pgbouncer
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 50
+          periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 30

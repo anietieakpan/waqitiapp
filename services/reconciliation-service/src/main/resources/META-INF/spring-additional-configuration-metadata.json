@@ -1,0 +1,480 @@
+{
+  "properties": [
+    {
+      "name": "reconciliation.matching.auto-match.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable automatic matching of transactions",
+      "defaultValue": true
+    },
+    {
+      "name": "reconciliation.matching.auto-match.confidence-threshold",
+      "type": "java.lang.Double",
+      "description": "Minimum confidence threshold for auto-matching",
+      "defaultValue": 0.95
+    },
+    {
+      "name": "reconciliation.matching.auto-match.batch-size",
+      "type": "java.lang.Integer",
+      "description": "Batch size for auto-matching processing",
+      "defaultValue": 1000
+    },
+    {
+      "name": "reconciliation.matching.auto-match.parallel-threads",
+      "type": "java.lang.Integer",
+      "description": "Number of parallel threads for auto-matching",
+      "defaultValue": 4
+    },
+    {
+      "name": "reconciliation.matching.algorithms.exact-match.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable exact matching algorithm",
+      "defaultValue": true
+    },
+    {
+      "name": "reconciliation.matching.algorithms.exact-match.weight",
+      "type": "java.lang.Double",
+      "description": "Weight for exact matching algorithm",
+      "defaultValue": 1.0
+    },
+    {
+      "name": "reconciliation.matching.algorithms.fuzzy-match.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable fuzzy matching algorithm",
+      "defaultValue": true
+    },
+    {
+      "name": "reconciliation.matching.algorithms.fuzzy-match.weight",
+      "type": "java.lang.Double",
+      "description": "Weight for fuzzy matching algorithm",
+      "defaultValue": 0.8
+    },
+    {
+      "name": "reconciliation.matching.algorithms.fuzzy-match.similarity-threshold",
+      "type": "java.lang.Double",
+      "description": "Similarity threshold for fuzzy matching",
+      "defaultValue": 0.85
+    },
+    {
+      "name": "reconciliation.matching.algorithms.amount-match.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable amount matching algorithm",
+      "defaultValue": true
+    },
+    {
+      "name": "reconciliation.matching.algorithms.amount-match.weight",
+      "type": "java.lang.Double",
+      "description": "Weight for amount matching algorithm",
+      "defaultValue": 0.9
+    },
+    {
+      "name": "reconciliation.matching.algorithms.amount-match.tolerance-amount",
+      "type": "java.lang.Double",
+      "description": "Amount tolerance for amount matching",
+      "defaultValue": 0.01
+    },
+    {
+      "name": "reconciliation.matching.algorithms.amount-match.tolerance-percentage",
+      "type": "java.lang.Double",
+      "description": "Percentage tolerance for amount matching",
+      "defaultValue": 0.001
+    },
+    {
+      "name": "reconciliation.matching.algorithms.date-match.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable date matching algorithm",
+      "defaultValue": true
+    },
+    {
+      "name": "reconciliation.matching.algorithms.date-match.weight",
+      "type": "java.lang.Double",
+      "description": "Weight for date matching algorithm",
+      "defaultValue": 0.7
+    },
+    {
+      "name": "reconciliation.matching.algorithms.date-match.tolerance-days",
+      "type": "java.lang.Integer",
+      "description": "Date tolerance in days for date matching",
+      "defaultValue": 2
+    },
+    {
+      "name": "reconciliation.discrepancy.auto-resolution.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable automatic resolution of discrepancies",
+      "defaultValue": true
+    },
+    {
+      "name": "reconciliation.discrepancy.escalation.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable escalation of discrepancies",
+      "defaultValue": true
+    },
+    {
+      "name": "reconciliation.discrepancy.escalation.thresholds.amount",
+      "type": "java.math.BigDecimal",
+      "description": "Amount threshold for escalation",
+      "defaultValue": "10000"
+    },
+    {
+      "name": "reconciliation.discrepancy.escalation.thresholds.age-days",
+      "type": "java.lang.Integer",
+      "description": "Age threshold in days for escalation",
+      "defaultValue": 7
+    },
+    {
+      "name": "reconciliation.import.max-file-size",
+      "type": "org.springframework.util.unit.DataSize",
+      "description": "Maximum file size for import",
+      "defaultValue": "50MB"
+    },
+    {
+      "name": "reconciliation.import.batch-processing",
+      "type": "java.lang.Boolean",
+      "description": "Enable batch processing for imports",
+      "defaultValue": true
+    },
+    {
+      "name": "reconciliation.import.validation.strict",
+      "type": "java.lang.Boolean",
+      "description": "Enable strict validation for imports",
+      "defaultValue": true
+    },
+    {
+      "name": "reconciliation.import.validation.reject-on-error",
+      "type": "java.lang.Boolean",
+      "description": "Reject entire import on error",
+      "defaultValue": false
+    },
+    {
+      "name": "reconciliation.export.max-records",
+      "type": "java.lang.Integer",
+      "description": "Maximum records for export",
+      "defaultValue": 50000
+    },
+    {
+      "name": "reconciliation.export.compression",
+      "type": "java.lang.Boolean",
+      "description": "Enable compression for exports",
+      "defaultValue": true
+    },
+    {
+      "name": "reconciliation.retention.completed-days",
+      "type": "java.lang.Integer",
+      "description": "Retention period for completed reconciliations in days",
+      "defaultValue": 90
+    },
+    {
+      "name": "reconciliation.retention.failed-days",
+      "type": "java.lang.Integer",
+      "description": "Retention period for failed reconciliations in days",
+      "defaultValue": 30
+    },
+    {
+      "name": "reconciliation.retention.archive-after-days",
+      "type": "java.lang.Integer",
+      "description": "Archive reconciliations after specified days",
+      "defaultValue": 365
+    },
+    {
+      "name": "reconciliation.performance.cache-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable caching for performance optimization",
+      "defaultValue": true
+    },
+    {
+      "name": "reconciliation.performance.cache-ttl",
+      "type": "java.time.Duration",
+      "description": "Cache time-to-live in seconds",
+      "defaultValue": "3600s"
+    },
+    {
+      "name": "reconciliation.performance.bulk-operations",
+      "type": "java.lang.Boolean",
+      "description": "Enable bulk operations for performance",
+      "defaultValue": true
+    },
+    {
+      "name": "reconciliation.performance.async-processing",
+      "type": "java.lang.Boolean",
+      "description": "Enable asynchronous processing",
+      "defaultValue": true
+    },
+    {
+      "name": "reconciliation.discrepancy.auto-resolution.rules",
+      "type": "java.util.List",
+      "description": "List of auto-resolution rules for discrepancies"
+    },
+    {
+      "name": "reconciliation.import.supported-formats.bank-statement",
+      "type": "java.lang.String",
+      "description": "Supported formats for bank statement import",
+      "defaultValue": "BAI2,MT940,CSV,EXCEL"
+    },
+    {
+      "name": "reconciliation.import.supported-formats.transactions",
+      "type": "java.lang.String",
+      "description": "Supported formats for transaction import",
+      "defaultValue": "CSV,JSON,XML,EXCEL"
+    },
+    {
+      "name": "reconciliation.export.formats",
+      "type": "java.lang.String",
+      "description": "Supported export formats",
+      "defaultValue": "PDF,CSV,EXCEL"
+    },
+    {
+      "name": "reconciliation.export.template-engine",
+      "type": "java.lang.String",
+      "description": "Template engine for report generation",
+      "defaultValue": "jasper"
+    },
+    {
+      "name": "reconciliation.matching.rules.duplicate-check",
+      "type": "java.lang.Boolean",
+      "description": "Enable duplicate check in matching rules",
+      "defaultValue": true
+    },
+    {
+      "name": "reconciliation.matching.rules.one-to-many",
+      "type": "java.lang.Boolean",
+      "description": "Enable one-to-many matching",
+      "defaultValue": true
+    },
+    {
+      "name": "reconciliation.matching.rules.many-to-many",
+      "type": "java.lang.Boolean",
+      "description": "Enable many-to-many matching",
+      "defaultValue": false
+    },
+    {
+      "name": "reconciliation.discrepancy.escalation.thresholds.severity",
+      "type": "java.lang.String",
+      "description": "Severity level for escalation",
+      "defaultValue": "HIGH"
+    },
+    {
+      "name": "spring.cloud.config.uri",
+      "type": "java.lang.String",
+      "description": "Spring Cloud Config server URI"
+    },
+    {
+      "name": "spring.cloud.config.fail-fast",
+      "type": "java.lang.Boolean",
+      "description": "Fail fast if config server is not available",
+      "defaultValue": true
+    },
+    {
+      "name": "spring.cloud.config.retry.max-attempts",
+      "type": "java.lang.Integer",
+      "description": "Max retry attempts for config server",
+      "defaultValue": 3
+    },
+    {
+      "name": "keycloak.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Keycloak authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "keycloak.realm",
+      "type": "java.lang.String",
+      "description": "Keycloak realm",
+      "defaultValue": "waqiti"
+    },
+    {
+      "name": "keycloak.auth-server-url",
+      "type": "java.lang.String",
+      "description": "Keycloak auth server URL"
+    },
+    {
+      "name": "keycloak.ssl-required",
+      "type": "java.lang.String",
+      "description": "SSL requirement for Keycloak",
+      "defaultValue": "external"
+    },
+    {
+      "name": "keycloak.resource",
+      "type": "java.lang.String",
+      "description": "Keycloak resource/client ID"
+    },
+    {
+      "name": "keycloak.bearer-only",
+      "type": "java.lang.Boolean",
+      "description": "Bearer only authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "keycloak.use-resource-role-mappings",
+      "type": "java.lang.Boolean",
+      "description": "Use resource role mappings",
+      "defaultValue": true
+    },
+    {
+      "name": "keycloak.cors",
+      "type": "java.lang.Boolean",
+      "description": "Enable CORS support",
+      "defaultValue": true
+    },
+    {
+      "name": "keycloak.cors-allowed-methods",
+      "type": "java.lang.String",
+      "description": "Allowed CORS methods",
+      "defaultValue": "GET,POST,PUT,DELETE,OPTIONS"
+    },
+    {
+      "name": "keycloak.cors-allowed-headers",
+      "type": "java.lang.String",
+      "description": "Allowed CORS headers"
+    },
+    {
+      "name": "keycloak.cors-max-age",
+      "type": "java.lang.Integer",
+      "description": "CORS max age in seconds",
+      "defaultValue": 3600
+    },
+    {
+      "name": "keycloak.public-client",
+      "type": "java.lang.Boolean",
+      "description": "Public client flag",
+      "defaultValue": false
+    },
+    {
+      "name": "keycloak.credentials.secret",
+      "type": "java.lang.String",
+      "description": "Keycloak client secret"
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "Service client ID"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "Service client secret"
+    },
+    {
+      "name": "services.audit-service.url",
+      "type": "java.lang.String",
+      "description": "Audit service URL"
+    },
+    {
+      "name": "services.audit-service.timeout",
+      "type": "java.time.Duration",
+      "description": "Audit service timeout",
+      "defaultValue": "30s"
+    },
+    {
+      "name": "services.ledger-service.url",
+      "type": "java.lang.String",
+      "description": "Ledger service URL"
+    },
+    {
+      "name": "services.ledger-service.timeout",
+      "type": "java.time.Duration",
+      "description": "Ledger service timeout",
+      "defaultValue": "30s"
+    },
+    {
+      "name": "services.notification-service.url",
+      "type": "java.lang.String",
+      "description": "Notification service URL"
+    },
+    {
+      "name": "services.notification-service.timeout",
+      "type": "java.time.Duration",
+      "description": "Notification service timeout",
+      "defaultValue": "30s"
+    },
+    {
+      "name": "services.transaction-service.url",
+      "type": "java.lang.String",
+      "description": "Transaction service URL"
+    },
+    {
+      "name": "services.transaction-service.timeout",
+      "type": "java.time.Duration",
+      "description": "Transaction service timeout",
+      "defaultValue": "30s"
+    },
+    {
+      "name": "kafka.topics.reconciliation-started",
+      "type": "java.lang.String",
+      "description": "Kafka topic for reconciliation started events",
+      "defaultValue": "reconciliation-started"
+    },
+    {
+      "name": "kafka.topics.reconciliation-completed",
+      "type": "java.lang.String",
+      "description": "Kafka topic for reconciliation completed events",
+      "defaultValue": "reconciliation-completed"
+    },
+    {
+      "name": "kafka.topics.discrepancy-detected",
+      "type": "java.lang.String",
+      "description": "Kafka topic for discrepancy detection events",
+      "defaultValue": "discrepancy-detected"
+    },
+    {
+      "name": "kafka.topics.auto-match-found",
+      "type": "java.lang.String",
+      "description": "Kafka topic for auto match found events",
+      "defaultValue": "auto-match-found"
+    },
+    {
+      "name": "kafka.topics.manual-review-required",
+      "type": "java.lang.String",
+      "description": "Kafka topic for manual review required events",
+      "defaultValue": "manual-review-required"
+    },
+    {
+      "name": "kafka.topics.notification",
+      "type": "java.lang.String",
+      "description": "Kafka topic for notification events",
+      "defaultValue": "notification-events"
+    },
+    {
+      "name": "feign.client.config.default.connectTimeout",
+      "type": "java.lang.Integer",
+      "description": "Default Feign connect timeout",
+      "defaultValue": 5000
+    },
+    {
+      "name": "feign.client.config.default.readTimeout",
+      "type": "java.lang.Integer",
+      "description": "Default Feign read timeout",
+      "defaultValue": 5000
+    },
+    {
+      "name": "feign.client.config.default.loggerLevel",
+      "type": "java.lang.String",
+      "description": "Default Feign logger level",
+      "defaultValue": "FULL"
+    },
+    {
+      "name": "feign.client.config.audit-service.url",
+      "type": "java.lang.String",
+      "description": "Audit service Feign client URL"
+    },
+    {
+      "name": "feign.client.config.ledger-service.url",
+      "type": "java.lang.String",
+      "description": "Ledger service Feign client URL"
+    },
+    {
+      "name": "feign.client.config.notification-service.url",
+      "type": "java.lang.String",
+      "description": "Notification service Feign client URL"
+    },
+    {
+      "name": "feign.client.config.transaction-service.url",
+      "type": "java.lang.String",
+      "description": "Transaction service Feign client URL"
+    }
+  ]
+}

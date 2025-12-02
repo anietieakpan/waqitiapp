@@ -1,0 +1,408 @@
+# Payment Commons Configuration
+# This configuration is used by services that include payment-commons as a dependency
+
+spring:
+  application:
+    name: payment-commons
+  
+  # Auto-configuration settings
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+  
+  # Jackson configuration for payment serialization
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+      fail-on-empty-beans: false
+    deserialization:
+      fail-on-unknown-properties: false
+      accept-single-value-as-array: true
+    default-property-inclusion: non_null
+    date-format: yyyy-MM-dd'T'HH:mm:ss.SSSZ
+    time-zone: UTC
+
+# Payment Commons Core Configuration
+payment:
+  commons:
+    # Validation settings
+    validation:
+      enabled: true
+      strict-mode: true
+      amount:
+        min: 0.01
+        max: 1000000.00
+        decimal-places: 2
+      currency:
+        supported:
+          - USD
+          - EUR
+          - GBP
+          - CAD
+          - AUD
+          - JPY
+          - CNY
+          - INR
+          - BRL
+          - MXN
+          - NGN  # Nigerian Naira
+          - ZAR  # South African Rand
+          - KES  # Kenyan Shilling
+          - GHS  # Ghanaian Cedi
+        default: USD
+      
+    # Provider configuration
+    providers:
+      # Stripe configuration
+      stripe:
+        enabled: true
+        priority: 1
+        supported-currencies:
+          - USD
+          - EUR
+          - GBP
+          - CAD
+          - AUD
+        supported-payment-types:
+          - P2P
+          - MERCHANT
+          - RECURRING
+          - SPLIT
+        api-version: "2023-10-16"
+        webhook:
+          tolerance-seconds: 300
+        retry:
+          max-attempts: 3
+          backoff-multiplier: 2
+        capabilities:
+          instant-transfer: true
+          partial-refund: true
+          payment-links: true
+          subscription: true
+      
+      # PayPal configuration
+      paypal:
+        enabled: true
+        priority: 2
+        supported-currencies:
+          - USD
+          - EUR
+          - GBP
+          - CAD
+          - AUD
+          - BRL
+          - MXN
+        supported-payment-types:
+          - P2P
+          - MERCHANT
+          - SPLIT
+        mode: ${PAYPAL_MODE:live}  # sandbox or live
+        api-version: v2
+        capabilities:
+          instant-transfer: true
+          partial-refund: true
+          payment-links: true
+          subscription: true
+      
+      # Plaid configuration
+      plaid:
+        enabled: true
+        priority: 3
+        supported-currencies:
+          - USD
+          - CAD
+        supported-payment-types:
+          - P2P
+          - MERCHANT
+        products:
+          - transactions
+          - accounts
+          - balance
+          - identity
+          - auth
+        capabilities:
+          bank-transfer: true
+          ach-transfer: true
+          wire-transfer: false
+      
+      # Adyen configuration
+      adyen:
+        enabled: true
+        priority: 4
+        supported-currencies:
+          - USD
+          - EUR
+          - GBP
+          - JPY
+          - CNY
+          - INR
+        supported-payment-types:
+          - MERCHANT
+          - RECURRING
+          - SPLIT
+        api-version: 71
+        live-endpoint-url-prefix: ${ADYEN_LIVE_PREFIX:}
+        capabilities:
+          instant-transfer: false
+          partial-refund: true
+          payment-links: true
+          subscription: true
+      
+      # Dwolla configuration
+      dwolla:
+        enabled: true
+        priority: 5
+        supported-currencies:
+          - USD
+        supported-payment-types:
+          - P2P
+          - MERCHANT
+        capabilities:
+          bank-transfer: true
+          ach-transfer: true
+          instant-transfer: false
+          mass-payment: true
+      
+      # Square configuration
+      square:
+        enabled: true
+        priority: 6
+        supported-currencies:
+          - USD
+          - CAD
+          - GBP
+          - AUD
+          - JPY
+        supported-payment-types:
+          - MERCHANT
+          - RECURRING
+        capabilities:
+          instant-transfer: true
+          partial-refund: true
+          payment-links: true
+          subscription: true
+      
+      # Wise (TransferWise) configuration
+      wise:
+        enabled: true
+        priority: 7
+        supported-currencies: all  # Supports 50+ currencies
+        supported-payment-types:
+          - P2P
+          - MERCHANT
+        capabilities:
+          international-transfer: true
+          multi-currency: true
+          rate-lock: true
+          batch-payment: true
+      
+      # Braintree configuration
+      braintree:
+        enabled: false
+        priority: 8
+        supported-currencies:
+          - USD
+          - EUR
+          - GBP
+          - CAD
+          - AUD
+        supported-payment-types:
+          - MERCHANT
+          - RECURRING
+        capabilities:
+          instant-transfer: true
+          partial-refund: true
+          vault: true
+          subscription: true
+      
+      # Crypto providers
+      bitcoin:
+        enabled: true
+        priority: 10
+        supported-currencies:
+          - BTC
+        supported-payment-types:
+          - CRYPTO
+          - P2P
+        network: ${BTC_NETWORK:mainnet}
+        confirmation-blocks: 3
+        capabilities:
+          lightning-network: true
+          segwit: true
+      
+      ethereum:
+        enabled: true
+        priority: 11
+        supported-currencies:
+          - ETH
+          - USDT
+          - USDC
+          - DAI
+        supported-payment-types:
+          - CRYPTO
+          - P2P
+        network: ${ETH_NETWORK:mainnet}
+        confirmation-blocks: 12
+        capabilities:
+          smart-contracts: true
+          erc20-tokens: true
+          layer2: true
+    
+    # Fee calculation
+    fees:
+      calculation:
+        enabled: true
+        include-in-amount: false
+        round-up: true
+      platform:
+        percentage: 0.029  # 2.9%
+        fixed: 0.30  # $0.30
+        min: 0.50
+        max: 50.00
+      international:
+        additional-percentage: 0.01  # Additional 1% for international
+      crypto:
+        network-fee-strategy: MEDIUM  # LOW, MEDIUM, HIGH, CUSTOM
+    
+    # Fraud detection
+    fraud:
+      enabled: true
+      pre-authorization-check: true
+      risk-thresholds:
+        low: 0.3
+        medium: 0.5
+        high: 0.7
+        critical: 0.9
+      rules:
+        velocity-check:
+          enabled: true
+          window-minutes: 5
+          max-transactions: 10
+        amount-limit:
+          enabled: true
+          daily: 10000.00
+          single: 5000.00
+        geo-location:
+          enabled: true
+          blocked-countries: []
+          high-risk-countries:
+            - NG
+            - PK
+            - ID
+    
+    # Audit configuration
+    audit:
+      enabled: true
+      async: true
+      include-request-data: true
+      include-response-data: true
+      sensitive-data-masking: true
+      retention-days: 90
+    
+    # Event publishing
+    events:
+      enabled: true
+      async: true
+      topics:
+        payment-initiated: payment.initiated
+        payment-completed: payment.completed
+        payment-failed: payment.failed
+        payment-refunded: payment.refunded
+        payment-cancelled: payment.cancelled
+    
+    # Rate limiting
+    rate-limiting:
+      enabled: true
+      default:
+        requests-per-minute: 60
+        requests-per-hour: 1000
+      by-payment-type:
+        P2P:
+          requests-per-minute: 30
+          requests-per-hour: 500
+        MERCHANT:
+          requests-per-minute: 100
+          requests-per-hour: 2000
+        CRYPTO:
+          requests-per-minute: 20
+          requests-per-hour: 200
+
+# Web client configuration for payment providers
+web-client:
+  timeout:
+    connection: 5000
+    read: 30000
+    write: 30000
+  pool:
+    max-connections: 100
+    max-idle-time: 60000
+  retry:
+    max-attempts: 3
+    backoff:
+      initial-interval: 1000
+      multiplier: 2
+      max-interval: 10000
+
+# Circuit breaker configuration (shared by all payment providers)
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 10s
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10
+    instances:
+      payment-provider:
+        baseConfig: default
+      fraud-detection:
+        baseConfig: default
+        failureRateThreshold: 30
+  
+  retry:
+    configs:
+      default:
+        maxAttempts: 3
+        waitDuration: 1000ms
+        retryExceptions:
+          - java.io.IOException
+          - java.net.SocketTimeoutException
+          - com.waqiti.payment.core.exception.PaymentProviderException
+    instances:
+      payment-provider:
+        baseConfig: default
+      
+  ratelimiter:
+    configs:
+      default:
+        limitForPeriod: 100
+        limitRefreshPeriod: 1s
+        timeoutDuration: 5s
+    instances:
+      payment-api:
+        baseConfig: default
+
+# Monitoring
+management:
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: payment-commons
+  tracing:
+    sampling:
+      probability: 1.0
+
+# Logging
+logging:
+  level:
+    com.waqiti.payment: DEBUG
+    org.springframework.web.client: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"

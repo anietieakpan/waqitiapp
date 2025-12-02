@@ -1,0 +1,222 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ml-service
+  namespace: waqiti-system
+  labels:
+    app: ml-service
+    component: backend
+    tier: application
+    version: v1.0.0
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: ml-service
+  template:
+    metadata:
+      labels:
+        app: ml-service
+        component: backend
+        tier: application
+        version: v1.0.0
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8095"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      serviceAccountName: ml-service-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 3000
+        fsGroup: 2000
+      containers:
+      - name: ml-service
+        image: waqiti/ml-service:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8095
+          name: http
+          protocol: TCP
+        - containerPort: 8096
+          name: management
+          protocol: TCP
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "production"
+        - name: DB_HOST
+          valueFrom:
+            secretKeyRef:
+              name: ml-service-secrets
+              key: db-host
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_NAME
+          value: "waqiti_ml"
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: ml-service-secrets
+              key: db-username
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: ml-service-secrets
+              key: db-password
+        - name: REDIS_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: ml-service-config
+              key: redis-host
+        - name: REDIS_PORT
+          value: "6379"
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: ml-service-secrets
+              key: redis-password
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          valueFrom:
+            configMapKeyRef:
+              name: ml-service-config
+              key: kafka-bootstrap-servers
+        - name: EUREKA_CLIENT_SERVICE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: ml-service-config
+              key: eureka-service-url
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: ml-service-secrets
+              key: jwt-secret
+        - name: INFLUXDB_URL
+          valueFrom:
+            configMapKeyRef:
+              name: ml-service-config
+              key: influxdb-url
+        - name: INFLUXDB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: ml-service-secrets
+              key: influxdb-token
+        - name: INFLUXDB_ORG
+          value: "waqiti"
+        - name: INFLUXDB_BUCKET
+          value: "ml-metrics"
+        - name: NEO4J_URI
+          valueFrom:
+            configMapKeyRef:
+              name: ml-service-config
+              key: neo4j-uri
+        - name: NEO4J_USER
+          valueFrom:
+            secretKeyRef:
+              name: ml-service-secrets
+              key: neo4j-username
+        - name: NEO4J_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: ml-service-secrets
+              key: neo4j-password
+        - name: FEAST_SERVER
+          valueFrom:
+            configMapKeyRef:
+              name: ml-service-config
+              key: feast-server
+        - name: ML_MODELS_PATH
+          value: "/app/models"
+        - name: MODEL_BACKUP_PATH
+          value: "/app/backups/models"
+        - name: JVM_OPTS
+          value: "-Xmx2g -Xms1g -XX:+UseG1GC -XX:+UseContainerSupport"
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+          limits:
+            cpu: 2000m
+            memory: 4Gi
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8096
+          initialDelaySeconds: 90
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8096
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        volumeMounts:
+        - name: ml-models
+          mountPath: /app/models
+          readOnly: false
+        - name: model-backups
+          mountPath: /app/backups/models
+          readOnly: false
+        - name: temp-dir
+          mountPath: /tmp
+        - name: logs
+          mountPath: /app/logs
+      - name: sidecar-log-collector
+        image: fluent/fluent-bit:latest
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi
+        volumeMounts:
+        - name: logs
+          mountPath: /app/logs
+          readOnly: true
+        - name: fluent-bit-config
+          mountPath: /fluent-bit/etc
+      volumes:
+      - name: ml-models
+        persistentVolumeClaim:
+          claimName: ml-models-pvc
+      - name: model-backups
+        persistentVolumeClaim:
+          claimName: model-backups-pvc
+      - name: temp-dir
+        emptyDir:
+          sizeLimit: 1Gi
+      - name: logs
+        emptyDir:
+          sizeLimit: 500Mi
+      - name: fluent-bit-config
+        configMap:
+          name: fluent-bit-config
+      nodeSelector:
+        workload: compute-intensive
+      tolerations:
+      - key: "compute-intensive"
+        operator: "Equal"
+        value: "true"
+        effect: "NoSchedule"
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - ml-service
+              topologyKey: kubernetes.io/hostname

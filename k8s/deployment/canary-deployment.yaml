@@ -1,0 +1,447 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: wallet-service
+  namespace: default
+  labels:
+    app: wallet-service
+    strategy: canary
+spec:
+  selector:
+    app: wallet-service
+  ports:
+  - port: 8080
+    targetPort: 8080
+    name: http
+  - port: 8443
+    targetPort: 8443
+    name: https
+  - port: 9090
+    targetPort: 9090
+    name: metrics
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wallet-service-stable
+  namespace: default
+  labels:
+    app: wallet-service
+    version: stable
+    strategy: canary
+spec:
+  replicas: 9  # 90% of traffic
+  selector:
+    matchLabels:
+      app: wallet-service
+      version: stable
+  template:
+    metadata:
+      labels:
+        app: wallet-service
+        version: stable
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: wallet-service
+      containers:
+      - name: wallet-service
+        image: waqiti/wallet-service:v1.0.0
+        ports:
+        - containerPort: 8080
+          name: http
+        - containerPort: 8443
+          name: https
+        - containerPort: 9090
+          name: metrics
+        env:
+        - name: VERSION
+          value: "stable"
+        - name: DATABASE_HOST
+          value: "waqiti-postgres-primary.database.svc.cluster.local"
+        - name: REDIS_HOST
+          value: "redis-cluster.database.svc.cluster.local"
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: 8080
+          initialDelaySeconds: 20
+          periodSeconds: 5
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "300m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wallet-service-canary
+  namespace: default
+  labels:
+    app: wallet-service
+    version: canary
+    strategy: canary
+spec:
+  replicas: 1  # 10% of traffic initially
+  selector:
+    matchLabels:
+      app: wallet-service
+      version: canary
+  template:
+    metadata:
+      labels:
+        app: wallet-service
+        version: canary
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: wallet-service
+      containers:
+      - name: wallet-service
+        image: waqiti/wallet-service:v1.1.0  # New version
+        ports:
+        - containerPort: 8080
+          name: http
+        - containerPort: 8443
+          name: https
+        - containerPort: 9090
+          name: metrics
+        env:
+        - name: VERSION
+          value: "canary"
+        - name: DATABASE_HOST
+          value: "waqiti-postgres-primary.database.svc.cluster.local"
+        - name: REDIS_HOST
+          value: "redis-cluster.database.svc.cluster.local"
+        - name: CANARY_ANALYSIS_ENABLED
+          value: "true"
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: 8080
+          initialDelaySeconds: 20
+          periodSeconds: 5
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "300m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+---
+apiVersion: flagger.app/v1beta1
+kind: Canary
+metadata:
+  name: wallet-service-canary
+  namespace: default
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: wallet-service
+  progressDeadlineSeconds: 600
+  service:
+    port: 8080
+    targetPort: 8080
+    gateways:
+    - public-gateway.istio-system.svc.cluster.local
+    hosts:
+    - wallet.example.com
+    trafficPolicy:
+      tls:
+        mode: ISTIO_MUTUAL
+  analysis:
+    interval: 1m
+    threshold: 5
+    maxWeight: 50
+    stepWeight: 10
+    stepWeightPromotion: 100
+    metrics:
+    - name: request-success-rate
+      thresholdRange:
+        min: 99
+      interval: 1m
+    - name: request-duration
+      thresholdRange:
+        max: 500
+      interval: 1m
+    - name: error-rate
+      templateRef:
+        name: error-rate
+        namespace: flagger-system
+      thresholdRange:
+        max: 1
+      interval: 1m
+    webhooks:
+    - name: acceptance-test
+      type: pre-rollout
+      url: http://flagger-loadtester.default/
+      timeout: 30s
+      metadata:
+        cmd: "hey -z 1m -q 10 -c 2 http://wallet-service-canary.default:8080/"
+    - name: load-test
+      type: rollout
+      url: http://flagger-loadtester.default/
+      timeout: 5s
+      metadata:
+        cmd: "hey -z 2m -q 100 -c 10 http://wallet-service-canary.default:8080/"
+    - name: smoke-test
+      type: post-rollout
+      url: http://deployment-validator.default:8080/smoke
+      timeout: 30s
+      metadata:
+        service: wallet-service
+    alerts:
+    - name: slack
+      severity: info
+      providerRef:
+        name: slack
+        namespace: flagger-system
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: canary-deployment-metrics
+  namespace: default
+  labels:
+    app: canary-metrics
+    prometheus: kube-prometheus
+spec:
+  groups:
+  - name: canary-analysis
+    interval: 30s
+    rules:
+    - record: canary:request_success_rate
+      expr: |
+        sum(rate(http_requests_total{status=~"2..",version="canary"}[1m])) /
+        sum(rate(http_requests_total{version="canary"}[1m]))
+        
+    - record: canary:request_duration_p99
+      expr: |
+        histogram_quantile(0.99,
+          sum(rate(http_request_duration_seconds_bucket{version="canary"}[1m])) by (le)
+        )
+        
+    - record: canary:error_rate
+      expr: |
+        sum(rate(http_requests_total{status=~"5..",version="canary"}[1m])) /
+        sum(rate(http_requests_total{version="canary"}[1m]))
+        
+    - alert: CanaryDeploymentFailed
+      expr: canary:request_success_rate < 0.99
+      for: 2m
+      labels:
+        severity: critical
+        deployment: canary
+      annotations:
+        summary: "Canary deployment failing"
+        description: "Canary version success rate is {{ $value | humanizePercentage }}"
+        
+    - alert: CanaryHighLatency
+      expr: canary:request_duration_p99 > 0.5
+      for: 2m
+      labels:
+        severity: warning
+        deployment: canary
+      annotations:
+        summary: "Canary deployment has high latency"
+        description: "Canary version P99 latency is {{ $value }}s"
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: canary-analysis-job
+  namespace: default
+  labels:
+    app: canary-analysis
+spec:
+  template:
+    spec:
+      serviceAccountName: canary-analyzer
+      containers:
+      - name: analyzer
+        image: waqiti/canary-analyzer:latest
+        command:
+        - /bin/bash
+        - -c
+        - |
+          set -e
+          
+          echo "Starting Canary deployment analysis..."
+          
+          # Configuration
+          SERVICE_NAME="wallet-service"
+          CANARY_VERSION="canary"
+          STABLE_VERSION="stable"
+          PROMETHEUS_URL="http://prometheus.monitoring.svc.cluster.local:9090"
+          ANALYSIS_DURATION="5m"
+          
+          # Query Prometheus for metrics
+          get_metric() {
+            local query=$1
+            curl -s "${PROMETHEUS_URL}/api/v1/query" \
+              --data-urlencode "query=${query}" \
+              | jq -r '.data.result[0].value[1]' 2>/dev/null || echo "0"
+          }
+          
+          # Analyze canary metrics
+          echo "Analyzing canary metrics over the last ${ANALYSIS_DURATION}..."
+          
+          # Success rate comparison
+          CANARY_SUCCESS=$(get_metric "avg_over_time(canary:request_success_rate[${ANALYSIS_DURATION}])")
+          STABLE_SUCCESS=$(get_metric "avg_over_time(stable:request_success_rate[${ANALYSIS_DURATION}])")
+          
+          echo "Success rates:"
+          echo "  Canary: $(printf "%.2f" $(echo "$CANARY_SUCCESS * 100" | bc -l))%"
+          echo "  Stable: $(printf "%.2f" $(echo "$STABLE_SUCCESS * 100" | bc -l))%"
+          
+          # Latency comparison
+          CANARY_LATENCY=$(get_metric "avg_over_time(canary:request_duration_p99[${ANALYSIS_DURATION}])")
+          STABLE_LATENCY=$(get_metric "avg_over_time(stable:request_duration_p99[${ANALYSIS_DURATION}])")
+          
+          echo "P99 Latencies:"
+          echo "  Canary: $(printf "%.3f" $CANARY_LATENCY)s"
+          echo "  Stable: $(printf "%.3f" $STABLE_LATENCY)s"
+          
+          # Error rate comparison
+          CANARY_ERRORS=$(get_metric "avg_over_time(canary:error_rate[${ANALYSIS_DURATION}])")
+          STABLE_ERRORS=$(get_metric "avg_over_time(stable:error_rate[${ANALYSIS_DURATION}])")
+          
+          echo "Error rates:"
+          echo "  Canary: $(printf "%.3f" $(echo "$CANARY_ERRORS * 100" | bc -l))%"
+          echo "  Stable: $(printf "%.3f" $(echo "$STABLE_ERRORS * 100" | bc -l))%"
+          
+          # Decision logic
+          PROMOTE=true
+          REASONS=""
+          
+          # Check success rate (must be within 0.5% of stable)
+          SUCCESS_DIFF=$(echo "scale=4; ($STABLE_SUCCESS - $CANARY_SUCCESS) * 100" | bc -l)
+          if (( $(echo "$SUCCESS_DIFF > 0.5" | bc -l) )); then
+            PROMOTE=false
+            REASONS="${REASONS}\n  - Success rate degradation: ${SUCCESS_DIFF}%"
+          fi
+          
+          # Check latency (must not increase by more than 10%)
+          LATENCY_INCREASE=$(echo "scale=2; (($CANARY_LATENCY - $STABLE_LATENCY) / $STABLE_LATENCY) * 100" | bc -l)
+          if (( $(echo "$LATENCY_INCREASE > 10" | bc -l) )); then
+            PROMOTE=false
+            REASONS="${REASONS}\n  - Latency increase: ${LATENCY_INCREASE}%"
+          fi
+          
+          # Check error rate (must not exceed stable by 0.1%)
+          ERROR_DIFF=$(echo "scale=4; ($CANARY_ERRORS - $STABLE_ERRORS) * 100" | bc -l)
+          if (( $(echo "$ERROR_DIFF > 0.1" | bc -l) )); then
+            PROMOTE=false
+            REASONS="${REASONS}\n  - Error rate increase: ${ERROR_DIFF}%"
+          fi
+          
+          # Generate recommendation
+          echo ""
+          echo "Analysis Result:"
+          if [ "$PROMOTE" = true ]; then
+            echo "✓ RECOMMENDATION: Promote canary to stable"
+            echo ""
+            echo "Next steps:"
+            echo "1. Increase canary replicas: kubectl scale deployment ${SERVICE_NAME}-canary --replicas=5"
+            echo "2. Decrease stable replicas: kubectl scale deployment ${SERVICE_NAME}-stable --replicas=5"
+            echo "3. Monitor for 10 minutes"
+            echo "4. Complete promotion: kubectl scale deployment ${SERVICE_NAME}-canary --replicas=10 && kubectl scale deployment ${SERVICE_NAME}-stable --replicas=0"
+          else
+            echo "✗ RECOMMENDATION: Rollback canary deployment"
+            echo ""
+            echo "Issues detected:${REASONS}"
+            echo ""
+            echo "Rollback command:"
+            echo "kubectl scale deployment ${SERVICE_NAME}-canary --replicas=0"
+          fi
+          
+          # Store analysis result
+          cat > /tmp/canary-analysis-result.json <<EOF
+          {
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "service": "${SERVICE_NAME}",
+            "canary_version": "${CANARY_VERSION}",
+            "stable_version": "${STABLE_VERSION}",
+            "metrics": {
+              "canary": {
+                "success_rate": ${CANARY_SUCCESS},
+                "p99_latency": ${CANARY_LATENCY},
+                "error_rate": ${CANARY_ERRORS}
+              },
+              "stable": {
+                "success_rate": ${STABLE_SUCCESS},
+                "p99_latency": ${STABLE_LATENCY},
+                "error_rate": ${STABLE_ERRORS}
+              }
+            },
+            "recommendation": "$([ "$PROMOTE" = true ] && echo "promote" || echo "rollback")",
+            "analysis_duration": "${ANALYSIS_DURATION}"
+          }
+          EOF
+          
+          echo ""
+          echo "Analysis complete. Results saved to /tmp/canary-analysis-result.json"
+          
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+      restartPolicy: Never
+  backoffLimit: 2
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: canary-analyzer
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: default
+  name: canary-analyzer
+rules:
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get", "list", "patch", "update"]
+- apiGroups: [""]
+  resources: ["services", "pods"]
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: canary-analyzer
+  namespace: default
+subjects:
+- kind: ServiceAccount
+  name: canary-analyzer
+  namespace: default
+roleRef:
+  kind: Role
+  name: canary-analyzer
+  apiGroup: rbac.authorization.k8s.io

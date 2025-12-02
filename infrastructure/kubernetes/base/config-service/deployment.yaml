@@ -1,0 +1,118 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: config-service
+  namespace: waqiti
+  labels:
+    app: config-service
+    version: v1
+    component: infrastructure
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: config-service
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: config-service
+        version: v1
+        component: infrastructure
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8888"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      serviceAccountName: config-service
+      containers:
+      - name: config-service
+        image: waqiti/config-service:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8888
+          name: http
+          protocol: TCP
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "kubernetes,git"
+        - name: JAVA_OPTS
+          value: "-Xms256m -Xmx512m -XX:+UseG1GC"
+        - name: SERVER_PORT
+          value: "8888"
+        - name: SPRING_CLOUD_CONFIG_SERVER_GIT_URI
+          value: "https://github.com/waqiti/config-repo.git"
+        - name: SPRING_CLOUD_CONFIG_SERVER_GIT_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: git-credentials
+              key: username
+        - name: SPRING_CLOUD_CONFIG_SERVER_GIT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: git-credentials
+              key: password
+        - name: SPRING_CLOUD_CONFIG_SERVER_GIT_DEFAULT_LABEL
+          value: "main"
+        - name: ENCRYPT_KEY
+          valueFrom:
+            secretKeyRef:
+              name: config-encryption-key
+              key: key
+        - name: VAULT_ADDR
+          value: "http://vault:8200"
+        - name: VAULT_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: vault-token
+              key: token
+        - name: SPRING_REDIS_HOST
+          value: "redis-master"
+        - name: SPRING_REDIS_PORT
+          value: "6379"
+        - name: SPRING_REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-password
+              key: password
+        resources:
+          requests:
+            memory: "384Mi"
+            cpu: "200m"
+          limits:
+            memory: "768Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8888
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8888
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        volumeMounts:
+        - name: config-repo
+          mountPath: /config-repo
+      volumes:
+      - name: config-repo
+        emptyDir: {}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - config-service
+              topologyKey: kubernetes.io/hostname

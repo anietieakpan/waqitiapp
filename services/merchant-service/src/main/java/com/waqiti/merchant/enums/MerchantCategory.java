@@ -1,0 +1,20 @@
+package com.waqiti.merchant.enums;
+
+public enum MerchantCategory {
+    RETAIL,
+    E_COMMERCE,
+    FOOD_BEVERAGE,
+    TRANSPORTATION,
+    ENTERTAINMENT,
+    HEALTHCARE,
+    EDUCATION,
+    UTILITIES,
+    FINANCIAL_SERVICES,
+    TRAVEL_HOSPITALITY,
+    TELECOMMUNICATIONS,
+    GOVERNMENT,
+    NON_PROFIT,
+    PROFESSIONAL_SERVICES,
+    TECHNOLOGY,
+    OTHER
+}

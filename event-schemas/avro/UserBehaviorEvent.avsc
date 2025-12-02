@@ -1,0 +1,147 @@
+{
+  "type": "record",
+  "name": "UserBehaviorEvent",
+  "namespace": "com.waqiti.analytics.model",
+  "doc": "REFACTORED (2025-11-22): Strongly-typed user behavior analytics event",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "Unique event identifier (UUID)"
+    },
+    {
+      "name": "timestamp",
+      "type": "long",
+      "logicalType": "timestamp-millis",
+      "doc": "Event timestamp in milliseconds since epoch"
+    },
+    {
+      "name": "version",
+      "type": "int",
+      "default": 1,
+      "doc": "Schema version for evolution and backward compatibility"
+    },
+    {
+      "name": "userId",
+      "type": "string",
+      "doc": "User identifier (UUID)"
+    },
+    {
+      "name": "sessionId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "User session identifier"
+    },
+    {
+      "name": "behaviorType",
+      "type": {
+        "type": "enum",
+        "name": "BehaviorType",
+        "symbols": [
+          "LOGIN",
+          "LOGOUT",
+          "PAYMENT_INITIATED",
+          "PAYMENT_COMPLETED",
+          "ACCOUNT_VIEW",
+          "TRANSACTION_VIEW",
+          "SETTINGS_UPDATE",
+          "PROFILE_UPDATE",
+          "KYC_SUBMISSION",
+          "CARD_REQUEST",
+          "SUPPORT_CONTACT",
+          "APP_NAVIGATION",
+          "FEATURE_USAGE"
+        ]
+      },
+      "doc": "Type of user behavior being tracked"
+    },
+    {
+      "name": "platform",
+      "type": {
+        "type": "enum",
+        "name": "Platform",
+        "symbols": ["WEB", "MOBILE_IOS", "MOBILE_ANDROID", "API", "ADMIN"]
+      },
+      "default": "WEB",
+      "doc": "Platform where behavior occurred"
+    },
+    {
+      "name": "deviceId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Device identifier (for mobile apps)"
+    },
+    {
+      "name": "ipAddress",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "IP address of the user"
+    },
+    {
+      "name": "userAgent",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "User agent string (browser/app version)"
+    },
+    {
+      "name": "geolocation",
+      "type": ["null", {
+        "type": "record",
+        "name": "Geolocation",
+        "fields": [
+          {"name": "latitude", "type": "double", "doc": "Latitude coordinate"},
+          {"name": "longitude", "type": "double", "doc": "Longitude coordinate"},
+          {"name": "country", "type": ["null", "string"], "default": null, "doc": "Country code (ISO 3166-1 alpha-2)"},
+          {"name": "city", "type": ["null", "string"], "default": null, "doc": "City name"}
+        ]
+      }],
+      "default": null,
+      "doc": "Geographic location of the behavior"
+    },
+    {
+      "name": "referenceId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Reference ID for related entity (e.g., paymentId, transactionId)"
+    },
+    {
+      "name": "referenceType",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Type of referenced entity (e.g., PAYMENT, TRANSACTION, ACCOUNT)"
+    },
+    {
+      "name": "duration",
+      "type": ["null", "long"],
+      "default": null,
+      "doc": "Duration of the behavior/action in milliseconds"
+    },
+    {
+      "name": "success",
+      "type": "boolean",
+      "default": true,
+      "doc": "Whether the behavior/action was successful"
+    },
+    {
+      "name": "errorCode",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Error code if success=false"
+    },
+    {
+      "name": "errorMessage",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Error message if success=false"
+    },
+    {
+      "name": "metadata",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "default": {},
+      "doc": "Additional flexible metadata (use sparingly, prefer strongly-typed fields)"
+    }
+  ]
+}

@@ -1,0 +1,75 @@
+{
+  "dashboard": {
+    "title": "Waqiti Production Monitoring",
+    "tags": ["production", "waqiti", "fintech"],
+    "timezone": "UTC",
+    "panels": [
+      {
+        "title": "Payment Processing TPS",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(payment_processed_total[1m])",
+            "legendFormat": "{{service}}"
+          }
+        ],
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": { "params": [1000], "type": "lt" },
+              "query": { "params": ["A", "5m", "now"] }
+            }
+          ]
+        }
+      },
+      {
+        "title": "Payment Latency (p95)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(payment_duration_seconds_bucket[5m]))",
+            "legendFormat": "p95"
+          }
+        ]
+      },
+      {
+        "title": "Database Query Performance",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "database_query_duration_seconds{quantile=\"0.95\"}",
+            "legendFormat": "{{query}} p95"
+          }
+        ]
+      },
+      {
+        "title": "Kafka Consumer Lag",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "kafka_consumer_lag",
+            "legendFormat": "{{topic}} - {{partition}}"
+          }
+        ]
+      },
+      {
+        "title": "DLQ Events",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(increase(dlq_events_processed_total[1h]))"
+          }
+        ]
+      },
+      {
+        "title": "Fraud Detection Rate",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "rate(fraud_detected_total[5m])"
+          }
+        ]
+      }
+    ]
+  }
+}

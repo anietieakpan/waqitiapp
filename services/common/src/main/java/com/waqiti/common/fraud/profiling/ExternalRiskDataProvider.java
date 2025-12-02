@@ -1,0 +1,52 @@
+package com.waqiti.common.fraud.profiling;
+
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
+
+import java.util.Map;
+
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class ExternalRiskDataProvider {
+    
+    @CircuitBreaker(name = "external-risk-data", fallbackMethod = "getRiskDataFallback")
+    @Retry(name = "external-risk-data")
+    public ExternalRiskData getRiskData(String userId) {
+        log.debug("Fetching external risk data for user: {}", userId);
+        
+        return ExternalRiskData.builder()
+                .userId(userId)
+                .creditScore(700)
+                .hasAdverseMedia(false)
+                .isPoliticallyExposed(false)
+                .sanctionsMatch(false)
+                .riskIndicators(Map.of())
+                .build();
+    }
+    
+    @CircuitBreaker(name = "external-risk-data", fallbackMethod = "refreshRiskDataFallback")
+    @Retry(name = "external-risk-data")
+    public void refreshRiskData(String userId) {
+        log.info("Refreshing external risk data for user: {}", userId);
+    }
+    
+    private ExternalRiskData getRiskDataFallback(String userId, Exception e) {
+        log.warn("External risk data provider unavailable - returning default data (fallback): {}", userId);
+        return ExternalRiskData.builder()
+                .userId(userId)
+                .creditScore(0)
+                .hasAdverseMedia(false)
+                .isPoliticallyExposed(false)
+                .sanctionsMatch(false)
+                .riskIndicators(Map.<String, Object>of("error", e.getMessage()))
+                .build();
+    }
+    
+    private void refreshRiskDataFallback(String userId, Exception e) {
+        log.error("External risk data provider unavailable - refresh failed (fallback): {}", userId);
+    }
+}

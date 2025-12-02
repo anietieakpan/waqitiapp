@@ -1,0 +1,6 @@
+export GDPR_EXPORT_STORAGE_PATH=/secure/gdpr/exports
+export GDPR_DPA_EMAIL=dpa@your-authority.eu
+export GDPR_DPA_API_URL=https://dpa.your-authority.eu/api
+export GDPR_DPA_API_KEY=your-api-key
+export GDPR_URL_SIGNING_KEY=your-secret-key
+export GDPR_NOTIFICATION_EMAIL=gdpr-noreply@example.com

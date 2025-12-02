@@ -1,0 +1,62 @@
+{
+  "properties": [
+    {
+      "name": "support.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable support functionality",
+      "defaultValue": true
+    },
+    {
+      "name": "support.tickets.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable support tickets",
+      "defaultValue": true
+    },
+    {
+      "name": "support.chat.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable live chat support",
+      "defaultValue": true
+    },
+    {
+      "name": "support.chatbot.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable chatbot support",
+      "defaultValue": true
+    },
+    {
+      "name": "support.knowledge-base.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable knowledge base",
+      "defaultValue": true
+    },
+    {
+      "name": "support.sla.response-hours",
+      "type": "java.lang.Integer",
+      "description": "SLA response time in hours",
+      "defaultValue": 24
+    },
+    {
+      "name": "support.priorities",
+      "type": "java.util.List",
+      "description": "Available support ticket priorities"
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "OAuth2 client ID for service",
+      "defaultValue": "support-service"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "OAuth2 client secret for service"
+    }
+  ]
+}

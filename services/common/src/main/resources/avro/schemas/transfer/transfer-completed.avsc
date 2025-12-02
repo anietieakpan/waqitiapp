@@ -1,0 +1,94 @@
+{
+  "type": "record",
+  "name": "TransferCompletedEvent",
+  "namespace": "com.waqiti.events.v1",
+  "doc": "Event published when a transfer is completed",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "Unique event identifier (UUID)"
+    },
+    {
+      "name": "eventType",
+      "type": "string",
+      "default": "transfer-completed",
+      "doc": "Type of event"
+    },
+    {
+      "name": "timestamp",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "Event timestamp in epoch milliseconds"
+    },
+    {
+      "name": "correlationId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Correlation ID for distributed tracing"
+    },
+    {
+      "name": "version",
+      "type": "string",
+      "default": "1.0",
+      "doc": "Schema version"
+    },
+    {
+      "name": "transferId",
+      "type": "string",
+      "doc": "Unique transfer identifier (UUID)"
+    },
+    {
+      "name": "amount",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 19,
+        "scale": 4
+      },
+      "doc": "Transfer amount"
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "default": "USD",
+      "doc": "Currency code (ISO 4217)"
+    },
+    {
+      "name": "fromUserId",
+      "type": "string",
+      "doc": "Sender user ID (UUID)"
+    },
+    {
+      "name": "toUserId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Recipient user ID (UUID)"
+    },
+    {
+      "name": "completedAt",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "Completion timestamp"
+    },
+    {
+      "name": "referenceNumber",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Transfer reference number"
+    },
+    {
+      "name": "metadata",
+      "type": ["null", {
+        "type": "map",
+        "values": "string"
+      }],
+      "default": null,
+      "doc": "Additional metadata"
+    }
+  ]
+}

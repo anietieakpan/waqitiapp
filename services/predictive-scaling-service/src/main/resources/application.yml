@@ -1,0 +1,504 @@
+spring:
+  application:
+    name: predictive-scaling-service
+  
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+    include: keycloak
+  
+  cloud:
+    config:
+      uri: ${CONFIG_SERVER_URL:http://localhost:8888}
+      fail-fast: true
+      retry:
+        max-attempts: 3
+  
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/waqiti_predictive_scaling}
+    username: ${DATABASE_USERNAME:waqiti}
+    password: ${DATABASE_PASSWORD:${VAULT_DATABASE_PASSWORD}}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 300000
+      connection-timeout: 30000
+      validation-timeout: 5000
+      max-lifetime: 1800000
+      leak-detection-threshold: 60000
+  
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        jdbc:
+          batch_size: 25
+        order_inserts: true
+        order_updates: true
+    show-sql: false
+  
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.trusted.packages: "*"
+    consumer:
+      group-id: predictive-scaling-service
+      enable-auto-commit: false  # Manual acknowledgment for DLQ support
+      max-poll-records: 50  # Batch size control
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+      auto-offset-reset: earliest
+  
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+  
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:${EUREKA_SERVER_URL:https://discovery-service:8761/eureka}/}
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+    metadata-map:
+      version: ${info.version}
+      region: ${DEPLOYMENT_REGION:us-east-1}
+
+server:
+  port: ${PORT:8098}
+  servlet:
+    context-path: /api/v1
+  error:
+    include-message: always
+    include-binding-errors: always
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# Feign client configuration
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 5000
+        readTimeout: 10000
+        loggerLevel: FULL
+      analytics-service:
+        url: ${ANALYTICS_SERVICE_URL:http://analytics-service/api/v1}
+      notification-service:
+        url: ${NOTIFICATION_SERVICE_URL:http://notification-service/api/v1}
+      infrastructure-service:
+        url: ${INFRASTRUCTURE_SERVICE_URL:http://infrastructure-service/api/v1}
+      kubernetes-api:
+        url: ${KUBERNETES_API_URL:https://kubernetes.default.svc}
+      prometheus-service:
+        url: ${PROMETHEUS_SERVICE_URL:http://prometheus.monitoring.svc:9090}
+
+# Kafka topics
+kafka:
+  topics:
+    scaling-prediction-generated: scaling-prediction-events
+    scaling-action-initiated: scaling-action-events
+    scaling-action-completed: scaling-action-completed-events
+    infrastructure-metrics: infrastructure-metrics-events
+    performance-metrics: performance-metrics-events
+    cost-optimization: cost-optimization-events
+    anomaly-detection: anomaly-detection-events
+    capacity-planning: capacity-planning-events
+
+# Predictive Scaling Configuration
+predictive-scaling:
+  # Core ML Engine Configuration
+  ml-engine:
+    enabled: ${ML_ENGINE_ENABLED:true}
+    framework: ${ML_FRAMEWORK:TENSORFLOW} # TENSORFLOW, PYTORCH, SCIKIT_LEARN, XGBOOST
+    model-version: "2.1"
+    prediction-horizon-hours: 24
+    training-interval-hours: 6
+    model-validation-threshold: 0.85
+    auto-retrain: true
+    
+    # Model paths and artifacts
+    models:
+      load-prediction:
+        path: "${ML_MODEL_PATH}/load_prediction_v2.pb"
+        type: "TENSORFLOW_SAVED_MODEL"
+        input-features: 15
+        output-classes: 1
+        
+      traffic-forecasting:
+        path: "${ML_MODEL_PATH}/traffic_forecasting_v2.pkl"
+        type: "SCIKIT_LEARN_PICKLE"
+        algorithm: "RANDOM_FOREST"
+        lookback-window: 168  # 7 days in hours
+        
+      anomaly-detection:
+        path: "${ML_MODEL_PATH}/anomaly_detection_v1.onnx"
+        type: "ONNX"
+        algorithm: "ISOLATION_FOREST"
+        contamination-rate: 0.1
+        
+      cost-optimization:
+        path: "${ML_MODEL_PATH}/cost_optimization_v1.h5"
+        type: "KERAS_MODEL"
+        algorithm: "DEEP_NEURAL_NETWORK"
+        layers: [64, 32, 16, 1]
+        
+  # Data Collection and Processing
+  data-collection:
+    enabled: true
+    collection-interval-seconds: 30
+    aggregation-window-minutes: 5
+    retention-days: 90
+    real-time-processing: true
+    
+    # Metrics to collect
+    metrics:
+      infrastructure:
+        - "cpu_utilization"
+        - "memory_utilization"
+        - "disk_io_utilization"
+        - "network_io_utilization"
+        - "pod_count"
+        - "node_count"
+        - "available_resources"
+        
+      application:
+        - "request_rate"
+        - "response_time"
+        - "error_rate"
+        - "active_connections"
+        - "queue_depth"
+        - "throughput"
+        
+      business:
+        - "transaction_volume"
+        - "user_activity"
+        - "payment_processing_rate"
+        - "api_call_volume"
+        - "concurrent_users"
+        
+    # Data sources
+    sources:
+      prometheus:
+        enabled: true
+        endpoint: "${PROMETHEUS_ENDPOINT:http://prometheus.monitoring.svc:9090}"
+        scrape-interval: 30
+        queries:
+          cpu-usage: "avg(rate(container_cpu_usage_seconds_total[5m]) * 100)"
+          memory-usage: "avg(container_memory_working_set_bytes / container_spec_memory_limit_bytes * 100)"
+          
+      kubernetes:
+        enabled: true
+        config-path: "${KUBE_CONFIG_PATH:/var/run/secrets/kubernetes.io/serviceaccount}"
+        namespace: "${TARGET_NAMESPACE:default}"
+        
+      custom-metrics:
+        enabled: true
+        endpoint: "${CUSTOM_METRICS_API:http://custom-metrics-api/api/v1}"
+        
+  # Prediction Engine
+  prediction:
+    enabled: true
+    prediction-interval-minutes: 10
+    lookahead-periods: [15, 30, 60, 120, 240] # minutes
+    confidence-threshold: 0.7
+    ensemble-models: true
+    
+    # Feature engineering
+    features:
+      temporal:
+        - "hour_of_day"
+        - "day_of_week"
+        - "day_of_month"
+        - "is_weekend"
+        - "is_holiday"
+        - "is_business_hours"
+        
+      statistical:
+        - "moving_average_1h"
+        - "moving_average_6h"
+        - "moving_average_24h"
+        - "standard_deviation"
+        - "percentile_95"
+        - "trend_slope"
+        
+      lag-features:
+        lags: [1, 2, 3, 6, 12, 24, 48, 168] # hours
+        
+      external:
+        - "weather_data"
+        - "market_events"
+        - "promotional_campaigns"
+        - "system_maintenance"
+        
+  # Scaling Decision Engine
+  scaling-decisions:
+    enabled: true
+    decision-interval-minutes: 5
+    safety-margin: 0.2 # 20% buffer
+    
+    # Scaling thresholds
+    thresholds:
+      scale-up:
+        cpu-threshold: 70
+        memory-threshold: 80
+        response-time-threshold: 2000 # milliseconds
+        error-rate-threshold: 5 # percentage
+        queue-depth-threshold: 100
+        
+      scale-down:
+        cpu-threshold: 30
+        memory-threshold: 40
+        response-time-threshold: 500
+        error-rate-threshold: 1
+        cooldown-minutes: 10
+        
+    # Scaling constraints
+    constraints:
+      min-instances: 2
+      max-instances: 100
+      max-scale-up-step: 5
+      max-scale-down-step: 2
+      scale-up-cooldown-minutes: 5
+      scale-down-cooldown-minutes: 10
+      
+  # Kubernetes Integration
+  kubernetes:
+    enabled: ${K8S_INTEGRATION_ENABLED:true}
+    cluster-config: "${KUBE_CONFIG_PATH:/var/run/secrets/kubernetes.io/serviceaccount}"
+    default-namespace: "${DEFAULT_NAMESPACE:default}"
+    
+    # Target resources for scaling
+    targets:
+      - name: "payment-service"
+        type: "Deployment"
+        namespace: "default"
+        min-replicas: 3
+        max-replicas: 50
+        
+      - name: "user-service"
+        type: "Deployment"
+        namespace: "default"
+        min-replicas: 2
+        max-replicas: 30
+        
+      - name: "wallet-service"
+        type: "Deployment"
+        namespace: "default"
+        min-replicas: 2
+        max-replicas: 40
+        
+    # HPA (Horizontal Pod Autoscaler) integration
+    hpa:
+      enabled: true
+      api-version: "autoscaling/v2"
+      behavior:
+        scale-up:
+          stabilization-window-seconds: 300
+          policies:
+            - type: "Percent"
+              value: 100
+              period-seconds: 60
+              
+        scale-down:
+          stabilization-window-seconds: 600
+          policies:
+            - type: "Percent"
+              value: 50
+              period-seconds: 120
+              
+  # Cost Optimization
+  cost-optimization:
+    enabled: true
+    optimization-interval-hours: 1
+    cost-efficiency-target: 0.8
+    
+    # Resource rightsizing
+    rightsizing:
+      enabled: true
+      analysis-window-days: 7
+      utilization-threshold: 80
+      overprovisioning-threshold: 30
+      
+    # Spot instance management
+    spot-instances:
+      enabled: ${SPOT_INSTANCES_ENABLED:false}
+      max-spot-percentage: 70
+      fallback-on-demand: true
+      
+    # Reserved instance recommendations
+    reserved-instances:
+      enabled: true
+      analysis-period-months: 12
+      commitment-threshold: 0.6
+      
+  # Anomaly Detection
+  anomaly-detection:
+    enabled: true
+    detection-interval-minutes: 5
+    sensitivity: "medium" # low, medium, high
+    
+    # Anomaly types
+    types:
+      - "traffic_spike"
+      - "performance_degradation"
+      - "resource_exhaustion"
+      - "error_rate_increase"
+      - "cost_anomaly"
+      
+    # Response actions
+    actions:
+      immediate:
+        - "scale_up_aggressive"
+        - "enable_circuit_breaker"
+        - "increase_monitoring"
+        
+      investigate:
+        - "collect_detailed_metrics"
+        - "generate_alerts"
+        - "create_incident"
+        
+  # Performance Monitoring
+  monitoring:
+    enabled: true
+    metrics-retention-days: 30
+    real-time-dashboard: true
+    
+    # SLA monitoring
+    sla:
+      response-time-p95: 1000 # milliseconds
+      availability: 99.9 # percentage
+      error-rate: 1 # percentage
+      
+    # Alerting
+    alerts:
+      channels: ["slack", "email", "pagerduty"]
+      escalation-minutes: 15
+      
+      rules:
+        - name: "scaling_prediction_accuracy_low"
+          condition: "prediction_accuracy < 0.7"
+          severity: "warning"
+          
+        - name: "scaling_action_failed"
+          condition: "scaling_failed == true"
+          severity: "critical"
+          
+        - name: "resource_exhaustion_predicted"
+          condition: "predicted_cpu > 90 OR predicted_memory > 95"
+          severity: "warning"
+          
+  # Machine Learning Training
+  training:
+    enabled: ${ML_TRAINING_ENABLED:true}
+    training-schedule: "0 2 * * *" # Daily at 2 AM
+    training-data-window-days: 30
+    validation-split: 0.2
+    test-split: 0.1
+    
+    # Model hyperparameters
+    hyperparameters:
+      learning-rate: 0.001
+      batch-size: 32
+      epochs: 100
+      early-stopping-patience: 10
+      
+    # Feature selection
+    feature-selection:
+      enabled: true
+      method: "recursive_feature_elimination"
+      target-features: 20
+      
+  # Integration with External Systems
+  integrations:
+    prometheus:
+      enabled: true
+      push-gateway: "${PROMETHEUS_PUSH_GATEWAY:http://prometheus-pushgateway:9091}"
+      
+    grafana:
+      enabled: true
+      dashboard-provisioning: true
+      dashboard-path: "/etc/grafana/dashboards"
+      
+    elasticsearch:
+      enabled: ${ELASTICSEARCH_ENABLED:false}
+      hosts: "${ELASTICSEARCH_HOSTS:http://elasticsearch:9200}"
+      index-pattern: "predictive-scaling-*"
+      
+    aws-cloudwatch:
+      enabled: ${AWS_CLOUDWATCH_ENABLED:false}
+      region: "${AWS_REGION:us-east-1}"
+      namespace: "WaqitiPlatform/PredictiveScaling"
+      
+  # Security and Compliance
+  security:
+    rbac-enabled: true
+    api-key-required: true
+    audit-logging: true
+    
+    # Data encryption
+    encryption:
+      at-rest: true
+      in-transit: true
+      model-encryption: true
+      
+    # Access control
+    access-control:
+      admin-roles: ["scaling-admin", "platform-admin"]
+      readonly-roles: ["scaling-viewer", "developer"]
+      
+  # Development and Testing
+  development:
+    mock-mode: ${PREDICTIVE_SCALING_MOCK_MODE:false}
+    simulation-mode: ${PREDICTIVE_SCALING_SIMULATION_MODE:false}
+    debug-logging: ${PREDICTIVE_SCALING_DEBUG:false}
+    metrics-export: ${PREDICTIVE_SCALING_METRICS_EXPORT:false}
+
+logging:
+  level:
+    com.waqiti.scaling: INFO
+    org.springframework.web: INFO
+    org.springframework.kafka: INFO
+    org.hibernate.SQL: INFO
+    org.hibernate.type.descriptor.sql.BasicBinder: INFO
+    org.springframework.security: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

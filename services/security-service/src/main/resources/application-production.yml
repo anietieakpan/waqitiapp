@@ -1,0 +1,72 @@
+# Production database configuration for security service (compliance-critical)
+spring:
+  datasource:
+    hikari:
+      enabled: true
+      # Security service settings (compliance and monitoring)
+      maximum-pool-size: 30           # Moderate pool for security operations
+      minimum-idle: 8                 # Conservative minimum for security
+      connection-timeout: 25000       # 25 seconds timeout
+      idle-timeout: 600000           # 10 minutes idle
+      max-lifetime: 1800000          # 30 minutes lifetime
+      validation-timeout: 5000       # 5 seconds validation
+      leak-detection-threshold: 45000 # 45 seconds leak detection
+      
+      # Security and audit trail reliability
+      register-mbeans: true
+      
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        # Security-focused settings
+        jdbc.batch_size: 20           # Conservative batching for security
+        order_inserts: true
+        order_updates: true
+        
+        # Audit trail optimization
+        envers.audit_table_suffix: _audit
+        envers.revision_field_name: revision_id
+        envers.revision_type_field_name: revision_type
+        
+        # Cache settings (conservative for security)
+        cache.use_second_level_cache: false  # Disabled for security data
+        cache.use_query_cache: false
+        
+        # Statistics for compliance reporting
+        generate_statistics: true
+        
+        # Transaction settings for compliance
+        connection.autocommit: false
+
+# Security service monitoring (enhanced for compliance)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics,hikaricp,security,audit
+  endpoint:
+    health:
+      show-details: when-authorized
+    hikaricp:
+      enabled: true
+    security:
+      enabled: true
+    audit:
+      enabled: true
+
+# Security service logging (detailed for compliance)
+logging:
+  level:
+    com.zaxxer.hikari: INFO
+    com.waqiti.security: DEBUG       # Detailed security logging
+    org.springframework.security: INFO
+    org.hibernate.envers: INFO      # Audit logging
+    root: INFO
+    
+  # Separate log file for security events
+  file:
+    name: logs/security-service.log
+  pattern:
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"

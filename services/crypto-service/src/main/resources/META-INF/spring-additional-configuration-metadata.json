@@ -1,0 +1,383 @@
+{
+  "properties": [
+    {
+      "name": "crypto.blockchain.bitcoin.network",
+      "type": "java.lang.String",
+      "description": "Bitcoin network to connect to (mainnet, testnet, regtest)",
+      "defaultValue": "testnet"
+    },
+    {
+      "name": "crypto.blockchain.bitcoin.rpc-url",
+      "type": "java.lang.String",
+      "description": "Bitcoin RPC endpoint URL",
+      "defaultValue": "http://localhost:18332"
+    },
+    {
+      "name": "crypto.blockchain.bitcoin.rpc-username",
+      "type": "java.lang.String",
+      "description": "Bitcoin RPC username",
+      "defaultValue": "bitcoin"
+    },
+    {
+      "name": "crypto.blockchain.bitcoin.rpc-password",
+      "type": "java.lang.String",
+      "description": "Bitcoin RPC password"
+    },
+    {
+      "name": "crypto.blockchain.bitcoin.confirmations-required",
+      "type": "java.lang.Integer",
+      "description": "Number of confirmations required for Bitcoin transactions",
+      "defaultValue": 6
+    },
+    {
+      "name": "crypto.blockchain.bitcoin.fee-rate-sat-per-byte",
+      "type": "java.lang.Integer",
+      "description": "Bitcoin transaction fee rate in satoshis per byte",
+      "defaultValue": 10
+    },
+    {
+      "name": "crypto.blockchain.ethereum.network",
+      "type": "java.lang.String",
+      "description": "Ethereum network to connect to (mainnet, sepolia, goerli, ganache)",
+      "defaultValue": "sepolia"
+    },
+    {
+      "name": "crypto.blockchain.ethereum.rpc-url",
+      "type": "java.lang.String",
+      "description": "Ethereum RPC endpoint URL",
+      "defaultValue": "https://sepolia.infura.io/v3/YOUR_PROJECT_ID"
+    },
+    {
+      "name": "crypto.blockchain.ethereum.confirmations-required",
+      "type": "java.lang.Integer",
+      "description": "Number of confirmations required for Ethereum transactions",
+      "defaultValue": 12
+    },
+    {
+      "name": "crypto.blockchain.ethereum.gas-price-gwei",
+      "type": "java.lang.Integer",
+      "description": "Default gas price in Gwei",
+      "defaultValue": 20
+    },
+    {
+      "name": "crypto.blockchain.ethereum.gas-limit",
+      "type": "java.lang.Integer",
+      "description": "Default gas limit for transactions",
+      "defaultValue": 21000
+    },
+    {
+      "name": "crypto.blockchain.litecoin.network",
+      "type": "java.lang.String",
+      "description": "Litecoin network to connect to (mainnet, testnet, regtest)",
+      "defaultValue": "testnet"
+    },
+    {
+      "name": "crypto.blockchain.litecoin.rpc-url",
+      "type": "java.lang.String",
+      "description": "Litecoin RPC endpoint URL",
+      "defaultValue": "http://localhost:19332"
+    },
+    {
+      "name": "crypto.blockchain.litecoin.rpc-username",
+      "type": "java.lang.String",
+      "description": "Litecoin RPC username",
+      "defaultValue": "litecoin"
+    },
+    {
+      "name": "crypto.blockchain.litecoin.rpc-password",
+      "type": "java.lang.String",
+      "description": "Litecoin RPC password"
+    },
+    {
+      "name": "crypto.blockchain.litecoin.confirmations-required",
+      "type": "java.lang.Integer",
+      "description": "Number of confirmations required for Litecoin transactions",
+      "defaultValue": 6
+    },
+    {
+      "name": "crypto.blockchain.litecoin.fee-rate-sat-per-byte",
+      "type": "java.lang.Integer",
+      "description": "Litecoin transaction fee rate in satoshis per byte",
+      "defaultValue": 5
+    },
+    {
+      "name": "crypto.aws.kms.region",
+      "type": "java.lang.String",
+      "description": "AWS region for KMS",
+      "defaultValue": "us-east-1"
+    },
+    {
+      "name": "crypto.aws.kms.master-key-id",
+      "type": "java.lang.String",
+      "description": "AWS KMS master key ID or alias",
+      "defaultValue": "alias/waqiti-crypto-master"
+    },
+    {
+      "name": "crypto.aws.kms.hot-wallet-key-prefix",
+      "type": "java.lang.String",
+      "description": "Prefix for hot wallet KMS keys",
+      "defaultValue": "waqiti-hot-wallet"
+    },
+    {
+      "name": "crypto.aws.kms.access-key-id",
+      "type": "java.lang.String",
+      "description": "AWS access key ID"
+    },
+    {
+      "name": "crypto.aws.kms.secret-access-key",
+      "type": "java.lang.String",
+      "description": "AWS secret access key"
+    },
+    {
+      "name": "crypto.security.multi-sig.required-signatures",
+      "type": "java.lang.Integer",
+      "description": "Number of signatures required for multi-sig transactions",
+      "defaultValue": 2
+    },
+    {
+      "name": "crypto.security.multi-sig.total-signatures",
+      "type": "java.lang.Integer",
+      "description": "Total number of possible signatures for multi-sig",
+      "defaultValue": 3
+    },
+    {
+      "name": "crypto.security.transaction-limits.daily-limit-usd",
+      "type": "java.math.BigDecimal",
+      "description": "Daily transaction limit in USD",
+      "defaultValue": "10000"
+    },
+    {
+      "name": "crypto.security.transaction-limits.monthly-limit-usd",
+      "type": "java.math.BigDecimal",
+      "description": "Monthly transaction limit in USD",
+      "defaultValue": "50000"
+    },
+    {
+      "name": "crypto.security.transaction-limits.single-transaction-limit-usd",
+      "type": "java.math.BigDecimal",
+      "description": "Single transaction limit in USD",
+      "defaultValue": "5000"
+    },
+    {
+      "name": "crypto.security.fraud-detection.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable fraud detection system",
+      "defaultValue": true
+    },
+    {
+      "name": "crypto.security.fraud-detection.risk-score-threshold",
+      "type": "java.lang.Integer",
+      "description": "Risk score threshold for manual review",
+      "defaultValue": 75
+    },
+    {
+      "name": "crypto.security.fraud-detection.auto-block-threshold",
+      "type": "java.lang.Integer",
+      "description": "Risk score threshold for automatic blocking",
+      "defaultValue": 90
+    },
+    {
+      "name": "crypto.pricing.sources.coinmarketcap.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable CoinMarketCap price source",
+      "defaultValue": true
+    },
+    {
+      "name": "crypto.pricing.sources.coinmarketcap.api-key",
+      "type": "java.lang.String",
+      "description": "CoinMarketCap API key"
+    },
+    {
+      "name": "crypto.pricing.sources.coinmarketcap.url",
+      "type": "java.lang.String",
+      "description": "CoinMarketCap API URL",
+      "defaultValue": "https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest"
+    },
+    {
+      "name": "crypto.pricing.sources.coingecko.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable CoinGecko price source",
+      "defaultValue": true
+    },
+    {
+      "name": "crypto.pricing.sources.coingecko.api-key",
+      "type": "java.lang.String",
+      "description": "CoinGecko API key"
+    },
+    {
+      "name": "crypto.pricing.sources.coingecko.url",
+      "type": "java.lang.String",
+      "description": "CoinGecko API URL",
+      "defaultValue": "https://api.coingecko.com/api/v3/simple/price"
+    },
+    {
+      "name": "crypto.pricing.refresh-interval-seconds",
+      "type": "java.lang.Integer",
+      "description": "Pricing data refresh interval in seconds",
+      "defaultValue": 30
+    },
+    {
+      "name": "crypto.pricing.cache-ttl-seconds",
+      "type": "java.lang.Integer",
+      "description": "Pricing cache TTL in seconds",
+      "defaultValue": 60
+    },
+    {
+      "name": "crypto.compliance.aml.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable AML compliance checks",
+      "defaultValue": true
+    },
+    {
+      "name": "crypto.compliance.aml.chainalysis.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Chainalysis integration",
+      "defaultValue": false
+    },
+    {
+      "name": "crypto.compliance.aml.chainalysis.api-key",
+      "type": "java.lang.String",
+      "description": "Chainalysis API key"
+    },
+    {
+      "name": "crypto.compliance.aml.chainalysis.api-url",
+      "type": "java.lang.String",
+      "description": "Chainalysis API URL"
+    },
+    {
+      "name": "crypto.compliance.aml.elliptic.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Elliptic integration",
+      "defaultValue": false
+    },
+    {
+      "name": "crypto.compliance.aml.elliptic.api-key",
+      "type": "java.lang.String",
+      "description": "Elliptic API key"
+    },
+    {
+      "name": "crypto.compliance.aml.elliptic.api-url",
+      "type": "java.lang.String",
+      "description": "Elliptic API URL"
+    },
+    {
+      "name": "crypto.compliance.reporting.suspicious-activity-threshold",
+      "type": "java.math.BigDecimal",
+      "description": "Threshold for suspicious activity reporting (SAR)",
+      "defaultValue": "10000"
+    },
+    {
+      "name": "crypto.compliance.reporting.currency-transaction-threshold",
+      "type": "java.math.BigDecimal",
+      "description": "Threshold for currency transaction reporting (CTR)",
+      "defaultValue": "10000"
+    },
+    {
+      "name": "crypto.wallet.hd.purpose",
+      "type": "java.lang.Integer",
+      "description": "HD wallet purpose field (BIP44)",
+      "defaultValue": 44
+    },
+    {
+      "name": "crypto.wallet.hd.coin-type-bitcoin",
+      "type": "java.lang.Integer",
+      "description": "Bitcoin coin type for HD wallet",
+      "defaultValue": 0
+    },
+    {
+      "name": "crypto.wallet.hd.coin-type-ethereum",
+      "type": "java.lang.Integer",
+      "description": "Ethereum coin type for HD wallet",
+      "defaultValue": 60
+    },
+    {
+      "name": "crypto.wallet.hd.coin-type-litecoin",
+      "type": "java.lang.Integer",
+      "description": "Litecoin coin type for HD wallet",
+      "defaultValue": 2
+    },
+    {
+      "name": "crypto.wallet.hd.account",
+      "type": "java.lang.Integer",
+      "description": "HD wallet account index",
+      "defaultValue": 0
+    },
+    {
+      "name": "crypto.wallet.hd.change",
+      "type": "java.lang.Integer",
+      "description": "HD wallet change index",
+      "defaultValue": 0
+    },
+    {
+      "name": "crypto.wallet.auto-sweep.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable automatic sweeping of funds to cold storage",
+      "defaultValue": true
+    },
+    {
+      "name": "crypto.wallet.auto-sweep.threshold-bitcoin",
+      "type": "java.math.BigDecimal",
+      "description": "Bitcoin auto-sweep threshold in BTC",
+      "defaultValue": "0.001"
+    },
+    {
+      "name": "crypto.wallet.auto-sweep.threshold-ethereum",
+      "type": "java.math.BigDecimal",
+      "description": "Ethereum auto-sweep threshold in ETH",
+      "defaultValue": "0.01"
+    },
+    {
+      "name": "crypto.wallet.auto-sweep.threshold-litecoin",
+      "type": "java.math.BigDecimal",
+      "description": "Litecoin auto-sweep threshold in LTC",
+      "defaultValue": "0.1"
+    },
+    {
+      "name": "crypto.api.rate-limiting.requests-per-minute",
+      "type": "java.lang.Integer",
+      "description": "API rate limit per minute",
+      "defaultValue": 100
+    },
+    {
+      "name": "crypto.api.rate-limiting.burst-capacity",
+      "type": "java.lang.Integer",
+      "description": "API rate limit burst capacity",
+      "defaultValue": 200
+    },
+    {
+      "name": "crypto.api.timeouts.blockchain-timeout-seconds",
+      "type": "java.lang.Integer",
+      "description": "Blockchain API timeout in seconds",
+      "defaultValue": 30
+    },
+    {
+      "name": "crypto.api.timeouts.pricing-timeout-seconds",
+      "type": "java.lang.Integer",
+      "description": "Pricing API timeout in seconds",
+      "defaultValue": 10
+    },
+    {
+      "name": "crypto.api.timeouts.compliance-timeout-seconds",
+      "type": "java.lang.Integer",
+      "description": "Compliance API timeout in seconds",
+      "defaultValue": 15
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "OAuth2 client ID for service",
+      "defaultValue": "crypto-service"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "OAuth2 client secret for service"
+    }
+  ]
+}

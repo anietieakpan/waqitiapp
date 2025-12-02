@@ -1,0 +1,138 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ml-service-config
+  namespace: waqiti-system
+  labels:
+    app: ml-service
+    component: backend
+    tier: application
+data:
+  # Database Configuration
+  redis-host: "redis-service.waqiti-system.svc.cluster.local"
+  
+  # Kafka Configuration
+  kafka-bootstrap-servers: "kafka-service.waqiti-system.svc.cluster.local:9092"
+  
+  # Service Discovery
+  eureka-service-url: "http://discovery-service.waqiti-system.svc.cluster.local:8761/eureka/"
+  
+  # InfluxDB Configuration
+  influxdb-url: "http://influxdb-service.waqiti-system.svc.cluster.local:8086"
+  
+  # Neo4j Configuration
+  neo4j-uri: "bolt://neo4j-service.waqiti-system.svc.cluster.local:7687"
+  
+  # Feast Feature Store
+  feast-server: "feast-service.waqiti-system.svc.cluster.local:6566"
+  
+  # External Services
+  fraud-service-url: "http://fraud-detection-service.waqiti-system.svc.cluster.local:8090"
+  risk-service-url: "http://risk-assessment-service.waqiti-system.svc.cluster.local:8091"
+  transaction-service-url: "http://transaction-service.waqiti-system.svc.cluster.local:8092"
+  notification-service-url: "http://notification-service.waqiti-system.svc.cluster.local:8093"
+  
+  # CORS Configuration
+  cors-allowed-origins: "https://app.example.com,https://admin.example.com"
+  
+  # Application Configuration
+  application.yml: |
+    spring:
+      application:
+        name: ml-service
+      profiles:
+        active: production
+      
+      kafka:
+        topics:
+          fraud-detection: fraud-detection-events
+          risk-scoring: risk-scoring-events
+          model-inference: model-inference-events
+          transaction-analysis: transaction-analysis-events
+    
+    ml:
+      models:
+        fraud-detection:
+          enabled: true
+          batch-size: 100
+          confidence-threshold: 0.7
+          retrain-interval: 24h
+        risk-scoring:
+          enabled: true
+          batch-size: 50
+          confidence-threshold: 0.8
+          retrain-interval: 12h
+        behavioral-analysis:
+          enabled: true
+          batch-size: 200
+          confidence-threshold: 0.75
+          retrain-interval: 6h
+        pattern-recognition:
+          enabled: true
+          batch-size: 150
+          confidence-threshold: 0.8
+          retrain-interval: 8h
+      
+      feature-store:
+        enabled: true
+        feast:
+          project: waqiti-ml
+          registry: /app/feature-store/registry.db
+          online-store:
+            type: redis
+          offline-store:
+            type: postgres
+      
+      inference:
+        timeout: 5s
+        max-concurrent-requests: 500
+        queue-capacity: 5000
+        thread-pool-size: 50
+        batch-processing:
+          enabled: true
+          batch-size: 50
+          max-wait-time: 1s
+      
+      training:
+        enabled: true
+        schedule: "0 2 * * *"
+        data-retention-days: 90
+        model-backup-enabled: true
+      
+      monitoring:
+        model-drift-detection: true
+        performance-tracking: true
+        data-quality-monitoring: true
+        alert-threshold:
+          accuracy-drop: 0.05
+          prediction-drift: 0.1
+          data-quality: 0.8
+    
+    security:
+      enabled: true
+      rate-limiting:
+        enabled: true
+        requests-per-minute: 5000
+        burst-capacity: 500
+    
+    management:
+      endpoints:
+        web:
+          exposure:
+            include: health,info,metrics,prometheus,loggers
+          base-path: /actuator
+      endpoint:
+        health:
+          show-details: always
+      metrics:
+        export:
+          prometheus:
+            enabled: true
+    
+    logging:
+      level:
+        com.waqiti.ml: INFO
+        org.springframework.kafka: WARN
+        org.hibernate: WARN
+      file:
+        name: /app/logs/ml-service.log

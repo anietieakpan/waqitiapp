@@ -1,0 +1,20 @@
+package com.waqiti.common.saga;
+
+/**
+ * Enum for saga event types
+ */
+public enum SagaEventType {
+    SAGA_STARTED,
+    SAGA_COMPLETED,
+    SAGA_FAILED,
+    STEP_STARTED,
+    STEP_COMPLETED,
+    STEP_FAILED,
+    COMPENSATION_STARTED,
+    COMPENSATION_COMPLETED,
+    COMPENSATION_FAILED,
+    SAGA_TIMEOUT,
+    SAGA_CANCELLED,
+    SAGA_STEP_UPDATED,
+    SAGA_STEP_STATE_UPDATED
+}

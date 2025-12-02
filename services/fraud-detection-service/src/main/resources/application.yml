@@ -1,0 +1,405 @@
+server:
+  port: 8091
+  servlet:
+    context-path: /
+
+spring:
+  application:
+    name: fraud-detection-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:production}
+    include: keycloak
+
+  # OAuth2 Resource Server Configuration for Keycloak
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# P1 FIX: Distributed Tracing Configuration
+tracing:
+  enabled: ${TRACING_ENABLED:true}
+
+opentelemetry:
+  enabled: ${OTEL_ENABLED:true}
+  service-name: ${spring.application.name}
+  exporter:
+    type: ${OTEL_EXPORTER_TYPE:otlp}
+    endpoint: ${OTEL_COLLECTOR_ENDPOINT:http://otel-collector:4317}
+  sampler:
+    type: adaptive
+    probability: ${OTEL_SAMPLER_PROBABILITY:0.1}
+  resource:
+    attributes:
+      service.name: ${spring.application.name}
+      service.namespace: waqiti-fintech
+      service.version: ${APPLICATION_VERSION:1.0.0}
+      deployment.environment: ${SPRING_PROFILES_ACTIVE:production}
+  
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:waqiti_fraud}
+    username: ${DB_USERNAME:${vault.database.username:${FRAUD_DB_USERNAME:waqiti_fraud_service}}
+    password: ${DB_PASSWORD:${vault.database.password:${FRAUD_DB_PASSWORD:${spring.datasource.fallback-password:fraud_dev_pass}}}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:30}
+      minimum-idle: ${DB_POOL_MIN_IDLE:10}
+      idle-timeout: ${DB_IDLE_TIMEOUT:300000}
+      connection-timeout: ${DB_CONNECTION_TIMEOUT:20000}
+      validation-timeout: ${DB_VALIDATION_TIMEOUT:5000}
+      max-lifetime: ${DB_MAX_LIFETIME:1200000}
+      leak-detection-threshold: ${DB_LEAK_DETECTION_THRESHOLD:60000}
+      pool-name: ${DB_POOL_NAME:fraud-detection-service-db-pool}
+      initialization-fail-timeout: ${DB_INIT_FAIL_TIMEOUT:1}
+      connection-test-query: SELECT 1
+  
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        use_sql_comments: true
+        jdbc:
+          batch_size: 50
+          order_inserts: true
+          order_updates: true
+        cache:
+          use_second_level_cache: true
+          use_query_cache: true
+  
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+  
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:${vault.redis.password:}}
+      database: 0
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 20
+          max-idle: 10
+          min-idle: 5
+          max-wait: 2000ms
+        shutdown-timeout: 200ms
+
+  # Neo4j Configuration (Graph Database for Fraud Rings)
+  neo4j:
+    uri: ${NEO4J_URI:bolt://localhost:7687}
+    authentication:
+      username: ${NEO4J_USERNAME:neo4j}
+      password: ${NEO4J_PASSWORD:${vault.neo4j.password}}
+    connection-timeout: 30s
+    max-transaction-retry-time: 30s
+
+  # Cache Configuration
+  cache:
+    type: redis
+    redis:
+      time-to-live: 3600000 # 1 hour
+      cache-null-values: false
+    cache-names:
+      - customerProfiles
+      - merchantProfiles
+      - deviceProfiles
+      - locationProfiles
+      - deviceRiskAssessment
+      - locationRiskAssessment
+  
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false
+        # P1 FIX: Kafka Tracing Interceptor
+        interceptor.classes: com.example.common.telemetry.kafka.WaqitiKafkaTracingProducerInterceptor
+    consumer:
+      group-id: fraud-detection-service
+      enable-auto-commit: false  # Manual acknowledgment for DLQ support
+      max-poll-records: 50  # Batch size control
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.waqiti.*,java.util.*,java.time.*,java.math.*"
+        spring.json.use.type.headers: false
+        # P1 FIX: Kafka Tracing Interceptor
+        interceptor.classes: com.example.common.telemetry.kafka.WaqitiKafkaTracingConsumerInterceptor
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:${EUREKA_SERVER_URL:https://discovery-service:8761/eureka}/}
+    healthcheck:
+      enabled: true
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+
+logging:
+  level:
+    com.waqiti.fraud: DEBUG
+    org.springframework.kafka: INFO
+    org.hibernate.SQL: ${LOG_LEVEL_SQL:WARN}  # WARN for production
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  logback:
+    rollingpolicy:
+      file-name-pattern: logs/fraud-detection-%d{yyyy-MM-dd}.%i.log
+      max-file-size: 10MB
+      max-history: 30
+
+# Fraud Detection Service Configuration
+fraud:
+  detection:
+    enabled: true
+    real-time-analysis: true
+    batch-processing: true
+    
+  # Velocity Limits
+  velocity:
+    max-transactions-per-minute: 5
+    max-transactions-per-5-minutes: 15
+    max-transactions-per-hour: 50
+    max-transactions-per-day: 200
+    max-amount-per-minute: 10000.00
+    max-amount-per-hour: 50000.00
+    max-amount-per-day: 100000.00
+
+  # Device Detection
+  device:
+    max-users-per-device: 3
+    device-farm-threshold: 10
+    impossible-travel-km-per-hour: 800
+
+  # Location Detection
+  location:
+    vpn-detection-enabled: true
+    impossible-travel-speed: 800 # km/h
+    high-risk-countries:
+      - IR  # Iran
+      - KP  # North Korea
+      - SY  # Syria
+      - CU  # Cuba
+      - SD  # Sudan
+      - MM  # Myanmar
+      - BY  # Belarus
+      - VE  # Venezuela
+      - AF  # Afghanistan
+      - YE  # Yemen
+
+  rules:
+    velocity-check:
+      enabled: true
+      time-window: 60m
+      max-transactions: 10
+      max-amount: 5000.00
+
+    location-check:
+      enabled: true
+      impossible-travel-speed: 800 # km/h
+      
+    pattern-detection:
+      enabled: true
+      suspicious-patterns:
+        - multiple-small-transactions
+        - round-dollar-amounts
+        - rapid-succession
+        
+  scoring:
+    threshold:
+      low: 0.3
+      medium: 0.6
+      high: 0.8
+      block: 0.95
+    
+  ml:
+    # XGBoost Model (Primary)
+    xgboost:
+      enabled: true
+      model-path: ${ML_MODEL_PATH_XGBOOST:/models/xgboost_fraud_model.onnx}
+      feature-count: 50
+      threshold: 0.75
+
+    # Random Forest Model (Secondary)
+    random-forest:
+      enabled: true
+      model-path: ${ML_MODEL_PATH_RF:/models/random_forest_fraud_model.onnx}
+      feature-count: 50
+      threshold: 0.70
+
+    # TensorFlow Model (Tertiary)
+    tensorflow:
+      enabled: false
+      model-path: ${ML_MODEL_PATH_TF:/models/tensorflow_fraud_model}
+      threshold: 0.80
+
+    # Fallback Configuration (CRITICAL - Fail Secure)
+    fallback:
+      enabled: true
+      default-risk-score: 0.70
+      high-value-threshold: 5000.00
+      medium-value-threshold: 1000.00
+
+    # Ensemble Configuration
+    ensemble:
+      enabled: true
+      primary-model: xgboost
+      confidence-threshold: 0.75
+      use-voting: true
+
+    update-frequency: 24h
+    batch-size: 100
+    
+  notification:
+    high-risk-alert: true
+    channels:
+      - email
+      - sms
+      - push
+      
+  quarantine:
+    enabled: true
+    duration: 24h
+    review-required: true
+
+# External Services
+services:
+  ml-service:
+    url: ${ML_SERVICE_URL:http://localhost:8096}
+    timeout: 10s
+  notification-service:
+    url: ${NOTIFICATION_SERVICE_URL:http://localhost:8084}
+    timeout: 5s
+  transaction-service:
+    url: ${TRANSACTION_SERVICE_URL:http://localhost:8087}
+    timeout: 10s
+
+# Circuit Breaker Configuration
+resilience4j:
+  circuitbreaker:
+    instances:
+      ml-service:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 5s
+        failureRateThreshold: 50
+      transaction-service:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        waitDurationInOpenState: 10s
+        failureRateThreshold: 60
+  
+  retry:
+    instances:
+      default:
+        maxAttempts: 3
+        waitDuration: 500ms
+        exponentialBackoffMultiplier: 2
+
+# Keycloak Configuration
+keycloak:
+  enabled: ${KEYCLOAK_ENABLED:true}
+  auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8180}
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  resource: fraud-detection-service
+  bearer-only: true
+  ssl-required: ${KEYCLOAK_SSL_REQUIRED:external}
+  use-resource-role-mappings: true
+  principal-attribute: preferred_username
+  credentials:
+    secret: ${KEYCLOAK_CLIENT_SECRET:${vault.keycloak.fraud-detection-service.client-secret}}
+  public-client: false
+  verify-token-audience: true
+
+# Security Configuration
+security:
+  jwt:
+    secret: ${JWT_SECRET:${vault.jwt.fraud-service.secret}}
+    expiration: 86400000 # 24 hours
+
+---
+spring:
+  profiles: test
+  
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+  
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    database-platform: org.hibernate.dialect.H2Dialect
+  
+  kafka:
+    bootstrap-servers: ${spring.embedded.kafka.brokers}
+
+fraud:
+  ml:
+    enabled: false
+  notification:
+    high-risk-alert: false
+
+---
+spring:
+  profiles: production
+  
+  jpa:
+    show-sql: false
+    properties:
+      hibernate:
+        generate_statistics: false
+
+logging:
+  level:
+    com.waqiti.fraud: INFO
+    org.hibernate.SQL: WARN
+    
+fraud:
+  detection:
+    real-time-analysis: true
+    batch-processing: true
+  ml:
+    enabled: true
+  
+  # SECURITY FIX: Cache Validation Configuration
+  cache:
+    validation:
+      enabled: true
+      integrity-check-interval: 300000  # 5 minutes in milliseconds
+      max-score-deviation: 0.3  # Maximum allowed deviation from average
+      suspicious-pattern-threshold: 5  # Number of identical scores to flag as suspicious
+      cache-ttl-minutes: 15  # Maximum cache age
+      scheduled-check-enabled: true

@@ -1,0 +1,559 @@
+spring:
+  application:
+    name: support-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  
+  cloud:
+    config:
+      uri: ${CONFIG_SERVER_URL:http://localhost:8888}
+      fail-fast: true
+      retry:
+        max-attempts: 3
+  
+  # Database Configuration
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/waqiti_support}
+    username: ${DATABASE_USERNAME:waqiti}
+    password: ${DATABASE_PASSWORD:${VAULT_DATABASE_PASSWORD}}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+  
+  # JPA Configuration
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        jdbc:
+          batch_size: 25
+        order_inserts: true
+        order_updates: true
+        query:
+          in_clause_parameter_padding: true
+    show-sql: false
+  
+  # MongoDB Configuration for chat messages
+  data:
+    mongodb:
+      uri: mongodb://${MONGO_HOST:localhost}:${MONGO_PORT:27017}/${MONGO_DB:support_chat}
+      auto-index-creation: true
+  
+  # Redis Configuration
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+  
+  # Kafka Configuration
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.trusted.packages: "*"
+    consumer:
+      group-id: support-service
+      enable-auto-commit: false  # Manual acknowledgment for DLQ support
+      max-poll-records: 50  # Batch size control
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      auto-offset-reset: earliest
+      properties:
+        spring.json.trusted.packages: "*"
+  
+  # Flyway Configuration
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+  
+  # WebSocket Configuration
+  websocket:
+    message-broker:
+      relay-host: ${WEBSOCKET_RELAY_HOST:localhost}
+      relay-port: ${WEBSOCKET_RELAY_PORT:61613}
+      client-login: ${WEBSOCKET_CLIENT_LOGIN:guest}
+      client-passcode: ${WEBSOCKET_CLIENT_PASSCODE:guest}
+      system-login: ${WEBSOCKET_SYSTEM_LOGIN:guest}
+      system-passcode: ${WEBSOCKET_SYSTEM_PASSCODE:guest}
+  
+  # Elasticsearch Configuration
+  elasticsearch:
+    uris: ${ELASTICSEARCH_URIS:http://localhost:9200}
+    username: ${ELASTICSEARCH_USERNAME:}
+    password: ${ELASTICSEARCH_PASSWORD:}
+    connection-timeout: 5s
+    socket-timeout: 30s
+  
+  # AI Configuration
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY:PRODUCTION_OPENAI_KEY_REQUIRED}
+      fallback-enabled: true
+      offline-mode: ${AI_OFFLINE_MODE:false}
+      chat:
+        options:
+          model: ${AI_CHAT_MODEL:gpt-4}
+          temperature: 0.7
+          max-tokens: 500
+          presence-penalty: 0.0
+          frequency-penalty: 0.0
+      embedding:
+        options:
+          model: ${AI_EMBEDDING_MODEL:text-embedding-ada-002}
+          dimensions: 1536
+    vectorstore:
+      type: ${VECTOR_STORE_TYPE:redis} # redis, pinecone, chroma
+      redis:
+        index-name: support-knowledge
+        prefix: "doc:"
+        distance-metric: COSINE
+    nlp:
+      enabled: true
+      language-detection: true
+      sentiment-analysis: true
+      entity-extraction: true
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:${EUREKA_SERVER_URL:https://discovery-service:8761/eureka}/}
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+    metadata-map:
+      version: ${info.version}
+      region: ${DEPLOYMENT_REGION:us-east-1}
+
+server:
+  port: ${PORT:8090}
+  servlet:
+    context-path: /api/v1
+  error:
+    include-message: always
+    include-binding-errors: always
+
+# Keycloak Configuration - CRITICAL SECURITY IMPLEMENTATION
+keycloak:
+  enabled: true
+  realm: waqiti-fintech
+  auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}
+  ssl-required: external
+  resource: support-service
+  bearer-only: true
+  use-resource-role-mappings: true
+  cors: true
+  cors-allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+  cors-allowed-headers: Authorization,Content-Type,X-Requested-With,X-Support-Session-Id
+  cors-max-age: 3600
+  public-client: false
+  credentials:
+    secret: ${KEYCLOAK_CLIENT_SECRET:}
+
+# Spring Security OAuth2 Configuration
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti
+          jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/certs
+      client:
+        registration:
+          keycloak:
+            client-id: support-service
+            client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+            authorization-grant-type: client_credentials
+            scope: openid,profile,email,support
+        provider:
+          keycloak:
+            issuer-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti
+            token-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/token
+            authorization-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/auth
+            userinfo-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/userinfo
+            jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/certs
+
+# Service-to-Service Authentication
+service:
+  auth:
+    enabled: true
+    client-id: support-service
+    client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+
+# Support Service Specific Configuration
+support:
+  ticket:
+    auto-assignment:
+      enabled: true
+      max-tickets-per-agent: 10
+    sla:
+      critical: 4 # hours
+      high: 8
+      medium: 24
+      low: 48
+    escalation:
+      enabled: true
+      threshold: 0.8 # 80% of SLA
+  
+  chat:
+    max-message-length: 1000
+    typing-indicator-timeout: 5000 # ms
+    session-timeout: 1800000 # 30 minutes
+    max-concurrent-chats-per-agent: 5
+  
+  ai:
+    enabled: true
+    confidence-threshold: 0.75
+    handoff-threshold: 0.5
+    max-context-messages: 10
+    auto-resolution:
+      enabled: true
+      min-confidence: 0.85
+    response-templates:
+      enabled: true
+      cache-ttl: 3600
+    intent-classification:
+      model: support-intent-classifier
+      threshold: 0.7
+    categories:
+      - account
+      - payment
+      - security
+      - technical
+      - general
+  
+  rate-limiting:
+    enabled: true
+    chat:
+      requests-per-minute: 60
+      burst-capacity: 100
+    knowledge:
+      requests-per-minute: 120
+      burst-capacity: 200
+    tickets:
+      requests-per-minute: 30
+      burst-capacity: 50
+  
+  knowledge-base:
+    cache-ttl: 3600 # seconds
+    search-limit: 10
+    min-score: 0.5
+  
+  file-upload:
+    max-size: 10485760 # 10MB
+    allowed-types:
+      - image/jpeg
+      - image/png
+      - image/gif
+      - application/pdf
+      - text/plain
+    storage-path: ${FILE_STORAGE_PATH:/var/waqiti/support/attachments}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # Expose all actuator endpoints for monitoring
+        include: health,info,metrics,prometheus,circuitbreakers,circuitbreakerevents,env,loggers
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+      show-components: when-authorized
+      probes:
+        enabled: true  # Enable liveness and readiness probes
+      group:
+        liveness:
+          include: livenessState,ping
+        readiness:
+          include: readinessState,db,redis,circuitBreakers
+  health:
+    circuitbreakers:
+      enabled: true  # Enable circuit breaker health indicators
+    ratelimiters:
+      enabled: true
+    bulkheads:
+      enabled: true
+    defaults:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+        descriptions: true
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      slo:
+        http.server.requests: 50ms,100ms,200ms,500ms,1s,2s
+    tags:
+      application: ${spring.application.name}
+      environment: ${spring.profiles.active}
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLE_RATE:0.1}  # 10% sampling in production
+
+# Logging Configuration
+logging:
+  level:
+    com.waqiti.support: DEBUG
+    org.springframework.web.socket: DEBUG
+    org.springframework.messaging: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/support-service.log
+
+# Updated Feign Client Configuration for Keycloak
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 5000
+        readTimeout: 5000
+        loggerLevel: FULL
+      user-service:
+        url: ${USER_SERVICE_URL:http://user-service/api/v1}
+      notification-service:
+        url: ${NOTIFICATION_SERVICE_URL:http://notification-service/api/v1}
+
+# Kafka topics
+kafka:
+  topics:
+    ticket-created: support-ticket-created
+    ticket-updated: support-ticket-updated
+    chat-message: support-chat-message
+    agent-assigned: support-agent-assigned
+    escalation-triggered: support-escalation-triggered
+    feedback-received: support-feedback-received
+    notification: notification-events
+
+# Resilience4j Configuration - Production-Grade Circuit Breakers
+resilience4j:
+  circuitbreaker:
+    configs:
+      # Default configuration for all circuit breakers
+      default:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 100
+        minimum-number-of-calls: 10
+        permitted-number-of-calls-in-half-open-state: 5
+        automatic-transition-from-open-to-half-open-enabled: true
+        wait-duration-in-open-state: 60s
+        failure-rate-threshold: 50
+        slow-call-rate-threshold: 100
+        slow-call-duration-threshold: 5s
+        record-exceptions:
+          - org.springframework.web.client.HttpServerErrorException
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+        ignore-exceptions:
+          - com.example.common.exception.BusinessException
+          - org.springframework.security.access.AccessDeniedException
+
+    instances:
+      # CRITICAL: OpenAI service circuit breaker
+      openai-service:
+        base-config: default
+        sliding-window-size: 20
+        minimum-number-of-calls: 10
+        failure-rate-threshold: 60
+        wait-duration-in-open-state: 60s
+        slow-call-duration-threshold: 5s
+        slow-call-rate-threshold: 80
+        permitted-number-of-calls-in-half-open-state: 3
+        event-consumer-buffer-size: 10
+        register-health-indicator: true
+
+      # User service circuit breaker
+      user-service:
+        base-config: default
+        sliding-window-size: 50
+        minimum-number-of-calls: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 5
+        register-health-indicator: true
+
+      # Notification service circuit breaker
+      notification-service:
+        base-config: default
+        sliding-window-size: 30
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 60
+        wait-duration-in-open-state: 45s
+        register-health-indicator: true
+
+      # Database circuit breaker
+      database:
+        base-config: default
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 70
+        wait-duration-in-open-state: 10s
+        slow-call-duration-threshold: 2s
+        register-health-indicator: true
+
+      # Redis circuit breaker
+      redis:
+        base-config: default
+        sliding-window-size: 20
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 60
+        wait-duration-in-open-state: 20s
+        slow-call-duration-threshold: 1s
+        register-health-indicator: true
+
+      # Kafka circuit breaker
+      kafka:
+        base-config: default
+        sliding-window-size: 15
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 70
+        wait-duration-in-open-state: 30s
+        register-health-indicator: true
+
+  # Retry configuration
+  retry:
+    configs:
+      default:
+        max-attempts: 3
+        wait-duration: 500ms
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - org.springframework.web.client.ResourceAccessException
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+        ignore-exceptions:
+          - com.example.common.exception.BusinessException
+
+    instances:
+      openai-service:
+        max-attempts: 3
+        wait-duration: 1s
+        exponential-backoff-multiplier: 2
+        enable-exponential-backoff: true
+
+      user-service:
+        max-attempts: 3
+        wait-duration: 500ms
+        exponential-backoff-multiplier: 2
+
+      notification-service:
+        max-attempts: 3
+        wait-duration: 500ms
+
+      database:
+        max-attempts: 2
+        wait-duration: 100ms
+
+      redis:
+        max-attempts: 2
+        wait-duration: 100ms
+
+  # Time limiter configuration
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 5s
+        cancel-running-future: true
+
+    instances:
+      openai-service:
+        timeout-duration: 10s
+        cancel-running-future: true
+
+      user-service:
+        timeout-duration: 3s
+
+      notification-service:
+        timeout-duration: 5s
+
+      database:
+        timeout-duration: 2s
+
+      redis:
+        timeout-duration: 1s
+
+  # Bulkhead configuration (limit concurrent calls)
+  bulkhead:
+    configs:
+      default:
+        max-concurrent-calls: 25
+        max-wait-duration: 1s
+
+    instances:
+      openai-service:
+        max-concurrent-calls: 10  # Limit AI concurrent requests
+        max-wait-duration: 2s
+
+      user-service:
+        max-concurrent-calls: 50
+
+      database:
+        max-concurrent-calls: 100
+
+  # Rate limiter configuration
+  ratelimiter:
+    configs:
+      default:
+        limit-for-period: 100
+        limit-refresh-period: 1s
+        timeout-duration: 0s
+
+    instances:
+      openai-service:
+        limit-for-period: 10  # 10 requests per second to OpenAI
+        limit-refresh-period: 1s
+
+# GDPR Compliance Configuration
+gdpr:
+  # Data retention settings
+  data-retention:
+    default-days: 90  # Default retention period before permanent deletion
+    legal-hold-days: 2555  # 7 years for legal compliance
+
+  # Data export settings
+  export:
+    include-deleted: false  # Whether to include soft-deleted data in exports
+    max-export-size-mb: 100  # Maximum export file size
+
+  # Scheduler settings
+  scheduler:
+    enabled: true  # Enable automatic data retention cleanup
+    dry-run: false  # Set to true to simulate deletions without actual deletion
+    cron: "0 0 2 * * *"  # Daily at 2:00 AM
+    report-cron: "0 0 10 * * SUN"  # Weekly report on Sundays at 10:00 AM
+    audit-cron: "0 0 9 1 * *"  # Monthly audit on 1st at 9:00 AM
+
+  # Audit logging
+  audit:
+    enabled: true
+    retention-days: 2555  # 7 years audit log retention
+
+  # Data protection officer contact
+  dpo:
+    email: dpo@example.com
+    name: "Data Protection Officer"

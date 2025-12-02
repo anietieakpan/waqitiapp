@@ -1,0 +1,541 @@
+name: CI/CD - Payment Service
+
+on:
+  push:
+    branches: [main, develop, 'release/**']
+    paths:
+      - 'services/payment-service/**'
+      - 'services/common/**'
+      - '.github/workflows/ci-payment-service.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'services/payment-service/**'
+      - 'services/common/**'
+
+env:
+  JAVA_VERSION: '17'
+  MAVEN_OPTS: '-Xmx3g -XX:+TieredCompilation -XX:TieredStopAtLevel=1'
+  SERVICE_NAME: payment-service
+  AWS_REGION: us-west-2
+  ECR_REGISTRY: ${{ secrets.AWS_ECR_REGISTRY }}
+  EKS_CLUSTER: waqiti-production
+
+jobs:
+  # Code Quality & Security Checks
+  code-quality:
+    name: Code Quality & Security
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for SonarQube
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+          cache: 'maven'
+
+      - name: Cache SonarQube packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+
+      - name: Run Maven Verify
+        run: |
+          cd services/payment-service
+          mvn clean verify -P all-tests -DskipITs=false
+
+      - name: SonarQube Scan
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        run: |
+          cd services/payment-service
+          mvn sonar:sonar \
+            -Dsonar.projectKey=waqiti-payment-service \
+            -Dsonar.host.url=${{ env.SONAR_HOST_URL }} \
+            -Dsonar.login=${{ secrets.SONAR_TOKEN }} \
+            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
+            -Dsonar.java.coveragePlugin=jacoco
+
+      - name: OWASP Dependency Check
+        run: |
+          cd services/payment-service
+          mvn dependency-check:check \
+            -DfailBuildOnCVSS=7 \
+            -DsuppressionFile=../../owasp-suppressions.xml
+
+      - name: Upload OWASP Report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: owasp-dependency-check-report
+          path: services/payment-service/target/dependency-check-report.html
+
+      - name: SpotBugs Analysis
+        run: |
+          cd services/payment-service
+          mvn com.github.spotbugs:spotbugs-maven-plugin:4.8.0:check \
+            -Dspotbugs.effort=Max \
+            -Dspotbugs.threshold=Low
+
+      - name: PMD Source Code Analyzer
+        run: |
+          cd services/payment-service
+          mvn pmd:check
+
+      - name: Checkstyle
+        run: |
+          cd services/payment-service
+          mvn checkstyle:check
+
+      - name: License Check
+        run: |
+          cd services/payment-service
+          mvn license:check
+
+  # Unit & Integration Tests
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: code-quality
+
+    strategy:
+      matrix:
+        test-suite: [unit, integration, contract]
+      fail-fast: false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+          cache: 'maven'
+
+      - name: Start Test Infrastructure (Integration Tests)
+        if: matrix.test-suite == 'integration'
+        run: |
+          docker-compose -f docker-compose.test.yml up -d postgres redis kafka
+          sleep 10  # Wait for services to be ready
+
+      - name: Run ${{ matrix.test-suite }} Tests
+        run: |
+          cd services/payment-service
+          case "${{ matrix.test-suite }}" in
+            unit)
+              mvn test -P unit-tests
+              ;;
+            integration)
+              mvn verify -P integration-tests
+              ;;
+            contract)
+              mvn verify -P contract-tests
+              ;;
+          esac
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-results-${{ matrix.test-suite }}
+          path: |
+            services/payment-service/target/surefire-reports/
+            services/payment-service/target/failsafe-reports/
+
+      - name: Upload Coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: services/payment-service/target/site/jacoco/jacoco.xml
+          flags: ${{ matrix.test-suite }}
+          name: ${{ matrix.test-suite }}-coverage
+
+      - name: Cleanup Test Infrastructure
+        if: always() && matrix.test-suite == 'integration'
+        run: docker-compose -f docker-compose.test.yml down -v
+
+  # Build & Push Docker Image
+  build:
+    name: Build & Push Image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [code-quality, test]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.docker-build.outputs.digest }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+          cache: 'maven'
+
+      - name: Build Application
+        run: |
+          cd services/payment-service
+          mvn clean package -DskipTests -Dmaven.test.skip=true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.ECR_REGISTRY }}/${{ env.SERVICE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and Push Docker image
+        id: docker-build
+        uses: docker/build-push-action@v5
+        with:
+          context: services/payment-service
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+            VCS_REF=${{ github.sha }}
+            VERSION=${{ steps.meta.outputs.version }}
+          platforms: linux/amd64
+
+      - name: Scan image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ steps.meta.outputs.tags }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Sign image with Cosign
+        env:
+          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
+          COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+        run: |
+          echo "$COSIGN_PRIVATE_KEY" > cosign.key
+          cosign sign --key cosign.key \
+            ${{ env.ECR_REGISTRY }}/${{ env.SERVICE_NAME }}@${{ steps.docker-build.outputs.digest }}
+          rm cosign.key
+
+  # Deploy to Staging
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: build
+    if: github.ref == 'refs/heads/develop'
+    environment:
+      name: staging
+      url: https://staging-api.example.com
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig \
+            --name waqiti-staging \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl set image deployment/${{ env.SERVICE_NAME }} \
+            ${{ env.SERVICE_NAME }}=${{ needs.build.outputs.image-tag }} \
+            -n staging
+
+          kubectl rollout status deployment/${{ env.SERVICE_NAME }} \
+            -n staging \
+            --timeout=5m
+
+      - name: Run Smoke Tests
+        run: |
+          ./scripts/smoke-tests.sh staging ${{ env.SERVICE_NAME }}
+
+      - name: Notify Slack
+        if: always()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          text: |
+            Payment Service deployment to Staging: ${{ job.status }}
+            Commit: ${{ github.sha }}
+            Author: ${{ github.actor }}
+          webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  # Deploy to Production (with approval)
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: production
+      url: https://api.example.com
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_PRODUCTION_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_PRODUCTION_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig \
+            --name ${{ env.EKS_CLUSTER }} \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Blue-Green Deployment - Create Green Environment
+        run: |
+          # Create green deployment
+          kubectl apply -f k8s/production/${{ env.SERVICE_NAME }}-green-deployment.yaml
+
+          # Wait for green to be ready
+          kubectl rollout status deployment/${{ env.SERVICE_NAME }}-green \
+            -n production \
+            --timeout=10m
+
+      - name: Run Production Smoke Tests (Green)
+        run: |
+          ./scripts/smoke-tests.sh production-green ${{ env.SERVICE_NAME }}
+
+      - name: Run Load Tests (Green)
+        run: |
+          ./scripts/load-tests.sh production-green ${{ env.SERVICE_NAME }} 1000
+
+      - name: Verify Metrics (Green)
+        run: |
+          ./scripts/verify-metrics.sh production-green ${{ env.SERVICE_NAME }}
+
+      - name: Switch Traffic to Green
+        run: |
+          # Update service selector to green
+          kubectl patch service ${{ env.SERVICE_NAME }} \
+            -n production \
+            -p '{"spec":{"selector":{"version":"green"}}}'
+
+          # Wait 2 minutes for traffic to switch
+          sleep 120
+
+      - name: Verify Production Health
+        run: |
+          ./scripts/health-check.sh production ${{ env.SERVICE_NAME }}
+
+      - name: Monitor Error Rates (5 minutes)
+        run: |
+          ./scripts/monitor-errors.sh production ${{ env.SERVICE_NAME }} 300
+
+      - name: Rollback on Failure
+        if: failure()
+        run: |
+          echo "Deployment failed, rolling back..."
+          kubectl patch service ${{ env.SERVICE_NAME }} \
+            -n production \
+            -p '{"spec":{"selector":{"version":"blue"}}}'
+
+          kubectl delete deployment ${{ env.SERVICE_NAME }}-green -n production
+
+      - name: Cleanup Blue Deployment (after success)
+        if: success()
+        run: |
+          # Mark current green as new blue
+          kubectl label deployment ${{ env.SERVICE_NAME }}-green \
+            version=blue --overwrite \
+            -n production
+
+          kubectl delete deployment ${{ env.SERVICE_NAME }}-blue \
+            -n production \
+            --ignore-not-found=true
+
+      - name: Create GitHub Release
+        if: success()
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.SERVICE_NAME }}-v${{ github.run_number }}
+          release_name: Payment Service Release ${{ github.run_number }}
+          body: |
+            ## Payment Service Production Deployment
+
+            **Commit:** ${{ github.sha }}
+            **Author:** ${{ github.actor }}
+            **Image:** ${{ needs.build.outputs.image-tag }}
+            **Digest:** ${{ needs.build.outputs.image-digest }}
+
+            ### Changes
+            ${{ github.event.head_commit.message }}
+          draft: false
+          prerelease: false
+
+      - name: Update Deployment Tracking
+        run: |
+          curl -X POST ${{ secrets.DEPLOYMENT_TRACKER_URL }} \
+            -H "Authorization: Bearer ${{ secrets.DEPLOYMENT_TRACKER_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "service": "${{ env.SERVICE_NAME }}",
+              "version": "${{ needs.build.outputs.image-tag }}",
+              "environment": "production",
+              "deployed_by": "${{ github.actor }}",
+              "commit": "${{ github.sha }}",
+              "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
+            }'
+
+      - name: Notify Teams
+        if: always()
+        run: |
+          STATUS="${{ job.status }}"
+          COLOR=$( [ "$STATUS" == "success" ] && echo "good" || echo "danger" )
+
+          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+            -H 'Content-Type: application/json' \
+            -d '{
+              "attachments": [{
+                "color": "'$COLOR'",
+                "title": "Payment Service Production Deployment: '$STATUS'",
+                "fields": [
+                  {"title": "Service", "value": "${{ env.SERVICE_NAME }}", "short": true},
+                  {"title": "Environment", "value": "Production", "short": true},
+                  {"title": "Version", "value": "${{ needs.build.outputs.image-tag }}", "short": true},
+                  {"title": "Deployed By", "value": "${{ github.actor }}", "short": true},
+                  {"title": "Commit", "value": "${{ github.sha }}", "short": false}
+                ],
+                "footer": "Waqiti CI/CD",
+                "ts": '$(date +%s)'
+              }]
+            }'
+
+  # Performance Testing
+  performance-test:
+    name: Performance Testing
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: deploy-staging
+    if: github.ref == 'refs/heads/develop'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+
+      - name: Run JMeter Load Tests
+        run: |
+          wget https://archive.apache.org/dist/jmeter/binaries/apache-jmeter-5.6.2.tgz
+          tar -xzf apache-jmeter-5.6.2.tgz
+
+          ./apache-jmeter-5.6.2/bin/jmeter -n \
+            -t tests/performance/payment-service-load-test.jmx \
+            -l results/jmeter-results.jtl \
+            -e -o results/jmeter-report \
+            -Jhostname=staging-api.example.com \
+            -Jthreads=100 \
+            -Jrampup=60 \
+            -Jduration=300
+
+      - name: Upload Performance Results
+        uses: actions/upload-artifact@v3
+        with:
+          name: performance-results
+          path: results/
+
+      - name: Analyze Results
+        run: |
+          python3 scripts/analyze-performance.py \
+            results/jmeter-results.jtl \
+            --threshold-p95=2000 \
+            --threshold-error-rate=1
+
+  # Security Scanning
+  security:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: build
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Snyk Security Scan
+        uses: snyk/actions/maven@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high --fail-on=upgradable
+
+      - name: SAST with Semgrep
+        run: |
+          pip3 install semgrep
+          semgrep --config=auto \
+            --json \
+            --output=semgrep-results.json \
+            services/payment-service/src
+
+      - name: Container Image Scanning with Grype
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
+          grype ${{ needs.build.outputs.image-tag }} \
+            --fail-on high \
+            --output json \
+            --file grype-results.json

@@ -1,0 +1,308 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: currency-service-config
+  namespace: example-prod
+  labels:
+    app: currency-service
+    environment: production
+    config-version: "1.0.0"
+data:
+  # Application Configuration
+  application.yml: |
+    server:
+      port: 8080
+      shutdown: graceful
+      
+    management:
+      endpoint:
+        health:
+          probes:
+            enabled: true
+        prometheus:
+          enabled: true
+      endpoints:
+        web:
+          exposure:
+            include: health,info,metrics,prometheus
+      server:
+        port: 8081
+      metrics:
+        export:
+          prometheus:
+            enabled: true
+        distribution:
+          percentiles-histogram:
+            http.server.requests: true
+          
+    spring:
+      profiles:
+        active: production
+      application:
+        name: currency-service
+      
+      # Database Configuration
+      datasource:
+        hikari:
+          maximum-pool-size: 20
+          minimum-idle: 5
+          idle-timeout: 300000
+          max-lifetime: 1200000
+          connection-timeout: 20000
+          leak-detection-threshold: 60000
+        
+      # JPA Configuration
+      jpa:
+        hibernate:
+          ddl-auto: validate
+        show-sql: false
+        properties:
+          hibernate:
+            dialect: org.hibernate.dialect.PostgreSQLDialect
+            format_sql: true
+            jdbc:
+              batch_size: 20
+            order_inserts: true
+            order_updates: true
+            
+      # Kafka Configuration
+      kafka:
+        bootstrap-servers: kafka-cluster.kafka:9092
+        consumer:
+          group-id: currency-service-group
+          auto-offset-reset: earliest
+          enable-auto-commit: false
+          properties:
+            isolation.level: read_committed
+        producer:
+          acks: all
+          retries: 3
+          properties:
+            enable.idempotence: true
+            
+      # Redis Configuration
+      redis:
+        host: redis-cluster.redis
+        port: 6379
+        timeout: 2000ms
+        lettuce:
+          pool:
+            max-active: 8
+            max-idle: 8
+            min-idle: 0
+            
+      # Circuit Breaker Configuration
+      cloud:
+        circuitbreaker:
+          resilience4j:
+            enabled: true
+            
+    # Resilience4j Configuration
+    resilience4j:
+      circuitbreaker:
+        instances:
+          default:
+            sliding-window-size: 100
+            minimum-number-of-calls: 10
+            failure-rate-threshold: 50
+            wait-duration-in-open-state: 30s
+            permitted-number-of-calls-in-half-open-state: 5
+      retry:
+        instances:
+          default:
+            max-attempts: 3
+            wait-duration: 1000ms
+            exponential-backoff-multiplier: 2
+      bulkhead:
+        instances:
+          default:
+            max-concurrent-calls: 10
+            max-wait-duration: 100ms
+            
+    # Logging Configuration  
+    logging:
+      level:
+        com.waqiti: INFO
+        org.springframework.security: INFO
+        org.hibernate.SQL: ERROR
+        org.hibernate.type.descriptor.sql.BasicBinder: ERROR
+      pattern:
+        console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%logger{36}] - %msg%n"
+        file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%logger{36}] - %msg%n"
+      file:
+        name: /app/logs/currency-service.log
+        max-size: 100MB
+        max-history: 30
+        
+    # Security Configuration
+    security:
+      jwt:
+        secret: ${JWT_SECRET}
+        expiration: 86400
+      cors:
+        allowed-origins: 
+          - "https://app.example.com"
+          - "https://admin.example.com"
+        allowed-methods: 
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - OPTIONS
+        allowed-headers: "*"
+        allow-credentials: true
+        
+    # Keycloak Configuration
+    keycloak:
+      auth-server-url: https://auth.example.com
+      realm: waqiti-realm
+      resource: currency-service-client
+      credentials:
+        secret: ${KEYCLOAK_CLIENT_SECRET}
+      ssl-required: external
+      use-resource-role-mappings: true
+      
+    # Service Discovery
+    eureka:
+      client:
+        enabled: false
+      instance:
+        prefer-ip-address: true
+        
+    # Custom Service Configuration
+    waqiti:
+      service:
+        name: currency-service
+        version: "1.0.0"
+        environment: production
+      features:
+        audit-enabled: true
+        metrics-enabled: true
+        tracing-enabled: true
+      security:
+        rate-limiting:
+          enabled: true
+          requests-per-minute: 1000
+        encryption:
+          enabled: true
+          algorithm: AES-256-GCM
+          
+  # Bootstrap Configuration
+  bootstrap.yml: |
+    spring:
+      application:
+        name: currency-service
+      cloud:
+        vault:
+          enabled: true
+          host: vault.vault
+          port: 8200
+          scheme: https
+          authentication: KUBERNETES
+          kubernetes:
+            role: currency-service
+            service-account-token-file: /var/run/secrets/kubernetes.io/serviceaccount/token
+          
+  # Log4j2 Configuration
+  log4j2.xml: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <Configuration status="WARN">
+      <Appenders>
+        <Console name="Console" target="SYSTEM_OUT">
+          <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>
+        </Console>
+        <RollingFile name="RollingFile" fileName="/app/logs/currency-service.log"
+                     filePattern="/app/logs/currency-service-%d{yyyy-MM-dd}-%i.log.gz">
+          <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>
+          <Policies>
+            <TimeBasedTriggeringPolicy />
+            <SizeBasedTriggeringPolicy size="100MB"/>
+          </Policies>
+          <DefaultRolloverStrategy max="30"/>
+        </RollingFile>
+      </Appenders>
+      <Loggers>
+        <Logger name="com.waqiti" level="INFO"/>
+        <Logger name="org.springframework.security" level="INFO"/>
+        <Logger name="org.hibernate" level="WARN"/>
+        <Root level="INFO">
+          <AppenderRef ref="Console"/>
+          <AppenderRef ref="RollingFile"/>
+        </Root>
+      </Loggers>
+    </Configuration>
+    
+---
+# SECURITY: Migrated to ExternalSecret for production secret management
+# Database credentials are now dynamically fetched from HashiCorp Vault
+# See: infrastructure/terraform/vault-secrets.tf
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: currency-service-db-secret
+  namespace: example-prod
+  labels:
+    app: currency-service
+    environment: production
+    security.example.com/managed-by: vault
+spec:
+  refreshInterval: 15m
+  secretStoreRef:
+    name: vault-backend
+    kind: ClusterSecretStore
+  target:
+    name: currency-service-db-secret
+    creationPolicy: Owner
+  data:
+    - secretKey: url
+      remoteRef:
+        key: secret/database/currency-service
+        property: database_url
+    - secretKey: username
+      remoteRef:
+        key: secret/database/currency-service
+        property: username
+    - secretKey: password
+      remoteRef:
+        key: secret/database/currency-service
+        property: password
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ServiceAccount
+metadata:
+  name: currency-service
+  namespace: example-prod
+  labels:
+    app: currency-service
+    environment: production
+automountServiceAccountToken: true
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: currency-service-role
+  namespace: example-prod
+rules:
+- apiGroups: [""]
+  resources: ["configmaps", "secrets"]
+  verbs: ["get", "list"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: currency-service-binding
+  namespace: example-prod
+subjects:
+- kind: ServiceAccount
+  name: currency-service
+  namespace: example-prod
+roleRef:
+  kind: Role
+  name: currency-service-role
+  apiGroup: rbac.authorization.k8s.io

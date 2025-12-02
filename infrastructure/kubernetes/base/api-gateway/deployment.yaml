@@ -1,0 +1,162 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  namespace: waqiti
+  labels:
+    app: api-gateway
+    version: v1
+    component: gateway
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: api-gateway
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: api-gateway
+        version: v1
+        component: gateway
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      serviceAccountName: api-gateway
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: api-gateway
+        image: waqiti/api-gateway:latest
+        imagePullPolicy: Always
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 10001
+          runAsGroup: 10001
+          capabilities:
+            drop:
+              - ALL
+          seccompProfile:
+            type: RuntimeDefault
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        - containerPort: 8443
+          name: https
+          protocol: TCP
+        - containerPort: 9090
+          name: metrics
+          protocol: TCP
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "kubernetes"
+        - name: JAVA_OPTS
+          value: "-Xms512m -Xmx2g -XX:+UseG1GC -XX:MaxGCPauseMillis=200"
+        - name: SERVER_PORT
+          value: "8080"
+        - name: MANAGEMENT_SERVER_PORT
+          value: "9090"
+        - name: EUREKA_CLIENT_ENABLED
+          value: "true"
+        - name: EUREKA_CLIENT_SERVICE_URL_DEFAULT_ZONE
+          value: "http://discovery-service:8761/eureka/"
+        - name: SPRING_CLOUD_CONFIG_URI
+          value: "http://config-service:8888"
+        - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI
+          value: "http://security-service:8080/auth/realms/waqiti"
+        - name: VAULT_ADDR
+          value: "http://vault:8200"
+        - name: VAULT_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: vault-token
+              key: token
+        - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+          value: "kafka-0.kafka:9092,kafka-1.kafka:9092,kafka-2.kafka:9092"
+        - name: SPRING_REDIS_HOST
+          value: "redis-master"
+        - name: SPRING_REDIS_PORT
+          value: "6379"
+        - name: SPRING_REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-password
+              key: password
+        - name: JAEGER_AGENT_HOST
+          value: "jaeger-agent"
+        - name: JAEGER_AGENT_PORT
+          value: "6831"
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "2000m"
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 9090
+          initialDelaySeconds: 120
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 9090
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        volumeMounts:
+        - name: config
+          mountPath: /app/config
+          readOnly: true
+        - name: tls-certs
+          mountPath: /app/certs
+          readOnly: true
+        - name: tmp
+          mountPath: /tmp
+        - name: var-cache
+          mountPath: /var/cache/app
+        - name: logs
+          mountPath: /app/logs
+      volumes:
+      - name: config
+        configMap:
+          name: api-gateway-config
+      - name: tls-certs
+        secret:
+          secretName: api-gateway-tls
+      - name: tmp
+        emptyDir:
+          sizeLimit: 256Mi
+      - name: var-cache
+        emptyDir:
+          sizeLimit: 512Mi
+      - name: logs
+        emptyDir:
+          sizeLimit: 1Gi
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - api-gateway
+              topologyKey: kubernetes.io/hostname

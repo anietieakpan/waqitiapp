@@ -1,0 +1,83 @@
+{
+  "namespace": "com.waqiti.events.v1.fraud",
+  "type": "record",
+  "name": "FraudCaseCreatedEvent",
+  "doc": "CRITICAL SECURITY EVENT: Fraud case created when suspicious activity is detected",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "Unique identifier for this event (UUID)"
+    },
+    {
+      "name": "eventType",
+      "type": "string",
+      "default": "fraud.case.created",
+      "doc": "Type of event"
+    },
+    {
+      "name": "eventVersion",
+      "type": "string",
+      "default": "1.0.0",
+      "doc": "Event schema version"
+    },
+    {
+      "name": "createdAt",
+      "type": "long",
+      "logicalType": "timestamp-millis",
+      "doc": "Case creation timestamp"
+    },
+    {
+      "name": "correlationId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Correlation ID for tracking"
+    },
+    {
+      "name": "fraudCaseId",
+      "type": "string",
+      "doc": "Unique fraud case identifier (UUID)"
+    },
+    {
+      "name": "userId",
+      "type": "string",
+      "doc": "User under investigation (UUID)"
+    },
+    {
+      "name": "caseType",
+      "type": "string",
+      "doc": "Type of fraud (PAYMENT_FRAUD, IDENTITY_THEFT, ACCOUNT_TAKEOVER, etc.)"
+    },
+    {
+      "name": "severity",
+      "type": {
+        "type": "enum",
+        "name": "FraudSeverity",
+        "symbols": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+      },
+      "doc": "Severity level"
+    },
+    {
+      "name": "riskScore",
+      "type": "int",
+      "doc": "Risk score (0-100)"
+    },
+    {
+      "name": "triggerReason",
+      "type": "string",
+      "doc": "What triggered this fraud case"
+    },
+    {
+      "name": "assignedTo",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Analyst assigned to investigate (UUID)"
+    },
+    {
+      "name": "metadata",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Additional metadata as JSON string"
+    }
+  ]
+}

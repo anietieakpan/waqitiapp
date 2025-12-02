@@ -1,0 +1,67 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: api-gateway-network-policy
+  namespace: waqiti
+spec:
+  podSelector:
+    matchLabels:
+      app: api-gateway
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Allow traffic from ingress controller
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 8080
+  # Allow Prometheus scraping
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    - podSelector:
+        matchLabels:
+          app: prometheus
+    ports:
+    - protocol: TCP
+      port: 8080
+  egress:
+  # Allow access to all microservices
+  - to:
+    - podSelector:
+        matchLabels:
+          tier: microservice
+    ports:
+    - protocol: TCP
+  # Allow access to external APIs
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 80
+  # Allow access to discovery service
+  - to:
+    - podSelector:
+        matchLabels:
+          app: discovery-service
+    ports:
+    - protocol: TCP
+      port: 8761
+  # Allow access to config service
+  - to:
+    - podSelector:
+        matchLabels:
+          app: config-service
+    ports:
+    - protocol: TCP
+      port: 8888

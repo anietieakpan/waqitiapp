@@ -1,0 +1,103 @@
+{
+  "type": "record",
+  "name": "WalletTransactionEvent",
+  "namespace": "com.waqiti.events.avro",
+  "doc": "Schema for wallet transaction events with backward/forward compatibility",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "Unique event identifier (UUID)"
+    },
+    {
+      "name": "eventType",
+      "type": {
+        "type": "enum",
+        "name": "WalletEventType",
+        "symbols": ["CREDITED", "DEBITED", "FROZEN", "UNFROZEN", "CREATED"]
+      },
+      "doc": "Type of wallet event"
+    },
+    {
+      "name": "walletId",
+      "type": "string",
+      "doc": "Wallet identifier (UUID)"
+    },
+    {
+      "name": "userId",
+      "type": "string",
+      "doc": "User identifier (UUID)"
+    },
+    {
+      "name": "transactionId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Transaction identifier if applicable"
+    },
+    {
+      "name": "amount",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 19,
+        "scale": 4
+      },
+      "doc": "Transaction amount (BigDecimal as bytes)"
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "default": "USD",
+      "doc": "Currency code (ISO 4217)"
+    },
+    {
+      "name": "balanceBefore",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 19,
+        "scale": 4
+      },
+      "doc": "Balance before transaction"
+    },
+    {
+      "name": "balanceAfter",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 19,
+        "scale": 4
+      },
+      "doc": "Balance after transaction"
+    },
+    {
+      "name": "timestamp",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "Event timestamp (epoch millis)"
+    },
+    {
+      "name": "correlationId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Correlation ID for distributed tracing"
+    },
+    {
+      "name": "metadata",
+      "type": ["null", {
+        "type": "map",
+        "values": "string"
+      }],
+      "default": null,
+      "doc": "Additional metadata as key-value pairs"
+    },
+    {
+      "name": "version",
+      "type": "int",
+      "default": 1,
+      "doc": "Schema version for evolution tracking"
+    }
+  ]
+}

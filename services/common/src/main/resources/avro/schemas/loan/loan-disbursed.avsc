@@ -1,0 +1,113 @@
+{
+  "type": "record",
+  "name": "LoanDisbursedEvent",
+  "namespace": "com.waqiti.events.v1",
+  "doc": "Event published when a loan is disbursed",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "Unique event identifier (UUID)"
+    },
+    {
+      "name": "eventType",
+      "type": "string",
+      "default": "loan-disbursed",
+      "doc": "Type of event"
+    },
+    {
+      "name": "timestamp",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "Event timestamp in epoch milliseconds"
+    },
+    {
+      "name": "correlationId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Correlation ID for distributed tracing"
+    },
+    {
+      "name": "version",
+      "type": "string",
+      "default": "1.0",
+      "doc": "Schema version"
+    },
+    {
+      "name": "loanId",
+      "type": "string",
+      "doc": "Unique loan identifier (UUID)"
+    },
+    {
+      "name": "userId",
+      "type": "string",
+      "doc": "Borrower user ID (UUID)"
+    },
+    {
+      "name": "principalAmount",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 19,
+        "scale": 4
+      },
+      "doc": "Loan principal amount"
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "default": "USD",
+      "doc": "Currency code (ISO 4217)"
+    },
+    {
+      "name": "interestRate",
+      "type": "double",
+      "doc": "Annual interest rate (as decimal, e.g., 0.05 for 5%)"
+    },
+    {
+      "name": "termMonths",
+      "type": "int",
+      "doc": "Loan term in months"
+    },
+    {
+      "name": "loanType",
+      "type": {
+        "type": "enum",
+        "name": "LoanType",
+        "symbols": ["PERSONAL", "BUSINESS", "MORTGAGE", "AUTO", "STUDENT", "PAYDAY"]
+      },
+      "doc": "Type of loan"
+    },
+    {
+      "name": "disbursementMethod",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Method of disbursement (e.g., ACH, WIRE)"
+    },
+    {
+      "name": "destinationAccountId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Destination account ID (UUID)"
+    },
+    {
+      "name": "firstPaymentDate",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "Date of first payment"
+    },
+    {
+      "name": "metadata",
+      "type": ["null", {
+        "type": "map",
+        "values": "string"
+      }],
+      "default": null,
+      "doc": "Additional metadata"
+    }
+  ]
+}

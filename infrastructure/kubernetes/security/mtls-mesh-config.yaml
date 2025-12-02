@@ -1,0 +1,375 @@
+# CRITICAL SECURITY: mTLS Configuration for Service Mesh
+# Enforces mutual TLS authentication for all service-to-service communication
+# PCI DSS Requirement 4.1: Encrypt transmission of cardholder data
+
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default-mtls
+  namespace: istio-system
+spec:
+  # STRICT mode enforces mTLS for ALL traffic
+  mtls:
+    mode: STRICT
+
+---
+# Per-namespace mTLS enforcement
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: payment-service-mtls
+  namespace: payment
+spec:
+  selector:
+    matchLabels:
+      app: payment-service
+  mtls:
+    mode: STRICT
+  # Ports that require mTLS
+  portLevelMtls:
+    8080:
+      mode: STRICT
+    8443:
+      mode: STRICT
+
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: wallet-service-mtls
+  namespace: wallet
+spec:
+  selector:
+    matchLabels:
+      app: wallet-service
+  mtls:
+    mode: STRICT
+
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: transaction-service-mtls
+  namespace: transaction
+spec:
+  selector:
+    matchLabels:
+      app: transaction-service
+  mtls:
+    mode: STRICT
+
+---
+# Destination Rules for mTLS traffic
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: payment-service-dr
+  namespace: payment
+spec:
+  host: payment-service.payment.svc.cluster.local
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+    connectionPool:
+      tcp:
+        maxConnections: 100
+      http:
+        http1MaxPendingRequests: 100
+        http2MaxRequests: 100
+        maxRequestsPerConnection: 2
+    loadBalancer:
+      simple: LEAST_REQUEST
+    outlierDetection:
+      consecutive5xxErrors: 5
+      interval: 30s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: wallet-service-dr
+  namespace: wallet
+spec:
+  host: wallet-service.wallet.svc.cluster.local
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+    connectionPool:
+      tcp:
+        maxConnections: 100
+      http:
+        http1MaxPendingRequests: 100
+        http2MaxRequests: 100
+    outlierDetection:
+      consecutive5xxErrors: 5
+      interval: 30s
+      baseEjectionTime: 30s
+
+---
+# Authorization Policies for service access control
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: payment-service-authz
+  namespace: payment
+spec:
+  selector:
+    matchLabels:
+      app: payment-service
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: 
+        - "cluster.local/ns/api-gateway/sa/api-gateway"
+        - "cluster.local/ns/transaction/sa/transaction-service"
+        - "cluster.local/ns/wallet/sa/wallet-service"
+    to:
+    - operation:
+        methods: ["GET", "POST", "PUT", "DELETE"]
+        paths: ["/api/v1/payments/*"]
+
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: wallet-service-authz
+  namespace: wallet
+spec:
+  selector:
+    matchLabels:
+      app: wallet-service
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: 
+        - "cluster.local/ns/api-gateway/sa/api-gateway"
+        - "cluster.local/ns/payment/sa/payment-service"
+        - "cluster.local/ns/transaction/sa/transaction-service"
+    to:
+    - operation:
+        methods: ["GET", "POST", "PUT"]
+        paths: ["/api/v1/wallets/*"]
+
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: deny-all-default
+  namespace: istio-system
+spec:
+  # Deny all traffic by default (zero-trust)
+  action: DENY
+  rules:
+  - {}
+
+---
+# Service Entry for external services with mTLS
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: external-payment-gateway
+  namespace: payment
+spec:
+  hosts:
+  - payment-gateway.external.com
+  ports:
+  - number: 443
+    name: https
+    protocol: HTTPS
+  location: MESH_EXTERNAL
+  resolution: DNS
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: external-payment-gateway-dr
+  namespace: payment
+spec:
+  host: payment-gateway.external.com
+  trafficPolicy:
+    tls:
+      mode: MUTUAL
+      clientCertificate: /etc/certs/client-cert.pem
+      privateKey: /etc/certs/client-key.pem
+      caCertificates: /etc/certs/ca-cert.pem
+      sni: payment-gateway.external.com
+
+---
+# RequestAuthentication for JWT validation
+apiVersion: security.istio.io/v1beta1
+kind: RequestAuthentication
+metadata:
+  name: jwt-auth
+  namespace: istio-system
+spec:
+  jwtRules:
+  - issuer: "https://auth.example.com"
+    jwksUri: "https://auth.example.com/.well-known/jwks.json"
+    audiences:
+    - "waqiti-api"
+    forwardOriginalToken: true
+
+---
+# Network Policy for additional network segmentation
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: payment-service-netpol
+  namespace: payment
+spec:
+  podSelector:
+    matchLabels:
+      app: payment-service
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: api-gateway
+    - namespaceSelector:
+        matchLabels:
+          name: transaction
+    - namespaceSelector:
+        matchLabels:
+          name: wallet
+    ports:
+    - protocol: TCP
+      port: 8080
+    - protocol: TCP
+      port: 8443
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: wallet
+    - namespaceSelector:
+        matchLabels:
+          name: transaction
+    - namespaceSelector:
+        matchLabels:
+          name: database
+    ports:
+    - protocol: TCP
+      port: 5432
+    - protocol: TCP
+      port: 8080
+  # Allow DNS
+  - to:
+    - namespaceSelector: {}
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: UDP
+      port: 53
+
+---
+# Virtual Service for traffic management
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: payment-service-vs
+  namespace: payment
+spec:
+  hosts:
+  - payment-service.payment.svc.cluster.local
+  http:
+  - match:
+    - headers:
+        x-user-role:
+          exact: admin
+    route:
+    - destination:
+        host: payment-service.payment.svc.cluster.local
+        subset: v2
+      weight: 100
+  - route:
+    - destination:
+        host: payment-service.payment.svc.cluster.local
+        subset: v1
+      weight: 100
+    timeout: 30s
+    retries:
+      attempts: 3
+      perTryTimeout: 10s
+      retryOn: 5xx,reset,connect-failure,refused-stream
+
+---
+# Telemetry configuration for security monitoring
+apiVersion: telemetry.istio.io/v1alpha1
+kind: Telemetry
+metadata:
+  name: security-metrics
+  namespace: istio-system
+spec:
+  metrics:
+  - providers:
+    - name: prometheus
+  - overrides:
+    - match:
+        metric: ALL_METRICS
+      tagOverrides:
+        destination_service_name:
+          value: destination.service.name | "unknown"
+        destination_service_namespace:
+          value: destination.service.namespace | "unknown"
+        request_protocol:
+          value: request.protocol | "unknown"
+        response_code:
+          value: response.code | 0
+        mtls_mode:
+          value: connection.mtls | "unknown"
+
+---
+# Certificate configuration for mTLS
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mtls-config
+  namespace: istio-system
+data:
+  mesh: |
+    defaultConfig:
+      proxyStatsMatcher:
+        inclusionRegexps:
+        - ".*outlier_detection.*"
+        - ".*circuit_breakers.*"
+        - ".*_rq_retry.*"
+        - ".*_rq_pending.*"
+        - ".*osconfig.*"
+        - ".*mtls.*"
+      # Certificate rotation period
+      environmentVariables:
+        PILOT_ENABLE_WORKLOAD_ENTRY_AUTOREGISTRATION: true
+        PILOT_ENABLE_CROSS_CLUSTER_WORKLOAD_ENTRY: true
+    # Root certificate configuration
+    trustDomain: cluster.local
+    # Certificate validity period (90 days for security)
+    defaultConfig:
+      proxyMetadata:
+        PILOT_ENABLE_WORKLOAD_ENTRY_AUTOREGISTRATION: true
+        ROTATION_INTERVAL: 2160h # 90 days
+        
+---
+# Sidecar configuration for service mesh
+apiVersion: networking.istio.io/v1beta1
+kind: Sidecar
+metadata:
+  name: default
+  namespace: payment
+spec:
+  egress:
+  - hosts:
+    - "./*"
+    - "wallet/*"
+    - "transaction/*"
+    - "istio-system/*"
+  # Limit outbound traffic to known services only

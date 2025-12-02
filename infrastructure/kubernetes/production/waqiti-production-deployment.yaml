@@ -1,0 +1,799 @@
+# Comprehensive Production Kubernetes Deployment for Waqiti P2P Platform
+# This deployment follows enterprise-grade best practices with security, scalability, and observability
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: waqiti
+  labels:
+    name: waqiti
+    environment: production
+    security.policy: strict
+    monitoring: enabled
+  annotations:
+    scheduler.alpha.kubernetes.io/node-selector: "environment=production"
+---
+# Network Policies for Zero Trust Security
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: waqiti-network-policy
+  namespace: waqiti
+spec:
+  podSelector:
+    matchLabels:
+      app: waqiti
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: waqiti
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 8080
+    - protocol: TCP
+      port: 8443
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: waqiti
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: UDP
+      port: 53
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 5432
+    - protocol: TCP
+      port: 6379
+    - protocol: TCP
+      port: 9092
+---
+# API Gateway Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  namespace: waqiti
+  labels:
+    app: waqiti
+    component: api-gateway
+    version: v1.0.0
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 2
+  selector:
+    matchLabels:
+      app: waqiti
+      component: api-gateway
+  template:
+    metadata:
+      labels:
+        app: waqiti
+        component: api-gateway
+        version: v1.0.0
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/actuator/prometheus"
+        co.elastic.logs/enabled: "true"
+        co.elastic.logs/json.keys_under_root: "true"
+        co.elastic.logs/json.add_error_key: "true"
+    spec:
+      serviceAccountName: waqiti-api-gateway
+      automountServiceAccountToken: true
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+      - name: wait-for-dependencies
+        image: busybox:1.36
+        command: ['sh', '-c', 'until nc -z redis 6379 && nc -z postgres 5432; do sleep 2; done']
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1001
+        resources:
+          limits:
+            memory: "64Mi"
+            cpu: "50m"
+          requests:
+            memory: "32Mi"
+            cpu: "25m"
+      containers:
+      - name: api-gateway
+        image: waqiti/api-gateway:v1.0.0
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        - containerPort: 8443
+          name: https
+          protocol: TCP
+        - containerPort: 9090
+          name: metrics
+          protocol: TCP
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "production"
+        - name: SPRING_DATASOURCE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: waqiti-config
+              key: database.url
+        - name: SPRING_DATASOURCE_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: waqiti-database-secrets
+              key: postgres-username
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: waqiti-database-secrets
+              key: postgres-password
+        - name: SPRING_REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: waqiti-redis-secrets
+              key: redis-connection-string
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: waqiti-jwt-secrets
+              key: jwt-secret
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: waqiti-aws-secrets
+              key: aws-access-key-id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: waqiti-aws-secrets
+              key: aws-secret-access-key
+        - name: KEYCLOAK_AUTH_SERVER_URL
+          valueFrom:
+            configMapKeyRef:
+              name: waqiti-config
+              key: keycloak.auth-server-url
+        volumeMounts:
+        - name: config-volume
+          mountPath: /app/config
+          readOnly: true
+        - name: secrets-volume
+          mountPath: /app/secrets
+          readOnly: true
+        - name: temp-volume
+          mountPath: /tmp
+        - name: logs-volume
+          mountPath: /app/logs
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 120
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /actuator/health/startup
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 12
+        resources:
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+            ephemeral-storage: "1Gi"
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+            ephemeral-storage: "512Mi"
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1001
+          runAsGroup: 1001
+      volumes:
+      - name: config-volume
+        configMap:
+          name: waqiti-config
+          defaultMode: 0444
+      - name: secrets-volume
+        secret:
+          secretName: waqiti-tls-certificates
+          defaultMode: 0400
+      - name: temp-volume
+        emptyDir:
+          sizeLimit: "512Mi"
+      - name: logs-volume
+        emptyDir:
+          sizeLimit: "1Gi"
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: component
+                  operator: In
+                  values:
+                  - api-gateway
+              topologyKey: kubernetes.io/hostname
+      tolerations:
+      - key: "waqiti/production"
+        operator: "Equal"
+        value: "true"
+        effect: "NoSchedule"
+      nodeSelector:
+        environment: production
+        workload-type: application
+---
+# Payment Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-service
+  namespace: waqiti
+  labels:
+    app: waqiti
+    component: payment-service
+    version: v1.0.0
+spec:
+  replicas: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 2
+  selector:
+    matchLabels:
+      app: waqiti
+      component: payment-service
+  template:
+    metadata:
+      labels:
+        app: waqiti
+        component: payment-service
+        version: v1.0.0
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/actuator/prometheus"
+        co.elastic.logs/enabled: "true"
+        co.elastic.logs/json.keys_under_root: "true"
+        co.elastic.logs/json.add_error_key: "true"
+    spec:
+      serviceAccountName: waqiti-payment-service
+      automountServiceAccountToken: true
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: payment-service
+        image: waqiti/payment-service:v1.0.0
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        - containerPort: 9090
+          name: metrics
+          protocol: TCP
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "production"
+        - name: SPRING_DATASOURCE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: waqiti-config
+              key: database.url
+        - name: SPRING_DATASOURCE_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: waqiti-database-secrets
+              key: postgres-username
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: waqiti-database-secrets
+              key: postgres-password
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          valueFrom:
+            configMapKeyRef:
+              name: waqiti-config
+              key: kafka.bootstrap-servers
+        - name: STRIPE_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: waqiti-api-keys
+              key: stripe-api-key
+        volumeMounts:
+        - name: config-volume
+          mountPath: /app/config
+          readOnly: true
+        - name: temp-volume
+          mountPath: /tmp
+        - name: logs-volume
+          mountPath: /app/logs
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 120
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /actuator/health/startup
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 12
+        resources:
+          limits:
+            memory: "3Gi"
+            cpu: "1500m"
+            ephemeral-storage: "1Gi"
+          requests:
+            memory: "1.5Gi"
+            cpu: "750m"
+            ephemeral-storage: "512Mi"
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1001
+          runAsGroup: 1001
+      volumes:
+      - name: config-volume
+        configMap:
+          name: waqiti-config
+          defaultMode: 0444
+      - name: temp-volume
+        emptyDir:
+          sizeLimit: "512Mi"
+      - name: logs-volume
+        emptyDir:
+          sizeLimit: "1Gi"
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: component
+                  operator: In
+                  values:
+                  - payment-service
+              topologyKey: kubernetes.io/hostname
+      tolerations:
+      - key: "waqiti/production"
+        operator: "Equal"
+        value: "true"
+        effect: "NoSchedule"
+      nodeSelector:
+        environment: production
+        workload-type: application
+---
+# Wallet Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wallet-service
+  namespace: waqiti
+  labels:
+    app: waqiti
+    component: wallet-service
+    version: v1.0.0
+spec:
+  replicas: 4
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 2
+  selector:
+    matchLabels:
+      app: waqiti
+      component: wallet-service
+  template:
+    metadata:
+      labels:
+        app: waqiti
+        component: wallet-service
+        version: v1.0.0
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/actuator/prometheus"
+        co.elastic.logs/enabled: "true"
+    spec:
+      serviceAccountName: waqiti-wallet-service
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: wallet-service
+        image: waqiti/wallet-service:v1.0.0
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+          name: http
+        - containerPort: 9090
+          name: metrics
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "production"
+        - name: SPRING_DATASOURCE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: waqiti-config
+              key: database.url
+        - name: SPRING_DATASOURCE_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: waqiti-database-secrets
+              key: postgres-username
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: waqiti-database-secrets
+              key: postgres-password
+        - name: AWS_KMS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: waqiti-aws-secrets
+              key: kms-key-id
+        resources:
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8080
+          initialDelaySeconds: 120
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        volumeMounts:
+        - name: temp-volume
+          mountPath: /tmp
+        - name: logs-volume
+          mountPath: /app/logs
+      volumes:
+      - name: temp-volume
+        emptyDir:
+          sizeLimit: "256Mi"
+      - name: logs-volume
+        emptyDir:
+          sizeLimit: "1Gi"
+      nodeSelector:
+        environment: production
+        workload-type: application
+---
+# Services
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-gateway
+  namespace: waqiti
+  labels:
+    app: waqiti
+    component: api-gateway
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: nlb
+    service.beta.kubernetes.io/aws-load-balancer-ssl-cert: arn:aws:acm:us-east-1:123456789012:certificate/12345678-1234-1234-1234-123456789012
+    service.beta.kubernetes.io/aws-load-balancer-ssl-ports: "443"
+    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: http
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  - port: 443
+    targetPort: 8080
+    protocol: TCP
+    name: https
+  selector:
+    app: waqiti
+    component: api-gateway
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-service
+  namespace: waqiti
+  labels:
+    app: waqiti
+    component: payment-service
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  - port: 9090
+    targetPort: 9090
+    protocol: TCP
+    name: metrics
+  selector:
+    app: waqiti
+    component: payment-service
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wallet-service
+  namespace: waqiti
+  labels:
+    app: waqiti
+    component: wallet-service
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  - port: 9090
+    targetPort: 9090
+    protocol: TCP
+    name: metrics
+  selector:
+    app: waqiti
+    component: wallet-service
+---
+# Horizontal Pod Autoscalers
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: api-gateway-hpa
+  namespace: waqiti
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: api-gateway
+  minReplicas: 3
+  maxReplicas: 20
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 60
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: payment-service-hpa
+  namespace: waqiti
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: payment-service
+  minReplicas: 5
+  maxReplicas: 50
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 60
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Pods
+    pods:
+      metric:
+        name: http_requests_per_second
+      target:
+        type: AverageValue
+        averageValue: "1k"
+---
+# Pod Disruption Budgets
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: api-gateway-pdb
+  namespace: waqiti
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: waqiti
+      component: api-gateway
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: payment-service-pdb
+  namespace: waqiti
+spec:
+  minAvailable: 3
+  selector:
+    matchLabels:
+      app: waqiti
+      component: payment-service
+---
+# Service Accounts with RBAC
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: waqiti-api-gateway
+  namespace: waqiti
+  labels:
+    app: waqiti
+    component: api-gateway
+automountServiceAccountToken: true
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: waqiti-payment-service
+  namespace: waqiti
+  labels:
+    app: waqiti
+    component: payment-service
+automountServiceAccountToken: true
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: waqiti-wallet-service
+  namespace: waqiti
+  labels:
+    app: waqiti
+    component: wallet-service
+automountServiceAccountToken: true
+---
+# RBAC Roles and Bindings
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: waqiti
+  name: waqiti-service-role
+rules:
+- apiGroups: [""]
+  resources: ["configmaps", "secrets"]
+  verbs: ["get", "list"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: waqiti-service-binding
+  namespace: waqiti
+subjects:
+- kind: ServiceAccount
+  name: waqiti-api-gateway
+  namespace: waqiti
+- kind: ServiceAccount
+  name: waqiti-payment-service
+  namespace: waqiti
+- kind: ServiceAccount
+  name: waqiti-wallet-service
+  namespace: waqiti
+roleRef:
+  kind: Role
+  name: waqiti-service-role
+  apiGroup: rbac.authorization.k8s.io

@@ -1,0 +1,65 @@
+{
+  "type": "record",
+  "name": "TransactionCompletedEvent",
+  "namespace": "com.waqiti.transaction.events",
+  "doc": "Event emitted when a transaction is completed successfully",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string"
+    },
+    {
+      "name": "transactionId",
+      "type": "string"
+    },
+    {
+      "name": "userId",
+      "type": "string"
+    },
+    {
+      "name": "amount",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 19,
+        "scale": 4
+      }
+    },
+    {
+      "name": "currency",
+      "type": "string"
+    },
+    {
+      "name": "transactionType",
+      "type": "string"
+    },
+    {
+      "name": "status",
+      "type": "string",
+      "default": "COMPLETED"
+    },
+    {
+      "name": "completedAt",
+      "type": "long",
+      "logicalType": "timestamp-millis"
+    },
+    {
+      "name": "metadata",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "default": {}
+    },
+    {
+      "name": "timestamp",
+      "type": "long",
+      "logicalType": "timestamp-millis"
+    },
+    {
+      "name": "version",
+      "type": "int",
+      "default": 1
+    }
+  ]
+}

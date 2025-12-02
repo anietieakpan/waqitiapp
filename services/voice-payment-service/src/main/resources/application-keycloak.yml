@@ -1,0 +1,320 @@
+# Keycloak Configuration for Voice Payment Service
+
+keycloak:
+  enabled: true
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  ssl-required: external
+  resource: voice-payment-service
+  bearer-only: true
+  credentials:
+    secret: ${VOICE_PAYMENT_SERVICE_CLIENT_SECRET}
+  use-resource-role-mappings: true
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# Voice Payment Service Security Configuration
+voice:
+  security:
+    # Public endpoints that don't require authentication
+    public-endpoints:
+      - /actuator/health
+      - /actuator/info
+      - /api/v1/voice/public/capabilities
+      - /api/v1/voice/public/languages
+      - /swagger-ui/**
+      - /v3/api-docs/**
+    
+    # Service-to-service endpoints
+    service-endpoints:
+      - /internal/voice/**
+      - /internal/voice-recognition/**
+      - /internal/biometric-auth/**
+    
+    # Required roles for voice payment operations
+    required-roles:
+      read:
+        - USER
+        - VOICE_USER
+      voice-operations:
+        - VOICE_USER
+        - BIOMETRIC_VERIFIED
+      payment-operations:
+        - VOICE_USER
+        - VERIFIED_USER
+        - BIOMETRIC_VERIFIED
+      high-value-operations:
+        - VOICE_USER
+        - HIGH_VALUE_APPROVED
+        - ENHANCED_BIOMETRIC_VERIFIED
+      emergency:
+        - VOICE_USER
+        - EMERGENCY_AUTHORIZED
+      admin:
+        - VOICE_ADMIN
+        - SYSTEM_ADMIN
+    
+    # Required scopes for operations
+    required-scopes:
+      # Voice Profile Management
+      profile-create: voice:profile-create
+      profiles-list: voice:profiles-list
+      profile-details: voice:profile-details
+      profile-update: voice:profile-update
+      profile-delete: voice:profile-delete
+      profile-train: voice:profile-train
+      profile-verify: voice:profile-verify
+      profile-activate: voice:profile-activate
+      profile-deactivate: voice:profile-deactivate
+      
+      # Voice Authentication & Session Management
+      auth-challenge: voice:auth-challenge
+      auth-verify: voice:auth-verify
+      auth-mfa: voice:auth-mfa
+      session-start: voice:session-start
+      session-details: voice:session-details
+      session-extend: voice:session-extend
+      session-end: voice:session-end
+      
+      # Voice Command Processing
+      command-process: voice:command-process
+      command-validate: voice:command-validate
+      command-history: voice:command-history
+      command-cancel: voice:command-cancel
+      command-status: voice:command-status
+      
+      # Voice Payment Operations
+      payment-send: voice:payment-send
+      payment-request: voice:payment-request
+      payment-split: voice:payment-split
+      payment-balance: voice:payment-balance
+      payment-history: voice:payment-history
+      payment-schedule: voice:payment-schedule
+      payment-confirm: voice:payment-confirm
+      payment-cancel: voice:payment-cancel
+      
+      # Voice Transaction Management
+      transactions-list: voice:transactions-list
+      transaction-details: voice:transaction-details
+      transaction-dispute: voice:transaction-dispute
+      transaction-refund: voice:transaction-refund
+      transaction-receipt: voice:transaction-receipt
+      
+      # Voice Bill Pay & Merchant Payments
+      bill-pay: voice:bill-pay
+      bills-upcoming: voice:bills-upcoming
+      bill-schedule: voice:bill-schedule
+      merchant-pay: voice:merchant-pay
+      merchants-favorites: voice:merchants-favorites
+      
+      # Voice Banking Operations
+      account-balance: voice:account-balance
+      account-transactions: voice:account-transactions
+      account-transfer: voice:account-transfer
+      card-balance: voice:card-balance
+      card-freeze: voice:card-freeze
+      card-unfreeze: voice:card-unfreeze
+      
+      # Voice Settings & Preferences
+      settings-view: voice:settings-view
+      settings-update: voice:settings-update
+      settings-language: voice:settings-language
+      settings-notifications: voice:settings-notifications
+      settings-security: voice:settings-security
+      settings-security-update: voice:settings-security-update
+      
+      # Voice Analytics & Insights
+      analytics-usage: voice:analytics-usage
+      analytics-patterns: voice:analytics-patterns
+      analytics-accuracy: voice:analytics-accuracy
+      insights-spending: voice:insights-spending
+      
+      # Voice Emergency & Security
+      emergency-disable: voice:emergency-disable
+      emergency-alert: voice:emergency-alert
+      security-lockdown: voice:security-lockdown
+      security-attempts: voice:security-attempts
+      security-reset: voice:security-reset
+      
+      # Voice Accessibility Features
+      accessibility-options: voice:accessibility-options
+      accessibility-preferences: voice:accessibility-preferences
+      accessibility-calibrate: voice:accessibility-calibrate
+    
+    # Voice security features
+    features:
+      voice-verification-enabled: true
+      biometric-authentication-enabled: true
+      anti-spoofing-enabled: true
+      liveness-detection-enabled: true
+      voice-fraud-detection-enabled: true
+      continuous-authentication-enabled: true
+      multi-modal-verification-enabled: true
+      voice-encryption-enabled: true
+      audit-logging-enabled: true
+      
+    # Voice security limits and thresholds
+    limits:
+      max-voice-attempts: 3
+      max-session-duration: "PT30M" # 30 minutes
+      max-payment-amount: 10000.00
+      max-daily-voice-payments: 50000.00
+      voice-confidence-threshold: 0.85
+      anti-spoofing-threshold: 0.90
+      liveness-detection-threshold: 0.92
+      
+    # Security thresholds requiring additional verification
+    verification-thresholds:
+      high-value-payment: 1000.00
+      suspicious-voice-pattern: 3
+      failed-authentication-count: 3
+      voice-confidence-low: 0.70
+      biometric-mismatch-count: 2
+      
+    # Advanced voice security features
+    advanced-security:
+      require-mfa-high-value: true
+      require-continuous-auth: true
+      automatic-fraud-detection: true
+      voice-pattern-analysis: true
+      behavioral-biometrics: true
+      environmental-noise-filtering: true
+      speaker-verification: true
+      voice-anti-replay: true
+      
+    # CORS Configuration
+    cors:
+      allowed-origins:
+        - "https://*.example.com"
+        - "https://example.com"
+        - "https://localhost:*"
+        - "http://localhost:*"
+      allowed-methods:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - OPTIONS
+        - PATCH
+      allowed-headers:
+        - "*"
+      exposed-headers:
+        - "Authorization"
+        - "X-Total-Count"
+        - "X-Page-Number"
+        - "X-Page-Size"
+        - "X-Request-Id"
+        - "X-Trace-Id"
+        - "X-Service-Name"
+        - "X-Voice-Session-Id"
+        - "X-Voice-Confidence"
+      allow-credentials: true
+      max-age: 1800 # 30 minutes for voice sessions
+    
+    # Rate Limiting Configuration
+    rate-limiting:
+      enabled: true
+      global:
+        requests-per-minute: 500
+        requests-per-hour: 5000
+        requests-per-day: 50000
+      endpoint-specific:
+        "/api/v1/voice/auth/verify":
+          requests-per-minute: 20
+          requests-per-hour: 100
+        "/api/v1/voice/payments/send":
+          requests-per-minute: 30
+          requests-per-hour: 300
+        "/api/v1/voice/commands/process":
+          requests-per-minute: 200
+          requests-per-hour: 2000
+        "/api/v1/voice/admin/**":
+          requests-per-minute: 20
+          requests-per-hour: 200
+      user-specific:
+        requests-per-minute: 50
+        requests-per-hour: 500
+        burst-capacity: 100
+    
+    # Circuit Breaker Configuration
+    circuit-breaker:
+      enabled: true
+      patterns:
+        voice-recognition-engine:
+          failure-rate-threshold: 40
+          wait-duration-in-open-state: 30s
+          sliding-window-size: 10
+          minimum-number-of-calls: 5
+        biometric-verification-service:
+          failure-rate-threshold: 30
+          wait-duration-in-open-state: 45s
+          sliding-window-size: 8
+          minimum-number-of-calls: 4
+        payment-processing-service:
+          failure-rate-threshold: 50
+          wait-duration-in-open-state: 60s
+          sliding-window-size: 10
+          minimum-number-of-calls: 5
+        database-operations:
+          failure-rate-threshold: 60
+          wait-duration-in-open-state: 30s
+          sliding-window-size: 15
+          minimum-number-of-calls: 10
+    
+    # Voice Biometric Security Configuration
+    biometric:
+      enabled: true
+      voice-print-matching:
+        enabled: true
+        similarity-threshold: 0.85
+        anti-spoofing-threshold: 0.90
+      speaker-recognition:
+        enabled: true
+        confidence-threshold: 0.88
+        enrollment-samples-required: 5
+        verification-samples-required: 3
+      liveness-detection:
+        enabled: true
+        challenge-response: true
+        voice-dynamics-analysis: true
+        breathing-pattern-detection: true
+      behavioral-analysis:
+        enabled: true
+        speech-pattern-analysis: true
+        voice-stress-analysis: true
+        temporal-pattern-matching: true
+    
+    # Audit Logging Configuration
+    audit:
+      enabled: true
+      log-level: "INFO"
+      include-request-body: false
+      include-response-body: false
+      sensitive-data-masking: true
+      retention-period: "P5Y" # 5 years for voice biometric data
+      events:
+        - "VOICE_AUTHENTICATION_SUCCESS"
+        - "VOICE_AUTHENTICATION_FAILURE"
+        - "VOICE_PROFILE_CREATED"
+        - "VOICE_PROFILE_TRAINED"
+        - "VOICE_PAYMENT_PROCESSED"
+        - "VOICE_COMMAND_EXECUTED"
+        - "BIOMETRIC_VERIFICATION_SUCCESS"
+        - "BIOMETRIC_VERIFICATION_FAILURE"
+        - "VOICE_SESSION_STARTED"
+        - "VOICE_SESSION_ENDED"
+        - "ANTI_SPOOFING_DETECTED"
+        - "LIVENESS_CHECK_FAILED"
+        - "VOICE_FRAUD_DETECTED"
+        - "EMERGENCY_DISABLE_TRIGGERED"
+        - "SECURITY_LOCKDOWN_ACTIVATED"
+        - "ADMIN_ACTION"
+        - "AUTHENTICATION_SUCCESS"
+        - "AUTHENTICATION_FAILURE"
+        - "AUTHORIZATION_FAILURE"

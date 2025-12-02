@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
+
+    <changeSet id="002-1" author="kyc-service">
+        <createIndex tableName="kyc_verifications" indexName="idx_kyc_user_id">
+            <column name="user_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="002-2" author="kyc-service">
+        <createIndex tableName="kyc_verifications" indexName="idx_kyc_status">
+            <column name="status"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="002-3" author="kyc-service">
+        <createIndex tableName="kyc_verifications" indexName="idx_kyc_user_status">
+            <column name="user_id"/>
+            <column name="status"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="002-4" author="kyc-service">
+        <createIndex tableName="kyc_verifications" indexName="idx_kyc_provider_session">
+            <column name="provider_session_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="002-5" author="kyc-service">
+        <createIndex tableName="kyc_verifications" indexName="idx_kyc_expires_at">
+            <column name="expires_at"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="002-6" author="kyc-service">
+        <createIndex tableName="verification_documents" indexName="idx_doc_verification_id">
+            <column name="verification_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="002-7" author="kyc-service">
+        <createIndex tableName="verification_documents" indexName="idx_doc_status">
+            <column name="status"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="002-8" author="kyc-service">
+        <createIndex tableName="verification_documents" indexName="idx_doc_type_status">
+            <column name="document_type"/>
+            <column name="status"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="002-9" author="kyc-service">
+        <createIndex tableName="verification_documents" indexName="idx_doc_provider_id" unique="true">
+            <column name="provider_document_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="002-10" author="kyc-service">
+        <createIndex tableName="verification_documents" indexName="idx_doc_file_hash">
+            <column name="file_hash"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="002-11" author="kyc-service">
+        <createIndex tableName="kyc_verification_checks" indexName="idx_check_verification_id">
+            <column name="verification_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="002-12" author="kyc-service">
+        <createIndex tableName="kyc_verification_checks" indexName="idx_check_type_status">
+            <column name="check_type"/>
+            <column name="status"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="002-13" author="kyc-service">
+        <createIndex tableName="kyc_metadata" indexName="idx_metadata_verification_key">
+            <column name="verification_id"/>
+            <column name="key"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="002-14" author="kyc-service">
+        <createIndex tableName="kyc_provider_logs" indexName="idx_provider_log_verification">
+            <column name="verification_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="002-15" author="kyc-service">
+        <createIndex tableName="kyc_provider_logs" indexName="idx_provider_log_created">
+            <column name="created_at"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

@@ -1,0 +1,346 @@
+# Banking Platform Alert Rules
+# Critical alerts for financial operations and system health
+
+groups:
+  - name: banking.critical
+    rules:
+      # Transaction Processing Alerts
+      - alert: HighTransactionFailureRate
+        expr: rate(transaction_failures_total[5m]) / rate(transaction_requests_total[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+          category: transaction
+        annotations:
+          summary: "High transaction failure rate detected"
+          description: "Transaction failure rate is {{ $value | humanizePercentage }} over the last 5 minutes"
+          runbook_url: "https://runbooks.example.com/transaction-failures"
+
+      - alert: TransactionProcessingDelay
+        expr: histogram_quantile(0.95, rate(transaction_processing_duration_seconds_bucket[5m])) > 30
+        for: 5m
+        labels:
+          severity: warning
+          category: transaction
+        annotations:
+          summary: "Transaction processing delays detected"
+          description: "95th percentile transaction processing time is {{ $value }}s"
+
+      - alert: TransactionVolumeSpike
+        expr: rate(transaction_requests_total[5m]) > rate(transaction_requests_total[1h] offset 1h) * 3
+        for: 5m
+        labels:
+          severity: warning
+          category: transaction
+        annotations:
+          summary: "Unusual spike in transaction volume"
+          description: "Transaction volume is 3x higher than usual: {{ $value }} req/s"
+
+      # Fraud Detection Alerts
+      - alert: FraudDetectionServiceDown
+        expr: up{job="ml-service"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: fraud
+        annotations:
+          summary: "Fraud detection service is down"
+          description: "ML service for fraud detection is not responding"
+
+      - alert: HighFraudRate
+        expr: rate(fraud_detections_total{decision="BLOCK"}[10m]) / rate(fraud_detections_total[10m]) > 0.20
+        for: 5m
+        labels:
+          severity: warning
+          category: fraud
+        annotations:
+          summary: "High fraud detection rate"
+          description: "Fraud rate is {{ $value | humanizePercentage }} over the last 10 minutes"
+
+      - alert: FraudDetectionLatency
+        expr: histogram_quantile(0.95, rate(fraud_detection_duration_seconds_bucket[5m])) > 5
+        for: 3m
+        labels:
+          severity: warning
+          category: fraud
+        annotations:
+          summary: "Fraud detection processing too slow"
+          description: "95th percentile fraud detection time is {{ $value }}s"
+
+      # Account and Balance Alerts
+      - alert: NegativeAccountBalance
+        expr: account_balance < 0 and account_overdraft_limit == 0
+        for: 0s
+        labels:
+          severity: critical
+          category: account
+        annotations:
+          summary: "Unauthorized negative account balance detected"
+          description: "Account {{ $labels.account_id }} has negative balance without overdraft protection"
+
+      - alert: LargeBalanceDiscrepancy
+        expr: abs(account_balance - ledger_calculated_balance) > 1.00
+        for: 1m
+        labels:
+          severity: critical
+          category: ledger
+        annotations:
+          summary: "Account balance discrepancy detected"
+          description: "Account {{ $labels.account_id }} balance differs from ledger by ${{ $value }}"
+
+      - alert: HighValueTransactionWithoutApproval
+        expr: transaction_amount > 50000 and transaction_approval_status != "APPROVED"
+        for: 0s
+        labels:
+          severity: critical
+          category: compliance
+        annotations:
+          summary: "High-value transaction without proper approval"
+          description: "Transaction {{ $labels.transaction_id }} of ${{ $value }} lacks required approval"
+
+  - name: banking.performance
+    rules:
+      # System Performance Alerts
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+          category: performance
+        annotations:
+          summary: "High CPU usage detected"
+          description: "CPU usage is {{ $value }}% on {{ $labels.instance }}"
+
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          category: performance
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage is {{ $value }}% on {{ $labels.instance }}"
+
+      - alert: DiskSpaceLow
+        expr: (1 - (node_filesystem_avail_bytes / node_filesystem_size_bytes)) * 100 > 90
+        for: 5m
+        labels:
+          severity: critical
+          category: performance
+        annotations:
+          summary: "Disk space critically low"
+          description: "Disk usage is {{ $value }}% on {{ $labels.instance }}"
+
+      # Database Performance
+      - alert: DatabaseConnectionsHigh
+        expr: postgresql_connections_active / postgresql_connections_max > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          category: database
+        annotations:
+          summary: "Database connection pool nearly exhausted"
+          description: "{{ $value | humanizePercentage }} of database connections are in use"
+
+      - alert: DatabaseQuerySlow
+        expr: histogram_quantile(0.95, rate(postgresql_query_duration_seconds_bucket[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+          category: database
+        annotations:
+          summary: "Slow database queries detected"
+          description: "95th percentile query time is {{ $value }}s"
+
+      - alert: DatabaseDeadlocks
+        expr: rate(postgresql_deadlocks_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+          category: database
+        annotations:
+          summary: "Database deadlocks detected"
+          description: "{{ $value }} deadlocks per second detected"
+
+  - name: banking.availability
+    rules:
+      # Service Availability
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: availability
+        annotations:
+          summary: "Service is down"
+          description: "{{ $labels.job }} service is not responding"
+
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.05
+        for: 3m
+        labels:
+          severity: warning
+          category: availability
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} for {{ $labels.job }}"
+
+      - alert: APIGatewayDown
+        expr: up{job="api-gateway"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          category: availability
+        annotations:
+          summary: "API Gateway is down"
+          description: "Main API Gateway is not responding - all external traffic affected"
+
+      # Message Queue Health
+      - alert: KafkaPartitionOfflinE
+        expr: kafka_controller_offline_partitions_count > 0
+        for: 1m
+        labels:
+          severity: critical
+          category: messaging
+        annotations:
+          summary: "Kafka partitions offline"
+          description: "{{ $value }} Kafka partitions are offline"
+
+      - alert: KafkaConsumerLag
+        expr: kafka_consumer_lag_max > 1000
+        for: 5m
+        labels:
+          severity: warning
+          category: messaging
+        annotations:
+          summary: "High Kafka consumer lag"
+          description: "Consumer lag is {{ $value }} messages for {{ $labels.consumer_group }}"
+
+  - name: banking.business
+    rules:
+      # Business Logic Alerts
+      - alert: DailyTransactionLimitExceeded
+        expr: sum(rate(transaction_amount_total[1d])) > 10000000  # $10M daily limit
+        for: 0s
+        labels:
+          severity: critical
+          category: business
+        annotations:
+          summary: "Daily transaction limit exceeded"
+          description: "Daily transaction volume has exceeded $10M limit"
+
+      - alert: UnusualAfterHoursActivity
+        expr: rate(transaction_requests_total[5m]) > 10 and hour() < 6 or hour() > 22
+        for: 10m
+        labels:
+          severity: warning
+          category: business
+        annotations:
+          summary: "Unusual after-hours transaction activity"
+          description: "{{ $value }} transactions/sec detected outside business hours"
+
+      - alert: ComplianceViolation
+        expr: compliance_violations_total > 0
+        for: 0s
+        labels:
+          severity: critical
+          category: compliance
+        annotations:
+          summary: "Compliance violation detected"
+          description: "{{ $value }} compliance violations detected"
+
+      - alert: AMLAlertThresholdExceeded
+        expr: rate(aml_alerts_total[1h]) > 50
+        for: 1m
+        labels:
+          severity: warning
+          category: compliance
+        annotations:
+          summary: "High number of AML alerts"
+          description: "{{ $value }} AML alerts generated in the last hour"
+
+  - name: banking.security
+    rules:
+      # Security Alerts
+      - alert: UnauthorizedAccessAttempt
+        expr: rate(authentication_failures_total[5m]) > 10
+        for: 2m
+        labels:
+          severity: warning
+          category: security
+        annotations:
+          summary: "High authentication failure rate"
+          description: "{{ $value }} authentication failures per second"
+
+      - alert: SuspiciousLoginPattern
+        expr: rate(login_attempts_total{country!="US"}[5m]) > 5
+        for: 5m
+        labels:
+          severity: warning
+          category: security
+        annotations:
+          summary: "Suspicious international login activity"
+          description: "{{ $value }} login attempts per second from non-US locations"
+
+      - alert: APIRateLimitHit
+        expr: rate(rate_limit_exceeded_total[5m]) > 1
+        for: 2m
+        labels:
+          severity: warning
+          category: security
+        annotations:
+          summary: "API rate limits being exceeded"
+          description: "Rate limits exceeded {{ $value }} times per second"
+
+      - alert: VaultAccessFailure
+        expr: vault_access_failures_total > 0
+        for: 0s
+        labels:
+          severity: critical
+          category: security
+        annotations:
+          summary: "HashiCorp Vault access failure"
+          description: "Unable to access secrets from Vault"
+
+  - name: banking.data
+    rules:
+      # Data Integrity Alerts
+      - alert: EventSourcingReplayFailure
+        expr: event_sourcing_replay_failures_total > 0
+        for: 0s
+        labels:
+          severity: critical
+          category: data
+        annotations:
+          summary: "Event sourcing replay failure"
+          description: "Event replay failed for aggregate {{ $labels.aggregate_id }}"
+
+      - alert: LedgerImbalance
+        expr: abs(sum(ledger_debits_total) - sum(ledger_credits_total)) > 0.01
+        for: 1m
+        labels:
+          severity: critical
+          category: ledger
+        annotations:
+          summary: "Ledger imbalance detected"
+          description: "Total debits and credits do not balance by ${{ $value }}"
+
+      - alert: BackupFailure
+        expr: time() - last_successful_backup_timestamp > 86400  # 24 hours
+        for: 1m
+        labels:
+          severity: critical
+          category: data
+        annotations:
+          summary: "Database backup failure"
+          description: "No successful backup in the last 24 hours"
+
+      - alert: DataReplicationLag
+        expr: postgresql_replication_lag_seconds > 300  # 5 minutes
+        for: 5m
+        labels:
+          severity: warning
+          category: data
+        annotations:
+          summary: "Database replication lag"
+          description: "Replication lag is {{ $value }}s"

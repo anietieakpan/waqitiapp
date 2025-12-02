@@ -1,0 +1,292 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" 
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" 
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" 
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn" 
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI" 
+                  id="Definitions_KYC" 
+                  targetNamespace="http://waqiti.com/kyc" 
+                  exporter="Camunda Modeler" 
+                  exporterVersion="5.0.0">
+                  
+  <bpmn:process id="kyc-verification-workflow" name="KYC Verification Workflow" isExecutable="true">
+    
+    <!-- Start Event -->
+    <bpmn:startEvent id="StartEvent_KYC" name="KYC Request Received">
+      <bpmn:outgoing>Flow_Start</bpmn:outgoing>
+    </bpmn:startEvent>
+    
+    <!-- Determine Workflow Type -->
+    <bpmn:businessRuleTask id="Task_DetermineWorkflow" name="Determine Workflow Type" camunda:resultVariable="workflowType" camunda:decisionRef="determine-kyc-workflow" camunda:mapDecisionResult="singleEntry">
+      <bpmn:incoming>Flow_Start</bpmn:incoming>
+      <bpmn:outgoing>Flow_WorkflowDetermined</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+    
+    <!-- Exclusive Gateway for Workflow Type -->
+    <bpmn:exclusiveGateway id="Gateway_WorkflowType" name="Workflow Type?">
+      <bpmn:incoming>Flow_WorkflowDetermined</bpmn:incoming>
+      <bpmn:outgoing>Flow_Standard</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Enhanced</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Business</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    
+    <!-- Standard KYC Sub-Process -->
+    <bpmn:subProcess id="SubProcess_StandardKYC" name="Standard KYC Process">
+      <bpmn:incoming>Flow_Standard</bpmn:incoming>
+      <bpmn:outgoing>Flow_StandardComplete</bpmn:outgoing>
+      
+      <bpmn:startEvent id="Start_Standard">
+        <bpmn:outgoing>Flow_S1</bpmn:outgoing>
+      </bpmn:startEvent>
+      
+      <!-- Identity Verification -->
+      <bpmn:serviceTask id="Task_IdentityVerification" name="Identity Verification" camunda:delegateExpression="${identityVerificationDelegate}">
+        <bpmn:incoming>Flow_S1</bpmn:incoming>
+        <bpmn:outgoing>Flow_S2</bpmn:outgoing>
+      </bpmn:serviceTask>
+      
+      <!-- Document Verification -->
+      <bpmn:serviceTask id="Task_DocumentVerification" name="Document Verification" camunda:delegateExpression="${documentVerificationDelegate}">
+        <bpmn:incoming>Flow_S2</bpmn:incoming>
+        <bpmn:outgoing>Flow_S3</bpmn:outgoing>
+      </bpmn:serviceTask>
+      
+      <!-- Selfie Verification -->
+      <bpmn:serviceTask id="Task_SelfieVerification" name="Selfie Verification" camunda:delegateExpression="${selfieVerificationDelegate}">
+        <bpmn:incoming>Flow_S3</bpmn:incoming>
+        <bpmn:outgoing>Flow_S4</bpmn:outgoing>
+      </bpmn:serviceTask>
+      
+      <!-- Address Verification -->
+      <bpmn:serviceTask id="Task_AddressVerification" name="Address Verification" camunda:delegateExpression="${addressVerificationDelegate}">
+        <bpmn:incoming>Flow_S4</bpmn:incoming>
+        <bpmn:outgoing>Flow_S5</bpmn:outgoing>
+      </bpmn:serviceTask>
+      
+      <!-- AML Screening -->
+      <bpmn:serviceTask id="Task_AMLScreening" name="AML Screening" camunda:delegateExpression="${amlScreeningDelegate}">
+        <bpmn:incoming>Flow_S5</bpmn:incoming>
+        <bpmn:outgoing>Flow_S6</bpmn:outgoing>
+      </bpmn:serviceTask>
+      
+      <bpmn:endEvent id="End_Standard">
+        <bpmn:incoming>Flow_S6</bpmn:incoming>
+      </bpmn:endEvent>
+      
+      <bpmn:sequenceFlow id="Flow_S1" sourceRef="Start_Standard" targetRef="Task_IdentityVerification" />
+      <bpmn:sequenceFlow id="Flow_S2" sourceRef="Task_IdentityVerification" targetRef="Task_DocumentVerification" />
+      <bpmn:sequenceFlow id="Flow_S3" sourceRef="Task_DocumentVerification" targetRef="Task_SelfieVerification" />
+      <bpmn:sequenceFlow id="Flow_S4" sourceRef="Task_SelfieVerification" targetRef="Task_AddressVerification" />
+      <bpmn:sequenceFlow id="Flow_S5" sourceRef="Task_AddressVerification" targetRef="Task_AMLScreening" />
+      <bpmn:sequenceFlow id="Flow_S6" sourceRef="Task_AMLScreening" targetRef="End_Standard" />
+    </bpmn:subProcess>
+    
+    <!-- Enhanced KYC Sub-Process -->
+    <bpmn:subProcess id="SubProcess_EnhancedKYC" name="Enhanced KYC Process">
+      <bpmn:incoming>Flow_Enhanced</bpmn:incoming>
+      <bpmn:outgoing>Flow_EnhancedComplete</bpmn:outgoing>
+      
+      <!-- Includes all standard checks plus additional ones -->
+      <bpmn:callActivity id="CallActivity_StandardChecks" name="Standard Checks" calledElement="kyc-verification-workflow">
+        <bpmn:extensionElements>
+          <camunda:in variables="all" />
+          <camunda:out variables="all" />
+        </bpmn:extensionElements>
+        <bpmn:incoming>Flow_E1</bpmn:incoming>
+        <bpmn:outgoing>Flow_E2</bpmn:outgoing>
+      </bpmn:callActivity>
+      
+      <!-- Liveness Check -->
+      <bpmn:serviceTask id="Task_LivenessCheck" name="Liveness Check" camunda:delegateExpression="${livenessCheckDelegate}">
+        <bpmn:incoming>Flow_E2</bpmn:incoming>
+        <bpmn:outgoing>Flow_E3</bpmn:outgoing>
+      </bpmn:serviceTask>
+      
+      <!-- Phone Verification -->
+      <bpmn:serviceTask id="Task_PhoneVerification" name="Phone Verification" camunda:delegateExpression="${phoneVerificationDelegate}">
+        <bpmn:incoming>Flow_E3</bpmn:incoming>
+        <bpmn:outgoing>Flow_E4</bpmn:outgoing>
+      </bpmn:serviceTask>
+      
+      <!-- Bank Account Verification -->
+      <bpmn:serviceTask id="Task_BankVerification" name="Bank Account Verification" camunda:delegateExpression="${bankVerificationDelegate}">
+        <bpmn:incoming>Flow_E4</bpmn:incoming>
+        <bpmn:outgoing>Flow_E5</bpmn:outgoing>
+      </bpmn:serviceTask>
+      
+      <!-- Enhanced Due Diligence -->
+      <bpmn:serviceTask id="Task_EnhancedDueDiligence" name="Enhanced Due Diligence" camunda:delegateExpression="${enhancedDueDiligenceDelegate}">
+        <bpmn:incoming>Flow_E5</bpmn:incoming>
+        <bpmn:outgoing>Flow_E6</bpmn:outgoing>
+      </bpmn:serviceTask>
+      
+      <!-- Manual Review Gateway -->
+      <bpmn:exclusiveGateway id="Gateway_ManualReview" name="Manual Review Required?">
+        <bpmn:incoming>Flow_E6</bpmn:incoming>
+        <bpmn:outgoing>Flow_NoManualReview</bpmn:outgoing>
+        <bpmn:outgoing>Flow_ManualReviewRequired</bpmn:outgoing>
+      </bpmn:exclusiveGateway>
+      
+      <!-- Manual Review Task -->
+      <bpmn:userTask id="Task_ManualReview" name="Manual KYC Review" camunda:assignee="${kycReviewer}">
+        <bpmn:extensionElements>
+          <camunda:formData>
+            <camunda:formField id="reviewDecision" label="Review Decision" type="enum">
+              <camunda:value id="approve" name="Approve" />
+              <camunda:value id="reject" name="Reject" />
+              <camunda:value id="request_info" name="Request More Information" />
+            </camunda:formField>
+            <camunda:formField id="reviewNotes" label="Review Notes" type="string" />
+          </camunda:formData>
+        </bpmn:extensionElements>
+        <bpmn:incoming>Flow_ManualReviewRequired</bpmn:incoming>
+        <bpmn:outgoing>Flow_ReviewComplete</bpmn:outgoing>
+      </bpmn:userTask>
+      
+      <bpmn:startEvent id="Start_Enhanced">
+        <bpmn:outgoing>Flow_E1</bpmn:outgoing>
+      </bpmn:startEvent>
+      
+      <bpmn:endEvent id="End_Enhanced">
+        <bpmn:incoming>Flow_NoManualReview</bpmn:incoming>
+        <bpmn:incoming>Flow_ReviewComplete</bpmn:incoming>
+      </bpmn:endEvent>
+      
+      <bpmn:sequenceFlow id="Flow_E1" sourceRef="Start_Enhanced" targetRef="CallActivity_StandardChecks" />
+      <bpmn:sequenceFlow id="Flow_E2" sourceRef="CallActivity_StandardChecks" targetRef="Task_LivenessCheck" />
+      <bpmn:sequenceFlow id="Flow_E3" sourceRef="Task_LivenessCheck" targetRef="Task_PhoneVerification" />
+      <bpmn:sequenceFlow id="Flow_E4" sourceRef="Task_PhoneVerification" targetRef="Task_BankVerification" />
+      <bpmn:sequenceFlow id="Flow_E5" sourceRef="Task_BankVerification" targetRef="Task_EnhancedDueDiligence" />
+      <bpmn:sequenceFlow id="Flow_E6" sourceRef="Task_EnhancedDueDiligence" targetRef="Gateway_ManualReview" />
+      <bpmn:sequenceFlow id="Flow_NoManualReview" sourceRef="Gateway_ManualReview" targetRef="End_Enhanced">
+        <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${!manualReviewRequired}</bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+      <bpmn:sequenceFlow id="Flow_ManualReviewRequired" sourceRef="Gateway_ManualReview" targetRef="Task_ManualReview">
+        <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${manualReviewRequired}</bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+      <bpmn:sequenceFlow id="Flow_ReviewComplete" sourceRef="Task_ManualReview" targetRef="End_Enhanced" />
+    </bpmn:subProcess>
+    
+    <!-- Business KYC Sub-Process -->
+    <bpmn:subProcess id="SubProcess_BusinessKYC" name="Business KYC Process">
+      <bpmn:incoming>Flow_Business</bpmn:incoming>
+      <bpmn:outgoing>Flow_BusinessComplete</bpmn:outgoing>
+      
+      <!-- Business-specific verification steps -->
+      <bpmn:startEvent id="Start_Business">
+        <bpmn:outgoing>Flow_B1</bpmn:outgoing>
+      </bpmn:startEvent>
+      
+      <bpmn:serviceTask id="Task_BusinessRegistration" name="Business Registration Verification" camunda:delegateExpression="${businessRegistrationDelegate}">
+        <bpmn:incoming>Flow_B1</bpmn:incoming>
+        <bpmn:outgoing>Flow_B2</bpmn:outgoing>
+      </bpmn:serviceTask>
+      
+      <bpmn:serviceTask id="Task_AuthorizedPersonVerification" name="Authorized Person Verification" camunda:delegateExpression="${authorizedPersonDelegate}">
+        <bpmn:incoming>Flow_B2</bpmn:incoming>
+        <bpmn:outgoing>Flow_B3</bpmn:outgoing>
+      </bpmn:serviceTask>
+      
+      <bpmn:serviceTask id="Task_TaxIDVerification" name="Tax ID Verification" camunda:delegateExpression="${taxIdVerificationDelegate}">
+        <bpmn:incoming>Flow_B3</bpmn:incoming>
+        <bpmn:outgoing>Flow_B4</bpmn:outgoing>
+      </bpmn:serviceTask>
+      
+      <bpmn:serviceTask id="Task_BusinessDueDiligence" name="Business Due Diligence" camunda:delegateExpression="${businessDueDiligenceDelegate}">
+        <bpmn:incoming>Flow_B4</bpmn:incoming>
+        <bpmn:outgoing>Flow_B5</bpmn:outgoing>
+      </bpmn:serviceTask>
+      
+      <bpmn:userTask id="Task_BusinessManualReview" name="Business Manual Review" camunda:candidateGroups="business-kyc-reviewers">
+        <bpmn:incoming>Flow_B5</bpmn:incoming>
+        <bpmn:outgoing>Flow_B6</bpmn:outgoing>
+      </bpmn:userTask>
+      
+      <bpmn:endEvent id="End_Business">
+        <bpmn:incoming>Flow_B6</bpmn:incoming>
+      </bpmn:endEvent>
+      
+      <bpmn:sequenceFlow id="Flow_B1" sourceRef="Start_Business" targetRef="Task_BusinessRegistration" />
+      <bpmn:sequenceFlow id="Flow_B2" sourceRef="Task_BusinessRegistration" targetRef="Task_AuthorizedPersonVerification" />
+      <bpmn:sequenceFlow id="Flow_B3" sourceRef="Task_AuthorizedPersonVerification" targetRef="Task_TaxIDVerification" />
+      <bpmn:sequenceFlow id="Flow_B4" sourceRef="Task_TaxIDVerification" targetRef="Task_BusinessDueDiligence" />
+      <bpmn:sequenceFlow id="Flow_B5" sourceRef="Task_BusinessDueDiligence" targetRef="Task_BusinessManualReview" />
+      <bpmn:sequenceFlow id="Flow_B6" sourceRef="Task_BusinessManualReview" targetRef="End_Business" />
+    </bpmn:subProcess>
+    
+    <!-- Risk Assessment -->
+    <bpmn:businessRuleTask id="Task_RiskAssessment" name="Risk Assessment" camunda:resultVariable="riskScore" camunda:decisionRef="kyc-risk-assessment" camunda:mapDecisionResult="singleEntry">
+      <bpmn:incoming>Flow_StandardComplete</bpmn:incoming>
+      <bpmn:incoming>Flow_EnhancedComplete</bpmn:incoming>
+      <bpmn:incoming>Flow_BusinessComplete</bpmn:incoming>
+      <bpmn:outgoing>Flow_RiskAssessed</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+    
+    <!-- Final Decision Gateway -->
+    <bpmn:exclusiveGateway id="Gateway_FinalDecision" name="KYC Decision">
+      <bpmn:incoming>Flow_RiskAssessed</bpmn:incoming>
+      <bpmn:outgoing>Flow_Approved</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Rejected</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    
+    <!-- Update KYC Status -->
+    <bpmn:serviceTask id="Task_UpdateStatus" name="Update KYC Status" camunda:delegateExpression="${updateKYCStatusDelegate}">
+      <bpmn:incoming>Flow_Approved</bpmn:incoming>
+      <bpmn:incoming>Flow_Rejected</bpmn:incoming>
+      <bpmn:outgoing>Flow_StatusUpdated</bpmn:outgoing>
+    </bpmn:serviceTask>
+    
+    <!-- Send Notification -->
+    <bpmn:serviceTask id="Task_SendNotification" name="Send Notification" camunda:delegateExpression="${notificationDelegate}">
+      <bpmn:incoming>Flow_StatusUpdated</bpmn:incoming>
+      <bpmn:outgoing>Flow_NotificationSent</bpmn:outgoing>
+    </bpmn:serviceTask>
+    
+    <!-- End Event -->
+    <bpmn:endEvent id="EndEvent_KYC" name="KYC Process Complete">
+      <bpmn:incoming>Flow_NotificationSent</bpmn:incoming>
+    </bpmn:endEvent>
+    
+    <!-- Error Handling -->
+    <bpmn:boundaryEvent id="BoundaryEvent_Timeout" name="Process Timeout" attachedToRef="SubProcess_StandardKYC">
+      <bpmn:outgoing>Flow_Timeout</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration>PT30M</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+    
+    <bpmn:serviceTask id="Task_HandleTimeout" name="Handle Timeout" camunda:delegateExpression="${timeoutHandlerDelegate}">
+      <bpmn:incoming>Flow_Timeout</bpmn:incoming>
+      <bpmn:outgoing>Flow_TimeoutHandled</bpmn:outgoing>
+    </bpmn:serviceTask>
+    
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="Flow_Start" sourceRef="StartEvent_KYC" targetRef="Task_DetermineWorkflow" />
+    <bpmn:sequenceFlow id="Flow_WorkflowDetermined" sourceRef="Task_DetermineWorkflow" targetRef="Gateway_WorkflowType" />
+    <bpmn:sequenceFlow id="Flow_Standard" sourceRef="Gateway_WorkflowType" targetRef="SubProcess_StandardKYC">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${workflowType == 'STANDARD'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Enhanced" sourceRef="Gateway_WorkflowType" targetRef="SubProcess_EnhancedKYC">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${workflowType == 'ENHANCED'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Business" sourceRef="Gateway_WorkflowType" targetRef="SubProcess_BusinessKYC">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${workflowType == 'BUSINESS'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_StandardComplete" sourceRef="SubProcess_StandardKYC" targetRef="Task_RiskAssessment" />
+    <bpmn:sequenceFlow id="Flow_EnhancedComplete" sourceRef="SubProcess_EnhancedKYC" targetRef="Task_RiskAssessment" />
+    <bpmn:sequenceFlow id="Flow_BusinessComplete" sourceRef="SubProcess_BusinessKYC" targetRef="Task_RiskAssessment" />
+    <bpmn:sequenceFlow id="Flow_RiskAssessed" sourceRef="Task_RiskAssessment" targetRef="Gateway_FinalDecision" />
+    <bpmn:sequenceFlow id="Flow_Approved" sourceRef="Gateway_FinalDecision" targetRef="Task_UpdateStatus">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${riskScore &lt; 70}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Rejected" sourceRef="Gateway_FinalDecision" targetRef="Task_UpdateStatus">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${riskScore &gt;= 70}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_StatusUpdated" sourceRef="Task_UpdateStatus" targetRef="Task_SendNotification" />
+    <bpmn:sequenceFlow id="Flow_NotificationSent" sourceRef="Task_SendNotification" targetRef="EndEvent_KYC" />
+    <bpmn:sequenceFlow id="Flow_Timeout" sourceRef="BoundaryEvent_Timeout" targetRef="Task_HandleTimeout" />
+    <bpmn:sequenceFlow id="Flow_TimeoutHandled" sourceRef="Task_HandleTimeout" targetRef="Task_UpdateStatus" />
+    
+  </bpmn:process>
+</bpmn:definitions>

@@ -1,0 +1,472 @@
+# Comprehensive Resilience4j Configuration for All Waqiti Services
+# This configuration provides circuit breakers, retries, time limiters, and bulkheads
+# for all external service integrations and critical internal service calls
+
+resilience4j:
+  # ========================================
+  # CIRCUIT BREAKER CONFIGURATIONS
+  # ========================================
+  circuitbreaker:
+    configs:
+      # Default configuration for most services
+      default:
+        register-health-indicator: true
+        sliding-window-size: 20
+        minimum-number-of-calls: 10
+        permitted-number-of-calls-in-half-open-state: 5
+        wait-duration-in-open-state: 30s
+        failure-rate-threshold: 50
+        slow-call-rate-threshold: 50
+        slow-call-duration-threshold: 3s
+        automatic-transition-from-open-to-half-open-enabled: true
+        record-exceptions:
+          - java.io.IOException
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
+          - java.util.concurrent.TimeoutException
+          - feign.FeignException
+          - org.springframework.web.client.ResourceAccessException
+          - org.springframework.web.client.HttpServerErrorException
+        ignore-exceptions:
+          - java.lang.IllegalArgumentException
+          - jakarta.validation.ValidationException
+          - java.security.InvalidParameterException
+          
+      # Configuration for critical financial services
+      critical:
+        sliding-window-size: 30
+        minimum-number-of-calls: 15
+        permitted-number-of-calls-in-half-open-state: 3
+        wait-duration-in-open-state: 60s
+        failure-rate-threshold: 30
+        slow-call-rate-threshold: 40
+        slow-call-duration-threshold: 2s
+        
+      # Configuration for non-critical services (notifications, analytics)
+      non-critical:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        permitted-number-of-calls-in-half-open-state: 8
+        wait-duration-in-open-state: 15s
+        failure-rate-threshold: 70
+        slow-call-rate-threshold: 60
+        slow-call-duration-threshold: 5s
+        
+    instances:
+      # Core Financial Services
+      fraud-detection:
+        base-config: critical
+        sliding-window-size: 25
+        minimum-number-of-calls: 12
+        failure-rate-threshold: 40
+        
+      payment-service:
+        base-config: critical
+        sliding-window-size: 35
+        minimum-number-of-calls: 20
+        
+      wallet-service:
+        base-config: critical
+        sliding-window-size: 30
+        minimum-number-of-calls: 15
+        
+      ledger-service:
+        base-config: critical
+        sliding-window-size: 40
+        minimum-number-of-calls: 25
+        
+      compliance-service:
+        base-config: critical
+        failure-rate-threshold: 35
+        
+      kyc-service:
+        base-config: critical
+        slow-call-duration-threshold: 5s
+        
+      # Bank Integration Services
+      bank-integration:
+        base-config: critical
+        sliding-window-size: 20
+        wait-duration-in-open-state: 45s
+        slow-call-duration-threshold: 10s
+        
+      core-banking:
+        base-config: critical
+        sliding-window-size: 25
+        minimum-number-of-calls: 15
+        
+      # External Payment Providers
+      stripe-provider:
+        base-config: default
+        sliding-window-size: 15
+        failure-rate-threshold: 45
+        
+      dwolla-provider:
+        base-config: default
+        sliding-window-size: 15
+        slow-call-duration-threshold: 8s
+        
+      wise-provider:
+        base-config: default
+        sliding-window-size: 12
+        failure-rate-threshold: 40
+        
+      # Non-Critical Services
+      notification-service:
+        base-config: non-critical
+        
+      analytics-service:
+        base-config: non-critical
+        
+      reporting-service:
+        base-config: non-critical
+        failure-rate-threshold: 80
+        
+      # Health Check Circuit Breakers
+      fraud-detection-health:
+        sliding-window-size: 5
+        minimum-number-of-calls: 3
+        wait-duration-in-open-state: 10s
+        failure-rate-threshold: 60
+        
+  # ========================================
+  # RETRY CONFIGURATIONS
+  # ========================================
+  retry:
+    configs:
+      default:
+        max-attempts: 3
+        wait-duration: 1s
+        exponential-backoff-multiplier: 2.0
+        retry-exceptions:
+          - java.io.IOException
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
+          - java.util.concurrent.TimeoutException
+          - feign.RetryableException
+          - org.springframework.web.client.ResourceAccessException
+        ignore-exceptions:
+          - java.lang.IllegalArgumentException
+          - jakarta.validation.ValidationException
+          
+      critical:
+        max-attempts: 4
+        wait-duration: 500ms
+        exponential-backoff-multiplier: 1.5
+        
+      non-critical:
+        max-attempts: 2
+        wait-duration: 1s
+        exponential-backoff-multiplier: 2.0
+        
+    instances:
+      fraud-detection:
+        base-config: critical
+        max-attempts: 3
+        wait-duration: 800ms
+        
+      payment-service:
+        base-config: critical
+        
+      wallet-service:
+        base-config: critical
+        
+      ledger-service:
+        base-config: critical
+        max-attempts: 5
+        wait-duration: 300ms
+        
+      bank-integration:
+        base-config: default
+        max-attempts: 4
+        wait-duration: 1500ms
+        
+      notification-service:
+        base-config: non-critical
+        
+      analytics-service:
+        base-config: non-critical
+        max-attempts: 1
+        
+      fraud-detection-health:
+        max-attempts: 2
+        wait-duration: 2s
+        
+  # ========================================
+  # TIME LIMITER CONFIGURATIONS
+  # ========================================
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 10s
+        cancel-running-future: true
+        
+      critical:
+        timeout-duration: 8s
+        cancel-running-future: true
+        
+      long-running:
+        timeout-duration: 30s
+        cancel-running-future: true
+        
+    instances:
+      fraud-detection:
+        base-config: critical
+        timeout-duration: 6s
+        
+      payment-service:
+        base-config: critical
+        timeout-duration: 10s
+        
+      wallet-service:
+        base-config: critical
+        timeout-duration: 5s
+        
+      ledger-service:
+        base-config: critical
+        timeout-duration: 8s
+        
+      compliance-service:
+        base-config: long-running
+        timeout-duration: 20s
+        
+      kyc-service:
+        base-config: long-running
+        timeout-duration: 25s
+        
+      bank-integration:
+        base-config: long-running
+        timeout-duration: 15s
+        
+      notification-service:
+        base-config: default
+        timeout-duration: 5s
+        
+      analytics-service:
+        base-config: default
+        timeout-duration: 12s
+        
+      fraud-detection-health:
+        timeout-duration: 3s
+        
+  # ========================================
+  # BULKHEAD CONFIGURATIONS
+  # ========================================
+  bulkhead:
+    configs:
+      default:
+        max-concurrent-calls: 20
+        max-wait-duration: 100ms
+        
+      critical:
+        max-concurrent-calls: 30
+        max-wait-duration: 50ms
+        
+      non-critical:
+        max-concurrent-calls: 10
+        max-wait-duration: 200ms
+        
+    instances:
+      fraud-detection:
+        base-config: critical
+        max-concurrent-calls: 25
+
+      payment-service:
+        base-config: critical
+        max-concurrent-calls: 40
+
+      wallet-service:
+        base-config: critical
+        max-concurrent-calls: 35
+
+      ledger-service:
+        base-config: critical
+        max-concurrent-calls: 50
+
+      # SANCTIONS SCREENING (NEW: parallel OFAC/EU/UN checks)
+      # Higher concurrency since each check runs parallel sub-tasks
+      sanctions-screening:
+        base-config: critical
+        max-concurrent-calls: 30  # 30 concurrent screening operations
+        max-wait-duration: 100ms  # Allow slightly longer wait for high-value operation
+
+      bank-integration:
+        base-config: default
+        max-concurrent-calls: 15
+
+      notification-service:
+        base-config: non-critical
+
+      analytics-service:
+        base-config: non-critical
+        max-concurrent-calls: 8
+        
+  # ========================================
+  # THREAD POOL BULKHEAD CONFIGURATIONS
+  # ========================================
+  thread-pool-bulkhead:
+    configs:
+      default:
+        core-thread-pool-size: 10
+        max-thread-pool-size: 20
+        queue-capacity: 100
+        keep-alive-duration: 20s
+        
+    instances:
+      fraud-detection:
+        core-thread-pool-size: 8
+        max-thread-pool-size: 15
+        queue-capacity: 50
+        
+      payment-service:
+        core-thread-pool-size: 12
+        max-thread-pool-size: 25
+        queue-capacity: 100
+        
+      bank-integration:
+        core-thread-pool-size: 6
+        max-thread-pool-size: 12
+        queue-capacity: 30
+        
+# ========================================
+# EXTERNAL SERVICE CONFIGURATIONS
+# ========================================
+services:
+  fraud-detection:
+    url: ${FRAUD_DETECTION_SERVICE_URL:http://fraud-detection-service:8080}
+    timeout:
+      connect: 3000
+      read: 6000
+    healthcheck:
+      path: /actuator/health
+      interval: 30s
+      
+  payment-service:
+    url: ${PAYMENT_SERVICE_URL:http://payment-service:8080}
+    timeout:
+      connect: 2000
+      read: 8000
+      
+  wallet-service:
+    url: ${WALLET_SERVICE_URL:http://wallet-service:8080}
+    timeout:
+      connect: 2000
+      read: 5000
+      
+  ledger-service:
+    url: ${LEDGER_SERVICE_URL:http://ledger-service:8080}
+    timeout:
+      connect: 2000
+      read: 8000
+      
+  compliance-service:
+    url: ${COMPLIANCE_SERVICE_URL:http://compliance-service:8080}
+    timeout:
+      connect: 3000
+      read: 20000
+      
+  kyc-service:
+    url: ${KYC_SERVICE_URL:http://kyc-service:8080}
+    timeout:
+      connect: 3000
+      read: 25000
+      
+  notification-service:
+    url: ${NOTIFICATION_SERVICE_URL:http://notification-service:8080}
+    timeout:
+      connect: 2000
+      read: 5000
+      
+  analytics-service:
+    url: ${ANALYTICS_SERVICE_URL:http://analytics-service:8080}
+    timeout:
+      connect: 3000
+      read: 12000
+      
+  # External Providers
+  stripe:
+    url: https://api.stripe.com
+    timeout:
+      connect: 5000
+      read: 15000
+      
+  dwolla:
+    url: https://api.dwolla.com
+    timeout:
+      connect: 5000
+      read: 20000
+      
+  wise:
+    url: https://api.transferwise.com
+    timeout:
+      connect: 5000
+      read: 15000
+
+# ========================================
+# MONITORING AND METRICS
+# ========================================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,circuitbreakers,retries,timelimiters,bulkheads,threadsafebulkheads
+  endpoint:
+    health:
+      show-details: when-authorized
+      show-components: always
+  health:
+    circuitbreakers:
+      enabled: true
+    ratelimiters:
+      enabled: true
+    diskspace:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    distribution:
+      percentiles-histogram:
+        resilience4j.circuitbreaker.calls: true
+        resilience4j.retry.calls: true
+        resilience4j.timelimiter.calls: true
+      percentiles:
+        resilience4j.circuitbreaker.calls: 0.5, 0.95, 0.99
+        resilience4j.retry.calls: 0.5, 0.95, 0.99
+        
+# ========================================
+# LOGGING CONFIGURATION
+# ========================================
+logging:
+  level:
+    io.github.resilience4j: INFO
+    com.example.common.resilience: DEBUG
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level [%X{traceId},%X{spanId}] %logger{36} - %msg%n"
+
+# ========================================
+# CUSTOM RESILIENCE PROPERTIES
+# ========================================
+waqiti:
+  resilience:
+    circuit-breaker:
+      enabled: true
+      metrics:
+        enabled: true
+        export-interval: 30s
+      alerts:
+        enabled: true
+        webhook-url: ${RESILIENCE_WEBHOOK_URL:}
+        
+    retry:
+      enabled: true
+      exponential-backoff: true
+      
+    monitoring:
+      health-checks:
+        enabled: true
+        interval: 15s
+        
+    fallbacks:
+      enabled: true
+      conservative-mode: true # When true, fallbacks are more restrictive

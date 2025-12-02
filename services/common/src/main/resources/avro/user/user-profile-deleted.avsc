@@ -1,0 +1,69 @@
+{
+  "namespace": "com.waqiti.events.v1.user",
+  "type": "record",
+  "name": "UserProfileDeletedEvent",
+  "doc": "CRITICAL GDPR EVENT: User profile deletion requested. Triggers cascade deletion across all services",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "Unique identifier for this event (UUID)"
+    },
+    {
+      "name": "eventType",
+      "type": "string",
+      "default": "user.profile.deleted",
+      "doc": "Type of event"
+    },
+    {
+      "name": "eventVersion",
+      "type": "string",
+      "default": "1.0.0",
+      "doc": "Event schema version"
+    },
+    {
+      "name": "deletedAt",
+      "type": "long",
+      "logicalType": "timestamp-millis",
+      "doc": "Deletion timestamp"
+    },
+    {
+      "name": "correlationId",
+      "type": "string",
+      "doc": "GDPR request ID for compliance tracking"
+    },
+    {
+      "name": "userId",
+      "type": "string",
+      "doc": "User being deleted (UUID)"
+    },
+    {
+      "name": "deletionReason",
+      "type": {
+        "type": "enum",
+        "name": "DeletionReason",
+        "symbols": ["USER_REQUEST", "GDPR_REQUEST", "ACCOUNT_CLOSURE", "ADMIN_ACTION", "INACTIVITY", "LEGAL_REQUIREMENT"]
+      },
+      "doc": "Reason for deletion"
+    },
+    {
+      "name": "requestedBy",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Who requested deletion (UUID). Null if self-requested"
+    },
+    {
+      "name": "softDelete",
+      "type": "boolean",
+      "default": true,
+      "doc": "True for soft delete (30-day grace period), false for permanent"
+    },
+    {
+      "name": "retentionDate",
+      "type": ["null", "long"],
+      "logicalType": "timestamp-millis",
+      "default": null,
+      "doc": "Date when data will be permanently deleted"
+    }
+  ]
+}

@@ -1,0 +1,126 @@
+# Waqiti Secure Configuration Template
+# This file defines the structure for secure configuration management
+# All secrets MUST be sourced from HashiCorp Vault or environment variables
+# NO DEFAULT VALUES are allowed for sensitive data
+
+vault:
+  enabled: true
+  address: ${VAULT_ADDR}
+  token: ${VAULT_TOKEN}
+  namespace: ${VAULT_NAMESPACE:waqiti}
+  
+  # Secret paths in Vault
+  paths:
+    database: secret/data/waqiti/database
+    jwt: secret/data/waqiti/jwt
+    api-keys: secret/data/waqiti/api-keys
+    encryption: secret/data/waqiti/encryption
+    oauth: secret/data/waqiti/oauth
+    payment-providers: secret/data/waqiti/payment-providers
+    
+# Database Configuration - NO DEFAULTS
+database:
+  primary:
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+    username: ${vault:database/username}
+    password: ${vault:database/password}
+    
+  read-replica:
+    url: jdbc:postgresql://${DB_READ_HOST}:${DB_PORT}/${DB_NAME}
+    username: ${vault:database/read-username}
+    password: ${vault:database/read-password}
+    
+  connection-pool:
+    maximum-pool-size: ${DB_MAX_POOL_SIZE}
+    minimum-idle: ${DB_MIN_IDLE}
+    connection-timeout: ${DB_CONNECTION_TIMEOUT}
+    leak-detection-threshold: ${DB_LEAK_DETECTION_THRESHOLD}
+    
+# Security Configuration - NO DEFAULTS
+security:
+  jwt:
+    secret: ${vault:jwt/secret}
+    public-key: ${vault:jwt/public-key}
+    private-key: ${vault:jwt/private-key}
+    expiration: ${JWT_EXPIRATION}
+    refresh-expiration: ${JWT_REFRESH_EXPIRATION}
+    
+  encryption:
+    master-key: ${vault:encryption/master-key}
+    data-key: ${vault:encryption/data-key}
+    algorithm: ${ENCRYPTION_ALGORITHM}
+    
+  oauth2:
+    client-id: ${vault:oauth/client-id}
+    client-secret: ${vault:oauth/client-secret}
+    issuer-uri: ${OAUTH_ISSUER_URI}
+    
+# API Keys - NO DEFAULTS
+api-keys:
+  stripe:
+    public-key: ${vault:payment-providers/stripe-public}
+    secret-key: ${vault:payment-providers/stripe-secret}
+    webhook-secret: ${vault:payment-providers/stripe-webhook}
+    
+  twilio:
+    account-sid: ${vault:api-keys/twilio-sid}
+    auth-token: ${vault:api-keys/twilio-token}
+    
+  sendgrid:
+    api-key: ${vault:api-keys/sendgrid}
+    
+  google-maps:
+    api-key: ${vault:api-keys/google-maps}
+    
+  firebase:
+    service-account: ${vault:api-keys/firebase-service-account}
+    
+# Redis Configuration - NO DEFAULTS
+redis:
+  host: ${REDIS_HOST}
+  port: ${REDIS_PORT}
+  password: ${vault:redis/password}
+  ssl-enabled: ${REDIS_SSL_ENABLED}
+  
+# Kafka Configuration - NO DEFAULTS  
+kafka:
+  bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+  security:
+    protocol: ${KAFKA_SECURITY_PROTOCOL}
+    sasl:
+      mechanism: ${KAFKA_SASL_MECHANISM}
+      username: ${vault:kafka/username}
+      password: ${vault:kafka/password}
+    ssl:
+      truststore-location: ${KAFKA_SSL_TRUSTSTORE_LOCATION}
+      truststore-password: ${vault:kafka/truststore-password}
+      keystore-location: ${KAFKA_SSL_KEYSTORE_LOCATION}
+      keystore-password: ${vault:kafka/keystore-password}
+      
+# Monitoring Configuration
+monitoring:
+  prometheus:
+    enabled: ${PROMETHEUS_ENABLED}
+    port: ${PROMETHEUS_PORT}
+    
+  grafana:
+    admin-password: ${vault:monitoring/grafana-admin}
+    
+  elastic:
+    username: ${vault:monitoring/elastic-username}
+    password: ${vault:monitoring/elastic-password}
+    
+# Environment Validation
+validation:
+  required-env-vars:
+    - VAULT_ADDR
+    - VAULT_TOKEN
+    - DB_HOST
+    - DB_PORT
+    - DB_NAME
+    - REDIS_HOST
+    - KAFKA_BOOTSTRAP_SERVERS
+    - OAUTH_ISSUER_URI
+    
+  fail-on-missing: true
+  validate-on-startup: true

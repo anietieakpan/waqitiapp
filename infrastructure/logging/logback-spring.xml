@@ -1,0 +1,362 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+Secure Logback Configuration with Data Masking
+Comprehensive logging setup for Waqiti P2P Payment Platform
+Includes data masking, structured logging, and security monitoring
+-->
+
+<configuration>
+
+    <!-- Include Spring Boot's default configuration -->
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <!-- Properties for configuration -->
+    <property name="LOG_FILE" value="${LOG_FILE:-${LOG_PATH:-${LOG_TEMP:-${java.io.tmpdir:-/tmp}}/}waqiti.log}"/>
+    <property name="CONSOLE_LOG_PATTERN" 
+              value="${CONSOLE_LOG_PATTERN:-%clr(%d{${LOG_DATEFORMAT_PATTERN:-yyyy-MM-dd HH:mm:ss.SSS}}){faint} %clr(${LOG_LEVEL_PATTERN:-%5p}) %clr(${PID:- }){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n${LOG_EXCEPTION_CONVERSION_WORD:-%wEx}}"/>
+    <property name="FILE_LOG_PATTERN" 
+              value="${FILE_LOG_PATTERN:-%d{${LOG_DATEFORMAT_PATTERN:-yyyy-MM-dd HH:mm:ss.SSS}} ${LOG_LEVEL_PATTERN:-%5p} ${PID:- } --- [%t] %-40.40logger{39} : %m%n${LOG_EXCEPTION_CONVERSION_WORD:-%wEx}}"/>
+    
+    <!-- Secure logging patterns with masking -->
+    <property name="SECURE_CONSOLE_PATTERN"
+              value="%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(%5p) %clr(${PID:- }){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %maskedMsg%n%wEx"/>
+    <property name="SECURE_FILE_PATTERN"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} %5p ${PID:- } --- [%t] %-40.40logger{39} : %maskedMsg%n%wEx"/>
+
+    <!-- JSON logging pattern for structured logging -->
+    <property name="JSON_PATTERN">
+        {
+            "timestamp": "%d{yyyy-MM-dd HH:mm:ss.SSS}",
+            "level": "%p",
+            "thread": "%t",
+            "logger": "%logger{40}",
+            "message": "%maskedMsg",
+            "mdc": "%X",
+            "exception": "%wEx{10}",
+            "application": "${spring.application.name:-waqiti}",
+            "environment": "${spring.profiles.active:-unknown}",
+            "hostname": "${HOSTNAME:-unknown}",
+            "pid": "${PID:- }"
+        }
+    </property>
+
+    <!-- Console appender with data masking -->
+    <appender name="SECURE_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="com.waqiti.common.logging.SecureLogbackEncoder">
+            <pattern>${SECURE_CONSOLE_PATTERN}</pattern>
+            <maskingEnabled>true</maskingEnabled>
+            <validateBeforeLogging>true</validateBeforeLogging>
+            <riskThreshold>HIGH</riskThreshold>
+            <blockHighRiskLogs>false</blockHighRiskLogs>
+        </encoder>
+        
+        <!-- Filter to prevent sensitive data from appearing in console -->
+        <filter class="com.waqiti.common.logging.SensitiveDataFilter">
+            <enabled>true</enabled>
+            <strictMode>false</strictMode>
+        </filter>
+    </appender>
+
+    <!-- File appender with data masking and rotation -->
+    <appender name="SECURE_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_FILE}</file>
+        <encoder class="com.waqiti.common.logging.SecureLogbackEncoder">
+            <pattern>${SECURE_FILE_PATTERN}</pattern>
+            <maskingEnabled>true</maskingEnabled>
+            <validateBeforeLogging>true</validateBeforeLogging>
+            <riskThreshold>MEDIUM</riskThreshold>
+            <blockHighRiskLogs>true</blockHighRiskLogs>
+        </encoder>
+        
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_FILE}.%d{yyyy-MM-dd}.%i.gz</fileNamePattern>
+            <maxFileSize>100MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>10GB</totalSizeCap>
+        </rollingPolicy>
+        
+        <!-- Filter for file logging -->
+        <filter class="com.waqiti.common.logging.SensitiveDataFilter">
+            <enabled>true</enabled>
+            <strictMode>true</strictMode>
+        </filter>
+    </appender>
+
+    <!-- JSON structured logging appender -->
+    <appender name="JSON_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH:-${LOG_TEMP:-${java.io.tmpdir:-/tmp}}}/waqiti-json.log</file>
+        <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+            <providers>
+                <timestamp/>
+                <logLevel/>
+                <loggerName/>
+                <message>
+                    <!-- Apply data masking to JSON messages -->
+                    <fieldName>message</fieldName>
+                </message>
+                <mdc/>
+                <stackTrace/>
+                <pattern>
+                    <pattern>
+                        {
+                            "application": "${spring.application.name:-waqiti}",
+                            "environment": "${spring.profiles.active:-unknown}",
+                            "hostname": "${HOSTNAME:-unknown}",
+                            "pid": "${PID:- }",
+                            "traceId": "%X{traceId:-}",
+                            "spanId": "%X{spanId:-}",
+                            "userId": "%X{userId:-}",
+                            "sessionId": "%X{sessionId:-}",
+                            "requestId": "%X{requestId:-}"
+                        }
+                    </pattern>
+                </pattern>
+            </providers>
+        </encoder>
+        
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH:-${LOG_TEMP:-${java.io.tmpdir:-/tmp}}}/waqiti-json.%d{yyyy-MM-dd}.%i.gz</fileNamePattern>
+            <maxFileSize>100MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>10GB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
+    <!-- Security audit log appender -->
+    <appender name="SECURITY_AUDIT" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH:-${LOG_TEMP:-${java.io.tmpdir:-/tmp}}}/waqiti-security.log</file>
+        <encoder class="com.waqiti.common.logging.SecureLogbackEncoder">
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [SECURITY-AUDIT] %5p --- [%t] %logger{40} : %maskedMsg%n%wEx</pattern>
+            <maskingEnabled>true</maskingEnabled>
+            <validateBeforeLogging>true</validateBeforeLogging>
+            <riskThreshold>LOW</riskThreshold>
+            <blockHighRiskLogs>false</blockHighRiskLogs>
+        </encoder>
+        
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH:-${LOG_TEMP:-${java.io.tmpdir:-/tmp}}}/waqiti-security.%d{yyyy-MM-dd}.%i.gz</fileNamePattern>
+            <maxFileSize>50MB</maxFileSize>
+            <maxHistory>90</maxHistory>
+            <totalSizeCap>5GB</totalSizeCap>
+        </rollingPolicy>
+        
+        <!-- Only log security-related events -->
+        <filter class="ch.qos.logback.core.filter.EvaluatorFilter">
+            <evaluator class="ch.qos.logback.classic.boolex.GEventEvaluator">
+                <expression>
+                    return (
+                        logger.name.contains("security") ||
+                        logger.name.contains("auth") ||
+                        logger.name.contains("login") ||
+                        logger.name.contains("audit") ||
+                        message.contains("SECURITY") ||
+                        message.contains("AUTH") ||
+                        message.contains("LOGIN") ||
+                        message.contains("ACCESS_DENIED") ||
+                        message.contains("SUSPICIOUS")
+                    );
+                </expression>
+            </evaluator>
+            <OnMismatch>DENY</OnMismatch>
+            <OnMatch>ACCEPT</OnMatch>
+        </filter>
+    </appender>
+
+    <!-- Error log appender for critical issues -->
+    <appender name="ERROR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH:-${LOG_TEMP:-${java.io.tmpdir:-/tmp}}}/waqiti-error.log</file>
+        <encoder class="com.waqiti.common.logging.SecureLogbackEncoder">
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [ERROR] %5p --- [%t] %logger{40} : %maskedMsg%n%wEx{full}</pattern>
+            <maskingEnabled>true</maskingEnabled>
+            <validateBeforeLogging>true</validateBeforeLogging>
+            <riskThreshold>MEDIUM</riskThreshold>
+            <blockHighRiskLogs>false</blockHighRiskLogs>
+        </encoder>
+        
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH:-${LOG_TEMP:-${java.io.tmpdir:-/tmp}}}/waqiti-error.%d{yyyy-MM-dd}.%i.gz</fileNamePattern>
+            <maxFileSize>50MB</maxFileSize>
+            <maxHistory>90</maxHistory>
+            <totalSizeCap>2GB</totalSizeCap>
+        </rollingPolicy>
+        
+        <!-- Only log ERROR and above -->
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>ERROR</level>
+        </filter>
+    </appender>
+
+    <!-- Async wrapper for performance -->
+    <appender name="ASYNC_FILE" class="ch.qos.logback.classic.AsyncAppender">
+        <queueSize>1024</queueSize>
+        <discardingThreshold>200</discardingThreshold>
+        <maxFlushTime>5000</maxFlushTime>
+        <includeCallerData>true</includeCallerData>
+        <appender-ref ref="SECURE_FILE"/>
+    </appender>
+
+    <appender name="ASYNC_JSON" class="ch.qos.logback.classic.AsyncAppender">
+        <queueSize>1024</queueSize>
+        <discardingThreshold>200</discardingThreshold>
+        <maxFlushTime>5000</maxFlushTime>
+        <includeCallerData>false</includeCallerData>
+        <appender-ref ref="JSON_FILE"/>
+    </appender>
+
+    <!-- Syslog appender for centralized logging -->
+    <appender name="SYSLOG" class="ch.qos.logback.classic.net.SyslogAppender">
+        <syslogHost>${SYSLOG_HOST:-localhost}</syslogHost>
+        <port>${SYSLOG_PORT:-514}</port>
+        <facility>LOCAL0</facility>
+        <suffixPattern>waqiti [%thread] %logger{20} %msg</suffixPattern>
+        
+        <!-- Apply data masking to syslog messages -->
+        <encoder class="com.waqiti.common.logging.SecureLogbackEncoder">
+            <pattern>%maskedMsg</pattern>
+            <maskingEnabled>true</maskingEnabled>
+            <validateBeforeLogging>true</validateBeforeLogging>
+            <riskThreshold>HIGH</riskThreshold>
+            <blockHighRiskLogs>true</blockHighRiskLogs>
+        </encoder>
+    </appender>
+
+    <!-- Logger configurations -->
+    
+    <!-- Root logger -->
+    <root level="${logging.level.root:-INFO}">
+        <appender-ref ref="SECURE_CONSOLE"/>
+        <appender-ref ref="ASYNC_FILE"/>
+        <appender-ref ref="ASYNC_JSON"/>
+        <appender-ref ref="ERROR_FILE"/>
+    </root>
+
+    <!-- Security-specific loggers -->
+    <logger name="com.waqiti.common.security" level="INFO" additivity="false">
+        <appender-ref ref="SECURITY_AUDIT"/>
+        <appender-ref ref="SECURE_CONSOLE"/>
+        <appender-ref ref="ERROR_FILE"/>
+    </logger>
+    
+    <logger name="com.waqiti.common.logging" level="DEBUG" additivity="false">
+        <appender-ref ref="SECURITY_AUDIT"/>
+        <appender-ref ref="SECURE_CONSOLE"/>
+    </logger>
+
+    <!-- Authentication and authorization -->
+    <logger name="org.springframework.security" level="INFO" additivity="false">
+        <appender-ref ref="SECURITY_AUDIT"/>
+        <appender-ref ref="SECURE_CONSOLE"/>
+    </logger>
+    
+    <logger name="org.springframework.security.oauth2" level="DEBUG" additivity="false">
+        <appender-ref ref="SECURITY_AUDIT"/>
+        <appender-ref ref="SECURE_CONSOLE"/>
+    </logger>
+
+    <!-- Payment processing -->
+    <logger name="com.waqiti.payment" level="INFO" additivity="false">
+        <appender-ref ref="SECURITY_AUDIT"/>
+        <appender-ref ref="ASYNC_FILE"/>
+        <appender-ref ref="ASYNC_JSON"/>
+        <appender-ref ref="ERROR_FILE"/>
+    </logger>
+
+    <!-- Transaction logging -->
+    <logger name="com.waqiti.transaction" level="INFO" additivity="false">
+        <appender-ref ref="SECURITY_AUDIT"/>
+        <appender-ref ref="ASYNC_FILE"/>
+        <appender-ref ref="ASYNC_JSON"/>
+        <appender-ref ref="ERROR_FILE"/>
+    </logger>
+
+    <!-- Database operations -->
+    <logger name="org.springframework.jdbc" level="DEBUG" additivity="false">
+        <appender-ref ref="ASYNC_FILE"/>
+        <appender-ref ref="ERROR_FILE"/>
+        
+        <!-- Filter out SQL with potential sensitive data -->
+        <filter class="com.waqiti.common.logging.SqlSensitiveDataFilter">
+            <enabled>true</enabled>
+        </filter>
+    </logger>
+
+    <!-- HTTP request/response logging -->
+    <logger name="org.springframework.web" level="INFO" additivity="false">
+        <appender-ref ref="ASYNC_FILE"/>
+        <appender-ref ref="ASYNC_JSON"/>
+        <appender-ref ref="ERROR_FILE"/>
+    </logger>
+
+    <!-- Actuator endpoints - limited logging -->
+    <logger name="org.springframework.boot.actuate" level="WARN" additivity="false">
+        <appender-ref ref="SECURE_CONSOLE"/>
+        <appender-ref ref="ERROR_FILE"/>
+    </logger>
+
+    <!-- Third-party libraries -->
+    <logger name="org.apache.http" level="WARN"/>
+    <logger name="org.springframework.boot" level="INFO"/>
+    <logger name="org.hibernate" level="WARN"/>
+    <logger name="com.zaxxer.hikari" level="WARN"/>
+    <logger name="org.springframework.cloud" level="INFO"/>
+    <logger name="org.springframework.kafka" level="INFO"/>
+    <logger name="redis.clients" level="WARN"/>
+
+    <!-- Silence noisy loggers -->
+    <logger name="org.springframework.boot.autoconfigure" level="WARN"/>
+    <logger name="org.springframework.boot.context" level="WARN"/>
+    <logger name="org.springframework.context" level="WARN"/>
+    <logger name="org.springframework.beans.factory" level="WARN"/>
+
+    <!-- Environment-specific configurations -->
+    <springProfile name="development">
+        <!-- More verbose logging in development -->
+        <logger name="com.waqiti" level="DEBUG"/>
+        <logger name="org.springframework.security" level="DEBUG"/>
+        
+        <!-- Enable SQL logging for debugging -->
+        <logger name="org.hibernate.SQL" level="DEBUG"/>
+        <logger name="org.hibernate.type.descriptor.sql.BasicBinder" level="TRACE"/>
+    </springProfile>
+
+    <springProfile name="staging">
+        <!-- Balanced logging for staging -->
+        <logger name="com.waqiti" level="INFO"/>
+        <logger name="org.springframework.security" level="INFO"/>
+        
+        <!-- Enable syslog for staging -->
+        <root level="INFO">
+            <appender-ref ref="SECURE_CONSOLE"/>
+            <appender-ref ref="ASYNC_FILE"/>
+            <appender-ref ref="ASYNC_JSON"/>
+            <appender-ref ref="ERROR_FILE"/>
+            <appender-ref ref="SYSLOG"/>
+        </root>
+    </springProfile>
+
+    <springProfile name="production">
+        <!-- Minimal console logging in production -->
+        <logger name="com.waqiti" level="INFO"/>
+        <logger name="org.springframework.security" level="WARN"/>
+        
+        <!-- Production root logger with all appenders -->
+        <root level="WARN">
+            <appender-ref ref="ASYNC_FILE"/>
+            <appender-ref ref="ASYNC_JSON"/>
+            <appender-ref ref="ERROR_FILE"/>
+            <appender-ref ref="SECURITY_AUDIT"/>
+            <appender-ref ref="SYSLOG"/>
+        </root>
+        
+        <!-- Disable SQL logging in production -->
+        <logger name="org.hibernate.SQL" level="OFF"/>
+        <logger name="org.hibernate.type" level="OFF"/>
+    </springProfile>
+
+    <!-- JMX configuration for log level management -->
+    <jmxConfigurator/>
+    
+    <!-- Shutdown hook for clean log closure -->
+    <shutdownHook class="ch.qos.logback.core.hook.DelayingShutdownHook"/>
+
+</configuration>

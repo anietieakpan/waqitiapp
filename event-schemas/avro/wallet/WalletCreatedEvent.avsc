@@ -1,0 +1,57 @@
+{
+  "namespace": "com.waqiti.events.wallet",
+  "type": "record",
+  "name": "WalletCreatedEvent",
+  "doc": "Event published when a new wallet is created",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "Unique identifier for this event"
+    },
+    {
+      "name": "walletId",
+      "type": "string",
+      "doc": "Unique identifier for the wallet"
+    },
+    {
+      "name": "userId",
+      "type": "string",
+      "doc": "User who owns this wallet"
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "doc": "Wallet currency code (USD, EUR, etc.)"
+    },
+    {
+      "name": "walletType",
+      "type": {
+        "type": "enum",
+        "name": "WalletType",
+        "symbols": ["PERSONAL", "BUSINESS", "SAVINGS"]
+      },
+      "doc": "Type of wallet"
+    },
+    {
+      "name": "initialBalance",
+      "type": "string",
+      "doc": "Initial balance as string to avoid precision loss"
+    },
+    {
+      "name": "createdAt",
+      "type": "long",
+      "logicalType": "timestamp-millis",
+      "doc": "Timestamp when wallet was created"
+    },
+    {
+      "name": "metadata",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "default": {},
+      "doc": "Additional metadata"
+    }
+  ]
+}

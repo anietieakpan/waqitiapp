@@ -1,0 +1,488 @@
+# CRITICAL SECURITY: Hardened Wallet Service Deployment
+# Implements comprehensive security controls for financial data protection
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wallet-service
+  namespace: waqiti
+  labels:
+    app: wallet-service
+    version: v1
+    component: backend
+    security: hardened
+    compliance: pci-dss
+  annotations:
+    security.example.com/review-date: "2024-01-01"
+    security.example.com/data-classification: "highly-sensitive"
+spec:
+  replicas: 3
+  revisionHistoryLimit: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0  # Zero downtime for wallet operations
+  selector:
+    matchLabels:
+      app: wallet-service
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: wallet-service
+        version: v1
+        component: backend
+        security: hardened
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/actuator/prometheus"
+        prometheus.io/scheme: "https"
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/role: "wallet-service"
+        vault.hashicorp.com/agent-inject-secret-database: "database/creds/wallet-service"
+        container.apparmor.security.beta.kubernetes.io/wallet-service: runtime/default
+        seccomp.security.alpha.kubernetes.io/pod: runtime/default
+    spec:
+      # CRITICAL: Service account with minimal permissions
+      serviceAccountName: wallet-service-sa
+      automountServiceAccountToken: false
+      
+      # CRITICAL: Pod-level security context
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10002
+        runAsGroup: 10002
+        fsGroup: 10002
+        fsGroupChangePolicy: "OnRootMismatch"
+        seccompProfile:
+          type: RuntimeDefault
+        supplementalGroups: [10002]
+      
+      # Security settings
+      hostNetwork: false
+      hostPID: false
+      hostIPC: false
+      dnsPolicy: ClusterFirst
+      
+      initContainers:
+      # Security scanner init container
+      - name: security-scanner
+        image: waqiti/security-scanner:latest
+        imagePullPolicy: Always
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          echo "Running security checks..."
+          # Scan for vulnerabilities
+          /usr/local/bin/trivy fs --no-progress --exit-code 1 --severity HIGH,CRITICAL /app || exit 1
+          # Verify encryption keys
+          test -f /app/keys/master.key || exit 1
+          echo "Security scan complete"
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 10002
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
+        resources:
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+      
+      # Wait for dependencies
+      - name: wait-for-dependencies
+        image: busybox:1.35
+        imagePullPolicy: IfNotPresent
+        command: ['sh', '-c']
+        args:
+        - |
+          until nc -z postgres 5432 && nc -z redis-master 6379; do
+            echo "Waiting for dependencies..."
+            sleep 2
+          done
+          echo "All dependencies ready"
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 10002
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
+            add: ["NET_RAW"]  # Required for nc
+        resources:
+          limits:
+            memory: "64Mi"
+            cpu: "50m"
+      
+      containers:
+      - name: wallet-service
+        image: waqiti/wallet-service:v1.0.0
+        imagePullPolicy: Always
+        
+        # CRITICAL: Container security context
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 10002
+          runAsGroup: 10002
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
+          seccompProfile:
+            type: RuntimeDefault
+        
+        ports:
+        - containerPort: 8080
+          name: https
+          protocol: TCP
+        - containerPort: 9090
+          name: metrics
+          protocol: TCP
+        
+        # Environment variables (no secrets here)
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "kubernetes,secure,production"
+        - name: JAVA_OPTS
+          value: "-Xms512m -Xmx1g -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -Djava.security.egd=file:/dev/./urandom -Duser.timezone=UTC"
+        - name: SERVER_PORT
+          value: "8080"
+        - name: SERVER_SSL_ENABLED
+          value: "true"
+        - name: SERVER_SSL_KEY_STORE
+          value: "/app/certs/keystore.p12"
+        - name: MANAGEMENT_SERVER_PORT
+          value: "9090"
+        - name: MANAGEMENT_SERVER_SSL_ENABLED
+          value: "true"
+        - name: SPRING_DATASOURCE_URL
+          value: "jdbc:postgresql://postgres:5432/wallet_db?sslmode=require&sslcert=/app/certs/client.crt&sslkey=/app/certs/client.key"
+        - name: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
+          value: "10"
+        - name: SPRING_REDIS_HOST
+          value: "redis-master"
+        - name: SPRING_REDIS_SSL
+          value: "true"
+        - name: SECURITY_REQUIRE_SSL
+          value: "true"
+        - name: SECURITY_HEADERS_ENABLED
+          value: "true"
+        - name: RATE_LIMITING_ENABLED
+          value: "true"
+        - name: AUDIT_LOGGING_ENABLED
+          value: "true"
+        - name: WALLET_ENCRYPTION_ENABLED
+          value: "true"
+        - name: DOUBLE_SPEND_PROTECTION_ENABLED
+          value: "true"
+        - name: ATOMIC_OPERATIONS_ENABLED
+          value: "true"
+        
+        # Secrets from volumes (not env vars)
+        envFrom:
+        - secretRef:
+            name: wallet-service-env-secrets
+            optional: false
+        
+        # Resource limits
+        resources:
+          requests:
+            memory: "768Mi"
+            cpu: "500m"
+            ephemeral-storage: "1Gi"
+          limits:
+            memory: "1536Mi"
+            cpu: "1500m"
+            ephemeral-storage: "2Gi"
+        
+        # Health checks with HTTPS
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 9090
+            scheme: HTTPS
+          initialDelaySeconds: 90
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 9090
+            scheme: HTTPS
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        startupProbe:
+          httpGet:
+            path: /actuator/health/startup
+            port: 9090
+            scheme: HTTPS
+          initialDelaySeconds: 0
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30
+        
+        # Volume mounts
+        volumeMounts:
+        - name: config
+          mountPath: /app/config
+          readOnly: true
+        - name: wallet-keys
+          mountPath: /app/keys
+          readOnly: true
+        - name: certs
+          mountPath: /app/certs
+          readOnly: true
+        - name: tmp
+          mountPath: /tmp
+        - name: app-cache
+          mountPath: /app/cache
+        - name: app-logs
+          mountPath: /var/log/app
+      
+      # Sidecar: Wallet audit logger
+      - name: audit-logger
+        image: waqiti/audit-logger:latest
+        imagePullPolicy: Always
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 10003
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        volumeMounts:
+        - name: app-logs
+          mountPath: /var/log/app
+          readOnly: true
+        - name: audit-logs
+          mountPath: /var/log/audit
+        env:
+        - name: SERVICE_NAME
+          value: "wallet-service"
+        - name: AUDIT_LEVEL
+          value: "DETAILED"
+      
+      # Volumes
+      volumes:
+      - name: config
+        configMap:
+          name: wallet-service-config
+          defaultMode: 0400
+      - name: wallet-keys
+        secret:
+          secretName: wallet-encryption-keys
+          defaultMode: 0400
+      - name: certs
+        secret:
+          secretName: wallet-service-certs
+          defaultMode: 0400
+      - name: tmp
+        emptyDir:
+          sizeLimit: 100Mi
+          medium: Memory
+      - name: app-cache
+        emptyDir:
+          sizeLimit: 500Mi
+      - name: app-logs
+        emptyDir:
+          sizeLimit: 1Gi
+      - name: audit-logs
+        emptyDir:
+          sizeLimit: 2Gi
+      
+      # Image pull secrets
+      imagePullSecrets:
+      - name: registry-credentials
+      
+      # Node selection for financial services
+      nodeSelector:
+        kubernetes.io/os: linux
+        workload: financial
+      
+      # Tolerations for dedicated nodes
+      tolerations:
+      - key: "workload"
+        operator: "Equal"
+        value: "financial"
+        effect: "NoSchedule"
+      
+      # Pod affinity/anti-affinity
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - wallet-service
+            topologyKey: kubernetes.io/hostname
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            preference:
+              matchExpressions:
+              - key: node-type
+                operator: In
+                values:
+                - secure
+                - financial-processing
+      
+      # Priority class
+      priorityClassName: critical-priority
+      
+      # Termination settings
+      terminationGracePeriodSeconds: 60
+      
+      # DNS configuration
+      dnsConfig:
+        options:
+        - name: ndots
+          value: "2"
+        - name: edns0
+
+---
+# ServiceAccount
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: wallet-service-sa
+  namespace: waqiti
+  labels:
+    app: wallet-service
+automountServiceAccountToken: false
+
+---
+# Role with minimal permissions
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: wallet-service-role
+  namespace: waqiti
+rules:
+- apiGroups: [""]
+  resources: ["configmaps"]
+  resourceNames: ["wallet-service-config"]
+  verbs: ["get", "watch"]
+- apiGroups: [""]
+  resources: ["secrets"]
+  resourceNames: ["wallet-encryption-keys", "wallet-service-certs", "wallet-service-env-secrets"]
+  verbs: ["get"]
+
+---
+# RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: wallet-service-rolebinding
+  namespace: waqiti
+subjects:
+- kind: ServiceAccount
+  name: wallet-service-sa
+  namespace: waqiti
+roleRef:
+  kind: Role
+  name: wallet-service-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# NetworkPolicy for wallet service
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: wallet-service-netpol
+  namespace: waqiti
+spec:
+  podSelector:
+    matchLabels:
+      app: wallet-service
+  policyTypes:
+  - Ingress
+  - Egress
+  
+  ingress:
+  # Only allow from API gateway and payment service
+  - from:
+    - podSelector:
+        matchLabels:
+          app: api-gateway
+    - podSelector:
+        matchLabels:
+          app: payment-service
+    ports:
+    - protocol: TCP
+      port: 8080
+  
+  # Allow metrics scraping
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    ports:
+    - protocol: TCP
+      port: 9090
+  
+  egress:
+  # Allow DNS
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+  
+  # Allow database
+  - to:
+    - podSelector:
+        matchLabels:
+          app: postgres
+    ports:
+    - protocol: TCP
+      port: 5432
+  
+  # Allow Redis
+  - to:
+    - podSelector:
+        matchLabels:
+          app: redis
+    ports:
+    - protocol: TCP
+      port: 6379
+  
+  # Allow Vault
+  - to:
+    - podSelector:
+        matchLabels:
+          app: vault
+    ports:
+    - protocol: TCP
+      port: 8200
+
+---
+# PodDisruptionBudget
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: wallet-service-pdb
+  namespace: waqiti
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: wallet-service

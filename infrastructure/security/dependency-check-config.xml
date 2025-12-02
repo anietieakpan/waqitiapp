@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    OWASP Dependency-Check Configuration
+
+    Production-grade security scanning for all Maven dependencies
+    Scans for known CVEs from National Vulnerability Database (NVD)
+
+    Usage: mvn org.owasp:dependency-check-maven:check
+
+    @author Waqiti Security Team
+    @version 1.0.0
+-->
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+
+    <!--
+        SUPPRESSION RULES
+
+        Only suppress vulnerabilities after:
+        1. Manual security review
+        2. Risk assessment documented
+        3. Mitigation plan in place
+        4. Approval from security team
+
+        Template:
+        <suppress>
+            <notes>JIRA-TICKET: Reason for suppression</notes>
+            <cve>CVE-YYYY-XXXXX</cve>
+            <gav regex="true">group:artifact:version</gav>
+        </suppress>
+    -->
+
+    <!--
+        Example: React Native dependencies (frontend only, not backend risk)
+        Remove this section and add actual suppressions as needed
+    -->
+    <!--
+    <suppress>
+        <notes>SECURITY-001: React Native frontend dependencies do not affect backend security</notes>
+        <filePath regex="true">.*frontend/mobile-app/node_modules/.*</filePath>
+    </suppress>
+    -->
+
+</suppressions>

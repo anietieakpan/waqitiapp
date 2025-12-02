@@ -1,0 +1,220 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: keycloak-backup
+  namespace: keycloak
+  labels:
+    app: keycloak
+    component: backup
+spec:
+  schedule: "0 2 * * *" # Daily at 2 AM
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: keycloak-backup
+            version: v1
+        spec:
+          serviceAccountName: keycloak-backup
+          restartPolicy: OnFailure
+          containers:
+          - name: keycloak-backup
+            image: registry.example.com/keycloak-backup:latest
+            imagePullPolicy: Always
+            env:
+            - name: KEYCLOAK_URL
+              value: "http://keycloak:8080"
+            - name: KEYCLOAK_REALM
+              value: "waqiti"
+            - name: KEYCLOAK_USER
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-admin-credentials
+                  key: username
+            - name: KEYCLOAK_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-admin-credentials
+                  key: password
+            - name: BACKUP_LOCATION
+              value: "s3://waqiti-backups/keycloak"
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: access-key-id
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: secret-access-key
+            - name: AWS_REGION
+              value: "us-east-1"
+            - name: ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: backup-encryption
+                  key: key
+            - name: RETENTION_DAYS
+              value: "30"
+            - name: NOTIFICATION_WEBHOOK
+              value: "https://hooks.slack.com/services/xxx/yyy/zzz"
+            command:
+            - /bin/bash
+            - -c
+            - |
+              set -e
+              echo "Starting Keycloak backup at $(date)"
+              
+              # Generate backup filename with timestamp
+              TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+              BACKUP_FILE="keycloak_backup_${TIMESTAMP}.json"
+              
+              # Export all realms
+              echo "Exporting Keycloak realms..."
+              /opt/keycloak/bin/kc.sh export \
+                --dir /tmp/backup \
+                --realm ${KEYCLOAK_REALM} \
+                --users realm_file
+              
+              # Export master realm separately
+              /opt/keycloak/bin/kc.sh export \
+                --dir /tmp/backup \
+                --realm master \
+                --users realm_file
+              
+              # Compress backup
+              echo "Compressing backup..."
+              cd /tmp/backup
+              tar -czf ${BACKUP_FILE}.tar.gz *.json
+              
+              # Encrypt backup
+              echo "Encrypting backup..."
+              openssl enc -aes-256-cbc \
+                -salt \
+                -in ${BACKUP_FILE}.tar.gz \
+                -out ${BACKUP_FILE}.tar.gz.enc \
+                -pass pass:${ENCRYPTION_KEY}
+              
+              # Upload to S3
+              echo "Uploading backup to S3..."
+              aws s3 cp ${BACKUP_FILE}.tar.gz.enc ${BACKUP_LOCATION}/${BACKUP_FILE}.tar.gz.enc \
+                --storage-class STANDARD_IA \
+                --server-side-encryption AES256 \
+                --metadata "timestamp=${TIMESTAMP},realm=${KEYCLOAK_REALM}"
+              
+              # Verify upload
+              aws s3 ls ${BACKUP_LOCATION}/${BACKUP_FILE}.tar.gz.enc
+              
+              # Clean up old backups
+              echo "Cleaning up old backups..."
+              aws s3 ls ${BACKUP_LOCATION}/ | while read -r line; do
+                createDate=$(echo $line | awk '{print $1" "$2}')
+                createDate=$(date -d "$createDate" +%s)
+                olderThan=$(date -d "${RETENTION_DAYS} days ago" +%s)
+                if [[ $createDate -lt $olderThan ]]; then
+                  fileName=$(echo $line | awk '{print $4}')
+                  if [[ $fileName != "" ]]; then
+                    aws s3 rm ${BACKUP_LOCATION}/$fileName
+                    echo "Deleted old backup: $fileName"
+                  fi
+                fi
+              done
+              
+              # Send notification
+              if [ -n "${NOTIFICATION_WEBHOOK}" ]; then
+                curl -X POST ${NOTIFICATION_WEBHOOK} \
+                  -H 'Content-Type: application/json' \
+                  -d "{
+                    \"text\": \"✅ Keycloak backup completed successfully\",
+                    \"attachments\": [{
+                      \"color\": \"good\",
+                      \"fields\": [
+                        {\"title\": \"Backup File\", \"value\": \"${BACKUP_FILE}.tar.gz.enc\", \"short\": true},
+                        {\"title\": \"Size\", \"value\": \"$(du -h ${BACKUP_FILE}.tar.gz.enc | cut -f1)\", \"short\": true},
+                        {\"title\": \"Location\", \"value\": \"${BACKUP_LOCATION}\", \"short\": false},
+                        {\"title\": \"Timestamp\", \"value\": \"${TIMESTAMP}\", \"short\": true}
+                      ]
+                    }]
+                  }"
+              fi
+              
+              echo "Backup completed successfully"
+            resources:
+              requests:
+                memory: "512Mi"
+                cpu: "250m"
+              limits:
+                memory: "1Gi"
+                cpu: "500m"
+            volumeMounts:
+            - name: backup-temp
+              mountPath: /tmp/backup
+          volumes:
+          - name: backup-temp
+            emptyDir: {}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: keycloak-backup
+  namespace: keycloak
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: keycloak-backup
+  namespace: keycloak
+rules:
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get", "list"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: keycloak-backup
+  namespace: keycloak
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: keycloak-backup
+subjects:
+- kind: ServiceAccount
+  name: keycloak-backup
+  namespace: keycloak
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: keycloak-admin-credentials
+  namespace: keycloak
+type: Opaque
+stringData:
+  username: admin
+  password: ${KEYCLOAK_ADMIN_PASSWORD}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: aws-credentials
+  namespace: keycloak
+type: Opaque
+stringData:
+  access-key-id: ${AWS_ACCESS_KEY_ID}
+  secret-access-key: ${AWS_SECRET_ACCESS_KEY}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: backup-encryption
+  namespace: keycloak
+type: Opaque
+stringData:
+  key: ${BACKUP_ENCRYPTION_KEY}

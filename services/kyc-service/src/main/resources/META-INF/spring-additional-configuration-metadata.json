@@ -1,0 +1,344 @@
+{
+  "properties": [
+    {
+      "name": "kyc.providers.onfido.api-key",
+      "type": "java.lang.String",
+      "description": "API key for Onfido KYC provider integration"
+    },
+    {
+      "name": "kyc.providers.onfido.api-url",
+      "type": "java.lang.String",
+      "description": "API URL for Onfido KYC provider",
+      "defaultValue": "https://api.onfido.com/v3"
+    },
+    {
+      "name": "kyc.providers.onfido.webhook-secret",
+      "type": "java.lang.String",
+      "description": "Webhook secret for Onfido integration"
+    },
+    {
+      "name": "kyc.providers.onfido.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable or disable Onfido provider",
+      "defaultValue": true
+    },
+    {
+      "name": "kyc.providers.onfido.timeout-seconds",
+      "type": "java.lang.Integer",
+      "description": "Timeout for Onfido API calls in seconds",
+      "defaultValue": 30
+    },
+    {
+      "name": "kyc.providers.jumio.api-key",
+      "type": "java.lang.String",
+      "description": "API key for Jumio KYC provider integration"
+    },
+    {
+      "name": "kyc.providers.jumio.api-secret",
+      "type": "java.lang.String",
+      "description": "API secret for Jumio KYC provider integration"
+    },
+    {
+      "name": "kyc.providers.jumio.api-url",
+      "type": "java.lang.String",
+      "description": "API URL for Jumio KYC provider",
+      "defaultValue": "https://netverify.com/api/v4"
+    },
+    {
+      "name": "kyc.providers.jumio.webhook-secret",
+      "type": "java.lang.String",
+      "description": "Webhook secret for Jumio integration"
+    },
+    {
+      "name": "kyc.providers.jumio.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable or disable Jumio provider",
+      "defaultValue": false
+    },
+    {
+      "name": "kyc.providers.jumio.timeout-seconds",
+      "type": "java.lang.Integer",
+      "description": "Timeout for Jumio API calls in seconds",
+      "defaultValue": 30
+    },
+    {
+      "name": "kyc.providers.comply-advantage.api-key",
+      "type": "java.lang.String",
+      "description": "API key for ComplyAdvantage KYC provider integration"
+    },
+    {
+      "name": "kyc.providers.comply-advantage.api-url",
+      "type": "java.lang.String",
+      "description": "API URL for ComplyAdvantage KYC provider",
+      "defaultValue": "https://api.complyadvantage.com"
+    },
+    {
+      "name": "kyc.providers.comply-advantage.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable or disable ComplyAdvantage provider",
+      "defaultValue": false
+    },
+    {
+      "name": "kyc.providers.comply-advantage.timeout-seconds",
+      "type": "java.lang.Integer",
+      "description": "Timeout for ComplyAdvantage API calls in seconds",
+      "defaultValue": 30
+    },
+    {
+      "name": "kyc.providers.default-provider",
+      "type": "java.lang.String",
+      "description": "Default KYC provider to use",
+      "defaultValue": "ONFIDO"
+    },
+    {
+      "name": "kyc.storage.type",
+      "type": "java.lang.String",
+      "description": "Storage type for KYC documents",
+      "defaultValue": "S3"
+    },
+    {
+      "name": "kyc.storage.bucket-name",
+      "type": "java.lang.String",
+      "description": "S3 bucket name for storing KYC documents",
+      "defaultValue": "waqiti-kyc-documents"
+    },
+    {
+      "name": "kyc.storage.region",
+      "type": "java.lang.String",
+      "description": "AWS region for KYC document storage",
+      "defaultValue": "us-east-1"
+    },
+    {
+      "name": "kyc.storage.encryption-key",
+      "type": "java.lang.String",
+      "description": "Encryption key for KYC document storage"
+    },
+    {
+      "name": "kyc.storage.max-file-size-bytes",
+      "type": "java.lang.Long",
+      "description": "Maximum file size for KYC documents in bytes",
+      "defaultValue": 10485760
+    },
+    {
+      "name": "kyc.storage.allowed-file-types",
+      "type": "java.util.List<java.lang.String>",
+      "description": "List of allowed file types for KYC documents",
+      "defaultValue": ["image/jpeg", "image/png", "application/pdf"]
+    },
+    {
+      "name": "kyc.verification.max-attempts-per-user",
+      "type": "java.lang.Integer",
+      "description": "Maximum verification attempts allowed per user",
+      "defaultValue": 3
+    },
+    {
+      "name": "kyc.verification.session-timeout-minutes",
+      "type": "java.lang.Integer",
+      "description": "KYC session timeout in minutes",
+      "defaultValue": 30
+    },
+    {
+      "name": "kyc.verification.document-expiry-days",
+      "type": "java.lang.Integer",
+      "description": "Document expiry period in days",
+      "defaultValue": 365
+    },
+    {
+      "name": "kyc.verification.verification-expiry-days",
+      "type": "java.lang.Integer",
+      "description": "Verification expiry period in days",
+      "defaultValue": 365
+    },
+    {
+      "name": "kyc.verification.auto-approve-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable automatic approval of KYC verifications",
+      "defaultValue": false
+    },
+    {
+      "name": "kyc.verification.auto-approve-threshold",
+      "type": "java.math.BigDecimal",
+      "description": "Threshold for automatic KYC approval",
+      "defaultValue": 0.95
+    },
+    {
+      "name": "kyc.verification.level-requirements.BASIC",
+      "type": "java.lang.Integer",
+      "description": "Number of documents required for BASIC KYC level",
+      "defaultValue": 1
+    },
+    {
+      "name": "kyc.verification.level-requirements.INTERMEDIATE",
+      "type": "java.lang.Integer",
+      "description": "Number of documents required for INTERMEDIATE KYC level",
+      "defaultValue": 2
+    },
+    {
+      "name": "kyc.verification.level-requirements.ADVANCED",
+      "type": "java.lang.Integer",
+      "description": "Number of documents required for ADVANCED KYC level",
+      "defaultValue": 3
+    },
+    {
+      "name": "kyc.security.encrypt-documents",
+      "type": "java.lang.Boolean",
+      "description": "Enable document encryption for KYC documents",
+      "defaultValue": true
+    },
+    {
+      "name": "kyc.security.watermark-documents",
+      "type": "java.lang.Boolean",
+      "description": "Enable watermarking of KYC documents",
+      "defaultValue": true
+    },
+    {
+      "name": "kyc.security.watermark-text",
+      "type": "java.lang.String",
+      "description": "Text to use for watermarking KYC documents",
+      "defaultValue": "WAQITI KYC VERIFIED"
+    },
+    {
+      "name": "kyc.security.audit-log-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable audit logging for KYC operations",
+      "defaultValue": true
+    },
+    {
+      "name": "kyc.security.download-url-expiry-minutes",
+      "type": "java.lang.Integer",
+      "description": "Expiry time for document download URLs in minutes",
+      "defaultValue": 15
+    },
+    {
+      "name": "kyc.security.ip-whitelist-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable IP whitelist for KYC operations",
+      "defaultValue": false
+    },
+    {
+      "name": "kyc.security.whitelisted-ips",
+      "type": "java.util.List<java.lang.String>",
+      "description": "List of whitelisted IP addresses for KYC operations",
+      "defaultValue": []
+    },
+    {
+      "name": "kyc.compliance.gdpr-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable GDPR compliance features",
+      "defaultValue": true
+    },
+    {
+      "name": "kyc.compliance.data-retention-days",
+      "type": "java.lang.Integer",
+      "description": "Data retention period in days for compliance",
+      "defaultValue": 2555
+    },
+    {
+      "name": "kyc.compliance.right-to-erasure-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable right to erasure for GDPR compliance",
+      "defaultValue": true
+    },
+    {
+      "name": "kyc.compliance.restricted-countries",
+      "type": "java.util.List<java.lang.String>",
+      "description": "List of restricted country codes for KYC operations",
+      "defaultValue": ["IR", "KP", "SY"]
+    },
+    {
+      "name": "kyc.compliance.pii-encryption-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable PII encryption for compliance",
+      "defaultValue": true
+    },
+    {
+      "name": "kyc.compliance.audit-trail-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable audit trail for compliance",
+      "defaultValue": true
+    },
+    {
+      "name": "keycloak.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Keycloak authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "keycloak.auth-server-url",
+      "type": "java.lang.String",
+      "description": "Keycloak authentication server URL",
+      "defaultValue": "https://localhost:8180"
+    },
+    {
+      "name": "keycloak.realm",
+      "type": "java.lang.String",
+      "description": "Keycloak realm name",
+      "defaultValue": "waqiti-fintech"
+    },
+    {
+      "name": "keycloak.resource",
+      "type": "java.lang.String",
+      "description": "Keycloak resource/client ID",
+      "defaultValue": "kyc-service"
+    },
+    {
+      "name": "keycloak.bearer-only",
+      "type": "java.lang.Boolean",
+      "description": "Configure Keycloak as bearer-only client",
+      "defaultValue": true
+    },
+    {
+      "name": "keycloak.ssl-required",
+      "type": "java.lang.String",
+      "description": "SSL requirement level for Keycloak",
+      "defaultValue": "external"
+    },
+    {
+      "name": "keycloak.use-resource-role-mappings",
+      "type": "java.lang.Boolean",
+      "description": "Use resource-level role mappings in Keycloak",
+      "defaultValue": true
+    },
+    {
+      "name": "keycloak.principal-attribute",
+      "type": "java.lang.String",
+      "description": "Principal attribute for Keycloak authentication",
+      "defaultValue": "preferred_username"
+    },
+    {
+      "name": "keycloak.credentials.secret",
+      "type": "java.lang.String",
+      "description": "Keycloak client secret"
+    },
+    {
+      "name": "keycloak.public-client",
+      "type": "java.lang.Boolean",
+      "description": "Configure Keycloak as public client",
+      "defaultValue": false
+    },
+    {
+      "name": "keycloak.verify-token-audience",
+      "type": "java.lang.Boolean",
+      "description": "Enable token audience verification in Keycloak",
+      "defaultValue": true
+    },
+    {
+      "name": "features.auth.mode",
+      "type": "java.lang.String",
+      "description": "Authentication mode configuration",
+      "defaultValue": "KEYCLOAK"
+    },
+    {
+      "name": "features.auth.keycloak.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Keycloak authentication feature",
+      "defaultValue": true
+    },
+    {
+      "name": "features.auth.legacy.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable legacy authentication feature",
+      "defaultValue": false
+    }
+  ]
+}

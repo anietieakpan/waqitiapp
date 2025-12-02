@@ -1,0 +1,441 @@
+spring:
+  application:
+    name: social-service
+  
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/waqiti_social}
+    username: ${DATABASE_USERNAME:waqiti}
+    password: ${DATABASE_PASSWORD:${VAULT_DATABASE_PASSWORD}}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      connection-timeout: 30000
+      maximum-pool-size: 50
+      minimum-idle: 10
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      leak-detection-threshold: 60000
+      validation-timeout: 5000
+      initialization-fail-timeout: 30000
+  
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQL95Dialect
+        format_sql: true
+        use_sql_comments: true
+        jdbc:
+          batch_size: 50
+          order_inserts: true
+          order_updates: true
+        cache:
+          use_second_level_cache: true
+          use_query_cache: true
+          region:
+            factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
+  
+  flyway:
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+  
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: 6
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 25
+          max-idle: 10
+          min-idle: 3
+          max-wait: 2000ms
+  
+  cache:
+    type: redis
+    redis:
+      time-to-live: 3600000
+      cache-null-values: false
+      key-prefix: "social:"
+  
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.trusted.packages: "*"
+    consumer:
+      group-id: social-service
+      enable-auto-commit: false  # Manual acknowledgment for DLQ support
+      max-poll-records: 50  # Batch size control
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      auto-offset-reset: earliest
+      properties:
+        spring.json.trusted.packages: "*"
+  
+  cloud:
+    config:
+      uri: ${CONFIG_SERVER_URL:http://localhost:8888}
+      fail-fast: true
+      retry:
+        initial-interval: 1000
+        max-attempts: 6
+        max-interval: 2000
+        multiplier: 1.1
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:${EUREKA_SERVER_URL:https://discovery-service:8761/eureka}/}
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+    metadata-map:
+      version: ${info.version}
+      region: ${DEPLOYMENT_REGION:us-east-1}
+
+server:
+  port: ${PORT:8096}
+  servlet:
+    context-path: /api/v1
+  error:
+    include-message: always
+    include-binding-errors: always
+
+# Keycloak Configuration - CRITICAL SECURITY IMPLEMENTATION
+keycloak:
+  enabled: true
+  realm: waqiti-fintech
+  auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}
+  ssl-required: external
+  resource: social-service
+  bearer-only: true
+  use-resource-role-mappings: true
+  cors: true
+  cors-allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+  cors-allowed-headers: Authorization,Content-Type,X-Requested-With,X-Social-Context
+  cors-max-age: 3600
+  public-client: false
+  credentials:
+    secret: ${KEYCLOAK_CLIENT_SECRET:}
+
+# Spring Security OAuth2 Configuration
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti
+          jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/certs
+      client:
+        registration:
+          keycloak:
+            client-id: social-service
+            client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+            authorization-grant-type: client_credentials
+            scope: openid,profile,email,social
+        provider:
+          keycloak:
+            issuer-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti
+            token-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/token
+            authorization-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/auth
+            userinfo-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/userinfo
+            jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/certs
+
+# Service-to-Service Authentication
+service:
+  auth:
+    enabled: true
+    client-id: social-service
+    client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+      environment: ${spring.profiles.active}
+
+logging:
+  level:
+    com.waqiti.social: INFO
+    org.springframework.security: DEBUG
+    org.springframework.kafka: INFO
+    org.hibernate.SQL: ${LOG_LEVEL_SQL:WARN}  # WARN for production
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    root: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
+  file:
+    name: logs/social-service.log
+
+# Social Service Specific Configuration
+social:
+  connections:
+    daily-request-limit: 20
+    max-connections-per-user: 5000
+    friend-suggestion-limit: 50
+    mutual-friends-weight: 0.8
+    common-interests-weight: 0.6
+    location-proximity-weight: 0.4
+    transaction-history-weight: 0.7
+  
+  groups:
+    max-groups-per-user: 100
+    max-members-per-group: 250
+    default-group-privacy: "PRIVATE"
+    allow-public-groups: true
+    group-code-length: 8
+    group-code-expiry-days: 30
+  
+  challenges:
+    max-active-challenges-per-user: 10
+    max-participants-per-challenge: 1000
+    default-challenge-duration-days: 30
+    min-entry-fee: 5.00
+    max-entry-fee: 1000.00
+    challenge-completion-threshold: 0.8
+  
+  feed:
+    max-feed-items: 100
+    feed-cache-duration-minutes: 5
+    activity-retention-days: 90
+    public-activity-visibility: true
+    default-privacy-level: "FRIENDS"
+  
+  payments:
+    social-payment-enabled: true
+    max-transaction-amount: 10000.00
+    default-transaction-limit: 1000.00
+    default-monthly-limit: 5000.00
+    bill-split-max-participants: 50
+    request-expiry-hours: 72
+  
+  analytics:
+    social-score-calculation-enabled: true
+    engagement-tracking-enabled: true
+    recommendation-refresh-hours: 6
+    analytics-cache-hours: 1
+    growth-trend-calculation-enabled: true
+  
+  gamification:
+    badges-enabled: true
+    leaderboards-enabled: true
+    achievements-enabled: true
+    points-system-enabled: true
+    streak-tracking-enabled: true
+    social-rewards-enabled: true
+  
+  notifications:
+    friend-request-notifications: true
+    payment-notifications: true
+    group-activity-notifications: true
+    challenge-notifications: true
+    achievement-notifications: true
+    digest-notifications-enabled: true
+    digest-frequency: "WEEKLY"
+
+# Resilience4j Circuit Breaker Configuration
+resilience4j:
+  circuitbreaker:
+    instances:
+      user-service:
+        register-health-indicator: true
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        permitted-number-of-calls-in-half-open-state: 3
+        wait-duration-in-open-state: 10s
+        failure-rate-threshold: 50
+        slow-call-duration-threshold: 2s
+        slow-call-rate-threshold: 50
+      payment-service:
+        register-health-indicator: true
+        sliding-window-size: 15
+        minimum-number-of-calls: 8
+        wait-duration-in-open-state: 15s
+        failure-rate-threshold: 60
+      wallet-service:
+        register-health-indicator: true
+        sliding-window-size: 10
+        failure-rate-threshold: 60
+        wait-duration-in-open-state: 12s
+      notification-service:
+        register-health-indicator: true
+        sliding-window-size: 5
+        failure-rate-threshold: 70
+        wait-duration-in-open-state: 5s
+  
+  retry:
+    instances:
+      user-service:
+        max-attempts: 3
+        wait-duration: 1s
+      payment-service:
+        max-attempts: 3
+        wait-duration: 2s
+      wallet-service:
+        max-attempts: 2
+        wait-duration: 1s
+  
+  timelimiter:
+    instances:
+      user-service:
+        timeout-duration: 3s
+      payment-service:
+        timeout-duration: 8s
+      wallet-service:
+        timeout-duration: 5s
+
+# Vault Configuration
+vault:
+  addr: ${VAULT_ADDR:http://localhost:8200}
+  token: ${VAULT_TOKEN:}
+  secrets:
+    database:
+      path: secret/social-service/database
+    redis:
+      path: secret/social-service/redis
+    external-apis:
+      path: secret/social-service/external-apis
+    social-platform-apis:
+      path: secret/social-service/social-platforms
+
+# Updated Feign Client Configuration for Keycloak
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 5000
+        readTimeout: 5000
+        loggerLevel: FULL
+      user-service:
+        url: ${USER_SERVICE_URL:http://user-service/api/v1}
+      payment-service:
+        url: ${PAYMENT_SERVICE_URL:http://payment-service/api/v1}
+      wallet-service:
+        url: ${WALLET_SERVICE_URL:http://wallet-service/api/v1}
+      notification-service:
+        url: ${NOTIFICATION_SERVICE_URL:http://notification-service/api/v1}
+      security-service:
+        url: ${SECURITY_SERVICE_URL:http://security-service/api/v1}
+
+# Updated Security Configuration for Keycloak
+security:
+  social:
+    privacy-controls-enabled: true
+    content-moderation-enabled: true
+    report-system-enabled: true
+    block-system-enabled: true
+
+# Kafka topics
+kafka:
+  topics:
+    friend-request: social-friend-request
+    group-activity: social-group-activity
+    challenge-update: social-challenge-update
+    payment-social: social-payment-activity
+    social-feed: social-feed-update
+    user-engagement: social-user-engagement
+    notification: notification-events
+
+# External Social Platform Integration
+external:
+  social:
+    enabled: true
+    platforms:
+      facebook:
+        enabled: false
+        app-id: ${vault.social.facebook.app-id:}
+        app-secret: ${vault.social.facebook.app-secret:}
+      twitter:
+        enabled: false
+        api-key: ${vault.social.twitter.api-key:}
+        api-secret: ${vault.social.twitter.api-secret:}
+      instagram:
+        enabled: false
+        client-id: ${vault.social.instagram.client-id:}
+        client-secret: ${vault.social.instagram.client-secret:}
+      linkedin:
+        enabled: false
+        client-id: ${vault.social.linkedin.client-id:}
+        client-secret: ${vault.social.linkedin.client-secret:}
+
+# Machine Learning and AI Features
+ml:
+  recommendations:
+    enabled: true
+    algorithm: "collaborative-filtering"
+    update-frequency-hours: 6
+    min-confidence-score: 0.6
+    max-recommendations-per-user: 50
+  
+  content:
+    moderation-enabled: true
+    spam-detection-enabled: true
+    sentiment-analysis-enabled: true
+    inappropriate-content-detection: true
+  
+  fraud:
+    social-fraud-detection: true
+    suspicious-behavior-tracking: true
+    network-analysis-enabled: true
+    anomaly-detection-threshold: 0.8
+
+# Rate Limiting
+rate-limiting:
+  enabled: true
+  friend-requests:
+    requests-per-minute: 5
+    requests-per-hour: 20
+    requests-per-day: 50
+  group-operations:
+    requests-per-minute: 10
+    requests-per-hour: 100
+  challenge-operations:
+    requests-per-minute: 3
+    requests-per-hour: 30
+  feed-access:
+    requests-per-minute: 60
+    requests-per-hour: 1000
+
+# Monitoring and Observability
+observability:
+  social-metrics:
+    enabled: true
+    track-user-engagement: true
+    track-network-growth: true
+    track-payment-social-patterns: true
+    track-challenge-participation: true
+  
+  custom-metrics:
+    connection-success-rate: true
+    group-activity-rate: true
+    challenge-completion-rate: true
+    social-payment-volume: true
+    feed-engagement-rate: true
+

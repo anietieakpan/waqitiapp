@@ -1,0 +1,51 @@
+{
+  "properties": [
+    {
+      "name": "predictive-scaling.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable predictive scaling functionality",
+      "defaultValue": true
+    },
+    {
+      "name": "predictive-scaling.ml-model.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable ML-based predictive scaling",
+      "defaultValue": true
+    },
+    {
+      "name": "predictive-scaling.prediction-window-hours",
+      "type": "java.lang.Integer",
+      "description": "Prediction window in hours",
+      "defaultValue": 24
+    },
+    {
+      "name": "predictive-scaling.scaling-threshold",
+      "type": "java.lang.Double",
+      "description": "Scaling threshold percentage",
+      "defaultValue": 80.0
+    },
+    {
+      "name": "predictive-scaling.cooldown-minutes",
+      "type": "java.lang.Integer",
+      "description": "Scaling cooldown period in minutes",
+      "defaultValue": 10
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "OAuth2 client ID for service",
+      "defaultValue": "predictive-scaling-service"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "OAuth2 client secret for service"
+    }
+  ]
+}

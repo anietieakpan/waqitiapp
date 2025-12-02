@@ -1,0 +1,170 @@
+# Comprehensive Monitoring Service Configuration
+
+server:
+  port: 8095
+
+spring:
+  application:
+    name: monitoring-service
+  
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      group-id: monitoring-service-group
+      enable-auto-commit: false  # Manual acknowledgment for DLQ support
+      max-poll-records: 50  # Batch size control
+      auto-offset-reset: latest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.waqiti.monitoring.model"
+  
+  mail:
+    host: ${SMTP_HOST:localhost}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+# Monitoring Configuration
+monitoring:
+  enabled: true
+  
+  metrics:
+    collection-interval-seconds: 10
+    retention-hours: 24
+    
+  sla:
+    response-time-ms: 1000
+    availability-percent: 99.9
+    error-rate-percent: 1.0
+    
+  anomaly:
+    enabled: true
+    sensitivity: 3.0  # Standard deviations for anomaly detection
+    min-samples: 10   # Minimum samples needed for baseline
+    
+  system:
+    check-interval-ms: 30000
+    cpu-threshold: 80
+    memory-threshold: 85
+    disk-threshold: 90
+    
+  database:
+    check-interval-ms: 60000
+    
+  providers:
+    check-interval-ms: 60000
+
+# Alerting Configuration
+alerting:
+  email:
+    enabled: true
+    from: ${ALERT_EMAIL_FROM:alerts@example.com}
+    to: ${ALERT_EMAIL_TO:ops@example.com}
+    
+  sms:
+    enabled: ${SMS_ENABLED:false}
+    twilio:
+      account-sid: ${TWILIO_ACCOUNT_SID:}
+      auth-token: ${TWILIO_AUTH_TOKEN:}
+    from: ${SMS_FROM:}
+    to: ${SMS_TO:}
+    
+  slack:
+    enabled: ${SLACK_ENABLED:false}
+    webhook-url: ${SLACK_WEBHOOK_URL:}
+    
+  pagerduty:
+    enabled: ${PAGERDUTY_ENABLED:false}
+    integration-key: ${PAGERDUTY_INTEGRATION_KEY:}
+
+# Alert Cooldown Configuration (minutes)
+alert-cooldowns:
+  critical: 5
+  error: 10
+  warning: 15
+  info: 30
+
+# OpenTelemetry Configuration
+otel:
+  traces:
+    exporter: jaeger
+  exporter:
+    jaeger:
+      endpoint: ${JAEGER_ENDPOINT:http://localhost:14250}
+  service:
+    name: monitoring-service
+  instrumentation:
+    spring-webmvc:
+      enabled: true
+    jdbc:
+      enabled: true
+    kafka:
+      enabled: true
+
+# Micrometer/Prometheus Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+    metrics:
+      enabled: true
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+        step: 10s
+  metrics:
+    tags:
+      application: ${spring.application.name}
+      service: monitoring
+      environment: ${ENVIRONMENT:development}
+
+# Logging Configuration
+logging:
+  level:
+    com.waqiti.monitoring: INFO
+    org.springframework.kafka: WARN
+    io.micrometer: WARN
+  pattern:
+    console: "%clr(%d{HH:mm:ss.SSS}){faint} %clr(${LOG_LEVEL_PATTERN:-%5p}) %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n${LOG_EXCEPTION_CONVERSION_WORD:-%wEx}"
+    file: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/monitoring-service.log
+    max-size: 10MB
+    max-history: 7
+
+# Thread Pool Configuration
+thread-pool:
+  alert-executor:
+    core-size: 5
+    max-size: 10
+    queue-capacity: 100
+    
+# Cache Configuration
+cache:
+  metrics:
+    max-size: 10000
+    expire-after-write: 300s
+    
+# Database Pool (if needed for metrics storage)
+datasource:
+  hikari:
+    maximum-pool-size: 20
+    minimum-idle: 5
+    connection-timeout: 30000
+    idle-timeout: 600000
+    max-lifetime: 1800000

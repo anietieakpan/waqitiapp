@@ -1,0 +1,281 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database for Keycloak
+  keycloak-postgres:
+    image: postgres:15-alpine
+    container_name: keycloak-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-keycloak_password}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - keycloak_postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d:ro
+    networks:
+      - keycloak-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "5433:5432"  # Different port to avoid conflict with main DB
+
+  # Redis for Keycloak caching (Infinispan external cache)
+  keycloak-redis:
+    image: redis:7-alpine
+    container_name: keycloak-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis_password}
+    volumes:
+      - keycloak_redis_data:/data
+    networks:
+      - keycloak-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "6380:6379"  # Different port to avoid conflict
+
+  # Keycloak Server - Node 1 (Primary)
+  keycloak-1:
+    image: quay.io/keycloak/keycloak:23.0.3
+    container_name: keycloak-1
+    restart: unless-stopped
+    command:
+      - start
+      - --optimized
+      - --cache-stack=kubernetes
+      - --cache=ispn
+      - --cache-config-file=cache-ispn-kubernetes.xml
+      - --db=postgres
+      - --health-enabled=true
+      - --metrics-enabled=true
+      - --http-enabled=true
+      - --hostname-strict=false
+      - --hostname-strict-https=false
+    environment:
+      # Basic Configuration
+      KC_HOSTNAME: ${KC_HOSTNAME:-localhost}
+      KC_HOSTNAME_PORT: ${KC_HOSTNAME_PORT:-8180}
+      KC_HTTP_PORT: 8080
+      KC_HTTPS_PORT: 8443
+      
+      # Database Configuration
+      KC_DB: postgres
+      KC_DB_URL_HOST: keycloak-postgres
+      KC_DB_URL_PORT: 5432
+      KC_DB_URL_DATABASE: keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-keycloak_password}
+      KC_DB_POOL_INITIAL_SIZE: 10
+      KC_DB_POOL_MIN_SIZE: 10
+      KC_DB_POOL_MAX_SIZE: 100
+      
+      # Admin Configuration
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      
+      # Clustering Configuration
+      KC_CACHE: ispn
+      KC_CACHE_STACK: kubernetes
+      JAVA_OPTS_APPEND: >-
+        -Djgroups.dns.query=keycloak-headless.keycloak.svc.cluster.local
+        -Djava.net.preferIPv4Stack=true
+        -Djboss.site.name=site1
+      
+      # Performance Tuning
+      KC_HTTP_MAX_QUEUED_REQUESTS: 1000
+      KC_METRICS_ENABLED: true
+      KC_HEALTH_ENABLED: true
+      
+      # Logging
+      KC_LOG_LEVEL: INFO
+      KC_LOG_CONSOLE_OUTPUT: json
+      
+      # Features
+      KC_FEATURES: token-exchange,admin-fine-grained-authz,recovery-codes,declarative-user-profile
+      KC_FEATURES_DISABLED: 
+    volumes:
+      - ./realm-config:/opt/keycloak/data/import:ro
+      - ./themes:/opt/keycloak/themes:ro
+      - ./providers:/opt/keycloak/providers:ro
+    networks:
+      - keycloak-network
+      - waqiti-network
+    ports:
+      - "8180:8080"  # HTTP
+      - "8543:8443"  # HTTPS
+    depends_on:
+      keycloak-postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # Keycloak Server - Node 2 (for HA in production-like setup)
+  keycloak-2:
+    image: quay.io/keycloak/keycloak:23.0.3
+    container_name: keycloak-2
+    restart: unless-stopped
+    command:
+      - start
+      - --optimized
+      - --cache-stack=kubernetes
+      - --cache=ispn
+      - --cache-config-file=cache-ispn-kubernetes.xml
+      - --db=postgres
+      - --health-enabled=true
+      - --metrics-enabled=true
+      - --http-enabled=true
+      - --hostname-strict=false
+      - --hostname-strict-https=false
+    environment:
+      # Basic Configuration
+      KC_HOSTNAME: ${KC_HOSTNAME:-localhost}
+      KC_HOSTNAME_PORT: ${KC_HOSTNAME_PORT:-8181}
+      KC_HTTP_PORT: 8080
+      KC_HTTPS_PORT: 8443
+      
+      # Database Configuration (same as node 1)
+      KC_DB: postgres
+      KC_DB_URL_HOST: keycloak-postgres
+      KC_DB_URL_PORT: 5432
+      KC_DB_URL_DATABASE: keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-keycloak_password}
+      KC_DB_POOL_INITIAL_SIZE: 10
+      KC_DB_POOL_MIN_SIZE: 10
+      KC_DB_POOL_MAX_SIZE: 100
+      
+      # Admin Configuration (not needed for secondary nodes)
+      # KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      # KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      
+      # Clustering Configuration
+      KC_CACHE: ispn
+      KC_CACHE_STACK: kubernetes
+      JAVA_OPTS_APPEND: >-
+        -Djgroups.dns.query=keycloak-headless.keycloak.svc.cluster.local
+        -Djava.net.preferIPv4Stack=true
+        -Djboss.site.name=site2
+      
+      # Performance Tuning
+      KC_HTTP_MAX_QUEUED_REQUESTS: 1000
+      KC_METRICS_ENABLED: true
+      KC_HEALTH_ENABLED: true
+      
+      # Logging
+      KC_LOG_LEVEL: INFO
+      KC_LOG_CONSOLE_OUTPUT: json
+      
+      # Features (same as node 1)
+      KC_FEATURES: token-exchange,admin-fine-grained-authz,recovery-codes,declarative-user-profile
+      KC_FEATURES_DISABLED: 
+    volumes:
+      - ./realm-config:/opt/keycloak/data/import:ro
+      - ./themes:/opt/keycloak/themes:ro
+      - ./providers:/opt/keycloak/providers:ro
+    networks:
+      - keycloak-network
+      - waqiti-network
+    ports:
+      - "8181:8080"  # HTTP
+      - "8544:8443"  # HTTPS
+    depends_on:
+      keycloak-postgres:
+        condition: service_healthy
+      keycloak-1:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # HAProxy Load Balancer for Keycloak
+  keycloak-lb:
+    image: haproxy:2.9-alpine
+    container_name: keycloak-lb
+    restart: unless-stopped
+    volumes:
+      - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    networks:
+      - keycloak-network
+      - waqiti-network
+    ports:
+      - "8080:8080"  # Main Keycloak endpoint
+      - "8404:8404"  # HAProxy stats
+    depends_on:
+      - keycloak-1
+      - keycloak-2
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Prometheus for monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: keycloak-prometheus
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.console.libraries=/usr/share/prometheus/console_libraries
+      - --web.console.templates=/usr/share/prometheus/consoles
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - keycloak-network
+    ports:
+      - "9090:9090"
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: keycloak-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_INSTALL_PLUGINS: grafana-clock-panel
+    volumes:
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - grafana_data:/var/lib/grafana
+    networks:
+      - keycloak-network
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+
+networks:
+  keycloak-network:
+    driver: bridge
+    name: keycloak-network
+  waqiti-network:
+    external: true
+    name: waqiti-network
+
+volumes:
+  keycloak_postgres_data:
+    driver: local
+  keycloak_redis_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local

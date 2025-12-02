@@ -1,0 +1,181 @@
+# Test Configuration for Core Banking Service
+# Uses Testcontainers for PostgreSQL, Redis, and Kafka
+
+spring:
+  application:
+    name: core-banking-service-test
+
+  # Test database configuration (will be overridden by Testcontainers)
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    # URL, username, password will be set by Testcontainers dynamically
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 2
+      connection-timeout: 10000
+      idle-timeout: 300000
+
+  # JPA Configuration for tests
+  jpa:
+    hibernate:
+      ddl-auto: validate # Flyway handles schema creation
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        show_sql: true # Show SQL in tests for debugging
+        generate_statistics: false
+        jdbc:
+          batch_size: 10
+          fetch_size: 10
+    show-sql: true
+
+  # Flyway Configuration for tests
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    validate-on-migrate: true
+    clean-disabled: false # Allow clean in tests
+    locations: classpath:db/migration
+
+  # Kafka Configuration for tests (will be overridden by Testcontainers)
+  kafka:
+    # Bootstrap servers will be set by Testcontainers
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false
+    consumer:
+      group-id: core-banking-service-test
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      auto-offset-reset: earliest
+      properties:
+        spring.json.trusted.packages: "*"
+      enable-auto-commit: false
+
+  # Redis Configuration for tests (will be overridden by Testcontainers)
+  data:
+    redis:
+      # Host and port will be set by Testcontainers
+      timeout: 2000ms
+
+  # Cache Configuration for tests
+  cache:
+    type: redis
+
+  # Security Configuration for tests
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Use mock JWT for tests
+          issuer-uri: http://localhost:8180/realms/waqiti-fintech-test
+          jwk-set-uri: http://localhost:8180/realms/waqiti-fintech-test/protocol/openid-connect/certs
+
+# Core Banking Test Configuration
+core-banking:
+  migration-mode: FULLY_MIGRATED
+  cyclos-integration: false
+
+  accounts:
+    auto-approval: true
+    default-currency: USD
+    minimum-balance:
+      wallet: 0.00
+      savings: 100.00
+      credit: 0.00
+    daily-limits:
+      standard: 5000.00
+      premium: 25000.00
+      business: 100000.00
+
+  transactions:
+    batch-size: 100
+    timeout-seconds: 10
+    retry-attempts: 3
+    fee-calculation: true
+    auto-reconciliation: false # Disable auto-reconciliation in tests
+
+  double-entry:
+    enforce-balance: true
+    audit-all-entries: true
+
+  compliance:
+    aml-checks: true
+    transaction-monitoring: true
+    suspicious-activity-threshold: 10000.00
+    kyc-required-threshold: 1000.00
+
+  interest:
+    enabled: false # Disable scheduled interest calculation in tests
+    calculation-days: 365
+    default-savings-rate: 0.50
+
+  statements:
+    enabled: false # Disable scheduled statement generation in tests
+    auto-generate: false
+
+  currency:
+    base-currency: USD
+    cache-duration-minutes: 60
+    supported-currencies:
+      - USD
+      - EUR
+      - GBP
+
+  security:
+    enable-encryption: false # Simplify tests
+    enable-audit-logging: true
+    limits:
+      max-transaction-amount: 1000000.00
+      max-daily-transaction-volume: 10000000.00
+    features:
+      transaction-validation-enabled: true
+      balance-verification-enabled: true
+      interest-calculation-enabled: false
+      fee-calculation-enabled: true
+      regulatory-reporting-enabled: false
+      double-entry-validation-enabled: true
+
+# Logging Configuration for tests
+logging:
+  level:
+    com.waqiti.corebanking: DEBUG
+    org.springframework.test: DEBUG
+    org.springframework.security: WARN
+    org.springframework.transaction: DEBUG
+    org.springframework.data.jpa: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.testcontainers: INFO
+  pattern:
+    console: "%clr(%d{HH:mm:ss.SSS}){faint} %clr(${LOG_LEVEL_PATTERN:-%5p}) %clr([%t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n"
+
+# Management Configuration for tests
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  metrics:
+    export:
+      prometheus:
+        enabled: false # Disable Prometheus in tests
+
+# Feign Configuration for tests
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 2000
+        readTimeout: 5000
+        loggerLevel: FULL
+
+# Eureka disabled for tests
+eureka:
+  client:
+    enabled: false
+    register-with-eureka: false
+    fetch-registry: false

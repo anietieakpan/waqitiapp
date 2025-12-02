@@ -1,0 +1,729 @@
+{
+  "dashboard": {
+    "id": null,
+    "uid": "security-monitoring",
+    "title": "Waqiti Security Monitoring Dashboard",
+    "description": "Comprehensive security monitoring for Keycloak authentication and authorization",
+    "tags": ["security", "authentication", "keycloak", "monitoring"],
+    "timezone": "browser",
+    "schemaVersion": 37,
+    "version": 1,
+    "refresh": "10s",
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 1,
+    "links": [],
+    "liveNow": true,
+    "panels": [
+      {
+        "id": 1,
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 0
+        },
+        "type": "graph",
+        "title": "Authentication Success Rate",
+        "datasource": "Prometheus",
+        "targets": [
+          {
+            "expr": "rate(authentication_success_total[5m]) / (rate(authentication_success_total[5m]) + rate(authentication_failure_total[5m])) * 100",
+            "legendFormat": "Success Rate %",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "percent",
+            "show": true
+          },
+          {
+            "show": false
+          }
+        ],
+        "thresholds": [
+          {
+            "value": 95,
+            "op": "lt",
+            "fill": true,
+            "line": true,
+            "colorMode": "critical"
+          }
+        ],
+        "alert": {
+          "name": "Low Authentication Success Rate",
+          "conditions": [
+            {
+              "evaluator": {
+                "params": [95],
+                "type": "lt"
+              },
+              "operator": {
+                "type": "and"
+              },
+              "query": {
+                "datasourceUid": "-100",
+                "model": {
+                  "expr": "rate(authentication_success_total[5m]) / (rate(authentication_success_total[5m]) + rate(authentication_failure_total[5m])) * 100",
+                  "refId": "A"
+                },
+                "params": ["A", "5m", "now"]
+              },
+              "type": "query"
+            }
+          ],
+          "executionErrorState": "alerting",
+          "frequency": "60s",
+          "handler": 1,
+          "message": "Authentication success rate has dropped below 95%",
+          "noDataState": "no_data",
+          "notifications": []
+        }
+      },
+      {
+        "id": 2,
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 0
+        },
+        "type": "graph",
+        "title": "Token Validation Latency",
+        "datasource": "Prometheus",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(token_validation_duration_seconds_bucket[5m]))",
+            "legendFormat": "p95 Latency",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.99, rate(token_validation_duration_seconds_bucket[5m]))",
+            "legendFormat": "p99 Latency",
+            "refId": "B"
+          },
+          {
+            "expr": "histogram_quantile(0.50, rate(token_validation_duration_seconds_bucket[5m]))",
+            "legendFormat": "p50 Latency",
+            "refId": "C"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "ms",
+            "show": true
+          },
+          {
+            "show": false
+          }
+        ],
+        "thresholds": [
+          {
+            "value": 100,
+            "op": "gt",
+            "fill": true,
+            "line": true,
+            "colorMode": "warning"
+          },
+          {
+            "value": 500,
+            "op": "gt",
+            "fill": true,
+            "line": true,
+            "colorMode": "critical"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "gridPos": {
+          "h": 8,
+          "w": 8,
+          "x": 0,
+          "y": 8
+        },
+        "type": "stat",
+        "title": "Failed Authentication Attempts",
+        "datasource": "Prometheus",
+        "targets": [
+          {
+            "expr": "sum(rate(authentication_failure_total[5m])) * 60",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 10
+                },
+                {
+                  "color": "red",
+                  "value": 50
+                }
+              ]
+            },
+            "unit": "short"
+          }
+        },
+        "options": {
+          "colorMode": "background",
+          "graphMode": "area",
+          "justifyMode": "center",
+          "orientation": "auto",
+          "reduceOptions": {
+            "calcs": ["lastNotNull"],
+            "fields": "",
+            "values": false
+          },
+          "textMode": "auto"
+        }
+      },
+      {
+        "id": 4,
+        "gridPos": {
+          "h": 8,
+          "w": 8,
+          "x": 8,
+          "y": 8
+        },
+        "type": "stat",
+        "title": "Active Sessions",
+        "datasource": "Prometheus",
+        "targets": [
+          {
+            "expr": "keycloak_active_sessions",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                }
+              ]
+            },
+            "unit": "short"
+          }
+        },
+        "options": {
+          "colorMode": "value",
+          "graphMode": "area",
+          "justifyMode": "center",
+          "orientation": "auto",
+          "reduceOptions": {
+            "calcs": ["lastNotNull"],
+            "fields": "",
+            "values": false
+          },
+          "textMode": "auto"
+        }
+      },
+      {
+        "id": 5,
+        "gridPos": {
+          "h": 8,
+          "w": 8,
+          "x": 16,
+          "y": 8
+        },
+        "type": "stat",
+        "title": "Token Migration Progress",
+        "datasource": "Prometheus",
+        "targets": [
+          {
+            "expr": "(sum(token_migration_success_total) / (sum(token_migration_success_total) + sum(token_migration_failure_total))) * 100",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "red",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 50
+                },
+                {
+                  "color": "green",
+                  "value": 95
+                }
+              ]
+            },
+            "unit": "percent",
+            "max": 100,
+            "min": 0
+          }
+        },
+        "options": {
+          "colorMode": "background",
+          "graphMode": "none",
+          "justifyMode": "center",
+          "orientation": "auto",
+          "reduceOptions": {
+            "calcs": ["lastNotNull"],
+            "fields": "",
+            "values": false
+          },
+          "textMode": "auto"
+        }
+      },
+      {
+        "id": 6,
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 16
+        },
+        "type": "table",
+        "title": "Service-to-Service Authentication",
+        "datasource": "Prometheus",
+        "targets": [
+          {
+            "expr": "sum by (source_service, target_service) (rate(service_auth_requests_total[5m]))",
+            "format": "table",
+            "instant": true,
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "align": "auto",
+              "displayMode": "auto"
+            }
+          }
+        },
+        "options": {
+          "showHeader": true,
+          "sortBy": [
+            {
+              "desc": true,
+              "displayName": "Value"
+            }
+          ]
+        },
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {},
+              "indexByName": {},
+              "renameByName": {
+                "source_service": "Source Service",
+                "target_service": "Target Service",
+                "Value": "Requests/sec"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 16
+        },
+        "type": "graph",
+        "title": "Authorization Decisions",
+        "datasource": "Prometheus",
+        "targets": [
+          {
+            "expr": "sum(rate(authorization_allow_total[5m])) by (resource)",
+            "legendFormat": "Allow - {{resource}}",
+            "refId": "A"
+          },
+          {
+            "expr": "sum(rate(authorization_deny_total[5m])) by (resource)",
+            "legendFormat": "Deny - {{resource}}",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "ops",
+            "show": true
+          },
+          {
+            "show": false
+          }
+        ],
+        "stack": true,
+        "fill": 1,
+        "linewidth": 1
+      },
+      {
+        "id": 8,
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 24
+        },
+        "type": "heatmap",
+        "title": "Authentication Attempts by Hour",
+        "datasource": "Prometheus",
+        "targets": [
+          {
+            "expr": "sum(increase(authentication_attempts_total[1h])) by (hour)",
+            "format": "heatmap",
+            "refId": "A"
+          }
+        ],
+        "dataFormat": "tsbuckets",
+        "options": {
+          "calculate": false,
+          "calculation": {
+            "xBuckets": {
+              "mode": "size",
+              "value": "1h"
+            },
+            "yBuckets": {
+              "mode": "count",
+              "value": "10"
+            }
+          },
+          "cellGap": 1,
+          "cellValues": {
+            "decimals": 0
+          },
+          "color": {
+            "mode": "scheme",
+            "scheme": "Spectral",
+            "steps": 128
+          },
+          "exemplars": {
+            "color": "rgba(255,0,255,0.7)"
+          },
+          "filterValues": {
+            "le": 1e-9
+          },
+          "legend": {
+            "show": true
+          },
+          "rowsFrame": {
+            "layout": "auto"
+          },
+          "showValue": "never",
+          "tooltip": {
+            "show": true,
+            "yHistogram": false
+          },
+          "yAxis": {
+            "axisPlacement": "left",
+            "decimals": 0,
+            "reverse": false,
+            "unit": "short"
+          }
+        }
+      },
+      {
+        "id": 9,
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 24
+        },
+        "type": "table",
+        "title": "Suspicious Activities",
+        "datasource": "Prometheus",
+        "targets": [
+          {
+            "expr": "topk(10, sum by (user_id, ip_address, reason) (increase(suspicious_activity_total[1h])))",
+            "format": "table",
+            "instant": true,
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "align": "auto",
+              "displayMode": "auto"
+            },
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "yellow",
+                  "value": 5
+                },
+                {
+                  "color": "red",
+                  "value": 10
+                }
+              ]
+            }
+          }
+        },
+        "options": {
+          "showHeader": true,
+          "sortBy": [
+            {
+              "desc": true,
+              "displayName": "Value"
+            }
+          ]
+        },
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {},
+              "indexByName": {},
+              "renameByName": {
+                "user_id": "User ID",
+                "ip_address": "IP Address",
+                "reason": "Reason",
+                "Value": "Count"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": 10,
+        "gridPos": {
+          "h": 8,
+          "w": 8,
+          "x": 0,
+          "y": 32
+        },
+        "type": "piechart",
+        "title": "Authentication Methods Used",
+        "datasource": "Prometheus",
+        "targets": [
+          {
+            "expr": "sum by (method) (increase(authentication_method_used_total[1h]))",
+            "legendFormat": "{{method}}",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "pieType": "donut",
+          "tooltip": {
+            "mode": "single"
+          },
+          "legend": {
+            "displayMode": "table",
+            "placement": "right",
+            "values": ["value", "percent"]
+          },
+          "displayLabels": ["name", "percent"],
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"],
+            "fields": ""
+          }
+        }
+      },
+      {
+        "id": 11,
+        "gridPos": {
+          "h": 8,
+          "w": 8,
+          "x": 8,
+          "y": 32
+        },
+        "type": "gauge",
+        "title": "Keycloak Health Score",
+        "datasource": "Prometheus",
+        "targets": [
+          {
+            "expr": "keycloak_health_score",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "red",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 70
+                },
+                {
+                  "color": "green",
+                  "value": 90
+                }
+              ]
+            },
+            "unit": "percent",
+            "max": 100,
+            "min": 0
+          }
+        },
+        "options": {
+          "orientation": "auto",
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"],
+            "fields": ""
+          },
+          "showThresholdLabels": true,
+          "showThresholdMarkers": true
+        }
+      },
+      {
+        "id": 12,
+        "gridPos": {
+          "h": 8,
+          "w": 8,
+          "x": 16,
+          "y": 32
+        },
+        "type": "stat",
+        "title": "MTTR (Mean Time To Recovery)",
+        "datasource": "Prometheus",
+        "targets": [
+          {
+            "expr": "avg(auth_incident_recovery_time_seconds)",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 300
+                },
+                {
+                  "color": "red",
+                  "value": 600
+                }
+              ]
+            },
+            "unit": "s"
+          }
+        },
+        "options": {
+          "colorMode": "background",
+          "graphMode": "none",
+          "justifyMode": "center",
+          "orientation": "auto",
+          "reduceOptions": {
+            "calcs": ["lastNotNull"],
+            "fields": "",
+            "values": false
+          },
+          "textMode": "auto"
+        }
+      }
+    ],
+    "templating": {
+      "list": [
+        {
+          "current": {
+            "selected": true,
+            "text": ["All"],
+            "value": ["$__all"]
+          },
+          "datasource": "Prometheus",
+          "definition": "label_values(service)",
+          "hide": 0,
+          "includeAll": true,
+          "label": "Service",
+          "multi": true,
+          "name": "service",
+          "options": [],
+          "query": "label_values(service)",
+          "refresh": 1,
+          "regex": "",
+          "skipUrlSync": false,
+          "sort": 0,
+          "type": "query"
+        },
+        {
+          "current": {
+            "selected": true,
+            "text": "production",
+            "value": "production"
+          },
+          "datasource": "Prometheus",
+          "definition": "label_values(environment)",
+          "hide": 0,
+          "includeAll": false,
+          "label": "Environment",
+          "multi": false,
+          "name": "environment",
+          "options": [],
+          "query": "label_values(environment)",
+          "refresh": 1,
+          "regex": "",
+          "skipUrlSync": false,
+          "sort": 0,
+          "type": "query"
+        }
+      ]
+    },
+    "annotations": {
+      "list": [
+        {
+          "builtIn": 1,
+          "datasource": "-- Grafana --",
+          "enable": true,
+          "hide": true,
+          "iconColor": "rgba(0, 211, 255, 1)",
+          "name": "Annotations & Alerts",
+          "type": "dashboard"
+        }
+      ]
+    }
+  }
+}

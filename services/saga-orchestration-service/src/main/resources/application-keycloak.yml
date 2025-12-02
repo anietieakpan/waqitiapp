@@ -1,0 +1,145 @@
+# Keycloak Configuration for Saga Orchestration Service
+
+keycloak:
+  enabled: true
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  ssl-required: external
+  resource: saga-orchestration-service
+  bearer-only: true
+  credentials:
+    secret: ${SAGA_ORCHESTRATION_SERVICE_CLIENT_SECRET}
+  use-resource-role-mappings: true
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# Saga Orchestration Service Security Configuration
+saga:
+  security:
+    # Public endpoints that don't require authentication
+    # Service-to-service endpoints
+    # Required roles for saga orchestration operations
+    required-roles:
+      read:
+        - SAGA_USER
+        - ORCHESTRATION_USER
+      saga-initiate:
+        - SAGA_USER
+        - SERVICE_USER
+      saga-monitor:
+        - SAGA_MONITOR
+        - ORCHESTRATION_MONITOR
+      saga-compensation:
+        - SAGA_COMPENSATOR
+        - ORCHESTRATION_MANAGER
+      workflow-management:
+        - WORKFLOW_MANAGER
+        - ORCHESTRATION_MANAGER
+      transaction-coordination:
+        - TRANSACTION_COORDINATOR
+        - SAGA_COORDINATOR
+      failure-handling:
+        - FAILURE_HANDLER
+        - ORCHESTRATION_MANAGER
+      management:
+        - SAGA_MANAGER
+        - ORCHESTRATION_OPERATOR
+      admin:
+        - SAGA_ADMIN
+        - SYSTEM_ADMIN
+    
+    # Required scopes for operations
+    required-scopes:
+      saga-read: saga:read
+      saga-initiate: saga:initiate
+      saga-monitor: saga:monitor
+      saga-compensate: saga:compensate
+      workflow-orchestration: saga:workflow:orchestrate
+      transaction-coordination: saga:transaction:coordinate
+      failure-handling: saga:failure:handle
+      state-management: saga:state:manage
+      admin: saga:admin
+      management: saga:manage
+    
+    # Saga orchestration security features
+    features:
+      transaction-isolation-enabled: true
+      compensation-tracking-enabled: true
+      failure-recovery-enabled: true
+      state-persistence-enabled: true
+      timeout-handling-enabled: true
+      audit-trail-enabled: true
+      
+    # Saga orchestration limits and thresholds
+    limits:
+      max-saga-steps: 50
+      max-concurrent-sagas: 1000
+      saga-timeout-minutes: 60
+      compensation-timeout-minutes: 30
+      
+    # Security thresholds requiring monitoring
+    monitoring-thresholds:
+      high-failure-rate: 0.1
+      long-running-saga-hours: 2
+      compensation-failure-rate: 0.05
+      saga-deadlock-detection: true
+      
+    # Advanced security features
+    advanced-security:
+      require-idempotency-keys: true
+      distributed-locking-enabled: true
+      saga-isolation-guarantees: true
+      automatic-recovery-enabled: true
+      state-consistency-verification: true
+      compensation-integrity-checking: true
+      
+    # Flat configuration properties expected by Qodana
+    required-scopes-saga-read: saga:read
+    required-scopes-failure-handling: saga:failure:handle
+    required-roles-admin: SAGA_ADMIN,SYSTEM_ADMIN
+    features-compensation-tracking-enabled: true
+    limits-max-concurrent-sagas: 1000
+    required-scopes-management: saga:manage
+    service-endpoints: /internal/saga/**
+    advanced-security-compensation-integrity-checking: true
+    limits-saga-timeout-minutes: 60
+    advanced-security-automatic-recovery-enabled: true
+    required-scopes-workflow-orchestration: saga:workflow:orchestrate
+    features-failure-recovery-enabled: true
+    advanced-security-distributed-locking-enabled: true
+    required-roles-saga-compensation: SAGA_COMPENSATOR,ORCHESTRATION_MANAGER
+    public-endpoints: /actuator/health,/actuator/info,/swagger-ui/**,/v3/api-docs/**
+    required-roles-saga-initiate: SAGA_USER,SERVICE_USER
+    required-roles-read: SAGA_USER,ORCHESTRATION_USER
+    limits-compensation-timeout-minutes: 30
+    monitoring-thresholds-long-running-saga-hours: 2
+    monitoring-thresholds-compensation-failure-rate: 0.05
+    limits-max-saga-steps: 50
+    
+    # Additional missing properties from Qodana
+    required-roles-management: SAGA_MANAGER,ORCHESTRATION_OPERATOR
+    required-roles-saga-monitor: SAGA_MONITOR,ORCHESTRATION_MONITOR
+    features-state-persistence-enabled: true
+    required-scopes-state-management: saga:state:manage
+    features-audit-trail-enabled: true
+    required-scopes-saga-initiate: saga:initiate
+    required-roles-transaction-coordination: TRANSACTION_COORDINATOR,SAGA_COORDINATOR
+    advanced-security-require-idempotency-keys: true
+    advanced-security-saga-isolation-guarantees: true
+    monitoring-thresholds-saga-deadlock-detection: true
+    required-scopes-admin: saga:admin
+    features-transaction-isolation-enabled: true
+    required-scopes-saga-compensate: saga:compensate
+    features-timeout-handling-enabled: true
+    advanced-security-state-consistency-verification: true
+    required-scopes-saga-monitor: saga:monitor
+    required-roles-workflow-management: WORKFLOW_MANAGER,ORCHESTRATION_MANAGER
+    monitoring-thresholds-high-failure-rate: 0.1
+    required-roles-failure-handling: FAILURE_HANDLER,ORCHESTRATION_MANAGER
+    required-scopes-transaction-coordination: saga:transaction:coordinate

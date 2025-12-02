@@ -1,0 +1,115 @@
+# Keycloak Configuration for Social Service
+
+keycloak:
+  enabled: true
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  ssl-required: external
+  resource: social-service
+  bearer-only: true
+  credentials:
+    secret: ${SOCIAL_SERVICE_CLIENT_SECRET}
+  use-resource-role-mappings: true
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# Social Service Security Configuration
+social:
+  security:
+    # Public endpoints that don't require authentication
+    public-endpoints:
+      - /actuator/health
+      - /actuator/info
+      - /api/v1/social/posts/public
+      - /api/v1/social/community/public
+      - /swagger-ui/**
+      - /v3/api-docs/**
+    
+    # Service-to-service endpoints
+    service-endpoints:
+      - /internal/social/**
+    
+    # Required roles for social operations
+    required-roles:
+      read:
+        - USER
+        - SOCIAL_USER
+      post-create:
+        - USER
+        - SOCIAL_USER
+      post-interact:
+        - USER
+        - SOCIAL_USER
+      friend-management:
+        - USER
+        - SOCIAL_USER
+      group-management:
+        - USER
+        - SOCIAL_USER
+        - GROUP_ADMIN
+      content-moderation:
+        - CONTENT_MODERATOR
+        - COMMUNITY_MANAGER
+      community-management:
+        - COMMUNITY_MANAGER
+        - SOCIAL_ADMIN
+      privacy-controls:
+        - USER
+        - PRIVACY_USER
+      management:
+        - SOCIAL_MANAGER
+        - SOCIAL_OPERATOR
+      admin:
+        - SOCIAL_ADMIN
+        - SYSTEM_ADMIN
+    
+    # Required scopes for operations
+    required-scopes:
+      post-read: social:post:read
+      post-write: social:post:write
+      friend-management: social:friend:manage
+      group-management: social:group:manage
+      content-moderation: social:content:moderate
+      privacy-management: social:privacy:manage
+      community-engagement: social:community:engage
+      social-analytics: social:analytics
+      admin: social:admin
+      management: social:manage
+    
+    # Social service security features
+    features:
+      content-moderation-enabled: true
+      privacy-controls-enabled: true
+      friend-verification-enabled: true
+      group-administration-enabled: true
+      harassment-detection-enabled: true
+      content-filtering-enabled: true
+      
+    # Social service limits and thresholds
+    limits:
+      max-posts-per-day: 100
+      max-friends: 5000
+      max-groups-per-user: 50
+      post-character-limit: 5000
+      
+    # Security thresholds requiring moderation
+    moderation-thresholds:
+      harassment-report-count: 3
+      spam-content-score: 85
+      inappropriate-content-flags: 2
+      fake-account-indicators: 5
+      
+    # Advanced security features
+    advanced-security:
+      require-content-ai-moderation: true
+      automated-harassment-detection: true
+      fake-account-detection: true
+      privacy-by-design-enforcement: true
+      content-authenticity-verification: true
+      community-safety-monitoring: true

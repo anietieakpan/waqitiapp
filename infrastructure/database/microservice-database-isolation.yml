@@ -1,0 +1,288 @@
+# Microservice Database Isolation Configuration
+# Each service gets its own database instance or schema to ensure proper isolation
+#
+# This configuration provides:
+# 1. Database-per-service pattern implementation
+# 2. Proper schema separation
+# 3. Access control and security isolation
+# 4. Backup and maintenance isolation
+# 5. Performance isolation
+
+version: '3.8'
+
+services:
+  # User Service Database
+  postgres-user:
+    image: postgres:15-alpine
+    container_name: waqiti-user-db
+    environment:
+      - POSTGRES_DB=waqiti_users
+      - POSTGRES_USER=waqiti_user_service
+      - POSTGRES_PASSWORD=${USER_DB_PASSWORD}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_user_data:/var/lib/postgresql/data
+      - ./init-scripts/user-db-init.sql:/docker-entrypoint-initdb.d/01-init.sql
+      - ./config/user-db-postgresql.conf:/etc/postgresql/postgresql.conf
+    networks:
+      - user-service-network
+    restart: unless-stopped
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U waqiti_user_service -d waqiti_users"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Payment Service Database
+  postgres-payment:
+    image: postgres:15-alpine
+    container_name: waqiti-payment-db
+    environment:
+      - POSTGRES_DB=waqiti_payments
+      - POSTGRES_USER=waqiti_payment_service
+      - POSTGRES_PASSWORD=${PAYMENT_DB_PASSWORD}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_payment_data:/var/lib/postgresql/data
+      - ./init-scripts/payment-db-init.sql:/docker-entrypoint-initdb.d/01-init.sql
+      - ./config/payment-db-postgresql.conf:/etc/postgresql/postgresql.conf
+    networks:
+      - payment-service-network
+    restart: unless-stopped
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U waqiti_payment_service -d waqiti_payments"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Wallet Service Database
+  postgres-wallet:
+    image: postgres:15-alpine
+    container_name: waqiti-wallet-db
+    environment:
+      - POSTGRES_DB=waqiti_wallets
+      - POSTGRES_USER=waqiti_wallet_service
+      - POSTGRES_PASSWORD=${WALLET_DB_PASSWORD}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres_wallet_data:/var/lib/postgresql/data
+      - ./init-scripts/wallet-db-init.sql:/docker-entrypoint-initdb.d/01-init.sql
+      - ./config/wallet-db-postgresql.conf:/etc/postgresql/postgresql.conf
+    networks:
+      - wallet-service-network
+    restart: unless-stopped
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U waqiti_wallet_service -d waqiti_wallets"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Ledger Service Database
+  postgres-ledger:
+    image: postgres:15-alpine
+    container_name: waqiti-ledger-db
+    environment:
+      - POSTGRES_DB=waqiti_ledger
+      - POSTGRES_USER=waqiti_ledger_service
+      - POSTGRES_PASSWORD=${LEDGER_DB_PASSWORD}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    ports:
+      - "5436:5432"
+    volumes:
+      - postgres_ledger_data:/var/lib/postgresql/data
+      - ./init-scripts/ledger-db-init.sql:/docker-entrypoint-initdb.d/01-init.sql
+      - ./config/ledger-db-postgresql.conf:/etc/postgresql/postgresql.conf
+    networks:
+      - ledger-service-network
+    restart: unless-stopped
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U waqiti_ledger_service -d waqiti_ledger"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Compliance Service Database
+  postgres-compliance:
+    image: postgres:15-alpine
+    container_name: waqiti-compliance-db
+    environment:
+      - POSTGRES_DB=waqiti_compliance
+      - POSTGRES_USER=waqiti_compliance_service
+      - POSTGRES_PASSWORD=${COMPLIANCE_DB_PASSWORD}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    ports:
+      - "5437:5432"
+    volumes:
+      - postgres_compliance_data:/var/lib/postgresql/data
+      - ./init-scripts/compliance-db-init.sql:/docker-entrypoint-initdb.d/01-init.sql
+      - ./config/compliance-db-postgresql.conf:/etc/postgresql/postgresql.conf
+    networks:
+      - compliance-service-network
+    restart: unless-stopped
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U waqiti_compliance_service -d waqiti_compliance"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Analytics Service Database
+  postgres-analytics:
+    image: postgres:15-alpine
+    container_name: waqiti-analytics-db
+    environment:
+      - POSTGRES_DB=waqiti_analytics
+      - POSTGRES_USER=waqiti_analytics_service
+      - POSTGRES_PASSWORD=${ANALYTICS_DB_PASSWORD}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    ports:
+      - "5438:5432"
+    volumes:
+      - postgres_analytics_data:/var/lib/postgresql/data
+      - ./init-scripts/analytics-db-init.sql:/docker-entrypoint-initdb.d/01-init.sql
+      - ./config/analytics-db-postgresql.conf:/etc/postgresql/postgresql.conf
+    networks:
+      - analytics-service-network
+    restart: unless-stopped
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U waqiti_analytics_service -d waqiti_analytics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Security & Audit Service Database
+  postgres-security:
+    image: postgres:15-alpine
+    container_name: waqiti-security-db
+    environment:
+      - POSTGRES_DB=waqiti_security
+      - POSTGRES_USER=waqiti_security_service
+      - POSTGRES_PASSWORD=${SECURITY_DB_PASSWORD}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    ports:
+      - "5439:5432"
+    volumes:
+      - postgres_security_data:/var/lib/postgresql/data
+      - ./init-scripts/security-db-init.sql:/docker-entrypoint-initdb.d/01-init.sql
+      - ./config/security-db-postgresql.conf:/etc/postgresql/postgresql.conf
+    networks:
+      - security-service-network
+    restart: unless-stopped
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U waqiti_security_service -d waqiti_security"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Notification Service Database
+  postgres-notification:
+    image: postgres:15-alpine
+    container_name: waqiti-notification-db
+    environment:
+      - POSTGRES_DB=waqiti_notifications
+      - POSTGRES_USER=waqiti_notification_service
+      - POSTGRES_PASSWORD=${NOTIFICATION_DB_PASSWORD}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    ports:
+      - "5440:5432"
+    volumes:
+      - postgres_notification_data:/var/lib/postgresql/data
+      - ./init-scripts/notification-db-init.sql:/docker-entrypoint-initdb.d/01-init.sql
+      - ./config/notification-db-postgresql.conf:/etc/postgresql/postgresql.conf
+    networks:
+      - notification-service-network
+    restart: unless-stopped
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U waqiti_notification_service -d waqiti_notifications"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  postgres_user_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /var/lib/waqiti/databases/user
+  postgres_payment_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /var/lib/waqiti/databases/payment
+  postgres_wallet_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /var/lib/waqiti/databases/wallet
+  postgres_ledger_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /var/lib/waqiti/databases/ledger
+  postgres_compliance_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /var/lib/waqiti/databases/compliance
+  postgres_analytics_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /var/lib/waqiti/databases/analytics
+  postgres_security_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /var/lib/waqiti/databases/security
+  postgres_notification_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /var/lib/waqiti/databases/notification
+
+networks:
+  user-service-network:
+    driver: bridge
+    internal: true
+  payment-service-network:
+    driver: bridge
+    internal: true
+  wallet-service-network:
+    driver: bridge
+    internal: true
+  ledger-service-network:
+    driver: bridge
+    internal: true
+  compliance-service-network:
+    driver: bridge
+    internal: true
+  analytics-service-network:
+    driver: bridge
+    internal: true
+  security-service-network:
+    driver: bridge
+    internal: true
+  notification-service-network:
+    driver: bridge
+    internal: true

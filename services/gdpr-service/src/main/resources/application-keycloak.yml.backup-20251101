@@ -1,0 +1,117 @@
+# Keycloak Configuration for GDPR Service
+
+keycloak:
+  enabled: true
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  ssl-required: external
+  resource: gdpr-service
+  bearer-only: true
+  credentials:
+    secret: ${GDPR_SERVICE_CLIENT_SECRET:CHANGE_ME_SECURE_SECRET_REQUIRED}
+  use-resource-role-mappings: true
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# GDPR Service Security Configuration
+gdpr:
+  security:
+    # Public endpoints that don't require authentication
+    public-endpoints:
+      - /actuator/health
+      - /actuator/info
+      - /api/v1/gdpr/privacy-policy
+      - /api/v1/gdpr/consent/forms
+      - /swagger-ui/**
+      - /v3/api-docs/**
+    
+    # Service-to-service endpoints
+    service-endpoints:
+      - /internal/gdpr/**
+    
+    # Required roles for GDPR operations
+    required-roles:
+      read:
+        - USER
+        - PRIVACY_USER
+      data-access:
+        - USER
+        - DATA_SUBJECT
+      data-portability:
+        - USER
+        - DATA_SUBJECT
+      data-rectification:
+        - USER
+        - DATA_SUBJECT
+      data-erasure:
+        - USER
+        - DATA_SUBJECT
+      consent-management:
+        - USER
+        - DATA_SUBJECT
+      privacy-request:
+        - USER
+        - DATA_SUBJECT
+      privacy-officer:
+        - PRIVACY_OFFICER
+        - DPO
+      compliance-audit:
+        - COMPLIANCE_AUDITOR
+        - PRIVACY_AUDITOR
+      management:
+        - GDPR_MANAGER
+        - PRIVACY_MANAGER
+      admin:
+        - GDPR_ADMIN
+        - SYSTEM_ADMIN
+    
+    # Required scopes for operations
+    required-scopes:
+      data-access: gdpr:data:access
+      data-portability: gdpr:data:portability
+      data-rectification: gdpr:data:rectification
+      data-erasure: gdpr:data:erasure
+      consent-management: gdpr:consent:management
+      privacy-request: gdpr:privacy:request
+      compliance-audit: gdpr:compliance:audit
+      breach-notification: gdpr:breach:notification
+      admin: gdpr:admin
+      management: gdpr:manage
+    
+    # GDPR security features
+    features:
+      consent-tracking-enabled: true
+      data-mapping-enabled: true
+      retention-policy-enforcement: true
+      data-minimization-enabled: true
+      purpose-limitation-enabled: true
+      breach-detection-enabled: true
+      
+    # GDPR limits and thresholds
+    limits:
+      data-access-requests-per-month: 5
+      data-portability-requests-per-year: 2
+      consent-withdrawal-grace-period-days: 30
+      data-retention-default-years: 7
+      
+    # Security thresholds requiring immediate action
+    breach-thresholds:
+      data-access-volume-threshold: 1000
+      unauthorized-access-attempts: 3
+      data-export-size-mb: 100
+      suspicious-deletion-requests: 5
+      
+    # Advanced GDPR features
+    advanced-features:
+      automated-consent-management: true
+      real-time-data-mapping: true
+      privacy-by-design-enforcement: true
+      data-lineage-tracking: true
+      automated-breach-detection: true
+      cross-border-transfer-monitoring: true

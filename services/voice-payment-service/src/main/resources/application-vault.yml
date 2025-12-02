@@ -1,0 +1,167 @@
+# HashiCorp Vault Configuration
+#
+# CRITICAL SECURITY: Vault integration for centralized secret management
+#
+# Setup Instructions:
+# 1. Start Vault: docker run -d --name vault -p 8200:8200 vault:latest
+# 2. Initialize Vault: vault operator init
+# 3. Unseal Vault: vault operator unseal (use unseal keys from init)
+# 4. Login: vault login (use root token from init)
+# 5. Enable KV v2: vault secrets enable -version=2 -path=secret kv
+# 6. Store encryption key:
+#    vault kv put secret/voice-payment-service/encryption aes-key="<base64-encoded-key>"
+#
+# Production Setup:
+# 1. Enable AppRole auth: vault auth enable approle
+# 2. Create policy for voice-payment-service
+# 3. Create AppRole with policy
+# 4. Use role_id and secret_id instead of token
+
+spring:
+  cloud:
+    vault:
+      enabled: true
+      uri: ${VAULT_URI:http://localhost:8200}
+      token: ${VAULT_TOKEN:}  # Override with environment variable
+      namespace: ${VAULT_NAMESPACE:}  # For Vault Enterprise
+
+      # Connection settings
+      connection-timeout: 5000
+      read-timeout: 15000
+
+      # SSL/TLS (production)
+      ssl:
+        enabled: ${VAULT_SSL_ENABLED:false}
+        trust-store: ${VAULT_TRUST_STORE:}
+        trust-store-password: ${VAULT_TRUST_STORE_PASSWORD:}
+
+      # KV v2 engine configuration
+      kv:
+        enabled: true
+        backend: secret
+        default-context: voice-payment-service
+        application-name: voice-payment-service
+
+      # AppRole authentication (production)
+      app-role:
+        enabled: ${VAULT_APPROLE_ENABLED:false}
+        role-id: ${VAULT_ROLE_ID:}
+        secret-id: ${VAULT_SECRET_ID:}
+        role: voice-payment-service
+        app-role-path: approle
+
+# Voice Payment Service - Vault Integration
+voice-payment:
+  encryption:
+    # Enable/disable Vault for encryption keys
+    vault-enabled: ${ENCRYPTION_VAULT_ENABLED:true}
+
+    # Vault path for encryption key
+    vault-path: voice-payment-service/encryption
+
+    # Fallback: Direct key configuration (NOT recommended for production)
+    key: ${ENCRYPTION_KEY:#{null}}
+
+  security:
+    # Audio file validation
+    clamav:
+      enabled: ${CLAMAV_ENABLED:true}
+      host: ${CLAMAV_HOST:localhost}
+      port: ${CLAMAV_PORT:3310}
+
+    # File size limits
+    max-file-size: ${MAX_FILE_SIZE:10485760}  # 10MB
+    min-file-size: ${MIN_FILE_SIZE:1000}      # 1KB
+
+# Database Configuration (can be moved to Vault)
+spring.datasource:
+  url: ${DB_URL:jdbc:postgresql://localhost:5432/waqiti_voice_payments}
+  username: ${DB_USERNAME:voice_payment_user}
+  password: ${DB_PASSWORD:}  # Load from Vault in production
+
+  # Vault path for database credentials (if enabled)
+  vault-path: voice-payment-service/database
+
+# Redis Configuration (can be moved to Vault)
+spring.redis:
+  host: ${REDIS_HOST:localhost}
+  port: ${REDIS_PORT:6379}
+  password: ${REDIS_PASSWORD:}  # Load from Vault in production
+  ssl: ${REDIS_SSL:false}
+
+  # Vault path for Redis credentials (if enabled)
+  vault-path: voice-payment-service/redis
+
+# Kafka Configuration (can be moved to Vault)
+spring.kafka:
+  bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+  # SSL/SASL configuration
+  properties:
+    security.protocol: ${KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
+    sasl.mechanism: ${KAFKA_SASL_MECHANISM:PLAIN}
+    sasl.jaas.config: ${KAFKA_SASL_JAAS_CONFIG:}  # Load from Vault in production
+
+  # Vault path for Kafka credentials (if enabled)
+  vault-path: voice-payment-service/kafka
+
+# Google Cloud Configuration (can be moved to Vault)
+google:
+  cloud:
+    speech:
+      api-key: ${GOOGLE_CLOUD_API_KEY:}  # Load from Vault in production
+      project-id: ${GOOGLE_CLOUD_PROJECT_ID:}
+
+      # Vault path for Google Cloud credentials (if enabled)
+      vault-path: voice-payment-service/google-cloud
+
+# Keycloak Client Configuration (can be moved to Vault)
+keycloak:
+  client-id: voice-payment-service
+  client-secret: ${KEYCLOAK_CLIENT_SECRET:}  # Load from Vault in production
+
+  # Vault path for Keycloak credentials (if enabled)
+  vault-path: voice-payment-service/keycloak
+
+# Logging
+logging:
+  level:
+    com.waqiti.voice.config.VaultConfiguration: INFO
+    com.waqiti.voice.security.vault: INFO
+    org.springframework.vault: DEBUG  # Enable for troubleshooting
+
+---
+# Production Profile
+spring:
+  config:
+    activate:
+      on-profile: production
+
+  cloud:
+    vault:
+      # Production Vault endpoint
+      uri: ${VAULT_URI:https://vault.example.com:8200}
+
+      # SSL/TLS required
+      ssl:
+        enabled: true
+        trust-store: ${VAULT_TRUST_STORE:/etc/ssl/vault-truststore.jks}
+        trust-store-password: ${VAULT_TRUST_STORE_PASSWORD:}
+
+      # AppRole authentication (NOT token)
+      app-role:
+        enabled: true
+        role-id: ${VAULT_ROLE_ID:}
+        secret-id: ${VAULT_SECRET_ID:}
+
+voice-payment:
+  encryption:
+    # MUST use Vault in production
+    vault-enabled: true
+
+    # Fallback key MUST NOT be set in production
+    key: null
+
+logging:
+  level:
+    org.springframework.vault: WARN  # Reduce noise in production

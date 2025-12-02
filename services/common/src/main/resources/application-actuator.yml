@@ -1,0 +1,420 @@
+# ==============================================================================
+# WAQITI PLATFORM - SPRING BOOT ACTUATOR CONFIGURATION
+# ==============================================================================
+# This configuration enables comprehensive health checks, metrics, and
+# operational endpoints for all microservices in the Waqiti platform.
+#
+# USAGE:
+#   Import this configuration in service application.yml:
+#   spring.config.import: classpath:application-actuator.yml
+#
+# SECURITY:
+#   - Health endpoints are public for Kubernetes probes
+#   - Metrics exposed for Prometheus scraping
+#   - Sensitive endpoints (env, beans, etc.) secured by Spring Security
+#
+# @author: Platform Engineering Team
+# @date: 2025-11-23
+# @version: 1.0.0
+# ==============================================================================
+
+management:
+  # Actuator endpoint base path
+  endpoints:
+    web:
+      base-path: /actuator
+      exposure:
+        # Expose essential endpoints for monitoring and operations
+        include:
+          - health
+          - info
+          - metrics
+          - prometheus
+          - loggers
+          - env
+          - configprops
+          - beans
+          - mappings
+          - scheduledtasks
+          - caches
+          - conditions
+          - httptrace
+          - threaddump
+          - heapdump
+
+      # CORS configuration for actuator endpoints
+      cors:
+        allowed-origins: "*"
+        allowed-methods: GET,POST
+        allowed-headers: "*"
+
+  # Health endpoint configuration
+  endpoint:
+    health:
+      # Show detailed health information
+      show-details: always
+      show-components: always
+
+      # Enable all health indicators
+      enabled: true
+
+      # Health check probes for Kubernetes
+      probes:
+        enabled: true
+
+      # Group health checks for different consumers
+      group:
+        # Kubernetes liveness probe - checks if app should be restarted
+        liveness:
+          include:
+            - livenessState
+            - diskSpace
+
+        # Kubernetes readiness probe - checks if app can accept traffic
+        readiness:
+          include:
+            - readinessState
+            - db
+            - redis
+            - kafka
+            - vault
+            - diskSpace
+          show-details: always
+
+    # Metrics endpoint configuration
+    metrics:
+      enabled: true
+
+    # Prometheus endpoint for metrics scraping
+    prometheus:
+      enabled: true
+
+    # Info endpoint configuration
+    info:
+      enabled: true
+
+    # Loggers endpoint - allows runtime log level changes
+    loggers:
+      enabled: true
+
+    # Environment endpoint - shows configuration properties
+    env:
+      enabled: true
+      show-values: when-authorized
+
+    # Beans endpoint - shows Spring beans
+    beans:
+      enabled: true
+
+    # Mappings endpoint - shows request mappings
+    mappings:
+      enabled: true
+
+    # Scheduled tasks endpoint
+    scheduledtasks:
+      enabled: true
+
+    # Caches endpoint - shows cache statistics
+    caches:
+      enabled: true
+
+    # HTTP trace endpoint - shows recent HTTP requests
+    httptrace:
+      enabled: true
+
+  # Health indicators configuration
+  health:
+    # Database health check
+    db:
+      enabled: true
+
+    # Redis health check
+    redis:
+      enabled: true
+
+    # Kafka health check
+    kafka:
+      enabled: true
+
+    # Disk space health check
+    diskspace:
+      enabled: true
+      threshold: 10GB  # Alert if less than 10GB free
+      path: /
+
+    # Circuit breaker health check (Resilience4j)
+    circuitbreakers:
+      enabled: true
+
+    # Rate limiter health check (Resilience4j)
+    ratelimiters:
+      enabled: true
+
+    # Liveliness state
+    livenessstate:
+      enabled: true
+
+    # Readiness state
+    readinessstate:
+      enabled: true
+
+  # Metrics configuration
+  metrics:
+    enable:
+      # JVM metrics
+      jvm: true
+      process: true
+      system: true
+
+      # Application metrics
+      application: true
+
+      # HTTP metrics
+      http: true
+
+      # Logback metrics
+      logback: true
+
+      # Data source metrics
+      jdbc: true
+
+      # Hibernate metrics
+      hibernate: true
+
+      # Cache metrics
+      cache: true
+
+      # Kafka metrics
+      kafka: true
+
+    # Metric tags - add common tags to all metrics
+    tags:
+      application: ${spring.application.name}
+      environment: ${spring.profiles.active:dev}
+      region: ${DEPLOYMENT_REGION:us-east-1}
+      version: ${spring.application.version:unknown}
+
+    # Distribution percentiles for timing metrics
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+
+      # Service Level Objectives (SLOs)
+      slo:
+        http.server.requests: 50ms,100ms,200ms,500ms,1s,2s,5s
+
+    # Export metrics to Prometheus
+    export:
+      prometheus:
+        enabled: true
+        descriptions: true
+        step: 1m
+
+  # Application info
+  info:
+    # Include git information
+    git:
+      mode: full
+      enabled: true
+
+    # Include build information
+    build:
+      enabled: true
+
+    # Include Java information
+    java:
+      enabled: true
+
+    # Include OS information
+    os:
+      enabled: true
+
+    # Include environment information
+    env:
+      enabled: true
+
+  # Tracing configuration (OpenTelemetry/Zipkin)
+  tracing:
+    enabled: true
+    sampling:
+      probability: 1.0  # Sample 100% in dev, adjust for production
+
+  # HTTP trace configuration
+  trace:
+    http:
+      enabled: true
+      include:
+        - REQUEST_HEADERS
+        - RESPONSE_HEADERS
+        - COOKIE_HEADERS
+        - TIME_TAKEN
+        - REQUEST_URL
+        - RESPONSE_STATUS
+
+# ==============================================================================
+# RESILIENCE4J ACTUATOR INTEGRATION
+# ==============================================================================
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        # Health indicator settings
+        registerHealthIndicator: true
+        slidingWindowSize: 100
+        minimumNumberOfCalls: 10
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 60s
+        failureRateThreshold: 50
+        slowCallRateThreshold: 100
+        slowCallDurationThreshold: 2s
+        recordExceptions:
+          - java.net.SocketTimeoutException
+          - java.io.IOException
+          - org.springframework.web.client.ResourceAccessException
+
+  retry:
+    configs:
+      default:
+        registerHealthIndicator: true
+        maxAttempts: 3
+        waitDuration: 1s
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - java.net.SocketTimeoutException
+          - java.io.IOException
+
+  ratelimiter:
+    configs:
+      default:
+        registerHealthIndicator: true
+        limitForPeriod: 100
+        limitRefreshPeriod: 1s
+        timeoutDuration: 0s
+
+  bulkhead:
+    configs:
+      default:
+        registerHealthIndicator: true
+        maxConcurrentCalls: 25
+        maxWaitDuration: 0s
+
+  timelimiter:
+    configs:
+      default:
+        timeoutDuration: 5s
+        cancelRunningFuture: true
+
+# ==============================================================================
+# LOGGING CONFIGURATION
+# ==============================================================================
+logging:
+  level:
+    # Actuator logging
+    org.springframework.boot.actuate: INFO
+    org.springframework.boot.actuate.endpoint: DEBUG
+
+    # Health check logging
+    org.springframework.boot.actuate.health: DEBUG
+
+    # Metrics logging
+    io.micrometer: INFO
+
+# ==============================================================================
+# SECURITY CONFIGURATION FOR ACTUATOR ENDPOINTS
+# ==============================================================================
+# Note: This is imported by application-security.yml in each service
+# Sensitive endpoints require ACTUATOR role
+# Health and metrics endpoints are public for K8s and Prometheus
+
+# Health endpoint is always public (no authentication required)
+# This is configured in Spring Security to allow:
+#   - /actuator/health/** - public access
+#   - /actuator/health/liveness - public access
+#   - /actuator/health/readiness - public access
+#   - /actuator/info - public access
+#   - /actuator/prometheus - public access (Prometheus scraping)
+#   - /actuator/metrics - requires ACTUATOR role
+#   - /actuator/** - requires ACTUATOR role
+
+# ==============================================================================
+# KUBERNETES HEALTH CHECK CONFIGURATION
+# ==============================================================================
+# These endpoints are used by Kubernetes for container health management:
+#
+# LIVENESS PROBE:
+#   - Endpoint: GET /actuator/health/liveness
+#   - Purpose: Determines if container should be restarted
+#   - Failure: Kubernetes will restart the pod
+#   - Checks: Application state, critical dependencies
+#
+# READINESS PROBE:
+#   - Endpoint: GET /actuator/health/readiness
+#   - Purpose: Determines if container can accept traffic
+#   - Failure: Pod removed from service endpoints (no traffic)
+#   - Checks: Database, Redis, Kafka, Vault connectivity
+#
+# Example Kubernetes deployment configuration:
+#
+# livenessProbe:
+#   httpGet:
+#     path: /actuator/health/liveness
+#     port: 8080
+#   initialDelaySeconds: 30
+#   periodSeconds: 10
+#   timeoutSeconds: 5
+#   failureThreshold: 3
+#
+# readinessProbe:
+#   httpGet:
+#     path: /actuator/health/readiness
+#     port: 8080
+#   initialDelaySeconds: 20
+#   periodSeconds: 5
+#   timeoutSeconds: 3
+#   failureThreshold: 3
+
+# ==============================================================================
+# PROMETHEUS SCRAPING CONFIGURATION
+# ==============================================================================
+# Prometheus will scrape metrics from: /actuator/prometheus
+#
+# Example Prometheus ServiceMonitor:
+#
+# apiVersion: monitoring.coreos.com/v1
+# kind: ServiceMonitor
+# metadata:
+#   name: waqiti-services
+# spec:
+#   selector:
+#     matchLabels:
+#       prometheus: enabled
+#   endpoints:
+#   - port: http
+#     path: /actuator/prometheus
+#     interval: 30s
+
+# ==============================================================================
+# CUSTOM HEALTH INDICATORS
+# ==============================================================================
+# Services should implement custom health indicators for business-critical checks:
+#
+# @Component
+# public class CustomBusinessHealthIndicator implements HealthIndicator {
+#     @Override
+#     public Health health() {
+#         // Check business-critical condition
+#         boolean healthy = checkCriticalBusinessLogic();
+#
+#         if (healthy) {
+#             return Health.up()
+#                 .withDetail("businessMetric", value)
+#                 .build();
+#         } else {
+#             return Health.down()
+#                 .withDetail("reason", "Critical business check failed")
+#                 .build();
+#         }
+#     }
+# }

@@ -1,0 +1,454 @@
+# Filebeat Configuration for Waqiti SIEM
+# Collects and ships logs from various sources to Logstash/Elasticsearch
+
+###################### Filebeat Configuration #########################
+
+# ============================== Inputs ===============================
+
+filebeat.inputs:
+
+# Docker container logs
+- type: container
+  enabled: true
+  paths:
+    - '/var/lib/docker/containers/*/*.log'
+  processors:
+    - add_docker_metadata:
+        host: "unix:///var/run/docker.sock"
+    - decode_json_fields:
+        fields: ["message"]
+        target: "json"
+        overwrite_keys: true
+    - drop_event:
+        when:
+          regexp:
+            message: ".*health.*check.*"
+
+# Application logs
+- type: log
+  enabled: true
+  paths:
+    - '/var/log/waqiti/*.log'
+    - '/var/log/waqiti/*/*.log'
+  multiline.pattern: '^\d{4}-\d{2}-\d{2}'
+  multiline.negate: true
+  multiline.match: after
+  fields:
+    service: waqiti
+    environment: production
+  fields_under_root: true
+
+# Payment service logs
+- type: log
+  enabled: true
+  paths:
+    - '/var/log/waqiti/payment-service/*.log'
+  json.keys_under_root: true
+  json.add_error_key: true
+  json.message_key: log
+  fields:
+    service: payment-service
+    compliance: pci-dss
+  processors:
+    - add_fields:
+        target: ''
+        fields:
+          event.category: financial
+          event.module: payment
+
+# Wallet service logs
+- type: log
+  enabled: true
+  paths:
+    - '/var/log/waqiti/wallet-service/*.log'
+  json.keys_under_root: true
+  fields:
+    service: wallet-service
+    compliance: pci-dss
+  processors:
+    - add_fields:
+        target: ''
+        fields:
+          event.category: financial
+          event.module: wallet
+
+# Transaction service logs
+- type: log
+  enabled: true
+  paths:
+    - '/var/log/waqiti/transaction-service/*.log'
+  json.keys_under_root: true
+  fields:
+    service: transaction-service
+    compliance: pci-dss
+  processors:
+    - add_fields:
+        target: ''
+        fields:
+          event.category: financial
+          event.module: transaction
+
+# Security audit logs
+- type: log
+  enabled: true
+  paths:
+    - '/var/log/audit/audit.log'
+  fields:
+    service: security-audit
+    event.category: security
+  processors:
+    - add_fields:
+        target: ''
+        fields:
+          compliance: required
+          retention: 7-years
+
+# Nginx access logs
+- type: log
+  enabled: true
+  paths:
+    - '/var/log/nginx/access.log'
+  fields:
+    service: nginx
+    log_type: access
+  processors:
+    - add_fields:
+        target: ''
+        fields:
+          event.category: web
+
+# Nginx error logs
+- type: log
+  enabled: true
+  paths:
+    - '/var/log/nginx/error.log'
+  fields:
+    service: nginx
+    log_type: error
+  processors:
+    - add_fields:
+        target: ''
+        fields:
+          event.category: web
+          event.kind: error
+
+# System logs
+- type: log
+  enabled: true
+  paths:
+    - '/var/log/syslog'
+    - '/var/log/messages'
+  fields:
+    service: system
+    log_type: syslog
+
+# Authentication logs
+- type: log
+  enabled: true
+  paths:
+    - '/var/log/auth.log'
+    - '/var/log/secure'
+  fields:
+    service: authentication
+    event.category: security
+  processors:
+    - add_fields:
+        target: ''
+        fields:
+          compliance: required
+          alert.priority: high
+
+# Kubernetes logs
+- type: log
+  enabled: true
+  paths:
+    - '/var/log/pods/*/*.log'
+  processors:
+    - add_kubernetes_metadata:
+        host: ${NODE_NAME}
+        matchers:
+        - logs_path:
+            logs_path: "/var/log/pods/"
+
+# Kafka logs
+- type: log
+  enabled: true
+  paths:
+    - '/var/log/kafka/*.log'
+  fields:
+    service: kafka
+    component: message-broker
+  multiline.pattern: '^\['
+  multiline.negate: true
+  multiline.match: after
+
+# PostgreSQL logs
+- type: log
+  enabled: true
+  paths:
+    - '/var/log/postgresql/*.log'
+  fields:
+    service: postgresql
+    component: database
+  multiline.pattern: '^\d{4}-\d{2}-\d{2}'
+  multiline.negate: true
+  multiline.match: after
+
+# Redis logs
+- type: log
+  enabled: true
+  paths:
+    - '/var/log/redis/*.log'
+  fields:
+    service: redis
+    component: cache
+
+# ============================== Modules ==============================
+
+filebeat.modules:
+
+# System module
+- module: system
+  syslog:
+    enabled: true
+  auth:
+    enabled: true
+
+# Nginx module
+- module: nginx
+  access:
+    enabled: true
+    var.paths: ["/var/log/nginx/access.log"]
+  error:
+    enabled: true
+    var.paths: ["/var/log/nginx/error.log"]
+
+# PostgreSQL module
+- module: postgresql
+  log:
+    enabled: true
+    var.paths: ["/var/log/postgresql/*.log"]
+
+# Redis module
+- module: redis
+  log:
+    enabled: true
+    var.paths: ["/var/log/redis/*.log"]
+  slowlog:
+    enabled: true
+
+# Kafka module
+- module: kafka
+  log:
+    enabled: true
+    var.paths: ["/var/log/kafka/*.log"]
+
+# ============================== Processors ===============================
+
+processors:
+  # Add host metadata
+  - add_host_metadata:
+      when.not.contains:
+        tags: forwarded
+
+  # Add Docker metadata
+  - add_docker_metadata: ~
+
+  # Add Kubernetes metadata
+  - add_kubernetes_metadata: ~
+
+  # Add cloud metadata
+  - add_cloud_metadata: ~
+
+  # Detect and flag sensitive data
+  - script:
+      lang: javascript
+      id: sensitive_data_detection
+      source: >
+        function process(event) {
+          var message = event.Get("message");
+          if (message) {
+            // Check for credit card patterns
+            if (/\b(?:\d{4}[-\s]?){3}\d{4}\b/.test(message)) {
+              event.Put("sensitive_data.type", "credit_card");
+              event.Put("alert.severity", "critical");
+              event.Put("compliance.violation", "pci_dss");
+            }
+            // Check for SSN patterns
+            if (/\b\d{3}-\d{2}-\d{4}\b/.test(message)) {
+              event.Put("sensitive_data.type", "ssn");
+              event.Put("alert.severity", "critical");
+            }
+            // Check for API keys
+            if (/api[_\-]?key[\s]*[:=][\s]*['\"]?[a-zA-Z0-9]{32,}['\"]?/i.test(message)) {
+              event.Put("sensitive_data.type", "api_key");
+              event.Put("alert.severity", "high");
+            }
+          }
+        }
+
+  # Drop events based on conditions
+  - drop_event:
+      when:
+        or:
+          - contains:
+              message: "ELB-HealthChecker"
+          - equals:
+              log_type: "debug"
+          - regexp:
+              message: ".*\\.git.*"
+
+  # Rate limiting to prevent log flooding
+  - rate_limit:
+      limit: 10000
+      fields:
+        - "source"
+
+  # Fingerprinting for deduplication
+  - fingerprint:
+      fields: ["message", "host.name", "service"]
+      target_field: "@metadata.fingerprint"
+
+  # Add correlation ID
+  - script:
+      lang: javascript
+      id: correlation_id
+      source: >
+        function process(event) {
+          var corrId = event.Get("correlation_id");
+          if (!corrId) {
+            event.Put("correlation_id", generateUUID());
+          }
+        }
+        
+        function generateUUID() {
+          return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            var r = Math.random() * 16 | 0,
+                v = c == 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+          });
+        }
+
+# ============================== Output ===============================
+
+output.logstash:
+  enabled: true
+  hosts: ["logstash:5044"]
+  ssl.enabled: true
+  ssl.certificate_authorities: ["/etc/filebeat/certs/ca.crt"]
+  ssl.certificate: "/etc/filebeat/certs/filebeat.crt"
+  ssl.key: "/etc/filebeat/certs/filebeat.key"
+  ssl.verification_mode: full
+  loadbalance: true
+  worker: 2
+  compression_level: 3
+  bulk_max_size: 2048
+
+# Alternative output directly to Elasticsearch (if Logstash is down)
+output.elasticsearch:
+  enabled: false
+  hosts: ["elasticsearch:9200"]
+  protocol: "https"
+  username: "elastic"
+  password: "${ELASTIC_PASSWORD}"
+  ssl.certificate_authorities: ["/etc/filebeat/certs/ca.crt"]
+  ssl.verification_mode: full
+  index: "filebeat-%{[agent.version]}-%{+yyyy.MM.dd}"
+  template.name: "filebeat"
+  template.pattern: "filebeat-*"
+  
+# ============================== Logging ===============================
+
+logging.level: info
+logging.to_files: true
+logging.files:
+  path: /var/log/filebeat
+  name: filebeat
+  keepfiles: 7
+  permissions: 0644
+logging.metrics.enabled: true
+logging.metrics.period: 30s
+
+# Log specific selectors for debugging
+logging.selectors: ["*"]
+
+# ============================== Monitoring ===============================
+
+monitoring.enabled: true
+monitoring.elasticsearch:
+  hosts: ["elasticsearch:9200"]
+  username: "elastic"
+  password: "${ELASTIC_PASSWORD}"
+  ssl.enabled: true
+  ssl.certificate_authorities: ["/etc/filebeat/certs/ca.crt"]
+
+# ============================== HTTP Endpoint ===============================
+
+http.enabled: true
+http.host: "0.0.0.0"
+http.port: 5066
+
+# ============================== Autodiscover ===============================
+
+filebeat.autodiscover:
+  providers:
+    # Docker autodiscover
+    - type: docker
+      hints.enabled: true
+      hints.default_config:
+        type: container
+        paths:
+          - /var/lib/docker/containers/${data.docker.container.id}/*.log
+      templates:
+        - condition:
+            contains:
+              docker.container.image: waqiti
+          config:
+            - type: container
+              paths:
+                - /var/lib/docker/containers/${data.docker.container.id}/*.log
+              fields:
+                service: ${data.docker.container.labels.service}
+                environment: ${data.docker.container.labels.environment}
+
+    # Kubernetes autodiscover
+    - type: kubernetes
+      node: ${NODE_NAME}
+      hints.enabled: true
+      hints.default_config:
+        type: container
+        paths:
+          - /var/log/containers/*${data.kubernetes.container.id}.log
+      templates:
+        - condition:
+            equals:
+              kubernetes.namespace: payment
+          config:
+            - type: container
+              paths:
+                - /var/log/containers/*${data.kubernetes.container.id}.log
+              fields:
+                compliance: pci-dss
+                service: payment
+        - condition:
+            equals:
+              kubernetes.namespace: wallet
+          config:
+            - type: container
+              paths:
+                - /var/log/containers/*${data.kubernetes.container.id}.log
+              fields:
+                compliance: pci-dss
+                service: wallet
+
+# ============================== Queue ===============================
+
+queue.mem:
+  events: 4096
+  flush.min_events: 512
+  flush.timeout: 5s
+
+# ============================== Retry ===============================
+
+output.logstash.max_retries: 3
+output.logstash.retry_interval: 10s

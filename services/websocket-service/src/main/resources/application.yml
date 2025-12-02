@@ -1,0 +1,147 @@
+spring:
+  application:
+    name: websocket-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:default}
+    include: ${SPRING_PROFILES_INCLUDE:keycloak}
+  
+  # Redis configuration for presence and notifications
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:${vault.redis.password}}
+      timeout: 2000
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+  
+  # Kafka configuration
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}}
+    consumer:
+      group-id: websocket-service
+      enable-auto-commit: false  # Manual acknowledgment for DLQ support
+      max-poll-records: 50  # Batch size control
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+
+    listener:
+      ack-mode: record  # Acknowledge each record individually for better error handling
+      missing-topics-fatal: false  # Don't fail on missing topics
+      type: batch  # Support batch processing
+      concurrency: 3  # Number of concurrent consumer threads
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+server:
+  port: ${WEBSOCKET_SERVICE_PORT:8090}
+
+# WebSocket configuration
+websocket:
+  allowed-origins: 
+    - ${FRONTEND_URL:http://localhost:3000}
+    - ${ADMIN_URL:http://localhost:3001}
+    - https://app.example.com
+    - https://admin.example.com
+  relay:
+    host: ${STOMP_RELAY_HOST:localhost}
+    port: ${STOMP_RELAY_PORT:61613}
+
+# Keycloak Configuration
+keycloak:
+  enabled: true
+  realm: waqiti-fintech
+  auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}
+  ssl-required: external
+  resource: websocket-service
+  bearer-only: true
+  use-resource-role-mappings: true
+  cors: true
+  cors-allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+  cors-allowed-headers: Authorization,Content-Type,X-Requested-With
+  cors-max-age: 3600
+  public-client: false
+  credentials:
+    secret: ${KEYCLOAK_CLIENT_SECRET:}
+
+# Spring Security OAuth2 Configuration
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti
+          jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/certs
+      client:
+        registration:
+          keycloak:
+            client-id: websocket-service
+            client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+            authorization-grant-type: client_credentials
+            scope: openid,profile,email
+        provider:
+          keycloak:
+            issuer-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti
+            token-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/token
+            authorization-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/auth
+            userinfo-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/userinfo
+            jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/certs
+
+# Service-to-Service Authentication
+service:
+  auth:
+    enabled: true
+    client-id: websocket-service
+    client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+
+# Eureka client configuration
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:${EUREKA_SERVER_URL:https://discovery-service:8761/eureka}/}
+    registry-fetch-interval-seconds: 5
+  instance:
+    hostname: ${HOSTNAME:localhost}
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 10
+    lease-expiration-duration-in-seconds: 30
+
+# Management endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# Logging configuration
+logging:
+  level:
+    root: INFO
+    com.waqiti: DEBUG
+    org.springframework.messaging: DEBUG
+    org.springframework.web.socket: DEBUG
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+# Presence service configuration
+presence:
+  cleanup-interval: PT5M  # 5 minutes
+  user-timeout: PT10M     # 10 minutes
+
+# Notification configuration
+notification:
+  batch-size: 100
+  retry-attempts: 3
+  retry-delay: PT1S

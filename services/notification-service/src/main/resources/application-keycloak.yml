@@ -1,0 +1,94 @@
+# Keycloak Configuration for Notification Service
+
+keycloak:
+  enabled: true
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  ssl-required: external
+  resource: notification-service
+  bearer-only: true
+  credentials:
+    secret: ${NOTIFICATION_SERVICE_CLIENT_SECRET}
+  use-resource-role-mappings: true
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# Notification Service Security Configuration
+notification:
+  security:
+    # Public endpoints that don't require authentication
+    public-endpoints:
+      - /actuator/health
+      - /actuator/info
+      - /api/v1/notifications/webhook/**
+      - /swagger-ui/**
+      - /v3/api-docs/**
+    
+    # Service-to-service endpoints
+    service-endpoints:
+      - /internal/notifications/**
+    
+    # Required roles for notification operations
+    required-roles:
+      read:
+        - NOTIFICATION_USER
+        - NOTIFICATION_VIEWER
+      write:
+        - NOTIFICATION_USER
+        - NOTIFICATION_SENDER
+      management:
+        - NOTIFICATION_MANAGER
+        - NOTIFICATION_OPERATOR
+      admin:
+        - NOTIFICATION_ADMIN
+        - SYSTEM_ADMIN
+    
+    # Required scopes for operations
+    required-scopes:
+      read: notification:read
+      write: notification:write
+      send: notification:send
+      template: notification:template
+      channel: notification:channel
+      preference: notification:preference
+      analytics: notification:analytics
+      webhook: notification:webhook
+      bulk: notification:bulk
+      schedule: notification:schedule
+      archive: notification:archive
+    
+    # Notification security features
+    features:
+      spam-detection-enabled: true
+      content-validation-enabled: true
+      rate-limiting-enabled: true
+      audit-logging-enabled: true
+      encryption-enabled: true
+      
+    # Notification limits and thresholds
+    limits:
+      max-recipients-per-notification: 1000
+      max-bulk-notifications: 10000
+      max-hourly-notifications: 5000
+      max-daily-notifications: 50000
+      
+    # Security thresholds requiring additional verification
+    verification-thresholds:
+      bulk-notification-count: 100
+      high-priority-count: 50
+      external-channel-count: 20
+      
+    # Advanced security features
+    advanced-security:
+      require-approval-bulk-above: 500
+      require-manager-approval-above: 1000
+      automatic-spam-detection: true
+      content-filtering: true
+      phishing-detection: true
+      suspicious-pattern-detection: true

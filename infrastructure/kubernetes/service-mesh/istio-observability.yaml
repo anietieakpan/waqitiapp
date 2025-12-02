@@ -1,0 +1,425 @@
+apiVersion: telemetry.istio.io/v1alpha1
+kind: Telemetry
+metadata:
+  name: waqiti-metrics
+  namespace: waqiti
+  labels:
+    observability.example.com/component: metrics
+spec:
+  metrics:
+  - providers:
+    - name: prometheus
+  - overrides:
+    - match:
+        metric: ALL_METRICS
+      tagOverrides:
+        request_protocol:
+          value: "%{REQUEST_PROTOCOL}"
+        response_code:
+          value: "%{RESPONSE_CODE}"
+        source_workload:
+          value: "%{SOURCE_WORKLOAD}"
+        destination_service:
+          value: "%{DESTINATION_SERVICE_NAME}"
+        user_id:
+          value: "%{REQUEST_HEADERS['x-user-id']}"
+        correlation_id:
+          value: "%{REQUEST_HEADERS['x-correlation-id']}"
+        device_id:
+          value: "%{REQUEST_HEADERS['x-device-id']}"
+---
+apiVersion: telemetry.istio.io/v1alpha1
+kind: Telemetry
+metadata:
+  name: waqiti-tracing
+  namespace: waqiti
+  labels:
+    observability.example.com/component: tracing
+spec:
+  tracing:
+  - providers:
+    - name: jaeger
+  - customTags:
+      user_id:
+        header:
+          name: x-user-id
+      correlation_id:
+        header:
+          name: x-correlation-id
+      device_id:
+        header:
+          name: x-device-id
+      payment_id:
+        header:
+          name: x-payment-id
+      transaction_type:
+        header:
+          name: x-transaction-type
+      risk_score:
+        header:
+          name: x-risk-score
+---
+apiVersion: telemetry.istio.io/v1alpha1
+kind: Telemetry
+metadata:
+  name: waqiti-access-logs
+  namespace: waqiti
+  labels:
+    observability.example.com/component: logging
+spec:
+  accessLogging:
+  - providers:
+    - name: otel
+  - format: |
+      {
+        "timestamp": "%START_TIME%",
+        "method": "%REQ(:METHOD)%",
+        "path": "%REQ(X-ENVOY-ORIGINAL-PATH?:PATH)%",
+        "protocol": "%PROTOCOL%",
+        "response_code": "%RESPONSE_CODE%",
+        "response_flags": "%RESPONSE_FLAGS%",
+        "bytes_received": "%BYTES_RECEIVED%",
+        "bytes_sent": "%BYTES_SENT%",
+        "duration": "%DURATION%",
+        "upstream_service_time": "%RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)%",
+        "x_forwarded_for": "%REQ(X-FORWARDED-FOR)%",
+        "user_agent": "%REQ(USER-AGENT)%",
+        "request_id": "%REQ(X-REQUEST-ID)%",
+        "authority": "%REQ(:AUTHORITY)%",
+        "upstream_host": "%UPSTREAM_HOST%",
+        "upstream_cluster": "%UPSTREAM_CLUSTER%",
+        "upstream_local_address": "%UPSTREAM_LOCAL_ADDRESS%",
+        "downstream_local_address": "%DOWNSTREAM_LOCAL_ADDRESS%",
+        "downstream_remote_address": "%DOWNSTREAM_REMOTE_ADDRESS%",
+        "requested_server_name": "%REQUESTED_SERVER_NAME%",
+        "route_name": "%ROUTE_NAME%",
+        "user_id": "%REQ(X-USER-ID)%",
+        "correlation_id": "%REQ(X-CORRELATION-ID)%",
+        "device_id": "%REQ(X-DEVICE-ID)%",
+        "payment_id": "%REQ(X-PAYMENT-ID)%",
+        "transaction_type": "%REQ(X-TRANSACTION-TYPE)%",
+        "risk_score": "%REQ(X-RISK-SCORE)%",
+        "compliance_status": "%REQ(X-COMPLIANCE-STATUS)%"
+      }
+---
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+metadata:
+  name: waqiti-observability-config
+  namespace: istio-system
+  labels:
+    observability.example.com/component: config
+spec:
+  values:
+    telemetry:
+      v2:
+        enabled: true
+        prometheus:
+          configOverride:
+            inbound_metric_relabeling_configs:
+            - source_labels: [__name__]
+              regex: 'istio_(request_total|request_duration_milliseconds|request_bytes|response_bytes)'
+              target_label: __tmp_istio_metric
+            - source_labels: [__tmp_istio_metric, source_workload]
+              regex: 'istio_request_total;(.*)'
+              target_label: waqiti_source_workload
+              replacement: '${1}'
+            outbound_metric_relabeling_configs:
+            - source_labels: [__name__]
+              regex: 'istio_(request_total|request_duration_milliseconds|request_bytes|response_bytes)'
+              target_label: __tmp_istio_metric
+        stackdriver:
+          enabled: false
+    pilot:
+      env:
+        PILOT_ENABLE_WORKLOAD_ENTRY_AUTOREGISTRATION: true
+        PILOT_ENABLE_CROSS_CLUSTER_WORKLOAD_ENTRY: true
+        EXTERNAL_ISTIOD: false
+  meshConfig:
+    accessLogFile: /dev/stdout
+    accessLogFormat: |
+      {
+        "@timestamp": "%START_TIME%",
+        "method": "%REQ(:METHOD)%",
+        "path": "%REQ(X-ENVOY-ORIGINAL-PATH?:PATH)%",
+        "protocol": "%PROTOCOL%",
+        "response_code": "%RESPONSE_CODE%",
+        "response_flags": "%RESPONSE_FLAGS%",
+        "bytes_received": "%BYTES_RECEIVED%",
+        "bytes_sent": "%BYTES_SENT%",
+        "duration": "%DURATION%",
+        "upstream_service_time": "%RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)%",
+        "x_forwarded_for": "%REQ(X-FORWARDED-FOR)%",
+        "user_agent": "%REQ(USER-AGENT)%",
+        "request_id": "%REQ(X-REQUEST-ID)%",
+        "authority": "%REQ(:AUTHORITY)%",
+        "upstream_host": "%UPSTREAM_HOST%",
+        "user_id": "%REQ(X-USER-ID)%",
+        "correlation_id": "%REQ(X-CORRELATION-ID)%",
+        "service": "example-platform"
+      }
+    defaultConfig:
+      proxyStatsMatcher:
+        inclusionRegexps:
+        - ".*outlier_detection.*"
+        - ".*circuit_breakers.*"
+        - ".*upstream_rq_retry.*"
+        - ".*upstream_rq_pending.*"
+        - ".*_cx_.*"
+        - ".*waqiti.*"
+        exclusionRegexps:
+        - ".*osconfig.*"
+    extensionProviders:
+    - name: jaeger
+      envoyOtelAls:
+        service: jaeger-collector.istio-system.svc.cluster.local
+        port: 14250
+    - name: prometheus
+      prometheus:
+        configOverride:
+          metric_relabeling_configs:
+          - source_labels: [__name__]
+            regex: 'istio_request_(total|duration_milliseconds)'
+            target_label: waqiti_metric
+    - name: otel
+      envoyOtelAls:
+        service: opentelemetry-collector.istio-system.svc.cluster.local
+        port: 4317
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: waqiti-observability-dashboard
+  namespace: example-monitoring
+  labels:
+    observability.example.com/component: dashboard
+data:
+  waqiti-payment-metrics.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "Waqiti Payment Metrics",
+        "tags": ["waqiti", "payments"],
+        "timezone": "browser",
+        "panels": [
+          {
+            "id": 1,
+            "title": "Payment Transaction Rate",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "sum(rate(istio_request_total{destination_service_name=\"payment-service\",response_code=\"200\"}[5m]))",
+                "legendFormat": "Successful Payments/sec"
+              }
+            ],
+            "gridPos": {"h": 9, "w": 12, "x": 0, "y": 0}
+          },
+          {
+            "id": 2,
+            "title": "Payment Success Rate",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "sum(rate(istio_request_total{destination_service_name=\"payment-service\",response_code=\"200\"}[5m])) / sum(rate(istio_request_total{destination_service_name=\"payment-service\"}[5m])) * 100",
+                "legendFormat": "Success Rate %"
+              }
+            ],
+            "gridPos": {"h": 9, "w": 12, "x": 12, "y": 0}
+          },
+          {
+            "id": 3,
+            "title": "Payment Response Times",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.50, sum(rate(istio_request_duration_milliseconds_bucket{destination_service_name=\"payment-service\"}[5m])) by (le))",
+                "legendFormat": "50th percentile"
+              },
+              {
+                "expr": "histogram_quantile(0.95, sum(rate(istio_request_duration_milliseconds_bucket{destination_service_name=\"payment-service\"}[5m])) by (le))",
+                "legendFormat": "95th percentile"
+              },
+              {
+                "expr": "histogram_quantile(0.99, sum(rate(istio_request_duration_milliseconds_bucket{destination_service_name=\"payment-service\"}[5m])) by (le))",
+                "legendFormat": "99th percentile"
+              }
+            ],
+            "gridPos": {"h": 9, "w": 24, "x": 0, "y": 9}
+          },
+          {
+            "id": 4,
+            "title": "High-Risk Transactions",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "sum(rate(istio_request_total{destination_service_name=\"compliance-service\",risk_score=~\"[7-9][0-9]|100\"}[5m]))",
+                "legendFormat": "High Risk Transactions"
+              }
+            ],
+            "gridPos": {"h": 9, "w": 12, "x": 0, "y": 18}
+          },
+          {
+            "id": 5,
+            "title": "KYC Verification Rate",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "sum(rate(istio_request_total{destination_service_name=\"kyc-service\",response_code=\"200\"}[5m]))",
+                "legendFormat": "Successful KYC Verifications"
+              }
+            ],
+            "gridPos": {"h": 9, "w": 12, "x": 12, "y": 18}
+          }
+        ],
+        "time": {
+          "from": "now-1h",
+          "to": "now"
+        },
+        "refresh": "5s"
+      }
+    }
+  
+  waqiti-security-dashboard.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "Waqiti Security Metrics",
+        "tags": ["waqiti", "security"],
+        "timezone": "browser",
+        "panels": [
+          {
+            "id": 1,
+            "title": "Authentication Failures",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "sum(rate(istio_request_total{destination_service_name=\"user-service\",request_url=~\".*auth.*\",response_code=~\"4[0-9][0-9]\"}[5m]))",
+                "legendFormat": "Auth Failures/sec"
+              }
+            ],
+            "gridPos": {"h": 9, "w": 12, "x": 0, "y": 0}
+          },
+          {
+            "id": 2,
+            "title": "Suspicious Activity Detections",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "sum(rate(istio_request_total{destination_service_name=\"compliance-service\",compliance_status=\"SUSPICIOUS\"}[5m]))",
+                "legendFormat": "Suspicious Activities"
+              }
+            ],
+            "gridPos": {"h": 9, "w": 12, "x": 12, "y": 0}
+          },
+          {
+            "id": 3,
+            "title": "mTLS Certificate Errors",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "sum(rate(istio_request_total{response_flags=~\".*UAEX.*\"}[5m]))",
+                "legendFormat": "mTLS Errors"
+              }
+            ],
+            "gridPos": {"h": 9, "w": 24, "x": 0, "y": 9}
+          }
+        ],
+        "time": {
+          "from": "now-1h",
+          "to": "now"
+        },
+        "refresh": "10s"
+      }
+    }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jaeger-collector
+  namespace: istio-system
+  labels:
+    app: jaeger
+    component: collector
+spec:
+  ports:
+  - name: jaeger-collector-http
+    port: 14268
+    protocol: TCP
+    targetPort: 14268
+  - name: jaeger-collector-grpc
+    port: 14250
+    protocol: TCP
+    targetPort: 14250
+  selector:
+    app: jaeger
+    component: collector
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jaeger-collector
+  namespace: istio-system
+  labels:
+    app: jaeger
+    component: collector
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: jaeger
+      component: collector
+  template:
+    metadata:
+      labels:
+        app: jaeger
+        component: collector
+    spec:
+      containers:
+      - name: jaeger-collector
+        image: jaegertracing/jaeger-collector:1.48.0
+        ports:
+        - name: http
+          containerPort: 14268
+          protocol: TCP
+        - name: grpc
+          containerPort: 14250
+          protocol: TCP
+        env:
+        - name: SPAN_STORAGE_TYPE
+          value: elasticsearch
+        - name: ES_SERVER_URLS
+          value: "https://elasticsearch.example-monitoring.svc.cluster.local:9200"
+        - name: ES_USERNAME
+          value: "elastic"
+        - name: ES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: elasticsearch-credentials
+              key: elastic-password
+        - name: ES_TLS_ENABLED
+          value: "true"
+        - name: ES_TLS_SKIP_HOST_VERIFY
+          value: "true"
+        - name: COLLECTOR_OTLP_ENABLED
+          value: "true"
+        - name: COLLECTOR_ZIPKIN_HOST_PORT
+          value: ":9411"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 14269
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 14269
+          initialDelaySeconds: 10
+          periodSeconds: 5

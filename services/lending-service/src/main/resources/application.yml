@@ -1,0 +1,461 @@
+server:
+  port: ${SERVER_PORT:8114}
+  shutdown: graceful
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/xml,text/plain
+  error:
+    include-message: always
+    include-binding-errors: always
+    include-stacktrace: on_param
+    include-exception: false
+
+spring:
+  application:
+    name: lending-service
+
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+    include:
+      - common
+      - vault
+      - keycloak
+      - resilience
+
+  # Database Configuration
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:waqiti_lending}
+    username: ${DB_USERNAME:waqiti_user}
+    password: ${DB_PASSWORD:waqiti_pass}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:20}
+      minimum-idle: ${DB_POOL_MIN_IDLE:5}
+      connection-timeout: ${DB_CONNECTION_TIMEOUT:30000}
+      idle-timeout: ${DB_IDLE_TIMEOUT:600000}
+      max-lifetime: ${DB_MAX_LIFETIME:1800000}
+      leak-detection-threshold: ${DB_LEAK_DETECTION:60000}
+      pool-name: LendingServiceHikariPool
+
+  # JPA Configuration
+  jpa:
+    hibernate:
+      ddl-auto: validate
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.CamelCaseToUnderscoresNamingStrategy
+        implicit-strategy: org.springframework.boot.orm.jpa.hibernate.SpringImplicitNamingStrategy
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        use_sql_comments: false
+        jdbc:
+          batch_size: 20
+          fetch_size: 50
+        order_inserts: true
+        order_updates: true
+        connection:
+          provider_disables_autocommit: true
+        query:
+          in_clause_parameter_padding: true
+          fail_on_pagination_over_collection_fetch: true
+          plan_cache_max_size: 2048
+    open-in-view: false
+    show-sql: false
+
+  # Flyway Migration (switching from Liquibase)
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 0
+    locations: classpath:db/migration
+    validate-on-migrate: true
+    clean-disabled: true
+    out-of-order: false
+
+  # Liquibase disabled
+  liquibase:
+    enabled: false
+
+  # Redis Cache Configuration
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DB:2}
+      timeout: ${REDIS_TIMEOUT:2000}
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 2
+          max-wait: -1ms
+        shutdown-timeout: 100ms
+
+  # Cache Configuration
+  cache:
+    type: redis
+    redis:
+      time-to-live: 3600000
+      cache-null-values: false
+      key-prefix: "lending:"
+      use-key-prefix: true
+
+  # Kafka Configuration
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}}
+    client-id: ${spring.application.name}-${random.uuid}
+
+    # Consumer Configuration
+    consumer:
+      group-id: ${spring.application.name}
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      max-poll-records: 100
+      max-poll-interval-ms: 300000
+      session-timeout-ms: 30000
+      heartbeat-interval-ms: 10000
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: com.waqiti.*
+        isolation.level: read_committed
+
+    # Producer Configuration
+    producer:
+      acks: all
+      retries: 3
+      batch-size: 16384
+      buffer-memory: 33554432
+      compression-type: snappy
+      linger-ms: 10
+      request-timeout-ms: 30000
+      delivery-timeout-ms: 120000
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+
+    # Listener Configuration
+    listener:
+      ack-mode: manual
+      concurrency: 3
+      poll-timeout: 3000
+      type: batch
+      missing-topics-fatal: false
+
+    # Retry Topics
+    retry:
+      topic:
+        enabled: true
+        attempts: 5
+        delay: 1000
+        multiplier: 2.0
+        max-delay: 60000
+
+  # Security Configuration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+      client:
+        registration:
+          keycloak:
+            client-id: ${KEYCLOAK_CLIENT_ID:lending-service}
+            client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+            authorization-grant-type: client_credentials
+            scope: openid,profile,email
+        provider:
+          keycloak:
+            issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/waqiti-fintech}
+
+  # Jackson Configuration
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+      write-durations-as-timestamps: false
+      indent-output: false
+      fail-on-empty-beans: false
+    deserialization:
+      fail-on-unknown-properties: false
+      accept-empty-string-as-null-object: true
+    time-zone: UTC
+    date-format: yyyy-MM-dd'T'HH:mm:ss.SSSZ
+
+  # Task Execution
+  task:
+    execution:
+      pool:
+        core-size: 4
+        max-size: 16
+        queue-capacity: 100
+        keep-alive: 60s
+      thread-name-prefix: lending-exec-
+    scheduling:
+      pool:
+        size: 4
+      thread-name-prefix: lending-sched-
+
+# Eureka Service Discovery
+eureka:
+  client:
+    enabled: ${EUREKA_ENABLED:true}
+    service-url:
+      defaultZone: ${EUREKA_URL:${EUREKA_SERVER_URL:https://discovery-service:8761/eureka}/}
+    registry-fetch-interval-seconds: 30
+    instance-info-replication-interval-seconds: 30
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+    metadata-map:
+      version: ${spring.application.version:2.0.0}
+      service-type: financial
+      criticality: high
+
+# Feign Client Configuration
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 5000
+        readTimeout: 10000
+        loggerLevel: basic
+        retryer: feign.Retryer.Default
+        decode404: false
+  httpclient:
+    enabled: true
+    max-connections: 200
+    max-connections-per-route: 50
+    time-to-live: 900
+    connection-timeout: 5000
+  compression:
+    request:
+      enabled: true
+      mime-types: application/json,application/xml
+      min-request-size: 2048
+    response:
+      enabled: true
+
+# Resilience4j Configuration
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        slidingWindowSize: 100
+        minimumNumberOfCalls: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 60000
+        permittedNumberOfCallsInHalfOpenState: 5
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        recordExceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+          - org.springframework.web.client.ResourceAccessException
+    instances:
+      lendingService:
+        baseConfig: default
+        slidingWindowSize: 50
+        failureRateThreshold: 60
+
+  retry:
+    configs:
+      default:
+        maxAttempts: 3
+        waitDuration: 1000
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - java.io.IOException
+          - org.springframework.web.client.ResourceAccessException
+    instances:
+      lendingService:
+        baseConfig: default
+
+  ratelimiter:
+    configs:
+      default:
+        limitForPeriod: 100
+        limitRefreshPeriod: 1s
+        timeoutDuration: 0
+    instances:
+      lendingService:
+        limitForPeriod: 50
+        limitRefreshPeriod: 1s
+
+# Actuator Configuration
+management:
+  server:
+    port: ${MANAGEMENT_PORT:8115}
+  endpoints:
+    web:
+      base-path: /actuator
+      exposure:
+        include: health,info,metrics,prometheus,loggers,env,configprops,mappings,beans,threaddump,heapdump
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: db,redis,diskSpace
+        liveness:
+          include: ping
+    metrics:
+      enabled: true
+    prometheus:
+      enabled: true
+  health:
+    circuitbreakers:
+      enabled: true
+    ratelimiters:
+      enabled: true
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+    tags:
+      application: ${spring.application.name}
+      environment: ${spring.profiles.active}
+    export:
+      prometheus:
+        enabled: true
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    com.waqiti.lending: DEBUG
+    com.example.common: INFO
+    org.springframework.web: INFO
+    org.springframework.security: INFO
+    org.springframework.kafka: WARN
+    org.hibernate.SQL: ${LOG_LEVEL_SQL:WARN}  # WARN for production
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.hibernate.orm.jdbc.bind: TRACE
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %highlight(%-5level) %cyan(%logger{36}) - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: ${LOG_FILE:/app/logs/lending-service.log}
+    max-size: 100MB
+    max-history: 30
+    total-size-cap: 3GB
+
+# Lending Service Business Configuration
+lending:
+  # Loan Product Configuration
+  loan:
+    max-amount: ${LENDING_MAX_AMOUNT:1000000.00}
+    min-amount: ${LENDING_MIN_AMOUNT:100.00}
+    max-term-months: ${LENDING_MAX_TERM:360}
+    min-term-months: ${LENDING_MIN_TERM:1}
+    min-credit-score: ${LENDING_MIN_CREDIT_SCORE:600}
+    max-dti-ratio: ${LENDING_MAX_DTI:0.43}
+    origination-fee-percentage: ${LENDING_ORIGINATION_FEE:0.01}
+    late-fee-amount: ${LENDING_LATE_FEE:25.00}
+    late-fee-grace-days: ${LENDING_LATE_FEE_GRACE:5}
+    default-threshold-days: ${LENDING_DEFAULT_DAYS:90}
+    charge-off-threshold-days: ${LENDING_CHARGEOFF_DAYS:120}
+
+  # Cash Advance Configuration
+  cash-advance:
+    enabled: ${CASH_ADVANCE_ENABLED:true}
+    max-amount: ${CASH_ADVANCE_MAX:5000.00}
+    min-amount: ${CASH_ADVANCE_MIN:100.00}
+    apr-rate: ${CASH_ADVANCE_APR:0.395}
+    fee-percentage: ${CASH_ADVANCE_FEE:0.05}
+
+  # Credit Line Configuration
+  credit-line:
+    enabled: ${CREDIT_LINE_ENABLED:true}
+    max-limit: ${CREDIT_LINE_MAX:50000.00}
+    min-limit: ${CREDIT_LINE_MIN:1000.00}
+    draw-fee-percentage: ${CREDIT_LINE_DRAW_FEE:0.02}
+
+  # Underwriting Configuration
+  underwriting:
+    auto-approval-threshold: ${UNDERWRITING_AUTO_APPROVAL:750}
+    auto-reject-threshold: ${UNDERWRITING_AUTO_REJECT:580}
+    manual-review-threshold: ${UNDERWRITING_MANUAL_REVIEW:650}
+    max-recent-bankruptcies: ${UNDERWRITING_MAX_BANKRUPTCIES:0}
+    bankruptcy-lookback-years: ${UNDERWRITING_BANKRUPTCY_YEARS:7}
+
+  # Payment Processing
+  payment:
+    auto-pay-enabled: ${PAYMENT_AUTOPAY:true}
+    early-payment-allowed: ${PAYMENT_EARLY:true}
+    partial-payment-allowed: ${PAYMENT_PARTIAL:true}
+    payment-processing-cutoff-hour: ${PAYMENT_CUTOFF:17}
+
+  # Collections Configuration
+  collections:
+    first-notice-days: ${COLLECTIONS_FIRST_NOTICE:15}
+    second-notice-days: ${COLLECTIONS_SECOND_NOTICE:30}
+    final-notice-days: ${COLLECTIONS_FINAL_NOTICE:60}
+    credit-bureau-reporting-threshold: ${COLLECTIONS_BUREAU_DAYS:30}
+
+  # Regulatory Configuration
+  regulatory:
+    tila-disclosure-required: true
+    ecoa-compliance-required: true
+    hmda-reporting-required: true
+    cra-reporting-required: true
+
+  # Idempotency Configuration
+  idempotency:
+    ttl-hours: ${IDEMPOTENCY_TTL:24}
+    max-cache-size: ${IDEMPOTENCY_CACHE_SIZE:10000}
+
+  # Event Publishing Configuration
+  events:
+    retry-attempts: ${EVENT_RETRY:3}
+    retry-delay-ms: ${EVENT_RETRY_DELAY:1000}
+    batch-size: ${EVENT_BATCH_SIZE:100}
+    high-priority-topics:
+      - loan-disbursement
+      - loan-repayment
+      - loan-default
+
+  # External Service Integration
+  external:
+    credit-bureau:
+      enabled: ${CREDIT_BUREAU_ENABLED:true}
+      timeout-ms: ${CREDIT_BUREAU_TIMEOUT:10000}
+      retry-attempts: ${CREDIT_BUREAU_RETRY:2}
+    fraud-detection:
+      enabled: ${FRAUD_DETECTION_ENABLED:true}
+      timeout-ms: ${FRAUD_DETECTION_TIMEOUT:5000}
+    notification:
+      enabled: ${NOTIFICATION_ENABLED:true}
+      async: true
+
+# Springdoc OpenAPI Configuration
+springdoc:
+  api-docs:
+    enabled: true
+    path: /api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    operationsSorter: method
+    tagsSorter: alpha
+    display-request-duration: true
+    groups-order: asc
+  group-configs:
+    - group: lending
+      paths-to-match: /api/v1/lending/**
+    - group: loans
+      paths-to-match: /api/v1/loans/**
+    - group: applications
+      paths-to-match: /api/v1/applications/**
+    - group: payments
+      paths-to-match: /api/v1/payments/**
+  show-actuator: false
+  override-with-generic-response: false

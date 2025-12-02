@@ -1,0 +1,250 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: monitoring
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus:9090
+        isDefault: true
+        editable: false
+        jsonData:
+          timeInterval: "15s"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards-config
+  namespace: monitoring
+data:
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+      - name: 'default'
+        orgId: 1
+        folder: 'Waqiti Banking'
+        type: file
+        disableDeletion: false
+        editable: true
+        options:
+          path: /var/lib/grafana/dashboards
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-payment-processing
+  namespace: monitoring
+data:
+  payment-processing.json: |
+    {
+      "dashboard": {
+        "title": "Payment Processing - Waqiti Banking",
+        "tags": ["payments", "banking"],
+        "timezone": "browser",
+        "schemaVersion": 16,
+        "panels": [
+          {
+            "id": 1,
+            "title": "Payment Request Rate",
+            "type": "graph",
+            "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+            "targets": [{
+              "expr": "rate(payment_processing_total[5m])",
+              "legendFormat": "{{service_name}} - {{status}}"
+            }]
+          },
+          {
+            "id": 2,
+            "title": "Payment Success Rate",
+            "type": "stat",
+            "gridPos": {"x": 12, "y": 0, "w": 6, "h": 8},
+            "targets": [{
+              "expr": "sum(rate(payment_processing_total{status=\"success\"}[5m])) / sum(rate(payment_processing_total[5m]))",
+              "legendFormat": "Success Rate"
+            }],
+            "options": {
+              "graphMode": "area",
+              "colorMode": "value",
+              "unit": "percentunit"
+            },
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 0.95, "color": "yellow"},
+                {"value": 0.99, "color": "green"}
+              ]
+            }
+          },
+          {
+            "id": 3,
+            "title": "Payment Processing Latency (p99)",
+            "type": "graph",
+            "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+            "targets": [{
+              "expr": "histogram_quantile(0.99, rate(payment_processing_duration_seconds_bucket[5m]))",
+              "legendFormat": "{{service_name}} p99"
+            }]
+          },
+          {
+            "id": 4,
+            "title": "Idempotency Violations",
+            "type": "graph",
+            "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8},
+            "targets": [{
+              "expr": "increase(idempotency_duplicate_detected_total[5m])",
+              "legendFormat": "{{service_name}}"
+            }]
+          },
+          {
+            "id": 5,
+            "title": "Payment Amount Distribution",
+            "type": "heatmap",
+            "gridPos": {"x": 0, "y": 16, "w": 24, "h": 8},
+            "targets": [{
+              "expr": "rate(payment_amount_bucket[5m])",
+              "format": "heatmap"
+            }]
+          }
+        ]
+      }
+    }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-system-health
+  namespace: monitoring
+data:
+  system-health.json: |
+    {
+      "dashboard": {
+        "title": "System Health - Waqiti Banking",
+        "tags": ["infrastructure", "health"],
+        "panels": [
+          {
+            "id": 1,
+            "title": "Service Availability",
+            "type": "stat",
+            "targets": [{
+              "expr": "avg(up{job=\"waqiti-services\"})",
+              "legendFormat": "Availability"
+            }],
+            "options": {
+              "unit": "percentunit"
+            }
+          },
+          {
+            "id": 2,
+            "title": "Request Rate by Service",
+            "type": "graph",
+            "targets": [{
+              "expr": "sum by (service_name) (rate(http_server_requests_seconds_count[5m]))",
+              "legendFormat": "{{service_name}}"
+            }]
+          },
+          {
+            "id": 3,
+            "title": "Error Rate by Service",
+            "type": "graph",
+            "targets": [{
+              "expr": "sum by (service_name) (rate(http_server_requests_seconds_count{status=~\"5..\"}[5m]))",
+              "legendFormat": "{{service_name}}"
+            }]
+          },
+          {
+            "id": 4,
+            "title": "Database Connections",
+            "type": "graph",
+            "targets": [{
+              "expr": "pg_stat_database_numbackends",
+              "legendFormat": "{{datname}}"
+            }]
+          },
+          {
+            "id": 5,
+            "title": "Redis Memory Usage",
+            "type": "graph",
+            "targets": [{
+              "expr": "redis_memory_used_bytes",
+              "legendFormat": "{{instance}}"
+            }]
+          },
+          {
+            "id": 6,
+            "title": "Kafka Consumer Lag",
+            "type": "graph",
+            "targets": [{
+              "expr": "kafka_consumergroup_lag",
+              "legendFormat": "{{topic}} - {{consumergroup}}"
+            }]
+          }
+        ]
+      }
+    }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-security
+  namespace: monitoring
+data:
+  security-dashboard.json: |
+    {
+      "dashboard": {
+        "title": "Security Monitoring - Waqiti Banking",
+        "tags": ["security", "fraud"],
+        "panels": [
+          {
+            "id": 1,
+            "title": "IDOR Attempts",
+            "type": "graph",
+            "targets": [{
+              "expr": "rate(security_idor_attempts_total[5m])",
+              "legendFormat": "{{service_name}}"
+            }]
+          },
+          {
+            "id": 2,
+            "title": "Fraud Alerts",
+            "type": "stat",
+            "targets": [{
+              "expr": "sum(rate(fraud_alerts_triggered_total[5m]))",
+              "legendFormat": "Alerts/sec"
+            }]
+          },
+          {
+            "id": 3,
+            "title": "Rate Limit Violations",
+            "type": "graph",
+            "targets": [{
+              "expr": "rate(rate_limit_exceeded_total[5m])",
+              "legendFormat": "{{service_name}} - {{endpoint}}"
+            }]
+          },
+          {
+            "id": 4,
+            "title": "Failed Authentication Attempts",
+            "type": "graph",
+            "targets": [{
+              "expr": "rate(authentication_failed_total[5m])",
+              "legendFormat": "{{method}}"
+            }]
+          },
+          {
+            "id": 5,
+            "title": "Vault Status",
+            "type": "stat",
+            "targets": [{
+              "expr": "vault_core_unsealed",
+              "legendFormat": "Unsealed"
+            }]
+          }
+        ]
+      }
+    }

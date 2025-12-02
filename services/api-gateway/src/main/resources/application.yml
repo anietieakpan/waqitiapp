@@ -1,0 +1,488 @@
+server:
+  port: 8443
+  ssl:
+    enabled: ${SSL_ENABLED:true}
+    key-store: ${SSL_KEYSTORE_PATH:${vault.ssl.keystore.path}}
+    key-store-password: ${SSL_KEYSTORE_PASSWORD:${vault.ssl.keystore.password}}
+    key-store-type: ${SSL_KEYSTORE_TYPE:PKCS12}
+    key-alias: ${SSL_KEY_ALIAS:api-gateway}
+    trust-store: ${SSL_TRUSTSTORE_PATH:${vault.ssl.truststore.path}}
+    trust-store-password: ${SSL_TRUSTSTORE_PASSWORD:${vault.ssl.truststore.password}}
+    trust-store-type: ${SSL_TRUSTSTORE_TYPE:PKCS12}
+    client-auth: want
+    protocol: TLS
+    enabled-protocols: TLSv1.3,TLSv1.2
+    ciphers:
+      - TLS_AES_256_GCM_SHA384
+      - TLS_CHACHA20_POLY1305_SHA256
+      - TLS_AES_128_GCM_SHA256
+      - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+      - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+  http2:
+    enabled: true
+  
+# HTTP connector for redirect to HTTPS
+management:
+  server:
+    port: 8443
+    ssl:
+      enabled: true
+  endpoints:
+    web:
+          exposure:
+            include: health,info,prometheus,metrics,circuitbreakers
+  prometheus:
+    metrics:
+          export:
+            enabled: true
+  health:
+    circuitbreakers:
+          enabled: true
+        ratelimiters:
+          enabled: true
+
+spring:
+  application:
+    name: api-gateway
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:development}
+    include: keycloak
+
+  # Redis for rate limiting
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      # SECURITY: No default value - gateway will fail if Redis password is missing
+      # Production deployments MUST provide REDIS_PASSWORD or configure Vault
+      password: ${REDIS_PASSWORD:${vault.redis.password:#{null}}}
+      timeout: ${REDIS_TIMEOUT:2000ms}
+      database: ${REDIS_DATABASE:0}
+      lettuce:
+        pool:
+          max-active: ${REDIS_POOL_MAX_ACTIVE:8}
+          max-idle: ${REDIS_POOL_MAX_IDLE:8}
+          min-idle: ${REDIS_POOL_MIN_IDLE:0}
+          max-wait: ${REDIS_POOL_MAX_WAIT:-1ms}
+        shutdown-timeout: ${REDIS_SHUTDOWN_TIMEOUT:100ms}
+
+  # Cloud configuration (Vault + Gateway)
+  cloud:
+    # Enhanced Vault Configuration with SSL secret management
+    vault:
+      enabled: ${VAULT_ENABLED:true}
+      uri: ${VAULT_URI:${VAULT_SCHEME:https}://${VAULT_HOST:vault.example.internal}:${VAULT_PORT:8200}}
+      
+      # Authentication with multiple fallback methods
+      authentication: ${VAULT_AUTH_METHOD:KUBERNETES}
+      kubernetes:
+        role: ${VAULT_K8S_ROLE:api-gateway}
+        kubernetes-path: ${VAULT_K8S_PATH:kubernetes}
+        service-account-token-file: ${VAULT_SA_TOKEN_FILE:/var/run/secrets/kubernetes.io/serviceaccount/token}
+      
+      # AppRole fallback for non-Kubernetes environments
+      app-role:
+        role-id: ${VAULT_ROLE_ID:${API_GATEWAY_VAULT_ROLE_ID:}}
+        secret-id: ${VAULT_SECRET_ID:${API_GATEWAY_VAULT_SECRET_ID:}}
+        role: ${VAULT_APPROLE_NAME:api-gateway-role}
+        app-role-path: ${VAULT_APPROLE_PATH:approle}
+      
+      # Token fallback for development
+      token: ${VAULT_TOKEN:${API_GATEWAY_VAULT_TOKEN:}}
+      
+      # SSL certificate management
+      ssl:
+        enabled: ${VAULT_SSL_ENABLED:true}
+        backend: ${VAULT_SSL_BACKEND:ssl}
+        keystore:
+          path-property: ssl.key-store
+          password-property: ssl.key-store-password
+        truststore:
+          path-property: ssl.trust-store
+          password-property: ssl.trust-store-password
+        
+      # Connection settings
+      connection-timeout: ${VAULT_CONNECTION_TIMEOUT:5000}
+      read-timeout: ${VAULT_READ_TIMEOUT:15000}
+      # SECURITY: fail-fast enabled - gateway crashes if Vault is unreachable
+      # This prevents starting with missing/default secrets
+      fail-fast: ${VAULT_FAIL_FAST:true}
+    
+    # Eureka service discovery
+    discovery:
+      enabled: true
+    
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      
+      default-filters:
+        # Add correlation ID to each request
+        - AddRequestHeader=X-Correlation-Id, ${random.uuid}
+        # Enable retry for GET requests
+        - name: Retry
+          args:
+            retries: 3
+            methods: GET
+            series: SERVER_ERROR
+            backoff:
+              firstBackoff: 50ms
+              maxBackoff: 500ms
+              factor: 2
+              basedOnPreviousValue: false
+
+      # Global CORS configuration
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins: ${ALLOWED_ORIGINS:https://localhost:3000,https://app.example.com,https://admin.example.com,https://dashboard.example.com}
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+              - PATCH
+            allowedHeaders:
+              - Authorization
+              - Content-Type
+              - X-Requested-With
+            maxAge: 3600
+  security:
+    oauth2:
+          resourceserver:
+            jwt:
+              issuer-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti
+              jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/certs
+          client:
+            registration:
+              keycloak:
+                client-id: api-gateway
+                client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+                authorization-grant-type: authorization_code
+                redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+                scope: openid,profile,email
+            provider:
+              keycloak:
+                issuer-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti
+                authorization-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/auth
+                token-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/token
+                userinfo-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/userinfo
+                jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/certs
+                user-name-attribute: preferred_username
+
+# Eureka client configuration
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URI:https://eureka-server:8761/eureka}
+    register-with-eureka: true
+    fetch-registry: true
+    registry-fetch-interval-seconds: 5
+  instance:
+    hostname: ${HOSTNAME:api-gateway}
+    prefer-ip-address: true
+    secure-port-enabled: true
+    secure-port: 8443
+    non-secure-port-enabled: false
+    secure-virtual-host-name: api-gateway
+    status-page-url: https://${eureka.instance.hostname}:${server.port}/actuator/info
+    health-check-url: https://${eureka.instance.hostname}:${server.port}/actuator/health
+    lease-renewal-interval-in-seconds: 10
+    lease-expiration-duration-in-seconds: 30
+
+# Spring Security OAuth2 Configuration
+
+# Service-to-Service Authentication
+service:
+  auth:
+    enabled: true
+    client-id: api-gateway
+    client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+
+# Keycloak Configuration
+keycloak:
+  enabled: ${KEYCLOAK_ENABLED:true}
+  auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  resource: api-gateway
+  credentials:
+    secret: ${KEYCLOAK_CLIENT_SECRET:}
+  ssl-required: ${KEYCLOAK_SSL_REQUIRED:external}
+  verify-token-audience: true
+  use-resource-role-mappings: true
+  principal-attribute: preferred_username
+  bearer-only: false
+  public-client: false
+  cors: true
+  cors-allowed-methods: GET,POST,PUT,DELETE,OPTIONS,PATCH
+  cors-allowed-headers: Authorization,Content-Type,X-Requested-With,X-Correlation-Id
+  cors-max-age: 3600
+  
+# Authentication Feature Flags  
+features:
+  auth:
+    keycloak:
+      enabled: ${KEYCLOAK_ENABLED:true}
+      pilot-users: ${KEYCLOAK_PILOT_USERS:}
+      excluded-users: ${KEYCLOAK_EXCLUDED_USERS:}
+    legacy:
+      enabled: ${LEGACY_AUTH_ENABLED:false}
+    dual-mode:
+      enabled: ${DUAL_MODE_ENABLED:false}
+    migration:
+      percentage: ${MIGRATION_PERCENTAGE:100}
+      strategy: ${MIGRATION_STRATEGY:COMPLETE}
+    fallback:
+      enabled: ${FALLBACK_ENABLED:false}
+    monitoring:
+      enabled: true
+      
+# Gateway Authentication Configuration
+gateway:
+  auth:
+    circuit-breaker:
+      enabled: true
+      failure-threshold: 50
+      wait-duration: 60
+    cache:
+      enabled: true
+      ttl: 300
+    keycloak:
+      cache:
+        ttl: 300
+      retry:
+        max-attempts: 3
+        wait-duration: 1000
+
+# Resilience4j circuit breaker configuration
+resilience4j:
+  circuitbreaker:
+    instances:
+      userServiceCircuitBreaker:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+      walletServiceCircuitBreaker:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+      paymentServiceCircuitBreaker:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+      notificationServiceCircuitBreaker:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+      integrationServiceCircuitBreaker:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+      businessServiceCircuitBreaker:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+      voicePaymentServiceCircuitBreaker:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 5
+        minimumNumberOfCalls: 3
+        failureRateThreshold: 40
+        waitDurationInOpenState: 15s
+        permittedNumberOfCallsInHalfOpenState: 2
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+      rewardsServiceCircuitBreaker:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+      cryptoServiceCircuitBreaker:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 5
+        minimumNumberOfCalls: 3
+        failureRateThreshold: 30
+        waitDurationInOpenState: 20s
+        permittedNumberOfCallsInHalfOpenState: 2
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+      analyticsServiceCircuitBreaker:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 60
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+      transactionServiceCircuitBreaker:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 8
+        minimumNumberOfCalls: 4
+        failureRateThreshold: 40
+        waitDurationInOpenState: 12s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+      kycServiceCircuitBreaker:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 5
+        minimumNumberOfCalls: 3
+        failureRateThreshold: 30
+        waitDurationInOpenState: 15s
+        permittedNumberOfCallsInHalfOpenState: 2
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+      complianceServiceCircuitBreaker:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 5
+        minimumNumberOfCalls: 3
+        failureRateThreshold: 30
+        waitDurationInOpenState: 15s
+        permittedNumberOfCallsInHalfOpenState: 2
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+      currencyServiceCircuitBreaker:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 15
+        minimumNumberOfCalls: 8
+        failureRateThreshold: 60
+        waitDurationInOpenState: 8s
+        permittedNumberOfCallsInHalfOpenState: 5
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+      expenseServiceCircuitBreaker:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+
+# Rate limiting
+rate-limiter:
+  # Default rate limits
+  default:
+    limit: 10
+    refresh-period: 1s
+  # IP-based rate limits
+  ip:
+    limit: 20
+    refresh-period: 1s
+  # User-based rate limits
+  user:
+    limit: 50
+    refresh-period: 1s
+  # API key rate limits
+  api-key:
+    limit: 100
+    refresh-period: 1s
+
+# DDoS Protection
+ddos:
+  protection:
+    enabled: true
+    requests-per-second: 100
+    burst-capacity: 200
+    block-duration-minutes: 15
+    whitelist:
+      - 10.0.0.0/8
+      - 172.16.0.0/12
+      - 192.168.0.0/16
+
+# WAF Configuration
+waf:
+  enabled: true
+  rules:
+    sql-injection: true
+    xss: true
+    path-traversal: true
+    command-injection: true
+    ldap-injection: true
+  custom-rules: []
+
+# Management endpoints
+
+# Logging
+logging:
+  level:
+    root: INFO
+    com.waqiti: DEBUG
+    org.springframework.cloud.gateway: DEBUG
+    reactor.netty: INFO
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/${spring.application.name}.log
+
+# Service URLs Configuration
+services:
+  user-service:
+    url: ${USER_SERVICE_URL:lb://user-service}
+  wallet-service:
+    url: ${WALLET_SERVICE_URL:lb://wallet-service}
+  payment-service:
+    url: ${PAYMENT_SERVICE_URL:lb://payment-service}
+  notification-service:
+    url: ${NOTIFICATION_SERVICE_URL:lb://notification-service}
+  integration-service:
+    url: ${INTEGRATION_SERVICE_URL:lb://integration-service}
+  business-service:
+    url: ${BUSINESS_SERVICE_URL:lb://business-service}
+  voice-payment-service:
+    url: ${VOICE_PAYMENT_SERVICE_URL:lb://voice-payment-service}
+  rewards-service:
+    url: ${REWARDS_SERVICE_URL:lb://rewards-service}
+  crypto-service:
+    url: ${CRYPTO_SERVICE_URL:lb://crypto-service}
+  analytics-service:
+    url: ${ANALYTICS_SERVICE_URL:lb://analytics-service}
+  transaction-service:
+    url: ${TRANSACTION_SERVICE_URL:lb://transaction-service}
+  kyc-service:
+    url: ${KYC_SERVICE_URL:lb://kyc-service}
+  compliance-service:
+    url: ${COMPLIANCE_SERVICE_URL:lb://compliance-service}
+  currency-service:
+    url: ${CURRENCY_SERVICE_URL:lb://currency-service}
+  expense-service:
+    url: ${EXPENSE_SERVICE_URL:lb://expense-service}

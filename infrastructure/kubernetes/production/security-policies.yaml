@@ -1,0 +1,332 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: waqiti-production
+  labels:
+    name: waqiti-production
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+
+---
+# Network Policy - Zero Trust Network Architecture
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: waqiti-production
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+
+---
+# Allow API Gateway ingress
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-api-gateway-ingress
+  namespace: waqiti-production
+spec:
+  podSelector:
+    matchLabels:
+      app: api-gateway
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 8080
+
+---
+# Inter-service communication policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-service-communication
+  namespace: waqiti-production
+spec:
+  podSelector:
+    matchLabels:
+      tier: backend
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          tier: backend
+    ports:
+    - protocol: TCP
+      port: 8080
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          tier: backend
+    ports:
+    - protocol: TCP
+      port: 8080
+  # Allow DNS
+  - to:
+    - namespaceSelector: {}
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: UDP
+      port: 53
+
+---
+# Database access policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: database-access-policy
+  namespace: waqiti-production
+spec:
+  podSelector:
+    matchLabels:
+      tier: backend
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: database
+    ports:
+    - protocol: TCP
+      port: 5432 # PostgreSQL
+    - protocol: TCP
+      port: 6379 # Redis
+
+---
+# PodSecurityPolicy for production workloads
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: waqiti-restricted-psp
+spec:
+  privileged: false
+  allowPrivilegeEscalation: false
+  requiredDropCapabilities:
+    - ALL
+  volumes:
+    - 'configMap'
+    - 'emptyDir'
+    - 'projected'
+    - 'secret'
+    - 'downwardAPI'
+    - 'persistentVolumeClaim'
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+  runAsUser:
+    rule: 'MustRunAsNonRoot'
+  seLinux:
+    rule: 'RunAsAny'
+  supplementalGroups:
+    rule: 'RunAsAny'
+  fsGroup:
+    rule: 'RunAsAny'
+  readOnlyRootFilesystem: true
+
+---
+# RBAC for PodSecurityPolicy
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: waqiti-restricted-psp-user
+rules:
+- apiGroups: ['policy']
+  resources: ['podsecuritypolicies']
+  verbs: ['use']
+  resourceNames:
+  - waqiti-restricted-psp
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: waqiti-restricted-psp-all-serviceaccounts
+roleRef:
+  kind: ClusterRole
+  name: waqiti-restricted-psp-user
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- kind: Group
+  name: system:serviceaccounts:waqiti-production
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# ResourceQuota for production namespace
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: waqiti-production-quota
+  namespace: waqiti-production
+spec:
+  hard:
+    requests.cpu: "1000"
+    requests.memory: "2000Gi"
+    limits.cpu: "2000"
+    limits.memory: "4000Gi"
+    persistentvolumeclaims: "100"
+    services: "50"
+    pods: "500"
+
+---
+# LimitRange for production pods
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: waqiti-production-limits
+  namespace: waqiti-production
+spec:
+  limits:
+  - default:
+      cpu: "1"
+      memory: "1Gi"
+    defaultRequest:
+      cpu: "100m"
+      memory: "128Mi"
+    min:
+      cpu: "50m"
+      memory: "64Mi"
+    max:
+      cpu: "4"
+      memory: "8Gi"
+    type: Container
+
+---
+# Secrets encryption at rest
+apiVersion: apiserver.config.k8s.io/v1
+kind: EncryptionConfiguration
+resources:
+  - resources:
+    - secrets
+    providers:
+    - aescbc:
+        keys:
+        - name: key1
+          # Secret managed by external-secrets - see documentation
+          secretName: kube-apiserver-encryption-key
+          secretKeyRef: encryption-key
+    - identity: {}
+
+---
+# Security monitoring with Falco
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: falco-config
+  namespace: waqiti-production
+data:
+  falco.yaml: |
+    rules_file:
+      - /etc/falco/falco_rules.yaml
+      - /etc/falco/falco_rules.local.yaml
+      - /etc/falco/rules.d
+    
+    # Waqiti-specific security rules
+    customRules: |
+      - rule: Unauthorized Process in Container
+        desc: Detect unauthorized process execution
+        condition: >
+          spawned_process and container and proc.name not in (allowed_processes)
+        output: >
+          Unauthorized process started in container 
+          (user=%user.name command=%proc.cmdline container_id=%container.id)
+        priority: WARNING
+        
+      - rule: Sensitive File Access
+        desc: Detect access to sensitive files
+        condition: >
+          open_read and 
+          (fd.name startswith /etc/passwd or 
+           fd.name startswith /etc/shadow or
+           fd.name contains "private" or
+           fd.name contains "secret")
+        output: >
+          Sensitive file opened for reading 
+          (user=%user.name command=%proc.cmdline file=%fd.name)
+        priority: WARNING
+        
+      - rule: Container Escape Attempt
+        desc: Detect potential container escape
+        condition: >
+          spawned_process and container and 
+          (proc.name in (container_escape_binaries) or
+           proc.args contains "nsenter" or
+           proc.args contains "--privileged")
+        output: >
+          Potential container escape attempt 
+          (user=%user.name command=%proc.cmdline container_id=%container.id)
+        priority: CRITICAL
+
+---
+# Admission Webhook for additional validation
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: waqiti-security-webhook
+webhooks:
+- name: validate.example.com
+  clientConfig:
+    service:
+      name: waqiti-admission-webhook
+      namespace: waqiti-production
+      path: "/validate"
+    caBundle: <CA_BUNDLE>
+  rules:
+  - operations: ["CREATE", "UPDATE"]
+    apiGroups: ["apps", ""]
+    apiVersions: ["v1"]
+    resources: ["deployments", "pods", "services"]
+  admissionReviewVersions: ["v1", "v1beta1"]
+  sideEffects: None
+  failurePolicy: Fail
+  namespaceSelector:
+    matchLabels:
+      name: waqiti-production
+
+---
+# Security Context Constraints (for OpenShift compatibility)
+apiVersion: security.openshift.io/v1
+kind: SecurityContextConstraints
+metadata:
+  name: waqiti-restricted-scc
+allowHostDirVolumePlugin: false
+allowHostIPC: false
+allowHostNetwork: false
+allowHostPID: false
+allowHostPorts: false
+allowPrivilegedContainer: false
+allowedCapabilities: null
+defaultAddCapabilities: null
+fsGroup:
+  type: RunAsAny
+priority: null
+readOnlyRootFilesystem: true
+requiredDropCapabilities:
+- ALL
+runAsUser:
+  type: MustRunAsNonRoot
+seLinuxContext:
+  type: MustRunAs
+supplementalGroups:
+  type: RunAsAny
+volumes:
+- configMap
+- downwardAPI
+- emptyDir
+- persistentVolumeClaim
+- projected
+- secret

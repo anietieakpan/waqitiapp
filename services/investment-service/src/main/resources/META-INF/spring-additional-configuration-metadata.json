@@ -1,0 +1,105 @@
+{
+  "properties": [
+    {
+      "name": "investment.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable investment functionality",
+      "defaultValue": true
+    },
+    {
+      "name": "investment.portfolio.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable portfolio management",
+      "defaultValue": true
+    },
+    {
+      "name": "investment.robo-advisor.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable robo-advisor features",
+      "defaultValue": true
+    },
+    {
+      "name": "investment.robo-advisor.rebalancing.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable automatic portfolio rebalancing",
+      "defaultValue": true
+    },
+    {
+      "name": "investment.robo-advisor.rebalancing.frequency-days",
+      "type": "java.lang.Integer",
+      "description": "Rebalancing frequency in days",
+      "defaultValue": 90
+    },
+    {
+      "name": "investment.stocks.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable stock trading",
+      "defaultValue": true
+    },
+    {
+      "name": "investment.etfs.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable ETF trading",
+      "defaultValue": true
+    },
+    {
+      "name": "investment.crypto.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable cryptocurrency trading",
+      "defaultValue": false
+    },
+    {
+      "name": "investment.limits.min-investment",
+      "type": "java.math.BigDecimal",
+      "description": "Minimum investment amount",
+      "defaultValue": "1.00"
+    },
+    {
+      "name": "investment.limits.max-investment",
+      "type": "java.math.BigDecimal",
+      "description": "Maximum investment amount per transaction",
+      "defaultValue": "100000.00"
+    },
+    {
+      "name": "investment.market-data.provider",
+      "type": "java.lang.String",
+      "description": "Market data provider",
+      "defaultValue": "ALPHA_VANTAGE"
+    },
+    {
+      "name": "investment.market-data.refresh-interval-seconds",
+      "type": "java.lang.Integer",
+      "description": "Market data refresh interval in seconds",
+      "defaultValue": 60
+    },
+    {
+      "name": "investment.fees.trading-percentage",
+      "type": "java.math.BigDecimal",
+      "description": "Trading fee percentage",
+      "defaultValue": "0.25"
+    },
+    {
+      "name": "investment.fees.management-percentage",
+      "type": "java.math.BigDecimal",
+      "description": "Management fee percentage",
+      "defaultValue": "0.50"
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "OAuth2 client ID for service",
+      "defaultValue": "investment-service"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "OAuth2 client secret for service"
+    }
+  ]
+}

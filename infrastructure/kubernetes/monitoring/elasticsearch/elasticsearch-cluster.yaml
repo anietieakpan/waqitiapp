@@ -1,0 +1,332 @@
+# Elasticsearch Cluster for ELK Stack
+# Production-ready Elasticsearch cluster with high availability
+
+apiVersion: elasticsearch.k8s.elastic.co/v1
+kind: Elasticsearch
+metadata:
+  name: example-elasticsearch
+  namespace: example-monitoring
+  labels:
+    app.kubernetes.io/name: elasticsearch
+    app.kubernetes.io/component: logging
+    app.kubernetes.io/part-of: elk-stack
+spec:
+  version: 8.11.0
+  
+  # Master nodes for cluster coordination
+  nodeSets:
+  - name: master
+    count: 3
+    config:
+      node.roles: ["master"]
+      xpack.security.enabled: true
+      xpack.security.authc:
+        anonymous:
+          username: anonymous_user
+          roles: superuser
+          authz_exception: false
+      xpack.monitoring.collection.enabled: true
+    podTemplate:
+      metadata:
+        labels:
+          node-type: master
+      spec:
+        containers:
+        - name: elasticsearch
+          resources:
+            requests:
+              memory: 2Gi
+              cpu: 1000m
+            limits:
+              memory: 4Gi
+              cpu: 2000m
+          env:
+          - name: ES_JAVA_OPTS
+            value: "-Xms2g -Xmx2g"
+        nodeSelector:
+          node-type: master
+        tolerations:
+        - key: node-type
+          operator: Equal
+          value: master
+          effect: NoSchedule
+        affinity:
+          podAntiAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    node-type: master
+                topologyKey: kubernetes.io/hostname
+    volumeClaimTemplates:
+    - metadata:
+        name: elasticsearch-data
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 50Gi
+        storageClassName: gp3-encrypted
+
+  # Data nodes for storing and indexing
+  - name: data
+    count: 6
+    config:
+      node.roles: ["data", "ingest"]
+      xpack.security.enabled: true
+      xpack.monitoring.collection.enabled: true
+    podTemplate:
+      metadata:
+        labels:
+          node-type: data
+      spec:
+        containers:
+        - name: elasticsearch
+          resources:
+            requests:
+              memory: 8Gi
+              cpu: 2000m
+            limits:
+              memory: 16Gi
+              cpu: 4000m
+          env:
+          - name: ES_JAVA_OPTS
+            value: "-Xms8g -Xmx8g"
+        nodeSelector:
+          node-type: data
+        tolerations:
+        - key: node-type
+          operator: Equal
+          value: data
+          effect: NoSchedule
+        affinity:
+          podAntiAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    node-type: data
+                topologyKey: kubernetes.io/hostname
+    volumeClaimTemplates:
+    - metadata:
+        name: elasticsearch-data
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 500Gi
+        storageClassName: gp3-encrypted
+
+  # Coordinating nodes for client requests
+  - name: coordinating
+    count: 2
+    config:
+      node.roles: []
+      xpack.security.enabled: true
+      xpack.monitoring.collection.enabled: true
+    podTemplate:
+      metadata:
+        labels:
+          node-type: coordinating
+      spec:
+        containers:
+        - name: elasticsearch
+          resources:
+            requests:
+              memory: 4Gi
+              cpu: 1000m
+            limits:
+              memory: 8Gi
+              cpu: 2000m
+          env:
+          - name: ES_JAVA_OPTS
+            value: "-Xms4g -Xmx4g"
+        nodeSelector:
+          node-type: application
+        affinity:
+          podAntiAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    node-type: coordinating
+                topologyKey: kubernetes.io/hostname
+    volumeClaimTemplates:
+    - metadata:
+        name: elasticsearch-data
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 20Gi
+        storageClassName: gp3-encrypted
+
+  # HTTP configuration
+  http:
+    service:
+      metadata:
+        name: example-elasticsearch-http
+      spec:
+        type: ClusterIP
+        ports:
+        - name: https
+          port: 9200
+          targetPort: 9200
+    tls:
+      selfSignedCertificate:
+        subjectAltNames:
+        - ip: 127.0.0.1
+        - dns: example-elasticsearch-http
+        - dns: example-elasticsearch-http.example-monitoring
+        - dns: example-elasticsearch-http.example-monitoring.svc
+        - dns: example-elasticsearch-http.example-monitoring.svc.cluster.local
+
+  # Transport configuration for inter-node communication
+  transport:
+    service:
+      metadata:
+        name: example-elasticsearch-transport
+      spec:
+        type: ClusterIP
+
+  # Update strategy
+  updateStrategy:
+    changeBudget:
+      maxSurge: 1
+      maxUnavailable: 0
+
+---
+# Service for external access
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch-external
+  namespace: example-monitoring
+  labels:
+    app.kubernetes.io/name: elasticsearch
+    app.kubernetes.io/component: logging
+spec:
+  type: LoadBalancer
+  ports:
+  - name: https
+    port: 9200
+    targetPort: 9200
+    protocol: TCP
+  selector:
+    elasticsearch.k8s.elastic.co/cluster-name: example-elasticsearch
+    elasticsearch.k8s.elastic.co/node-master: "false"
+    elasticsearch.k8s.elastic.co/node-data: "false"
+
+---
+# Network Policy for Elasticsearch
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: elasticsearch-network-policy
+  namespace: example-monitoring
+spec:
+  podSelector:
+    matchLabels:
+      elasticsearch.k8s.elastic.co/cluster-name: example-elasticsearch
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Allow Kibana access
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: kibana
+    ports:
+    - protocol: TCP
+      port: 9200
+  # Allow Logstash access
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: logstash
+    ports:
+    - protocol: TCP
+      port: 9200
+  # Allow Filebeat access
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: filebeat
+    ports:
+    - protocol: TCP
+      port: 9200
+  # Allow inter-cluster communication
+  - from:
+    - podSelector:
+        matchLabels:
+          elasticsearch.k8s.elastic.co/cluster-name: example-elasticsearch
+    ports:
+    - protocol: TCP
+      port: 9200
+    - protocol: TCP
+      port: 9300
+  # Allow monitoring
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: example-monitoring
+    ports:
+    - protocol: TCP
+      port: 9200
+  egress:
+  # Allow DNS resolution
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+  # Allow inter-cluster communication
+  - to:
+    - podSelector:
+        matchLabels:
+          elasticsearch.k8s.elastic.co/cluster-name: example-elasticsearch
+    ports:
+    - protocol: TCP
+      port: 9200
+    - protocol: TCP
+      port: 9300
+  # Allow external communication for snapshots and monitoring
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 80
+
+---
+# Pod Disruption Budget for high availability
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: elasticsearch-master-pdb
+  namespace: example-monitoring
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      elasticsearch.k8s.elastic.co/cluster-name: example-elasticsearch
+      elasticsearch.k8s.elastic.co/node-master: "true"
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: elasticsearch-data-pdb
+  namespace: example-monitoring
+spec:
+  minAvailable: 4
+  selector:
+    matchLabels:
+      elasticsearch.k8s.elastic.co/cluster-name: example-elasticsearch
+      elasticsearch.k8s.elastic.co/node-data: "true"

@@ -1,0 +1,79 @@
+# Secure Base Docker Image for Waqiti Services
+# This provides a hardened base image with security best practices
+
+FROM eclipse-temurin:17-jre-alpine AS base
+
+# Security: Run as non-root user
+RUN addgroup -g 1001 -S waqiti && \
+    adduser -u 1001 -S waqiti -G waqiti
+
+# Security: Update packages and remove unnecessary ones
+RUN apk update && \
+    apk upgrade && \
+    apk add --no-cache \
+        ca-certificates \
+        curl \
+        dumb-init \
+        tzdata && \
+    apk del --no-cache \
+        apk-tools \
+        alpine-keys && \
+    rm -rf /var/cache/apk/* /tmp/*
+
+# Security: Set up certificate stores
+COPY infrastructure/ssl/waqiti-ca.crt /usr/local/share/ca-certificates/
+RUN update-ca-certificates
+
+# Security: Create secure directory structure
+RUN mkdir -p /app /app/config /app/logs /app/tmp && \
+    chown -R waqiti:waqiti /app && \
+    chmod -R 750 /app && \
+    chmod 1777 /tmp
+
+# Security: Set JVM security properties
+ENV JAVA_OPTS="-Djava.security.egd=file:/dev/./urandom \
+               -Djava.awt.headless=true \
+               -Djava.net.preferIPv4Stack=true \
+               -Dspring.profiles.active=production \
+               -Dspring.cloud.config.enabled=false \
+               -server \
+               -Xms512m \
+               -Xmx2048m \
+               -XX:+UseG1GC \
+               -XX:MaxGCPauseMillis=200 \
+               -XX:+UseStringDeduplication \
+               -XX:+ExitOnOutOfMemoryError \
+               -Djava.security.properties=/app/config/java.security"
+
+# Security: Create Java security properties
+RUN echo "# Waqiti Java Security Configuration" > /app/config/java.security && \
+    echo "jdk.tls.disabledAlgorithms=SSLv2Hello,SSLv3,TLSv1,TLSv1.1,RC4,DES,MD5withRSA" >> /app/config/java.security && \
+    echo "jdk.certpath.disabledAlgorithms=MD2,MD5,SHA1 jdkCA & usage TLSServer" >> /app/config/java.security && \
+    echo "jdk.jar.disabledAlgorithms=MD2,MD5,RSA keySize < 2048,DSA keySize < 2048" >> /app/config/java.security && \
+    echo "securerandom.source=file:/dev/urandom" >> /app/config/java.security && \
+    echo "networkaddress.cache.ttl=60" >> /app/config/java.security && \
+    echo "networkaddress.cache.negative.ttl=10" >> /app/config/java.security
+
+# Security: Set secure umask
+RUN echo "umask 027" >> /etc/profile
+
+# Security: Remove shells and unnecessary binaries
+RUN rm -f /bin/sh /bin/ash /usr/bin/wget /usr/bin/nc
+
+WORKDIR /app
+USER waqiti:waqiti
+
+# Security: Use dumb-init to handle signals properly
+ENTRYPOINT ["dumb-init", "--"]
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:8080/actuator/health || exit 1
+
+# Labels for security scanning
+LABEL maintainer="security@example.com" \
+      org.opencontainers.image.title="Waqiti Secure Base" \
+      org.opencontainers.image.description="Hardened base image for Waqiti services" \
+      org.opencontainers.image.vendor="Waqiti Inc" \
+      security.scan="enabled" \
+      security.policy="strict"

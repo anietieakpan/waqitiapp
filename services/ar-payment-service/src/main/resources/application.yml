@@ -1,0 +1,457 @@
+spring:
+  application:
+    name: ar-payment-service
+  
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+    include: keycloak
+  
+  cloud:
+    config:
+      uri: ${CONFIG_SERVER_URL:http://localhost:8888}
+      fail-fast: true
+      retry:
+        max-attempts: 3
+  
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/waqiti_ar_payment}
+    username: ${DATABASE_USERNAME:waqiti}
+    password: ${DATABASE_PASSWORD:${VAULT_DATABASE_PASSWORD}}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 300000
+      connection-timeout: 30000
+      validation-timeout: 5000
+      max-lifetime: 1800000
+      leak-detection-threshold: 60000
+  
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        jdbc:
+          batch_size: 25
+        order_inserts: true
+        order_updates: true
+    show-sql: false
+  
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.trusted.packages: "*"
+    consumer:
+      group-id: ar-payment-service
+      enable-auto-commit: false  # Manual acknowledgment for DLQ support
+      max-poll-records: 50  # Batch size control
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+      auto-offset-reset: earliest
+  
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+  
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:https://discovery-service:8761/eureka}
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+    metadata-map:
+      version: ${info.version}
+      region: ${DEPLOYMENT_REGION:us-east-1}
+
+server:
+  port: ${PORT:8096}
+  servlet:
+    context-path: /api/v1
+  error:
+    include-message: always
+    include-binding-errors: always
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# Feign client configuration
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 5000
+        readTimeout: 10000
+        loggerLevel: FULL
+      payment-service:
+        url: ${PAYMENT_SERVICE_URL:http://payment-service/api/v1}
+      wallet-service:
+        url: ${WALLET_SERVICE_URL:http://wallet-service/api/v1}
+      user-service:
+        url: ${USER_SERVICE_URL:http://user-service/api/v1}
+      gamification-service:
+        url: ${GAMIFICATION_SERVICE_URL:http://gamification-service/api/v1}
+      notification-service:
+        url: ${NOTIFICATION_SERVICE_URL:http://notification-service/api/v1}
+
+# Kafka topics
+kafka:
+  topics:
+    ar-session-started: ar-session-started-events
+    ar-session-ended: ar-session-ended-events
+    ar-payment-initiated: ar-payment-initiated-events
+    ar-payment-completed: ar-payment-completed-events
+    ar-gesture-recognized: ar-gesture-recognized-events
+    ar-object-recognized: ar-object-recognized-events
+    ar-experience-created: ar-experience-created-events
+    spatial-payment-processed: spatial-payment-processed-events
+
+# AR Payment Configuration
+ar-payment:
+  # Security Configuration
+  security:
+    # CRITICAL: HMAC secret for session token signatures
+    # MUST be set via environment variable or Vault in production
+    # Minimum 32 characters recommended
+    token-hmac-secret: ${VAULT_AR_TOKEN_SECRET:}
+    # Session validation
+    validate-token-signatures: true
+    token-expiry-minutes: 30
+
+  # Core AR Engine Configuration
+  engine:
+    enabled: ${AR_ENGINE_ENABLED:true}
+    platform: ${AR_PLATFORM:ARKIT_ARCORE} # ARKIT_ARCORE, WEBXR, HOLOLENS, MAGIC_LEAP
+    version: "2.0"
+    tracking-quality: HIGH
+    rendering-fps: 60
+    max-concurrent-sessions: 100
+
+  # Spatial Recognition
+  spatial:
+    recognition:
+      enabled: true
+      confidence-threshold: 0.8
+      max-detection-distance-m: 10.0
+      min-detection-distance-m: 0.3
+      tracking-stability-threshold: 0.9
+      occlusion-handling: true
+      
+    mapping:
+      persistent-anchors: true
+      anchor-lifetime-hours: 24
+      max-anchors-per-session: 50
+      spatial-mesh-resolution: HIGH
+      environmental-understanding: true
+      
+  # Object Recognition & Tracking
+  object-recognition:
+    enabled: true
+    models:
+      # Payment terminals and POS systems
+      - type: "PAYMENT_TERMINAL"
+        confidence-threshold: 0.85
+        tracking-method: "FEATURE_POINTS"
+        payment-enabled: true
+        
+      # QR codes and payment codes
+      - type: "QR_CODE"
+        confidence-threshold: 0.9
+        tracking-method: "BARCODE_DETECTION"
+        payment-enabled: true
+        
+      # Products for direct purchase
+      - type: "PRODUCT"
+        confidence-threshold: 0.8
+        tracking-method: "MACHINE_LEARNING"
+        payment-enabled: true
+        
+      # Vending machines
+      - type: "VENDING_MACHINE"
+        confidence-threshold: 0.85
+        tracking-method: "FEATURE_POINTS"
+        payment-enabled: true
+        
+    ml-models:
+      product-recognition: "${AR_MODEL_PATH}/product_recognition_v2.tflite"
+      terminal-recognition: "${AR_MODEL_PATH}/terminal_recognition_v1.tflite"
+      gesture-recognition: "${AR_MODEL_PATH}/gesture_recognition_v3.tflite"
+      
+  # Gesture Recognition
+  gesture-recognition:
+    enabled: true
+    confidence-threshold: 0.85
+    gesture-timeout-ms: 5000
+    max-tracking-points: 21
+    smoothing-factor: 0.8
+    
+    supported-gestures:
+      - name: "TAP_TO_PAY"
+        points-required: 1
+        duration-ms: 200
+        confidence-threshold: 0.9
+        
+      - name: "PINCH_TO_SELECT"
+        points-required: 2
+        duration-ms: 500
+        confidence-threshold: 0.85
+        
+      - name: "SWIPE_TO_CONFIRM"
+        points-required: 1
+        duration-ms: 800
+        confidence-threshold: 0.8
+        
+      - name: "THUMBS_UP_APPROVE"
+        points-required: 1
+        duration-ms: 1000
+        confidence-threshold: 0.9
+        
+      - name: "PALM_STOP_CANCEL"
+        points-required: 1
+        duration-ms: 1000
+        confidence-threshold: 0.85
+        
+  # 3D UI & Visualization
+  visualization:
+    ui-elements:
+      depth-testing: true
+      anti-aliasing: true
+      shader-quality: HIGH
+      animation-fps: 60
+      
+    holographic:
+      enabled: true
+      opacity-range: [0.3, 0.9]
+      glow-effects: true
+      particle-effects: true
+      
+    payment-ui:
+      currency-symbols-3d: true
+      amount-animation: "FLOATING_DIGITS"
+      confirmation-effects: "PARTICLE_BURST"
+      error-visualization: "RED_GLOW_SHAKE"
+      success-visualization: "GREEN_CHECKMARK_EXPAND"
+      
+  # Security & Privacy
+  security:
+    biometric-validation:
+      enabled: true
+      face-recognition: true
+      iris-scanning: false
+      voice-recognition: true
+      
+    encryption:
+      ar-data-encryption: "AES-256-GCM"
+      payment-data-encryption: "RSA-4096"
+      session-encryption: true
+      
+    privacy:
+      camera-data-retention: NONE
+      spatial-data-anonymization: true
+      user-tracking-opt-out: true
+      
+  # Payment Integration
+  payment:
+    methods:
+      - "WALLET_BALANCE"
+      - "CREDIT_CARD"
+      - "DEBIT_CARD"
+      - "DIGITAL_WALLET"
+      - "CRYPTOCURRENCY"
+      - "BUY_NOW_PAY_LATER"
+      
+    limits:
+      max-single-transaction: 5000.00
+      daily-limit: 10000.00
+      session-limit: 1000.00
+      
+    confirmation:
+      require-biometric-above: 100.00
+      require-pin-above: 50.00
+      auto-approve-below: 25.00
+      
+  # Gamification Integration
+  gamification:
+    enabled: true
+    achievements:
+      - name: "AR_PIONEER"
+        description: "Complete first AR payment"
+        points: 100
+        
+      - name: "GESTURE_MASTER"
+        description: "Use 10 different payment gestures"
+        points: 250
+        
+      - name: "SPATIAL_NAVIGATOR"
+        description: "Make payments in 5 different locations"
+        points: 200
+        
+    point-multipliers:
+      ar-payment: 1.5
+      gesture-payment: 2.0
+      spatial-payment: 1.8
+      
+  # Analytics & Telemetry
+  analytics:
+    enabled: true
+    session-tracking: true
+    gesture-analytics: true
+    performance-metrics: true
+    error-tracking: true
+    
+    metrics:
+      - "session_duration"
+      - "gesture_accuracy"
+      - "object_recognition_time"
+      - "payment_completion_rate"
+      - "user_satisfaction"
+      
+  # Performance Optimization
+  performance:
+    rendering:
+      level-of-detail: true
+      frustum-culling: true
+      occlusion-culling: true
+      texture-compression: true
+      
+    processing:
+      multi-threading: true
+      gpu-acceleration: true
+      background-processing: true
+      cache-3d-models: true
+      
+    memory:
+      max-texture-memory-mb: 512
+      max-model-cache-mb: 256
+      garbage-collection-interval: 30
+      
+  # Device Compatibility
+  device-support:
+    minimum-requirements:
+      ram-gb: 3
+      storage-gb: 2
+      camera-resolution: "1280x720"
+      sensors: ["ACCELEROMETER", "GYROSCOPE", "MAGNETOMETER"]
+      
+    platforms:
+      ios:
+        min-version: "13.0"
+        arkit-version: "4.0"
+        
+      android:
+        min-version: "7.0"
+        arcore-version: "1.20"
+        
+      web:
+        webxr-support: true
+        webgl-version: "2.0"
+        
+  # Content & Assets
+  content:
+    3d-models:
+      format: "GLTF2"
+      compression: "DRACO"
+      max-file-size-mb: 10
+      
+    textures:
+      format: "ASTC"
+      max-resolution: "2048x2048"
+      mipmap-generation: true
+      
+    audio:
+      spatial-audio: true
+      format: "OGG"
+      max-file-size-mb: 5
+      
+  # Session Management
+  sessions:
+    max-duration-minutes: 60
+    idle-timeout-minutes: 10
+    auto-save-interval-seconds: 30
+    cleanup-expired-sessions: true
+    
+    states:
+      - "INITIALIZING"
+      - "CALIBRATING"
+      - "ACTIVE"
+      - "PAYMENT_PROCESSING"
+      - "PAUSED"
+      - "COMPLETED"
+      - "ERROR"
+      
+  # Multi-user & Social
+  social:
+    shared-sessions: true
+    max-users-per-session: 4
+    collaborative-payments: true
+    social-achievements: true
+    
+  # Accessibility
+  accessibility:
+    voice-commands: true
+    high-contrast-mode: true
+    gesture-alternatives: true
+    audio-descriptions: true
+    reduced-motion: true
+    
+  # Testing & Development
+  development:
+    debug-mode: ${AR_DEBUG_MODE:false}
+    simulation-mode: ${AR_SIMULATION_MODE:false}
+    mock-camera: ${AR_MOCK_CAMERA:false}
+    performance-overlay: ${AR_PERFORMANCE_OVERLAY:false}
+    
+  # Compliance & Regulations
+  compliance:
+    gdpr-compliant: true
+    ccpa-compliant: true
+    pci-dss-level: 1
+    accessibility-standards: "WCAG2.1"
+
+logging:
+  level:
+    com.waqiti.arpayment: INFO
+    org.springframework.web: INFO
+    org.springframework.kafka: INFO
+    org.hibernate.SQL: INFO
+    org.hibernate.type.descriptor.sql.BasicBinder: INFO
+    org.springframework.security: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

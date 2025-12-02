@@ -1,0 +1,109 @@
+# Keycloak Configuration for BNPL Service
+
+keycloak:
+  enabled: true
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  ssl-required: external
+  resource: bnpl-service
+  bearer-only: true
+  credentials:
+    secret: ${BNPL_SERVICE_CLIENT_SECRET:CHANGE_ME_SECURE_SECRET_REQUIRED}
+  use-resource-role-mappings: true
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# BNPL Service Security Configuration
+bnpl:
+  security:
+    # Public endpoints that don't require authentication
+    public-endpoints:
+      - /actuator/health
+      - /actuator/info
+      - /api/v1/bnpl/merchants/check-eligibility
+      - /swagger-ui/**
+      - /v3/api-docs/**
+    
+    # Service-to-service endpoints
+    service-endpoints:
+      - /internal/bnpl/**
+    
+    # Required roles for BNPL operations
+    required-roles:
+      read:
+        - USER
+        - BNPL_USER
+      application-create:
+        - USER
+        - BNPL_USER
+      application-read:
+        - USER
+        - BNPL_USER
+      installment-pay:
+        - USER
+        - BNPL_USER
+      early-payment:
+        - USER
+        - BNPL_USER
+      credit-assessment:
+        - CREDIT_ASSESSOR
+        - BNPL_UNDERWRITER
+      approval:
+        - BNPL_APPROVER
+        - CREDIT_MANAGER
+      management:
+        - BNPL_MANAGER
+        - BNPL_OPERATOR
+      admin:
+        - BNPL_ADMIN
+        - SYSTEM_ADMIN
+    
+    # Required scopes for operations
+    required-scopes:
+      application-read: bnpl:application:read
+      application-write: bnpl:application:write
+      installment-read: bnpl:installment:read
+      installment-write: bnpl:installment:write
+      credit-assessment: bnpl:credit:assess
+      payment-process: bnpl:payment:process
+      early-settlement: bnpl:early:settle
+      admin: bnpl:admin
+      management: bnpl:manage
+    
+    # BNPL security features
+    features:
+      credit-check-enabled: true
+      fraud-detection-enabled: true
+      kyc-validation-enabled: true
+      affordability-check-enabled: true
+      risk-assessment-enabled: true
+      
+    # BNPL limits and thresholds
+    limits:
+      max-applications-per-day: 5
+      max-loan-amount: 10000.00
+      min-loan-amount: 50.00
+      max-active-loans: 3
+      max-installment-period-months: 24
+      
+    # Security thresholds requiring additional verification
+    verification-thresholds:
+      high-value-loan: 2000.00
+      suspicious-application-pattern: 3
+      failed-payment-count: 2
+      credit-score-threshold: 600
+      
+    # Advanced security features
+    advanced-security:
+      require-mfa-high-value: true
+      require-verification-suspicious: true
+      automatic-credit-assessment: true
+      real-time-fraud-monitoring: true
+      affordability-verification: true
+      behavioral-scoring-enabled: true

@@ -1,0 +1,1474 @@
+openapi: 3.0.3
+info:
+  title: Waqiti P2P Payment Platform API
+  description: |
+    Comprehensive API documentation for the Waqiti peer-to-peer payment platform.
+    
+    This API provides endpoints for:
+    - User management and authentication
+    - Wallet operations and balance management
+    - Payment processing and transfers
+    - Transaction history and analytics
+    - Fraud detection and security
+    - Social commerce features
+    - Cryptocurrency operations
+    - International transfers
+    
+    ## Authentication
+    Most endpoints require authentication using Bearer tokens (JWT).
+    Include the token in the Authorization header: `Authorization: Bearer <token>`
+    
+    ## Rate Limiting
+    API requests are rate-limited per user and endpoint:
+    - General endpoints: 100 requests per minute
+    - Payment endpoints: 20 requests per minute
+    - Auth endpoints: 10 requests per minute
+    
+    ## Error Handling
+    All errors follow a consistent format with error codes, messages, and timestamps.
+    
+    ## Webhooks
+    The platform supports webhooks for real-time notifications of transaction events.
+    
+  version: 2.0.0
+  contact:
+    name: Waqiti API Support
+    url: https://example.com/support
+    email: api-support@example.com
+  license:
+    name: Proprietary
+    url: https://example.com/license
+  termsOfService: https://example.com/terms
+
+servers:
+  - url: https://api.example.com/v1
+    description: Production server
+  - url: https://staging-api.example.com/v1
+    description: Staging server
+  - url: https://dev-api.example.com/v1
+    description: Development server
+
+security:
+  - bearerAuth: []
+  - apiKey: []
+
+paths:
+  # Authentication Endpoints
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new user
+      description: Create a new user account with email verification
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRegistrationRequest'
+            example:
+              email: user@example.com
+              password: SecurePassword123!
+              firstName: John
+              lastName: Doe
+              phoneNumber: "+1234567890"
+              dateOfBirth: "1990-01-01"
+              country: US
+              acceptTerms: true
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRegistrationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: User login
+      description: Authenticate user and receive access tokens
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              email: user@example.com
+              password: SecurePassword123!
+              deviceInfo:
+                deviceId: "device-123"
+                deviceType: "mobile"
+                osVersion: "iOS 15.0"
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: User logout
+      description: Invalidate current session and tokens
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # User Management Endpoints
+  /users/profile:
+    get:
+      tags:
+        - User Management
+      summary: Get user profile
+      description: Retrieve current user's profile information
+      responses:
+        '200':
+          description: User profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - User Management
+      summary: Update user profile
+      description: Update user profile information
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserProfileRequest'
+      responses:
+        '200':
+          description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /users/{userId}/kyc:
+    post:
+      tags:
+        - User Management
+      summary: Submit KYC documents
+      description: Upload and submit Know Your Customer documents for verification
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: User identifier
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                documentType:
+                  type: string
+                  enum: [PASSPORT, DRIVERS_LICENSE, NATIONAL_ID]
+                frontImage:
+                  type: string
+                  format: binary
+                backImage:
+                  type: string
+                  format: binary
+                selfieImage:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: KYC documents submitted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KycSubmissionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # Wallet Endpoints
+  /wallets:
+    get:
+      tags:
+        - Wallets
+      summary: Get user wallets
+      description: Retrieve all wallets for the authenticated user
+      responses:
+        '200':
+          description: Wallets retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  wallets:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Wallet'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - Wallets
+      summary: Create new wallet
+      description: Create a new wallet for a specific currency
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWalletRequest'
+      responses:
+        '201':
+          description: Wallet created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Wallet'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /wallets/{walletId}/balance:
+    get:
+      tags:
+        - Wallets
+      summary: Get wallet balance
+      description: Retrieve current balance for a specific wallet
+      parameters:
+        - name: walletId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Wallet identifier
+      responses:
+        '200':
+          description: Balance retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletBalance'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Payment Endpoints
+  /payments:
+    post:
+      tags:
+        - Payments
+      summary: Create payment
+      description: |
+        Process a peer-to-peer payment between users.
+        Supports various payment types including P2P transfers, merchant payments, and bill payments.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentRequest'
+            example:
+              senderId: "user123"
+              recipientId: "user456"
+              amount: 100.00
+              currency: "USD"
+              description: "Dinner split"
+              paymentMethod: "WALLET"
+              idempotencyKey: "payment-12345-67890"
+      responses:
+        '200':
+          description: Payment processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /payments/{paymentId}:
+    get:
+      tags:
+        - Payments
+      summary: Get payment details
+      description: Retrieve details of a specific payment transaction
+      parameters:
+        - name: paymentId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Payment transaction identifier
+      responses:
+        '200':
+          description: Payment details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentDetails'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /payments/{paymentId}/cancel:
+    post:
+      tags:
+        - Payments
+      summary: Cancel payment
+      description: Cancel a pending payment transaction
+      parameters:
+        - name: paymentId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Payment transaction identifier
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  description: Reason for cancellation
+      responses:
+        '200':
+          description: Payment cancelled successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentCancellationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Transaction History Endpoints
+  /transactions:
+    get:
+      tags:
+        - Transactions
+      summary: Get transaction history
+      description: Retrieve paginated transaction history for the authenticated user
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+          description: Page number (0-based)
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+          description: Page size
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Filter transactions from this date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Filter transactions to this date
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [PENDING, COMPLETED, FAILED, CANCELLED]
+          description: Filter by transaction status
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [SENT, RECEIVED, DEPOSIT, WITHDRAWAL]
+          description: Filter by transaction type
+      responses:
+        '200':
+          description: Transaction history retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionHistoryResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /transactions/{transactionId}:
+    get:
+      tags:
+        - Transactions
+      summary: Get transaction details
+      description: Retrieve detailed information about a specific transaction
+      parameters:
+        - name: transactionId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Transaction identifier
+      responses:
+        '200':
+          description: Transaction details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionDetails'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Fraud Detection Endpoints
+  /fraud/check:
+    post:
+      tags:
+        - Fraud Detection
+      summary: Fraud risk assessment
+      description: |
+        Perform fraud risk assessment on a transaction before processing.
+        Internal endpoint used by payment processing services.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FraudCheckRequest'
+      responses:
+        '200':
+          description: Fraud check completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FraudCheckResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /fraud/reports:
+    get:
+      tags:
+        - Fraud Detection
+      summary: Get fraud reports
+      description: Retrieve fraud detection reports for administrative review
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [LOW, MEDIUM, HIGH, CRITICAL]
+      responses:
+        '200':
+          description: Fraud reports retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FraudReportsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  # Social Commerce Endpoints
+  /social/posts:
+    post:
+      tags:
+        - Social Commerce
+      summary: Create social post
+      description: Create a new social media post with optional product associations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSocialPostRequest'
+      responses:
+        '201':
+          description: Social post created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialPostResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    get:
+      tags:
+        - Social Commerce
+      summary: Get social feed
+      description: Retrieve personalized social media feed with products and posts
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Social feed retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialFeedResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /social/products:
+    post:
+      tags:
+        - Social Commerce
+      summary: Create product
+      description: Create a new product for social commerce
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProductRequest'
+      responses:
+        '201':
+          description: Product created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SocialProductResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    get:
+      tags:
+        - Social Commerce
+      summary: Get trending products
+      description: Retrieve trending products in social commerce
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+          description: Filter by product category
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Trending products retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrendingProductsResponse'
+
+  # Cryptocurrency Endpoints
+  /crypto/wallets:
+    get:
+      tags:
+        - Cryptocurrency
+      summary: Get crypto wallets
+      description: Retrieve all cryptocurrency wallets for the user
+      responses:
+        '200':
+          description: Crypto wallets retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CryptoWalletsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /crypto/exchange:
+    post:
+      tags:
+        - Cryptocurrency
+      summary: Exchange cryptocurrency
+      description: Exchange one cryptocurrency for another or for fiat currency
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CryptoExchangeRequest'
+      responses:
+        '200':
+          description: Crypto exchange completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CryptoExchangeResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # International Transfer Endpoints
+  /international/rates:
+    get:
+      tags:
+        - International Transfers
+      summary: Get exchange rates
+      description: Retrieve current exchange rates for international transfers
+      parameters:
+        - name: fromCurrency
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Source currency code (ISO 4217)
+        - name: toCurrency
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Target currency code (ISO 4217)
+        - name: amount
+          in: query
+          schema:
+            type: number
+          description: Amount to convert (for accurate fee calculation)
+      responses:
+        '200':
+          description: Exchange rates retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExchangeRateResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /international/transfers:
+    post:
+      tags:
+        - International Transfers
+      summary: Create international transfer
+      description: Initiate an international money transfer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InternationalTransferRequest'
+      responses:
+        '200':
+          description: International transfer initiated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternationalTransferResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # Notification Endpoints
+  /notifications:
+    get:
+      tags:
+        - Notifications
+      summary: Get notifications
+      description: Retrieve user notifications with pagination
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [PAYMENT, SECURITY, MARKETING, SYSTEM]
+          description: Filter by notification type
+        - name: unreadOnly
+          in: query
+          schema:
+            type: boolean
+            default: false
+          description: Return only unread notifications
+      responses:
+        '200':
+          description: Notifications retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /notifications/{notificationId}/read:
+    post:
+      tags:
+        - Notifications
+      summary: Mark notification as read
+      description: Mark a specific notification as read
+      parameters:
+        - name: notificationId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Notification identifier
+      responses:
+        '200':
+          description: Notification marked as read successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    apiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+  schemas:
+    # Authentication Schemas
+    UserRegistrationRequest:
+      type: object
+      required:
+        - email
+        - password
+        - firstName
+        - lastName
+        - phoneNumber
+        - dateOfBirth
+        - country
+        - acceptTerms
+      properties:
+        email:
+          type: string
+          format: email
+          description: User's email address
+        password:
+          type: string
+          minLength: 8
+          description: Strong password with special characters
+        firstName:
+          type: string
+          maxLength: 50
+        lastName:
+          type: string
+          maxLength: 50
+        phoneNumber:
+          type: string
+          pattern: '^\+[1-9]\d{1,14}$'
+          description: Phone number in E.164 format
+        dateOfBirth:
+          type: string
+          format: date
+          description: Date of birth (YYYY-MM-DD)
+        country:
+          type: string
+          pattern: '^[A-Z]{2}$'
+          description: ISO 3166-1 alpha-2 country code
+        acceptTerms:
+          type: boolean
+          enum: [true]
+          description: Must accept terms and conditions
+
+    UserRegistrationResponse:
+      type: object
+      properties:
+        userId:
+          type: string
+          description: Unique user identifier
+        email:
+          type: string
+          format: email
+        status:
+          type: string
+          enum: [PENDING_VERIFICATION, ACTIVE]
+        verificationRequired:
+          type: boolean
+          description: Whether email verification is required
+        message:
+          type: string
+          description: Success message
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+        deviceInfo:
+          $ref: '#/components/schemas/DeviceInfo'
+        rememberMe:
+          type: boolean
+          default: false
+
+    LoginResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+          description: JWT access token
+        refreshToken:
+          type: string
+          description: Refresh token for obtaining new access tokens
+        expiresIn:
+          type: integer
+          description: Token expiration time in seconds
+        tokenType:
+          type: string
+          enum: [Bearer]
+          default: Bearer
+        user:
+          $ref: '#/components/schemas/UserProfile'
+
+    # User Management Schemas
+    UserProfile:
+      type: object
+      properties:
+        userId:
+          type: string
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+        lastName:
+          type: string
+        phoneNumber:
+          type: string
+        dateOfBirth:
+          type: string
+          format: date
+        country:
+          type: string
+        profilePicture:
+          type: string
+          format: uri
+        kycStatus:
+          type: string
+          enum: [NOT_STARTED, PENDING, VERIFIED, REJECTED]
+        accountStatus:
+          type: string
+          enum: [ACTIVE, SUSPENDED, CLOSED]
+        createdAt:
+          type: string
+          format: date-time
+        lastLoginAt:
+          type: string
+          format: date-time
+
+    UpdateUserProfileRequest:
+      type: object
+      properties:
+        firstName:
+          type: string
+          maxLength: 50
+        lastName:
+          type: string
+          maxLength: 50
+        phoneNumber:
+          type: string
+          pattern: '^\+[1-9]\d{1,14}$'
+        profilePicture:
+          type: string
+          format: uri
+
+    # Wallet Schemas
+    Wallet:
+      type: object
+      properties:
+        walletId:
+          type: string
+        userId:
+          type: string
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          description: ISO 4217 currency code
+        balance:
+          type: number
+          format: decimal
+          multipleOf: 0.01
+        availableBalance:
+          type: number
+          format: decimal
+          multipleOf: 0.01
+          description: Balance available for transactions (excluding pending)
+        status:
+          type: string
+          enum: [ACTIVE, SUSPENDED, CLOSED]
+        createdAt:
+          type: string
+          format: date-time
+        lastTransactionAt:
+          type: string
+          format: date-time
+
+    CreateWalletRequest:
+      type: object
+      required:
+        - currency
+      properties:
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          description: ISO 4217 currency code
+        initialDeposit:
+          type: number
+          format: decimal
+          minimum: 0
+          multipleOf: 0.01
+
+    WalletBalance:
+      type: object
+      properties:
+        walletId:
+          type: string
+        currency:
+          type: string
+        balance:
+          type: number
+          format: decimal
+          multipleOf: 0.01
+        availableBalance:
+          type: number
+          format: decimal
+          multipleOf: 0.01
+        pendingBalance:
+          type: number
+          format: decimal
+          multipleOf: 0.01
+          description: Balance tied up in pending transactions
+        lastUpdated:
+          type: string
+          format: date-time
+
+    # Payment Schemas
+    PaymentRequest:
+      type: object
+      required:
+        - senderId
+        - recipientId
+        - amount
+        - currency
+        - idempotencyKey
+      properties:
+        senderId:
+          type: string
+          description: Sender's user ID
+        recipientId:
+          type: string
+          description: Recipient's user ID or identifier
+        amount:
+          type: number
+          format: decimal
+          minimum: 0.01
+          multipleOf: 0.01
+          description: Payment amount
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          description: ISO 4217 currency code
+        description:
+          type: string
+          maxLength: 500
+          description: Payment description or memo
+        paymentMethod:
+          type: string
+          enum: [WALLET, BANK_ACCOUNT, CREDIT_CARD, CRYPTO]
+          default: WALLET
+        recipientType:
+          type: string
+          enum: [USER, MERCHANT, EXTERNAL]
+          default: USER
+        scheduledDate:
+          type: string
+          format: date-time
+          description: For scheduled payments (optional)
+        idempotencyKey:
+          type: string
+          maxLength: 255
+          description: Unique key to prevent duplicate transactions
+
+    PaymentResponse:
+      type: object
+      properties:
+        transactionId:
+          type: string
+          description: Unique transaction identifier
+        status:
+          type: string
+          enum: [PENDING, PROCESSING, COMPLETED, FAILED, CANCELLED]
+        amount:
+          type: number
+          format: decimal
+          multipleOf: 0.01
+        currency:
+          type: string
+        fee:
+          type: number
+          format: decimal
+          multipleOf: 0.01
+          description: Transaction fee charged
+        exchangeRate:
+          type: number
+          format: decimal
+          description: Exchange rate used (if applicable)
+        estimatedArrival:
+          type: string
+          format: date-time
+          description: Estimated completion time
+        createdAt:
+          type: string
+          format: date-time
+
+    # Fraud Detection Schemas
+    FraudCheckRequest:
+      type: object
+      required:
+        - transactionId
+        - userId
+        - amount
+        - currency
+        - recipientId
+      properties:
+        transactionId:
+          type: string
+        userId:
+          type: string
+        recipientId:
+          type: string
+        amount:
+          type: number
+          format: decimal
+        currency:
+          type: string
+        transactionType:
+          type: string
+          enum: [P2P, MERCHANT, ATM, INTERNATIONAL]
+        deviceInfo:
+          $ref: '#/components/schemas/DeviceInfo'
+        locationInfo:
+          $ref: '#/components/schemas/LocationInfo'
+        isNewRecipient:
+          type: boolean
+        recentTransactionCount:
+          type: integer
+          description: Number of transactions in last 24 hours
+
+    FraudCheckResponse:
+      type: object
+      properties:
+        transactionId:
+          type: string
+        riskLevel:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, CRITICAL]
+        riskScore:
+          type: number
+          format: decimal
+          minimum: 0
+          maximum: 1
+          description: Risk score from 0 (safe) to 1 (high risk)
+        approved:
+          type: boolean
+          description: Whether transaction is approved
+        requiresAdditionalVerification:
+          type: boolean
+          description: Whether additional verification is needed
+        blockReason:
+          type: string
+          description: Reason for blocking (if blocked)
+        recommendations:
+          type: array
+          items:
+            type: string
+          description: Recommended actions
+        timestamp:
+          type: string
+          format: date-time
+
+    # Social Commerce Schemas
+    CreateSocialPostRequest:
+      type: object
+      required:
+        - userId
+        - content
+      properties:
+        userId:
+          type: string
+        content:
+          type: string
+          maxLength: 2000
+        mediaUrls:
+          type: array
+          items:
+            type: string
+            format: uri
+          maxItems: 10
+        productIds:
+          type: array
+          items:
+            type: string
+          maxItems: 5
+        visibility:
+          type: string
+          enum: [PUBLIC, FRIENDS, PRIVATE]
+          default: PUBLIC
+        platform:
+          type: string
+          enum: [WAQITI, INSTAGRAM, TIKTOK, FACEBOOK]
+          default: WAQITI
+        crossPost:
+          type: boolean
+          default: false
+        targetPlatforms:
+          type: array
+          items:
+            type: string
+            enum: [INSTAGRAM, TIKTOK, FACEBOOK]
+
+    SocialPostResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        content:
+          type: string
+        mediaUrls:
+          type: array
+          items:
+            type: string
+        hashtags:
+          type: array
+          items:
+            type: string
+        mentions:
+          type: array
+          items:
+            type: string
+        likesCount:
+          type: integer
+        commentsCount:
+          type: integer
+        sharesCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        postType:
+          type: string
+          enum: [REGULAR, PRODUCT_SHOWCASE, INFLUENCER]
+
+    # Common Schemas
+    DeviceInfo:
+      type: object
+      properties:
+        deviceId:
+          type: string
+        deviceType:
+          type: string
+          enum: [mobile, tablet, desktop, smartwatch]
+        osVersion:
+          type: string
+        appVersion:
+          type: string
+        fingerprint:
+          type: string
+          description: Device fingerprint for fraud detection
+
+    LocationInfo:
+      type: object
+      properties:
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+        country:
+          type: string
+        city:
+          type: string
+        ipAddress:
+          type: string
+          format: ipv4
+
+    ErrorResponse:
+      type: object
+      properties:
+        errorId:
+          type: string
+          description: Unique error identifier for tracking
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: integer
+          description: HTTP status code
+        error:
+          type: string
+          description: Error type
+        message:
+          type: string
+          description: Human-readable error message
+        path:
+          type: string
+          description: API endpoint path
+        details:
+          type: object
+          description: Additional error details
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Operation completed successfully"
+        timestamp:
+          type: string
+          format: date-time
+
+  responses:
+    BadRequest:
+      description: Bad Request - Invalid input parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            errorId: "err_001"
+            timestamp: "2024-01-01T12:00:00Z"
+            status: 400
+            error: "Bad Request"
+            message: "Invalid input parameters"
+            path: "/api/v1/payments"
+
+    Unauthorized:
+      description: Unauthorized - Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            errorId: "err_002"
+            timestamp: "2024-01-01T12:00:00Z"
+            status: 401
+            error: "Unauthorized"
+            message: "Authentication required"
+            path: "/api/v1/wallets"
+
+    Forbidden:
+      description: Forbidden - Access denied
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            errorId: "err_003"
+            timestamp: "2024-01-01T12:00:00Z"
+            status: 403
+            error: "Forbidden"
+            message: "Access denied"
+            path: "/api/v1/admin"
+
+    NotFound:
+      description: Not Found - Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            errorId: "err_004"
+            timestamp: "2024-01-01T12:00:00Z"
+            status: 404
+            error: "Not Found"
+            message: "Resource not found"
+            path: "/api/v1/users/123"
+
+    Conflict:
+      description: Conflict - Resource already exists
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            errorId: "err_005"
+            timestamp: "2024-01-01T12:00:00Z"
+            status: 409
+            error: "Conflict"
+            message: "Resource already exists"
+            path: "/api/v1/users"
+
+    PaymentRequired:
+      description: Payment Required - Insufficient funds
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            errorId: "err_006"
+            timestamp: "2024-01-01T12:00:00Z"
+            status: 402
+            error: "Payment Required"
+            message: "Insufficient funds in wallet"
+            path: "/api/v1/payments"
+
+    TooManyRequests:
+      description: Too Many Requests - Rate limit exceeded
+      headers:
+        X-RateLimit-Limit:
+          schema:
+            type: integer
+          description: Request limit per time window
+        X-RateLimit-Remaining:
+          schema:
+            type: integer
+          description: Remaining requests in current window
+        X-RateLimit-Reset:
+          schema:
+            type: integer
+          description: Time when rate limit resets (Unix timestamp)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            errorId: "err_007"
+            timestamp: "2024-01-01T12:00:00Z"
+            status: 429
+            error: "Too Many Requests"
+            message: "Rate limit exceeded"
+            path: "/api/v1/payments"
+
+tags:
+  - name: Authentication
+    description: User authentication and authorization endpoints
+  - name: User Management
+    description: User profile and account management
+  - name: Wallets
+    description: Digital wallet operations and balance management
+  - name: Payments
+    description: Payment processing and money transfers
+  - name: Transactions
+    description: Transaction history and details
+  - name: Fraud Detection
+    description: Fraud prevention and security monitoring
+  - name: Social Commerce
+    description: Social media integration and commerce features
+  - name: Cryptocurrency
+    description: Cryptocurrency wallet and exchange operations
+  - name: International Transfers
+    description: Cross-border payment services
+  - name: Notifications
+    description: User notification management
+
+externalDocs:
+  description: Find out more about Waqiti API
+  url: https://docs.example.com

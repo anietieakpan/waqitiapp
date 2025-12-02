@@ -1,0 +1,56 @@
+# HIGH-03 FIX (2025-11-22): Automated dependency updates
+# Dependabot automatically creates PRs for dependency updates
+
+version: 2
+updates:
+  # Maven dependencies
+  - package-ecosystem: "maven"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "engineering-team"
+    labels:
+      - "dependencies"
+      - "automated"
+    commit-message:
+      prefix: "build"
+      prefix-development: "build"
+      include: "scope"
+    # Group minor and patch updates
+    groups:
+      spring-framework:
+        patterns:
+          - "org.springframework*"
+      kafka:
+        patterns:
+          - "org.apache.kafka*"
+          - "org.springframework.kafka*"
+      testing:
+        patterns:
+          - "org.junit*"
+          - "org.mockito*"
+          - "org.testcontainers*"
+
+  # Docker dependencies
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "docker"
+      - "dependencies"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "github-actions"
+      - "dependencies"

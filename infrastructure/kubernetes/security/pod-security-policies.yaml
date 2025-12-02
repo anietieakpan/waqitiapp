@@ -1,0 +1,554 @@
+# Pod Security Policies for Kubernetes
+# Implements defense-in-depth security controls for container workloads
+# Compliant with CIS Kubernetes Benchmark and PCI DSS requirements
+
+---
+# Restricted Pod Security Policy (Default - Most Secure)
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: restricted-psp
+  annotations:
+    seccomp.security.alpha.kubernetes.io/allowedProfileNames: 'runtime/default'
+    apparmor.security.beta.kubernetes.io/allowedProfileNames: 'runtime/default'
+    seccomp.security.alpha.kubernetes.io/defaultProfileName: 'runtime/default'
+    apparmor.security.beta.kubernetes.io/defaultProfileName: 'runtime/default'
+spec:
+  # Privilege Escalation
+  privileged: false
+  allowPrivilegeEscalation: false
+  
+  # User and Group Settings
+  runAsUser:
+    rule: MustRunAsNonRoot
+    ranges:
+      - min: 1000
+        max: 65535
+  runAsGroup:
+    rule: MustRunAs
+    ranges:
+      - min: 1000
+        max: 65535
+  fsGroup:
+    rule: MustRunAs
+    ranges:
+      - min: 1000
+        max: 65535
+  supplementalGroups:
+    rule: MustRunAs
+    ranges:
+      - min: 1000
+        max: 65535
+  
+  # Capabilities
+  requiredDropCapabilities:
+    - ALL
+  defaultAddCapabilities: []
+  allowedCapabilities: []
+  
+  # Volume Types
+  volumes:
+    - configMap
+    - downwardAPI
+    - emptyDir
+    - persistentVolumeClaim
+    - projected
+    - secret
+  
+  # File System
+  readOnlyRootFilesystem: true
+  
+  # Host Settings
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+  hostPorts: []
+  
+  # SELinux
+  seLinux:
+    rule: RunAsAny
+  
+  # Seccomp
+  forbiddenSysctls:
+    - "*"
+
+---
+# Baseline Pod Security Policy (For system components)
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: baseline-psp
+  annotations:
+    seccomp.security.alpha.kubernetes.io/allowedProfileNames: 'runtime/default,localhost/*'
+    apparmor.security.beta.kubernetes.io/allowedProfileNames: 'runtime/default'
+spec:
+  privileged: false
+  allowPrivilegeEscalation: false
+  
+  runAsUser:
+    rule: RunAsAny
+  runAsGroup:
+    rule: RunAsAny
+  fsGroup:
+    rule: RunAsAny
+  supplementalGroups:
+    rule: RunAsAny
+  
+  requiredDropCapabilities:
+    - KILL
+    - MKNOD
+    - SETUID
+    - SETGID
+  
+  allowedCapabilities:
+    - CHOWN
+    - DAC_OVERRIDE
+    - FOWNER
+    - FSETID
+    - SETFCAP
+    - SETPCAP
+    - NET_BIND_SERVICE
+    - SYS_CHROOT
+    - AUDIT_WRITE
+  
+  volumes:
+    - configMap
+    - downwardAPI
+    - emptyDir
+    - persistentVolumeClaim
+    - projected
+    - secret
+    - hostPath  # Limited to specific paths
+  
+  allowedHostPaths:
+    - pathPrefix: "/var/log"
+      readOnly: true
+    - pathPrefix: "/var/lib/docker"
+      readOnly: true
+    - pathPrefix: "/var/lib/kubelet"
+      readOnly: false
+  
+  readOnlyRootFilesystem: false
+  
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+  hostPorts:
+    - min: 0
+      max: 65535
+  
+  seLinux:
+    rule: RunAsAny
+
+---
+# PCI-DSS Compliant PSP for Payment Services
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: pci-dss-psp
+  annotations:
+    seccomp.security.alpha.kubernetes.io/allowedProfileNames: 'runtime/default'
+    apparmor.security.beta.kubernetes.io/allowedProfileNames: 'runtime/default'
+    security.kubernetes.io/compliance: 'pci-dss-v4.0'
+spec:
+  privileged: false
+  allowPrivilegeEscalation: false
+  
+  # Strict user requirements
+  runAsUser:
+    rule: MustRunAsNonRoot
+    ranges:
+      - min: 10000
+        max: 10999  # Specific range for payment services
+  runAsGroup:
+    rule: MustRunAs
+    ranges:
+      - min: 10000
+        max: 10999
+  fsGroup:
+    rule: MustRunAs
+    ranges:
+      - min: 10000
+        max: 10999
+  
+  # Drop all capabilities
+  requiredDropCapabilities:
+    - ALL
+  
+  # Only secure volumes
+  volumes:
+    - configMap
+    - secret
+    - emptyDir
+    - persistentVolumeClaim
+  
+  # Read-only root filesystem mandatory
+  readOnlyRootFilesystem: true
+  
+  # No host access
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+  hostPorts: []
+  
+  # SELinux enforcement
+  seLinux:
+    rule: MustRunAs
+    seLinuxOptions:
+      level: "s0:c123,c456"
+      role: "payment_service_r"
+      type: "payment_service_t"
+      user: "payment_service_u"
+  
+  # No sysctls allowed
+  forbiddenSysctls:
+    - "*"
+
+---
+# RBAC for Pod Security Policies
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: restricted-psp-user
+rules:
+- apiGroups: ['policy']
+  resources: ['podsecuritypolicies']
+  verbs: ['use']
+  resourceNames:
+  - restricted-psp
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: restricted-psp-all-serviceaccounts
+roleRef:
+  kind: ClusterRole
+  name: restricted-psp-user
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- kind: Group
+  name: system:serviceaccounts
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# PCI-DSS PSP ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: pci-dss-psp-user
+rules:
+- apiGroups: ['policy']
+  resources: ['podsecuritypolicies']
+  verbs: ['use']
+  resourceNames:
+  - pci-dss-psp
+
+---
+# Bind PCI-DSS PSP to payment namespace service accounts
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pci-dss-psp-binding
+  namespace: pci-cde
+roleRef:
+  kind: ClusterRole
+  name: pci-dss-psp-user
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- kind: ServiceAccount
+  name: payment-service
+  namespace: pci-cde
+- kind: ServiceAccount
+  name: tokenization-service
+  namespace: pci-cde
+
+---
+# Pod Security Standards (PSS) - Namespace Labels
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: payment-secure
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/enforce-version: v1.27
+    pci-dss-compliant: "true"
+    security-zone: "restricted"
+
+---
+# Security Context Constraints (for OpenShift compatibility)
+apiVersion: security.openshift.io/v1
+kind: SecurityContextConstraints
+metadata:
+  name: waqiti-restricted-scc
+allowHostDirVolumePlugin: false
+allowHostIPC: false
+allowHostNetwork: false
+allowHostPID: false
+allowHostPorts: false
+allowPrivilegedContainer: false
+allowPrivilegeEscalation: false
+defaultAddCapabilities: null
+fsGroup:
+  type: MustRunAs
+  ranges:
+    - min: 1000
+      max: 65535
+readOnlyRootFilesystem: true
+requiredDropCapabilities:
+- ALL
+runAsUser:
+  type: MustRunAsNonRoot
+seLinuxContext:
+  type: MustRunAs
+supplementalGroups:
+  type: MustRunAs
+  ranges:
+    - min: 1000
+      max: 65535
+volumes:
+- configMap
+- downwardAPI
+- emptyDir
+- persistentVolumeClaim
+- projected
+- secret
+priority: 10
+
+---
+# Runtime Security Policy using Falco
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: falco-rules
+  namespace: kube-system
+data:
+  falco_rules.yaml: |
+    - rule: Unauthorized Process in Payment Container
+      desc: Detect unauthorized processes in payment containers
+      condition: >
+        spawned_process and 
+        container.label["app"] = "payment-service" and
+        not proc.name in (allowed_processes)
+      output: >
+        Unauthorized process started in payment container 
+        (user=%user.name command=%proc.cmdline container=%container.name)
+      priority: CRITICAL
+      tags: [payment, pci-dss, security]
+
+    - rule: Sensitive File Access
+      desc: Detect access to sensitive files
+      condition: >
+        open_read and 
+        (fd.name startswith /etc/shadow or
+         fd.name startswith /etc/passwd or
+         fd.name contains "wallet" or
+         fd.name contains "private_key")
+      output: >
+        Sensitive file accessed 
+        (user=%user.name command=%proc.cmdline file=%fd.name container=%container.name)
+      priority: WARNING
+      tags: [filesystem, sensitive-data]
+
+    - rule: Container Escape Attempt
+      desc: Detect container escape attempts
+      condition: >
+        spawned_process and 
+        proc.name in (container_escape_binaries) or
+        (proc.args contains "nsenter" or 
+         proc.args contains "docker.sock" or
+         proc.args contains "--privileged")
+      output: >
+        Container escape attempt detected 
+        (user=%user.name command=%proc.cmdline container=%container.name)
+      priority: CRITICAL
+      tags: [escape, container, security]
+
+    - rule: Cryptocurrency Mining Detection
+      desc: Detect cryptocurrency mining activity
+      condition: >
+        spawned_process and
+        (proc.name in (miners) or
+         proc.cmdline contains "stratum+tcp" or
+         proc.cmdline contains "xmr" or
+         proc.cmdline contains "monero")
+      output: >
+        Cryptocurrency mining detected 
+        (user=%user.name command=%proc.cmdline container=%container.name)
+      priority: CRITICAL
+      tags: [cryptomining, malware]
+
+    - list: allowed_processes
+      items: [java, node, python, sh, bash, payment-service]
+
+    - list: container_escape_binaries
+      items: [nsenter, setns, docker, kubectl, crictl]
+
+    - list: miners
+      items: [minerd, xmrig, bitminer, cgminer, cpuminer]
+
+---
+# Admission Controller Configuration
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionWebhook
+metadata:
+  name: security-validator
+webhooks:
+- name: pod-security.example.com
+  clientConfig:
+    service:
+      name: security-validator
+      namespace: kube-system
+      path: "/validate"
+    caBundle: LS0tLS1CRUdJTi... # Base64 encoded CA cert
+  rules:
+  - apiGroups: [""]
+    apiVersions: ["v1"]
+    resources: ["pods"]
+    operations: ["CREATE", "UPDATE"]
+  admissionReviewVersions: ["v1", "v1beta1"]
+  sideEffects: None
+  timeoutSeconds: 10
+  failurePolicy: Fail
+  namespaceSelector:
+    matchLabels:
+      security-validation: enabled
+
+---
+# OPA (Open Policy Agent) Policies
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: opa-policies
+  namespace: opa-system
+data:
+  policies.rego: |
+    package kubernetes.admission
+
+    import future.keywords.contains
+    import future.keywords.if
+    import future.keywords.in
+
+    # Deny containers without security context
+    deny[msg] {
+      input.request.kind.kind == "Pod"
+      container := input.request.object.spec.containers[_]
+      not container.securityContext
+      msg := sprintf("Container %v is missing security context", [container.name])
+    }
+
+    # Deny containers running as root
+    deny[msg] {
+      input.request.kind.kind == "Pod"
+      container := input.request.object.spec.containers[_]
+      container.securityContext.runAsUser == 0
+      msg := sprintf("Container %v cannot run as root", [container.name])
+    }
+
+    # Deny containers with privileged flag
+    deny[msg] {
+      input.request.kind.kind == "Pod"
+      container := input.request.object.spec.containers[_]
+      container.securityContext.privileged == true
+      msg := sprintf("Container %v cannot run in privileged mode", [container.name])
+    }
+
+    # Deny containers without resource limits
+    deny[msg] {
+      input.request.kind.kind == "Pod"
+      container := input.request.object.spec.containers[_]
+      not container.resources.limits.memory
+      msg := sprintf("Container %v must specify memory limits", [container.name])
+    }
+
+    # Deny containers without resource limits for CPU
+    deny[msg] {
+      input.request.kind.kind == "Pod"
+      container := input.request.object.spec.containers[_]
+      not container.resources.limits.cpu
+      msg := sprintf("Container %v must specify CPU limits", [container.name])
+    }
+
+    # Require specific labels for PCI-DSS namespace
+    deny[msg] {
+      input.request.kind.kind == "Pod"
+      input.request.namespace == "pci-cde"
+      not input.request.object.metadata.labels["pci-compliant"]
+      msg := "Pods in PCI-CDE namespace must have pci-compliant label"
+    }
+
+    # Deny hostNetwork in production namespaces
+    deny[msg] {
+      input.request.kind.kind == "Pod"
+      input.request.object.spec.hostNetwork == true
+      input.request.namespace in ["production", "pci-cde", "payment"]
+      msg := "hostNetwork is not allowed in production namespaces"
+    }
+
+    # Require image scanning results
+    deny[msg] {
+      input.request.kind.kind == "Pod"
+      container := input.request.object.spec.containers[_]
+      not container.image contains "@sha256:"
+      msg := sprintf("Container %v must use image digest, not tag", [container.name])
+    }
+
+    # Enforce image registry whitelist
+    deny[msg] {
+      input.request.kind.kind == "Pod"
+      container := input.request.object.spec.containers[_]
+      not starts_with(container.image, "registry.example.com/")
+      not starts_with(container.image, "gcr.io/waqiti/")
+      msg := sprintf("Container %v must use approved registry", [container.name])
+    }
+
+---
+# Resource Quota for Security
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: security-quota
+  namespace: pci-cde
+spec:
+  hard:
+    requests.cpu: "100"
+    requests.memory: 200Gi
+    limits.cpu: "200"
+    limits.memory: 400Gi
+    persistentvolumeclaims: "10"
+    pods: "50"
+    services: "10"
+    secrets: "100"
+    configmaps: "100"
+
+---
+# Limit Range for Security
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: security-limits
+  namespace: pci-cde
+spec:
+  limits:
+  - default:
+      cpu: 1000m
+      memory: 2Gi
+    defaultRequest:
+      cpu: 100m
+      memory: 128Mi
+    max:
+      cpu: 2000m
+      memory: 4Gi
+    min:
+      cpu: 50m
+      memory: 64Mi
+    type: Container
+  - max:
+      cpu: 8000m
+      memory: 16Gi
+    min:
+      cpu: 100m
+      memory: 128Mi
+    type: Pod

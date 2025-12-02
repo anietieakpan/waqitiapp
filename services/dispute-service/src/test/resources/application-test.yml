@@ -1,0 +1,102 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1
+      connection-timeout: 5000
+      leak-detection-threshold: 0 # Disable in tests
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop # Create schema on startup, drop on shutdown
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        show_sql: false
+        format_sql: false
+    open-in-view: false
+
+  flyway:
+    enabled: false # Use Hibernate DDL in tests
+
+  # Redis - Use embedded or testcontainers
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 1000ms
+
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      auto-offset-reset: earliest
+      enable-auto-commit: true
+      properties:
+        spring.json.trusted.packages: "*" # Allow all packages in tests
+    producer:
+      acks: all
+
+  # Disable service discovery in tests
+  cloud:
+    discovery:
+      enabled: false
+    config:
+      enabled: false
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8080/auth/realms/test
+          jwk-set-uri: http://localhost:8080/auth/realms/test/protocol/openid-connect/certs
+
+# Test-specific security
+security:
+  jwt:
+    secret: dGVzdC1zZWNyZXQta2V5LWZvci10ZXN0aW5nLW9ubHktZG8tbm90LXVzZS1pbi1wcm9kdWN0aW9u
+    expiration: 3600000 # 1 hour
+
+# File upload test config
+file:
+  upload:
+    directory: ${java.io.tmpdir}/test-dispute-evidence
+    max-size-bytes: 10485760
+  encryption:
+    key: dGVzdC1lbmNyeXB0aW9uLWtleS0yNTYtYml0cw== # Test key only
+
+# Disable ClamAV in tests
+clamav:
+  enabled: false
+  host: localhost
+  port: 3310
+
+# Disable Eureka in tests
+eureka:
+  client:
+    enabled: false
+    register-with-eureka: false
+    fetch-registry: false
+
+# Logging for tests
+logging:
+  level:
+    root: WARN
+    com.waqiti.dispute: DEBUG
+    org.springframework.security: WARN
+    org.hibernate.SQL: WARN
+    org.springframework.test: WARN
+    org.testcontainers: INFO
+
+# Management endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always

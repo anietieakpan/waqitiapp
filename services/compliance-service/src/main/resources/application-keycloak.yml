@@ -1,0 +1,122 @@
+# Keycloak Configuration for Compliance Service
+
+keycloak:
+  enabled: true
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  ssl-required: external
+  resource: compliance-service
+  bearer-only: true
+  credentials:
+    secret: ${COMPLIANCE_SERVICE_CLIENT_SECRET}
+  use-resource-role-mappings: true
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# Compliance Service Security Configuration
+compliance:
+  security:
+    # Public endpoints that don't require authentication
+    public-endpoints:
+      - /actuator/health
+      - /actuator/info
+      - /swagger-ui/**
+      - /v3/api-docs/**
+    
+    # Service-to-service endpoints
+    service-endpoints:
+      - /internal/compliance/**
+    
+    # Required roles for compliance operations
+    required-roles:
+      read:
+        - COMPLIANCE_OFFICER
+        - COMPLIANCE_ANALYST
+      aml-screening:
+        - COMPLIANCE_OFFICER
+        - AML_ANALYST
+      sanctions-screening:
+        - COMPLIANCE_OFFICER
+        - SANCTIONS_OFFICER
+      kyc-review:
+        - COMPLIANCE_OFFICER
+        - KYC_ANALYST
+      risk-assessment:
+        - COMPLIANCE_OFFICER
+        - RISK_ANALYST
+      report-generate:
+        - COMPLIANCE_OFFICER
+        - COMPLIANCE_MANAGER
+      audit:
+        - COMPLIANCE_AUDITOR
+        - INTERNAL_AUDITOR
+      management:
+        - COMPLIANCE_MANAGER
+        - COMPLIANCE_OPERATOR
+      admin:
+        - COMPLIANCE_ADMIN
+        - SYSTEM_ADMIN
+    
+    # Required scopes for operations
+    required-scopes:
+      aml-screening: compliance:aml:screen
+      sanctions-screening: compliance:sanctions:screen
+      kyc-review: compliance:kyc:review
+      risk-assessment: compliance:risk:assess
+      transaction-monitoring: compliance:transaction:monitor
+      report-generation: compliance:report:generate
+      audit-log: compliance:audit:log
+      case-management: compliance:case:manage
+      admin: compliance:admin
+      management: compliance:manage
+    
+    # Compliance security features
+    features:
+      aml-screening-enabled: true
+      sanctions-screening-enabled: true
+      transaction-monitoring-enabled: true
+      risk-scoring-enabled: true
+      case-management-enabled: true
+      audit-trail-enabled: true
+      
+    # Compliance limits and thresholds
+    limits:
+      max-cases-per-analyst: 50
+      max-screening-requests-per-hour: 1000
+      max-report-generation-per-day: 10
+      case-resolution-timeout-hours: 72
+      
+    # Security thresholds requiring escalation
+    escalation-thresholds:
+      high-risk-score: 80
+      sanctions-match-confidence: 85
+      suspicious-activity-score: 75
+      pep-match-confidence: 90
+      
+    # Advanced compliance features
+    advanced-features:
+      real-time-transaction-monitoring: true
+      ml-based-risk-scoring: true
+      automated-case-routing: true
+      regulatory-reporting-automation: true
+      cross-jurisdictional-screening: true
+      behavioral-analytics: true
+      
+    # Flat configuration properties expected by Qodana
+    features-audit-trail-enabled: true
+    required-scopes-kyc-review: compliance:kyc:review
+    features-transaction-monitoring-enabled: true
+    escalation-thresholds-sanctions-match-confidence: 85
+    required-scopes-risk-assessment: compliance:risk:assess
+    required-roles-admin: COMPLIANCE_ADMIN,SYSTEM_ADMIN
+    required-roles-sanctions-screening: COMPLIANCE_OFFICER,SANCTIONS_OFFICER
+    advanced-features-real-time-transaction-monitoring: true
+    limits-max-report-generation-per-day: 10
+    required-scopes-sanctions-screening: compliance:sanctions:screen
+    required-scopes-management: compliance:manage

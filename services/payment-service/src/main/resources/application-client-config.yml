@@ -1,0 +1,315 @@
+# Feign Client Configuration for Production-Grade Financial Services
+# This configuration provides optimized settings for wallet and compliance service clients
+
+# ==================== Feign Client Configuration ====================
+feign:
+  client:
+    config:
+      # Default configuration for all clients
+      default:
+        connectTimeout: 5000
+        readTimeout: 10000
+        loggerLevel: basic
+        requestInterceptors:
+          - com.waqiti.payment.client.config.DefaultRequestInterceptor
+        errorDecoder: com.waqiti.payment.client.config.DefaultErrorDecoder
+        
+      # Wallet Service Client Configuration
+      wallet-service:
+        connectTimeout: 5000      # Fast connection for user-facing operations
+        readTimeout: 15000        # Allow time for balance calculations
+        loggerLevel: basic
+        requestInterceptors:
+          - com.waqiti.payment.client.config.WalletServiceClientConfig.WalletRequestInterceptor
+        errorDecoder: com.waqiti.payment.client.config.WalletServiceClientConfig.WalletErrorDecoder
+        
+      # Compliance Service Client Configuration  
+      compliance-service:
+        connectTimeout: 10000     # Longer connection time for complex compliance checks
+        readTimeout: 30000        # Extended timeout for AML/KYC processing
+        loggerLevel: headers      # More detailed logging for compliance auditing
+        requestInterceptors:
+          - com.waqiti.payment.client.config.ComplianceServiceClientConfig.ComplianceRequestInterceptor
+        errorDecoder: com.waqiti.payment.client.config.ComplianceServiceClientConfig.ComplianceErrorDecoder
+
+  # Circuit breaker configuration
+  circuitbreaker:
+    enabled: true
+    failure-rate-threshold: 50
+    slow-call-rate-threshold: 50
+    slow-call-duration-threshold: 2000
+    wait-duration-in-open-state: 30000
+    sliding-window-size: 10
+    minimum-number-of-calls: 5
+
+  # Compression configuration
+  compression:
+    request:
+      enabled: true
+      mime-types: application/json,text/xml
+      min-request-size: 2048
+    response:
+      enabled: true
+
+# ==================== Waqiti Client Configuration ====================
+waqiti:
+  clients:
+    # Wallet Service Client Settings
+    wallet:
+      connect-timeout: 5000
+      read-timeout: 15000
+      follow-redirects: false
+      base-url: ${WALLET_SERVICE_URL:https://wallet-service:8443}
+      max-retry-attempts: 3
+      retry-delay-ms: 1000
+      circuit-breaker:
+        enabled: true
+        failure-threshold: 5
+        recovery-timeout-ms: 30000
+      rate-limit:
+        requests-per-second: 100
+        burst-capacity: 150
+      
+    # Compliance Service Client Settings
+    compliance:
+      connect-timeout: 10000
+      read-timeout: 30000
+      follow-redirects: false
+      base-url: ${COMPLIANCE_SERVICE_URL:https://compliance-service:8443}
+      max-retry-attempts: 2
+      retry-delay-ms: 2000
+      circuit-breaker:
+        enabled: true
+        failure-threshold: 3
+        recovery-timeout-ms: 60000
+      rate-limit:
+        requests-per-second: 50
+        burst-capacity: 75
+
+# ==================== Resilience4j Configuration ====================
+resilience4j:
+  # Circuit Breaker Configuration
+  circuitbreaker:
+    instances:
+      wallet-service:
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        slowCallRateThreshold: 50
+        slowCallDurationThreshold: 2000ms
+        waitDurationInOpenState: 30s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        registerHealthIndicator: true
+        recordExceptions:
+          - com.waqiti.payment.client.config.WalletServiceClientConfig.WalletServiceException
+          - com.waqiti.payment.client.config.WalletServiceClientConfig.WalletServiceUnavailableException
+        ignoreExceptions:
+          - com.waqiti.payment.client.config.WalletServiceClientConfig.WalletValidationException
+          - com.waqiti.payment.client.config.WalletServiceClientConfig.InsufficientFundsException
+          
+      compliance-service:
+        slidingWindowSize: 8
+        minimumNumberOfCalls: 3
+        failureRateThreshold: 60
+        slowCallRateThreshold: 60
+        slowCallDurationThreshold: 5000ms
+        waitDurationInOpenState: 60s
+        permittedNumberOfCallsInHalfOpenState: 2
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        registerHealthIndicator: true
+        recordExceptions:
+          - com.waqiti.payment.client.config.ComplianceServiceClientConfig.ComplianceServiceException
+          - com.waqiti.payment.client.config.ComplianceServiceClientConfig.ComplianceServiceUnavailableException
+
+  # Retry Configuration
+  retry:
+    instances:
+      wallet-balance:
+        maxAttempts: 3
+        waitDuration: 500ms
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - java.net.SocketTimeoutException
+          - java.net.ConnectException
+          - com.waqiti.payment.client.config.WalletServiceClientConfig.WalletServiceUnavailableException
+          
+      wallet-credit:
+        maxAttempts: 2
+        waitDuration: 1000ms
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - java.net.SocketTimeoutException
+          - java.net.ConnectException
+          
+      wallet-debit:
+        maxAttempts: 2
+        waitDuration: 1000ms
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - java.net.SocketTimeoutException
+          - java.net.ConnectException
+          
+      wallet-transfer:
+        maxAttempts: 1 # No retries for transfers to prevent duplication
+        waitDuration: 0ms
+        
+      compliance-aml:
+        maxAttempts: 2
+        waitDuration: 2000ms
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - java.net.SocketTimeoutException
+          - java.net.ConnectException
+          - com.waqiti.payment.client.config.ComplianceServiceClientConfig.ComplianceServiceUnavailableException
+          
+      compliance-kyc:
+        maxAttempts: 2
+        waitDuration: 2000ms
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - java.net.SocketTimeoutException
+          - java.net.ConnectException
+          
+      compliance-sanctions:
+        maxAttempts: 3
+        waitDuration: 1000ms
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - java.net.SocketTimeoutException
+          - java.net.ConnectException
+
+  # Rate Limiter Configuration
+  ratelimiter:
+    instances:
+      wallet-balance:
+        limitForPeriod: 200
+        limitRefreshPeriod: 1s
+        timeoutDuration: 100ms
+        
+      wallet-credit:
+        limitForPeriod: 100
+        limitRefreshPeriod: 1s
+        timeoutDuration: 500ms
+        
+      wallet-debit:
+        limitForPeriod: 100
+        limitRefreshPeriod: 1s
+        timeoutDuration: 500ms
+        
+      wallet-transfer:
+        limitForPeriod: 50
+        limitRefreshPeriod: 1s
+        timeoutDuration: 1000ms
+        
+      compliance-aml:
+        limitForPeriod: 50
+        limitRefreshPeriod: 1s
+        timeoutDuration: 2000ms
+        
+      compliance-kyc:
+        limitForPeriod: 30
+        limitRefreshPeriod: 1s
+        timeoutDuration: 3000ms
+        
+      compliance-sanctions:
+        limitForPeriod: 100
+        limitRefreshPeriod: 1s
+        timeoutDuration: 1000ms
+
+  # Bulkhead Configuration
+  bulkhead:
+    instances:
+      wallet-service:
+        maxConcurrentCalls: 25
+        maxWaitDuration: 0ms
+        
+      compliance-service:
+        maxConcurrentCalls: 15
+        maxWaitDuration: 1000ms
+
+# ==================== HTTP Client Configuration ====================
+spring:
+  cloud:
+    openfeign:
+      # Enable response compression
+      compression:
+        request:
+          enabled: true
+        response:
+          enabled: true
+      
+      # Client configuration
+      client:
+        config:
+          default:
+            # Default timeouts
+            connectTimeout: 5000
+            readTimeout: 10000
+            
+          wallet-service:
+            url: ${WALLET_SERVICE_URL:https://wallet-service:8443}
+            
+          compliance-service:
+            url: ${COMPLIANCE_SERVICE_URL:https://compliance-service:8443}
+
+# ==================== Monitoring and Metrics ====================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus,circuitbreakers,retries,ratelimiters
+  endpoint:
+    health:
+      show-details: when-authorized
+    metrics:
+      enabled: true
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  metrics:
+    tags:
+      service: payment-service
+      environment: ${ENVIRONMENT:dev}
+    distribution:
+      percentiles-histogram:
+        http.client.requests: true
+      percentiles:
+        http.client.requests: 0.5,0.9,0.95,0.99
+      sla:
+        http.client.requests: 100ms,200ms,500ms,1s,2s
+
+# ==================== Logging Configuration ====================
+logging:
+  level:
+    # Feign client logging
+    com.waqiti.payment.client: DEBUG
+    feign: DEBUG
+    
+    # HTTP client logging (for debugging)
+    org.apache.http: INFO
+    httpclient.wire: INFO
+    
+    # Resilience4j logging
+    io.github.resilience4j: INFO
+    
+  pattern:
+    # Include correlation ID in log pattern
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{X-Correlation-ID:-}] %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{X-Correlation-ID:-}] %logger{36} - %msg%n"
+
+# ==================== Security Configuration ====================
+security:
+  oauth2:
+    client:
+      # Service-to-service authentication
+      registration:
+        payment-service:
+          client-id: ${OAUTH2_CLIENT_ID:payment-service}
+          client-secret: ${OAUTH2_CLIENT_SECRET:}
+          authorization-grant-type: client_credentials
+          scope: wallet:read,wallet:write,compliance:read,compliance:write
+      provider:
+        keycloak:
+          token-uri: ${KEYCLOAK_SERVER_URL:https://keycloak:8443}/realms/waqiti/protocol/openid-connect/token

@@ -1,0 +1,329 @@
+{
+  "properties": [
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "OAuth2 client ID for service",
+      "defaultValue": "api-gateway"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "OAuth2 client secret for service"
+    },
+    {
+      "name": "features.auth.keycloak.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Keycloak authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "features.auth.keycloak.pilot-users",
+      "type": "java.lang.String",
+      "description": "Pilot users for Keycloak"
+    },
+    {
+      "name": "features.auth.keycloak.excluded-users",
+      "type": "java.lang.String",
+      "description": "Users excluded from Keycloak authentication"
+    },
+    {
+      "name": "features.auth.legacy.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable legacy authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "features.auth.dual-mode.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable dual authentication mode",
+      "defaultValue": true
+    },
+    {
+      "name": "features.auth.migration.percentage",
+      "type": "java.lang.Integer",
+      "description": "Percentage of users migrated",
+      "defaultValue": 0
+    },
+    {
+      "name": "features.auth.migration.strategy",
+      "type": "java.lang.String",
+      "description": "Migration strategy",
+      "defaultValue": "PERCENTAGE"
+    },
+    {
+      "name": "features.auth.fallback.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable authentication fallback",
+      "defaultValue": true
+    },
+    {
+      "name": "features.auth.monitoring.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable authentication monitoring",
+      "defaultValue": true
+    },
+    {
+      "name": "gateway.auth.circuit-breaker.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable circuit breaker for authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "gateway.auth.circuit-breaker.failure-threshold",
+      "type": "java.lang.Integer",
+      "description": "Circuit breaker failure threshold",
+      "defaultValue": 50
+    },
+    {
+      "name": "gateway.auth.circuit-breaker.wait-duration",
+      "type": "java.lang.Integer",
+      "description": "Circuit breaker wait duration in seconds",
+      "defaultValue": 60
+    },
+    {
+      "name": "gateway.auth.cache.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable authentication cache",
+      "defaultValue": true
+    },
+    {
+      "name": "gateway.auth.cache.ttl",
+      "type": "java.lang.Integer",
+      "description": "Cache TTL in seconds",
+      "defaultValue": 300
+    },
+    {
+      "name": "gateway.auth.keycloak.cache.ttl",
+      "type": "java.lang.Integer",
+      "description": "Keycloak cache TTL in seconds",
+      "defaultValue": 300
+    },
+    {
+      "name": "gateway.auth.keycloak.retry.max-attempts",
+      "type": "java.lang.Integer",
+      "description": "Maximum retry attempts for Keycloak",
+      "defaultValue": 3
+    },
+    {
+      "name": "gateway.auth.keycloak.retry.wait-duration",
+      "type": "java.lang.Integer",
+      "description": "Retry wait duration in milliseconds",
+      "defaultValue": 1000
+    },
+    {
+      "name": "rate-limiter.default.limit",
+      "type": "java.lang.Integer",
+      "description": "Default rate limit",
+      "defaultValue": 10
+    },
+    {
+      "name": "rate-limiter.default.refresh-period",
+      "type": "java.lang.String",
+      "description": "Default refresh period",
+      "defaultValue": "1s"
+    },
+    {
+      "name": "rate-limiter.ip.limit",
+      "type": "java.lang.Integer",
+      "description": "IP-based rate limit",
+      "defaultValue": 20
+    },
+    {
+      "name": "rate-limiter.ip.refresh-period",
+      "type": "java.lang.String",
+      "description": "IP-based refresh period",
+      "defaultValue": "1s"
+    },
+    {
+      "name": "rate-limiter.user.limit",
+      "type": "java.lang.Integer",
+      "description": "User-based rate limit",
+      "defaultValue": 50
+    },
+    {
+      "name": "rate-limiter.user.refresh-period",
+      "type": "java.lang.String",
+      "description": "User-based refresh period",
+      "defaultValue": "1s"
+    },
+    {
+      "name": "rate-limiter.api-key.limit",
+      "type": "java.lang.Integer",
+      "description": "API key rate limit",
+      "defaultValue": 100
+    },
+    {
+      "name": "rate-limiter.api-key.refresh-period",
+      "type": "java.lang.String",
+      "description": "API key refresh period",
+      "defaultValue": "1s"
+    },
+    {
+      "name": "ddos.protection.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable DDoS protection",
+      "defaultValue": true
+    },
+    {
+      "name": "ddos.protection.requests-per-second",
+      "type": "java.lang.Integer",
+      "description": "Requests per second limit",
+      "defaultValue": 100
+    },
+    {
+      "name": "ddos.protection.burst-capacity",
+      "type": "java.lang.Integer",
+      "description": "Burst capacity",
+      "defaultValue": 200
+    },
+    {
+      "name": "ddos.protection.block-duration-minutes",
+      "type": "java.lang.Integer",
+      "description": "Block duration in minutes",
+      "defaultValue": 15
+    },
+    {
+      "name": "ddos.protection.whitelist",
+      "type": "java.util.List",
+      "description": "Whitelisted IP ranges"
+    },
+    {
+      "name": "waf.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Web Application Firewall",
+      "defaultValue": true
+    },
+    {
+      "name": "waf.rules.sql-injection",
+      "type": "java.lang.Boolean",
+      "description": "Enable SQL injection protection",
+      "defaultValue": true
+    },
+    {
+      "name": "waf.rules.xss",
+      "type": "java.lang.Boolean",
+      "description": "Enable XSS protection",
+      "defaultValue": true
+    },
+    {
+      "name": "waf.rules.path-traversal",
+      "type": "java.lang.Boolean",
+      "description": "Enable path traversal protection",
+      "defaultValue": true
+    },
+    {
+      "name": "waf.rules.command-injection",
+      "type": "java.lang.Boolean",
+      "description": "Enable command injection protection",
+      "defaultValue": true
+    },
+    {
+      "name": "waf.rules.ldap-injection",
+      "type": "java.lang.Boolean",
+      "description": "Enable LDAP injection protection",
+      "defaultValue": true
+    },
+    {
+      "name": "waf.custom-rules",
+      "type": "java.util.List",
+      "description": "Custom WAF rules"
+    },
+    {
+      "name": "services.user-service.url",
+      "type": "java.lang.String",
+      "description": "User service URL",
+      "defaultValue": "lb://user-service"
+    },
+    {
+      "name": "services.wallet-service.url",
+      "type": "java.lang.String",
+      "description": "Wallet service URL",
+      "defaultValue": "lb://wallet-service"
+    },
+    {
+      "name": "services.payment-service.url",
+      "type": "java.lang.String",
+      "description": "Payment service URL",
+      "defaultValue": "lb://payment-service"
+    },
+    {
+      "name": "services.notification-service.url",
+      "type": "java.lang.String",
+      "description": "Notification service URL",
+      "defaultValue": "lb://notification-service"
+    },
+    {
+      "name": "services.integration-service.url",
+      "type": "java.lang.String",
+      "description": "Integration service URL",
+      "defaultValue": "lb://integration-service"
+    },
+    {
+      "name": "services.business-service.url",
+      "type": "java.lang.String",
+      "description": "Business service URL",
+      "defaultValue": "lb://business-service"
+    },
+    {
+      "name": "services.voice-payment-service.url",
+      "type": "java.lang.String",
+      "description": "Voice payment service URL",
+      "defaultValue": "lb://voice-payment-service"
+    },
+    {
+      "name": "services.rewards-service.url",
+      "type": "java.lang.String",
+      "description": "Rewards service URL",
+      "defaultValue": "lb://rewards-service"
+    },
+    {
+      "name": "services.crypto-service.url",
+      "type": "java.lang.String",
+      "description": "Crypto service URL",
+      "defaultValue": "lb://crypto-service"
+    },
+    {
+      "name": "services.analytics-service.url",
+      "type": "java.lang.String",
+      "description": "Analytics service URL",
+      "defaultValue": "lb://analytics-service"
+    },
+    {
+      "name": "services.transaction-service.url",
+      "type": "java.lang.String",
+      "description": "Transaction service URL",
+      "defaultValue": "lb://transaction-service"
+    },
+    {
+      "name": "services.kyc-service.url",
+      "type": "java.lang.String",
+      "description": "KYC service URL",
+      "defaultValue": "lb://kyc-service"
+    },
+    {
+      "name": "services.compliance-service.url",
+      "type": "java.lang.String",
+      "description": "Compliance service URL",
+      "defaultValue": "lb://compliance-service"
+    },
+    {
+      "name": "services.currency-service.url",
+      "type": "java.lang.String",
+      "description": "Currency service URL",
+      "defaultValue": "lb://currency-service"
+    },
+    {
+      "name": "services.expense-service.url",
+      "type": "java.lang.String",
+      "description": "Expense service URL",
+      "defaultValue": "lb://expense-service"
+    }
+  ]
+}

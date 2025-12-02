@@ -1,0 +1,308 @@
+# Production-Grade Vault Integration Configuration
+# This configuration ensures all services use Vault for secret management
+# with proper fallbacks and security controls
+
+spring:
+  config:
+    import: "vault://secret/data/waqiti/${spring.application.name}/${spring.profiles.active}"
+  
+  vault:
+    enabled: true
+    host: ${VAULT_HOST:localhost}
+    port: ${VAULT_PORT:8200}
+    scheme: ${VAULT_SCHEME:https}
+    connection-timeout: 5000
+    read-timeout: 15000
+    
+    # Authentication configuration
+    authentication: ${VAULT_AUTH_METHOD:TOKEN}
+    token: ${VAULT_TOKEN:}
+    
+    # AppRole authentication (alternative to token)
+    app-role:
+      enabled: ${VAULT_APPROLE_ENABLED:false}
+      role-id: ${VAULT_ROLE_ID:}
+      secret-id: ${VAULT_SECRET_ID:}
+      app-role-path: auth/approle
+    
+    # Kubernetes authentication (for K8s deployments)
+    kubernetes:
+      enabled: ${VAULT_K8S_AUTH_ENABLED:false}
+      role: ${VAULT_K8S_ROLE:}
+      kubernetes-path: auth/kubernetes
+      service-account-token-file: /var/run/secrets/kubernetes.io/serviceaccount/token
+    
+    # Database secret engine
+    database:
+      enabled: true
+      role: ${VAULT_DB_ROLE:waqiti-${spring.application.name}}
+      backend: database
+      username-property: spring.datasource.username
+      password-property: spring.datasource.password
+    
+    # KV secret engine
+    kv:
+      enabled: true
+      backend: secret
+      profile-separator: /
+      default-context: application
+      application-name: waqiti
+      profiles: ${spring.profiles.active:default}
+    
+    # PKI integration for certificates
+    pki:
+      enabled: ${VAULT_PKI_ENABLED:false}
+      backend: pki
+      role: ${VAULT_PKI_ROLE:waqiti-tls}
+      common-name: ${spring.application.name}.example.com
+      alt-names: localhost,127.0.0.1
+    
+    # Transit encryption engine
+    transit:
+      enabled: ${VAULT_TRANSIT_ENABLED:true}
+      backend: transit
+      key-name: waqiti-encryption-key
+    
+    # Lease configuration
+    lease:
+      min-renewal: 10s
+      renewal: 60s
+    
+    # SSL configuration
+    ssl:
+      cert-auth-enabled: ${VAULT_CERT_AUTH:false}
+      key-store: ${VAULT_KEYSTORE_PATH:}
+      key-store-password: ${VAULT_KEYSTORE_PASSWORD:}
+      trust-store: ${VAULT_TRUSTSTORE_PATH:}
+      trust-store-password: ${VAULT_TRUSTSTORE_PASSWORD:}
+    
+    # Fail fast if Vault is unavailable
+    fail-fast: true
+  
+  # Cache configuration for Vault secrets
+  cache:
+    cache-names: vault-secrets,vault-certificates,vault-database-credentials
+    caffeine:
+      spec: maximumSize=1000,expireAfterWrite=5m
+
+# Vault secret management configuration
+vault:
+  secrets:
+    base-path: secret/data
+    cache:
+      enabled: true
+      ttl: PT5M  # 5 minutes
+    rotation:
+      enabled: true
+      interval: P90D  # 90 days
+      check-interval: PT1H  # Check every hour
+    
+    # Audit configuration
+    audit:
+      enabled: true
+      log-path: ${VAULT_AUDIT_LOG_PATH:/var/log/vault-audit.log}
+    
+    # Emergency fallback
+    fallback:
+      enabled: ${VAULT_FALLBACK_ENABLED:false}
+      encrypted-file: ${VAULT_FALLBACK_FILE:/etc/waqiti/emergency-secrets.enc}
+
+# Service-specific secret mappings
+waqiti:
+  secrets:
+    # Database secrets
+    database:
+      password: ${vault:secret/data/waqiti/${spring.application.name}/${spring.profiles.active}/database#password}
+      username: ${vault:secret/data/waqiti/${spring.application.name}/${spring.profiles.active}/database#username}
+      url: ${vault:secret/data/waqiti/${spring.application.name}/${spring.profiles.active}/database#url}
+    
+    # Redis secrets
+    redis:
+      password: ${vault:secret/data/waqiti/common/${spring.profiles.active}/redis#password}
+    
+    # JWT secrets
+    jwt:
+      secret: ${vault:secret/data/waqiti/common/${spring.profiles.active}/jwt#secret}
+      refresh-secret: ${vault:secret/data/waqiti/common/${spring.profiles.active}/jwt#refresh-secret}
+    
+    # Encryption keys
+    encryption:
+      master-key: ${vault:secret/data/waqiti/common/${spring.profiles.active}/encryption#master-key}
+      data-key: ${vault:secret/data/waqiti/common/${spring.profiles.active}/encryption#data-key}
+    
+    # Keycloak secrets
+    keycloak:
+      client-secret: ${vault:secret/data/waqiti/${spring.application.name}/${spring.profiles.active}/keycloak#client-secret}
+      admin-password: ${vault:secret/data/waqiti/common/${spring.profiles.active}/keycloak#admin-password}
+    
+    # Payment provider API keys
+    stripe:
+      api-key: ${vault:secret/data/waqiti/common/${spring.profiles.active}/stripe#api-key}
+      webhook-secret: ${vault:secret/data/waqiti/common/${spring.profiles.active}/stripe#webhook-secret}
+    
+    paypal:
+      client-secret: ${vault:secret/data/waqiti/common/${spring.profiles.active}/paypal#client-secret}
+      webhook-id: ${vault:secret/data/waqiti/common/${spring.profiles.active}/paypal#webhook-id}
+    
+    # KYC provider secrets
+    jumio:
+      api-token: ${vault:secret/data/waqiti/common/${spring.profiles.active}/jumio#api-token}
+      api-secret: ${vault:secret/data/waqiti/common/${spring.profiles.active}/jumio#api-secret}
+    
+    onfido:
+      api-token: ${vault:secret/data/waqiti/common/${spring.profiles.active}/onfido#api-token}
+    
+    # Notification service credentials
+    twilio:
+      auth-token: ${vault:secret/data/waqiti/common/${spring.profiles.active}/twilio#auth-token}
+      account-sid: ${vault:secret/data/waqiti/common/${spring.profiles.active}/twilio#account-sid}
+    
+    sendgrid:
+      api-key: ${vault:secret/data/waqiti/common/${spring.profiles.active}/sendgrid#api-key}
+    
+    # Blockchain credentials
+    bitcoin:
+      rpc-password: ${vault:secret/data/waqiti/crypto/${spring.profiles.active}/bitcoin#rpc-password}
+      rpc-username: ${vault:secret/data/waqiti/crypto/${spring.profiles.active}/bitcoin#rpc-username}
+    
+    ethereum:
+      api-key: ${vault:secret/data/waqiti/crypto/${spring.profiles.active}/ethereum#api-key}
+      private-key: ${vault:secret/data/waqiti/crypto/${spring.profiles.active}/ethereum#private-key}
+    
+    # Cloud provider credentials
+    aws:
+      access-key: ${vault:secret/data/waqiti/common/${spring.profiles.active}/aws#access-key}
+      secret-key: ${vault:secret/data/waqiti/common/${spring.profiles.active}/aws#secret-key}
+    
+    azure:
+      client-secret: ${vault:secret/data/waqiti/common/${spring.profiles.active}/azure#client-secret}
+    
+    gcp:
+      service-account: ${vault:secret/data/waqiti/common/${spring.profiles.active}/gcp#service-account}
+    
+    # Monitoring credentials
+    datadog:
+      api-key: ${vault:secret/data/waqiti/common/${spring.profiles.active}/datadog#api-key}
+      app-key: ${vault:secret/data/waqiti/common/${spring.profiles.active}/datadog#app-key}
+    
+    sentry:
+      dsn: ${vault:secret/data/waqiti/common/${spring.profiles.active}/sentry#dsn}
+    
+    # SSL/TLS certificates
+    ssl:
+      keystore-password: ${vault:secret/data/waqiti/common/${spring.profiles.active}/ssl#keystore-password}
+      key-password: ${vault:secret/data/waqiti/common/${spring.profiles.active}/ssl#key-password}
+      truststore-password: ${vault:secret/data/waqiti/common/${spring.profiles.active}/ssl#truststore-password}
+
+# Management endpoint security
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,vault
+    vault:
+      cache:
+        time-to-live: 300s
+
+# Logging configuration for Vault operations
+logging:
+  level:
+    org.springframework.vault: ${VAULT_LOG_LEVEL:INFO}
+    com.example.common.vault: DEBUG
+    root: INFO
+  
+  pattern:
+    console: "%d{ISO8601} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{ISO8601} [%thread] %-5level %logger{36} - %msg%n"
+  
+  file:
+    name: /var/log/waqiti/vault-secrets.log
+    max-size: 100MB
+    max-history: 30
+
+---
+# Production profile specific configuration
+spring:
+  config:
+    activate:
+      on-profile: production
+  
+  vault:
+    # Production should always use HTTPS
+    scheme: https
+    port: 443
+    
+    # Enhanced security for production
+    ssl:
+      cert-auth-enabled: true
+    
+    # Stricter lease management
+    lease:
+      min-renewal: 30s
+      renewal: 300s
+    
+    # Fail immediately if Vault unavailable in production
+    fail-fast: true
+
+vault:
+  secrets:
+    # Shorter cache TTL in production for security
+    cache:
+      ttl: PT2M  # 2 minutes
+    
+    # More frequent rotation checks in production
+    rotation:
+      check-interval: PT30M  # Every 30 minutes
+    
+    # Enhanced audit logging in production
+    audit:
+      enabled: true
+      detailed: true
+      sensitive-data-masking: true
+
+---
+# Development profile configuration
+spring:
+  config:
+    activate:
+      on-profile: development,dev,local
+  
+  vault:
+    # Can use HTTP in development
+    scheme: ${VAULT_SCHEME:http}
+    
+    # More lenient in development
+    fail-fast: false
+
+vault:
+  secrets:
+    # Longer cache for development convenience
+    cache:
+      ttl: PT10M  # 10 minutes
+    
+    # Less frequent rotation in development
+    rotation:
+      check-interval: PT4H  # Every 4 hours
+    
+    # Fallback allowed in development
+    fallback:
+      enabled: true
+
+---
+# Testing profile configuration
+spring:
+  config:
+    activate:
+      on-profile: test,testing
+  
+  vault:
+    # Vault disabled for testing
+    enabled: false
+
+vault:
+  secrets:
+    # Use test values, not real Vault
+    cache:
+      enabled: false
+    rotation:
+      enabled: false

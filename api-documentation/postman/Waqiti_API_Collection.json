@@ -1,0 +1,822 @@
+{
+  "info": {
+    "name": "Waqiti API Collection",
+    "description": "Complete collection of Waqiti API endpoints for P2P payments, wallet management, and financial services.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://api.example.com/v1",
+      "type": "string"
+    },
+    {
+      "key": "sandbox_url",
+      "value": "https://sandbox-api.example.com/v1",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "api_key",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"your_password\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Authenticate user and receive access token"
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/refresh",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "refresh"]
+            }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "logout"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payments",
+      "item": [
+        {
+          "name": "Create P2P Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"p2p\",\n  \"amount\": 5000,\n  \"currency\": \"USD\",\n  \"recipient\": {\n    \"type\": \"email\",\n    \"value\": \"friend@example.com\"\n  },\n  \"description\": \"Lunch money\",\n  \"metadata\": {\n    \"category\": \"food\",\n    \"notes\": \"Thanks for covering lunch!\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/payments",
+              "host": ["{{base_url}}"],
+              "path": ["payments"]
+            },
+            "description": "Create a new P2P payment"
+          }
+        },
+        {
+          "name": "Create Merchant Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"merchant\",\n  \"amount\": 2500,\n  \"currency\": \"USD\",\n  \"recipient\": {\n    \"type\": \"merchant_id\",\n    \"value\": \"mer_1234567890\"\n  },\n  \"paymentMethodId\": \"pm_card_123\",\n  \"savePaymentMethod\": true,\n  \"description\": \"Coffee purchase\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/payments",
+              "host": ["{{base_url}}"],
+              "path": ["payments"]
+            }
+          }
+        },
+        {
+          "name": "List Payments",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/payments?status=completed&from_date=2024-01-01T00:00:00Z&per_page=20",
+              "host": ["{{base_url}}"],
+              "path": ["payments"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "completed"
+                },
+                {
+                  "key": "from_date",
+                  "value": "2024-01-01T00:00:00Z"
+                },
+                {
+                  "key": "per_page",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Payment Details",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/payments/pay_1234567890abcdef",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "pay_1234567890abcdef"]
+            }
+          }
+        },
+        {
+          "name": "Cancel Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"cancel\",\n  \"reason\": \"Changed my mind\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/payments/pay_1234567890abcdef",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "pay_1234567890abcdef"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Money Requests",
+      "item": [
+        {
+          "name": "Create Money Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 10000,\n  \"currency\": \"USD\",\n  \"recipients\": [\n    {\n      \"type\": \"email\",\n      \"value\": \"friend1@example.com\"\n    },\n    {\n      \"type\": \"email\",\n      \"value\": \"friend2@example.com\"\n    }\n  ],\n  \"description\": \"Split dinner bill\",\n  \"expiresAt\": \"2024-02-01T00:00:00Z\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/payments/request",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "request"]
+            }
+          }
+        },
+        {
+          "name": "Accept Money Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"accept\",\n  \"paymentMethodId\": \"pm_card_123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/payments/request/req_1234567890/respond",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "request", "req_1234567890", "respond"]
+            }
+          }
+        },
+        {
+          "name": "Decline Money Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"decline\",\n  \"reason\": \"Already paid in cash\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/payments/request/req_1234567890/respond",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "request", "req_1234567890", "respond"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payment Methods",
+      "item": [
+        {
+          "name": "Add Card",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"card\",\n  \"token\": \"tok_visa_4242\",\n  \"billingAddress\": {\n    \"line1\": \"100 Test Street\",\n    \"city\": \"Test City\",\n    \"state\": \"TS\",\n    \"postalCode\": \"00000\",\n    \"country\": \"US\"\n  },\n  \"setAsDefault\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/payment-methods",
+              "host": ["{{base_url}}"],
+              "path": ["payment-methods"]
+            }
+          }
+        },
+        {
+          "name": "Add Bank Account",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"bank_account\",\n  \"accountNumber\": \"000123456789\",\n  \"routingNumber\": \"110000000\",\n  \"accountType\": \"checking\",\n  \"accountHolderName\": \"Test User\",\n  \"setAsDefault\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/payment-methods",
+              "host": ["{{base_url}}"],
+              "path": ["payment-methods"]
+            }
+          }
+        },
+        {
+          "name": "List Payment Methods",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/payment-methods?type=card&status=active",
+              "host": ["{{base_url}}"],
+              "path": ["payment-methods"],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "card"
+                },
+                {
+                  "key": "status",
+                  "value": "active"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Payment Method",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"billingAddress\": {\n    \"line1\": \"456 New Street\",\n    \"city\": \"San Francisco\",\n    \"state\": \"CA\",\n    \"postalCode\": \"94105\",\n    \"country\": \"US\"\n  },\n  \"setAsDefault\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/payment-methods/pm_card_123",
+              "host": ["{{base_url}}"],
+              "path": ["payment-methods", "pm_card_123"]
+            }
+          }
+        },
+        {
+          "name": "Remove Payment Method",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/payment-methods/pm_card_123",
+              "host": ["{{base_url}}"],
+              "path": ["payment-methods", "pm_card_123"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Wallet",
+      "item": [
+        {
+          "name": "Get Wallet Balance",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/wallet/balance",
+              "host": ["{{base_url}}"],
+              "path": ["wallet", "balance"]
+            }
+          }
+        },
+        {
+          "name": "Get Wallet Transactions",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/wallet/transactions?type=credit&from_date=2024-01-01",
+              "host": ["{{base_url}}"],
+              "path": ["wallet", "transactions"],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "credit"
+                },
+                {
+                  "key": "from_date",
+                  "value": "2024-01-01"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Add Funds to Wallet",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 10000,\n  \"currency\": \"USD\",\n  \"paymentMethodId\": \"pm_card_123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/wallet/add-funds",
+              "host": ["{{base_url}}"],
+              "path": ["wallet", "add-funds"]
+            }
+          }
+        },
+        {
+          "name": "Withdraw from Wallet",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 5000,\n  \"currency\": \"USD\",\n  \"destinationId\": \"pm_bank_456\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/wallet/withdraw",
+              "host": ["{{base_url}}"],
+              "path": ["wallet", "withdraw"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Get User Profile",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/users/me",
+              "host": ["{{base_url}}"],
+              "path": ["users", "me"]
+            }
+          }
+        },
+        {
+          "name": "Update User Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"displayName\": \"Test User\",\n  \"phone\": \"+10000000000\",\n  \"profileImage\": \"https://example.com/avatar.jpg\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/users/me",
+              "host": ["{{base_url}}"],
+              "path": ["users", "me"]
+            }
+          }
+        },
+        {
+          "name": "Search Users",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/users/search?query=john&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["users", "search"],
+              "query": [
+                {
+                  "key": "query",
+                  "value": "john"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Refunds",
+      "item": [
+        {
+          "name": "Create Refund",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paymentId\": \"pay_1234567890\",\n  \"amount\": 2500,\n  \"reason\": \"customer_request\",\n  \"notes\": \"Customer was not satisfied with the service\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/refunds",
+              "host": ["{{base_url}}"],
+              "path": ["refunds"]
+            }
+          }
+        },
+        {
+          "name": "Get Refund Status",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/refunds/ref_1234567890",
+              "host": ["{{base_url}}"],
+              "path": ["refunds", "ref_1234567890"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Webhooks",
+      "item": [
+        {
+          "name": "Create Webhook",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"url\": \"https://myapp.com/webhooks/waqiti\",\n  \"events\": [\n    \"payment.created\",\n    \"payment.completed\",\n    \"payment.failed\"\n  ],\n  \"description\": \"Production webhook endpoint\",\n  \"metadata\": {\n    \"environment\": \"production\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/webhooks",
+              "host": ["{{base_url}}"],
+              "path": ["webhooks"]
+            }
+          }
+        },
+        {
+          "name": "List Webhooks",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/webhooks",
+              "host": ["{{base_url}}"],
+              "path": ["webhooks"]
+            }
+          }
+        },
+        {
+          "name": "Test Webhook",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event\": \"payment.completed\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/webhooks/wh_1234567890/test",
+              "host": ["{{base_url}}"],
+              "path": ["webhooks", "wh_1234567890", "test"]
+            }
+          }
+        },
+        {
+          "name": "Delete Webhook",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/webhooks/wh_1234567890",
+              "host": ["{{base_url}}"],
+              "path": ["webhooks", "wh_1234567890"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "International Transfers",
+      "item": [
+        {
+          "name": "Get Exchange Rate",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/international/exchange-rate?from=USD&to=EUR&amount=1000",
+              "host": ["{{base_url}}"],
+              "path": ["international", "exchange-rate"],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "USD"
+                },
+                {
+                  "key": "to",
+                  "value": "EUR"
+                },
+                {
+                  "key": "amount",
+                  "value": "1000"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create International Transfer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 100000,\n  \"sourceCurrency\": \"USD\",\n  \"targetCurrency\": \"EUR\",\n  \"recipient\": {\n    \"name\": \"Jane Smith\",\n    \"accountNumber\": \"DE89370400440532013000\",\n    \"bankCode\": \"DEUTDEFF\",\n    \"country\": \"DE\",\n    \"address\": {\n      \"line1\": \"123 Berlin St\",\n      \"city\": \"Berlin\",\n      \"postalCode\": \"10115\",\n      \"country\": \"DE\"\n    }\n  },\n  \"purpose\": \"family_support\",\n  \"description\": \"Monthly support\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/international/transfers",
+              "host": ["{{base_url}}"],
+              "path": ["international", "transfers"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recurring Payments",
+      "item": [
+        {
+          "name": "Create Recurring Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 5000,\n  \"currency\": \"USD\",\n  \"recipient\": {\n    \"type\": \"user_id\",\n    \"value\": \"usr_987654321\"\n  },\n  \"interval\": \"monthly\",\n  \"startDate\": \"2024-02-01\",\n  \"endDate\": \"2024-12-31\",\n  \"description\": \"Monthly rent payment\",\n  \"paymentMethodId\": \"pm_card_123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/recurring-payments",
+              "host": ["{{base_url}}"],
+              "path": ["recurring-payments"]
+            }
+          }
+        },
+        {
+          "name": "List Recurring Payments",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/recurring-payments?status=active",
+              "host": ["{{base_url}}"],
+              "path": ["recurring-payments"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "active"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Cancel Recurring Payment",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/recurring-payments/rp_1234567890",
+              "host": ["{{base_url}}"],
+              "path": ["recurring-payments", "rp_1234567890"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Analytics",
+      "item": [
+        {
+          "name": "Get Spending Analytics",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/analytics/spending?period=monthly&year=2024",
+              "host": ["{{base_url}}"],
+              "path": ["analytics", "spending"],
+              "query": [
+                {
+                  "key": "period",
+                  "value": "monthly"
+                },
+                {
+                  "key": "year",
+                  "value": "2024"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Transaction Summary",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/analytics/transactions/summary?from_date=2024-01-01&to_date=2024-01-31",
+              "host": ["{{base_url}}"],
+              "path": ["analytics", "transactions", "summary"],
+              "query": [
+                {
+                  "key": "from_date",
+                  "value": "2024-01-01"
+                },
+                {
+                  "key": "to_date",
+                  "value": "2024-01-31"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Set dynamic variables",
+          "pm.variables.set('timestamp', new Date().toISOString());",
+          "pm.variables.set('random_id', Math.random().toString(36).substring(7));",
+          "",
+          "// Add request ID header",
+          "pm.request.headers.add({",
+          "    key: 'X-Request-ID',",
+          "    value: pm.variables.get('random_id')",
+          "});"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Check for successful response",
+          "if (pm.response.code >= 200 && pm.response.code < 300) {",
+          "    pm.test('Status code is successful', function() {",
+          "        pm.response.to.have.status(pm.response.code);",
+          "    });",
+          "}",
+          "",
+          "// Check response time",
+          "pm.test('Response time is less than 1000ms', function() {",
+          "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+          "});",
+          "",
+          "// Validate JSON response",
+          "pm.test('Response is valid JSON', function() {",
+          "    pm.response.to.be.json;",
+          "});",
+          "",
+          "// Store access token if present",
+          "if (pm.response.json().access_token) {",
+          "    pm.environment.set('access_token', pm.response.json().access_token);",
+          "}",
+          "",
+          "// Store payment ID for subsequent requests",
+          "if (pm.response.json().id && pm.response.json().id.startsWith('pay_')) {",
+          "    pm.environment.set('last_payment_id', pm.response.json().id);",
+          "}"
+        ]
+      }
+    }
+  ]
+}

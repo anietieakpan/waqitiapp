@@ -1,0 +1,432 @@
+{
+  "dashboards": [
+    {
+      "name": "Waqiti - Alerting System",
+      "uid": "waqiti-alerting",
+      "panels": [
+        {
+          "title": "Alert Delivery Time",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, rate(alert_delivery_seconds_bucket[5m]))",
+              "legendFormat": "p95"
+            },
+            {
+              "expr": "histogram_quantile(0.99, rate(alert_delivery_seconds_bucket[5m]))",
+              "legendFormat": "p99"
+            }
+          ],
+          "alert": {
+            "conditions": [
+              {
+                "evaluator": {
+                  "params": [5],
+                  "type": "gt"
+                },
+                "query": {
+                  "model": "A",
+                  "params": ["5m", "now"]
+                }
+              }
+            ],
+            "executionErrorState": "alerting",
+            "frequency": "1m",
+            "name": "High Alert Delivery Latency"
+          }
+        },
+        {
+          "title": "PagerDuty Incidents Created",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "increase(pagerduty_incidents_created_total[1h])",
+              "legendFormat": "Last Hour"
+            }
+          ]
+        },
+        {
+          "title": "Slack Messages Sent",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "sum(increase(slack_messages_sent_total[1h])) by (channel)",
+              "legendFormat": "{{channel}}"
+            }
+          ]
+        },
+        {
+          "title": "Circuit Breaker State",
+          "type": "table",
+          "targets": [
+            {
+              "expr": "resilience4j_circuitbreaker_state",
+              "legendFormat": "{{name}} - {{state}}"
+            }
+          ]
+        },
+        {
+          "title": "Alert Delivery Success Rate",
+          "type": "gauge",
+          "targets": [
+            {
+              "expr": "rate(alert_delivery_success_total[5m]) / rate(alert_delivery_attempts_total[5m]) * 100",
+              "legendFormat": "Success %"
+            }
+          ],
+          "thresholds": [
+            {"value": 95, "color": "red"},
+            {"value": 99, "color": "yellow"},
+            {"value": 99.9, "color": "green"}
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Waqiti - Compliance & Legal",
+      "uid": "waqiti-compliance",
+      "panels": [
+        {
+          "title": "Notification Delivery Success Rate",
+          "type": "gauge",
+          "targets": [
+            {
+              "expr": "rate(compliance_notification_success_total[5m]) / rate(compliance_notification_attempts_total[5m]) * 100"
+            }
+          ],
+          "thresholds": [
+            {"value": 99, "color": "red"},
+            {"value": 99.5, "color": "yellow"},
+            {"value": 99.9, "color": "green"}
+          ]
+        },
+        {
+          "title": "Encryption Audit Completeness",
+          "type": "gauge",
+          "targets": [
+            {
+              "expr": "rate(encryption_audit_records_total[5m]) / rate(encryption_operations_total[5m]) * 100"
+            }
+          ],
+          "thresholds": [
+            {"value": 99.9, "color": "red"},
+            {"value": 99.99, "color": "yellow"},
+            {"value": 100, "color": "green"}
+          ]
+        },
+        {
+          "title": "PDF Generation Success Rate",
+          "type": "gauge",
+          "targets": [
+            {
+              "expr": "rate(legal_pdf_generation_success_total[5m]) / rate(legal_pdf_generation_attempts_total[5m]) * 100"
+            }
+          ],
+          "thresholds": [
+            {"value": 95, "color": "red"},
+            {"value": 99, "color": "yellow"},
+            {"value": 99.5, "color": "green"}
+          ]
+        },
+        {
+          "title": "PDF Generation Time",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, rate(legal_pdf_generation_duration_seconds_bucket[5m]))",
+              "legendFormat": "p95"
+            }
+          ]
+        },
+        {
+          "title": "Legal Order Assignment Distribution",
+          "type": "piechart",
+          "targets": [
+            {
+              "expr": "sum(increase(legal_order_assignments_total[1h])) by (attorney_id)"
+            }
+          ]
+        },
+        {
+          "title": "Attorney Workload Status",
+          "type": "table",
+          "targets": [
+            {
+              "expr": "legal_attorney_active_workload / legal_attorney_max_capacity * 100",
+              "legendFormat": "{{attorney_name}}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Waqiti - Payment SAGA",
+      "uid": "waqiti-saga",
+      "panels": [
+        {
+          "title": "SAGA Success Rate",
+          "type": "gauge",
+          "targets": [
+            {
+              "expr": "rate(saga_completed_total[5m]) / rate(saga_started_total[5m]) * 100"
+            }
+          ],
+          "thresholds": [
+            {"value": 95, "color": "red"},
+            {"value": 99, "color": "yellow"},
+            {"value": 99.9, "color": "green"}
+          ]
+        },
+        {
+          "title": "SAGA Compensation Rate",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "rate(saga_compensated_total[5m]) / rate(saga_started_total[5m]) * 100"
+            }
+          ],
+          "alert": {
+            "conditions": [
+              {
+                "evaluator": {
+                  "params": [1],
+                  "type": "gt"
+                }
+              }
+            ],
+            "name": "High SAGA Compensation Rate"
+          }
+        },
+        {
+          "title": "Circuit Breaker Open Events",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "increase(saga_circuit_breaker_open_total[1h])"
+            }
+          ]
+        },
+        {
+          "title": "Average SAGA Duration",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "rate(saga_duration_seconds_sum[5m]) / rate(saga_duration_seconds_count[5m])"
+            }
+          ]
+        },
+        {
+          "title": "SAGA Status Breakdown",
+          "type": "piechart",
+          "targets": [
+            {
+              "expr": "sum(increase(saga_status_total[1h])) by (status)"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Waqiti - Security",
+      "uid": "waqiti-security",
+      "panels": [
+        {
+          "title": "Failed Authentication Attempts",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "rate(authentication_failed_total[5m])"
+            }
+          ],
+          "alert": {
+            "conditions": [
+              {
+                "evaluator": {
+                  "params": [10],
+                  "type": "gt"
+                }
+              }
+            ],
+            "name": "High Failed Authentication Rate"
+          }
+        },
+        {
+          "title": "Unauthorized Access Attempts",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "increase(http_requests_total{status=\"403\"}[1h])"
+            }
+          ]
+        },
+        {
+          "title": "Rate Limit Violations",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "rate(rate_limit_exceeded_total[5m])"
+            }
+          ]
+        },
+        {
+          "title": "Admin Endpoint Access Log",
+          "type": "logs",
+          "targets": [
+            {
+              "expr": "{job=\"config-service\"} |= \"RefreshController\""
+            }
+          ]
+        },
+        {
+          "title": "Security Context Extraction Failures",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "increase(security_context_extraction_failed_total[1h])"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Waqiti - System Health",
+      "uid": "waqiti-health",
+      "panels": [
+        {
+          "title": "Service Health Status",
+          "type": "table",
+          "targets": [
+            {
+              "expr": "up{job=~\".*-service\"}"
+            }
+          ]
+        },
+        {
+          "title": "Database Response Time",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, rate(database_query_duration_seconds_bucket[5m]))"
+            }
+          ]
+        },
+        {
+          "title": "Redis Response Time",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, rate(redis_command_duration_seconds_bucket[5m]))"
+            }
+          ]
+        },
+        {
+          "title": "Kafka Consumer Lag",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "kafka_consumer_lag_total"
+            }
+          ]
+        },
+        {
+          "title": "JVM Memory Usage",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "jvm_memory_used_bytes / jvm_memory_max_bytes * 100"
+            }
+          ]
+        },
+        {
+          "title": "CPU Usage",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "rate(process_cpu_seconds_total[5m]) * 100"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "alerts": [
+    {
+      "name": "HighAlertDeliveryLatency",
+      "expr": "alert_delivery_seconds > 5",
+      "for": "2m",
+      "labels": {
+        "severity": "critical",
+        "service": "alerting"
+      },
+      "annotations": {
+        "summary": "Alert delivery taking >5 seconds",
+        "description": "Alert delivery time is {{ $value }}s which exceeds 5s threshold"
+      }
+    },
+    {
+      "name": "SagaCompensationRateHigh",
+      "expr": "(rate(saga_compensated_total[5m]) / rate(saga_started_total[5m])) > 0.01",
+      "for": "5m",
+      "labels": {
+        "severity": "warning",
+        "service": "payment"
+      },
+      "annotations": {
+        "summary": "SAGA compensation rate >1%",
+        "description": "Current compensation rate is {{ $value | humanizePercentage }}"
+      }
+    },
+    {
+      "name": "EncryptionAuditGap",
+      "expr": "increase(encryption_operations_total[5m]) > increase(encryption_audit_records_total[5m])",
+      "for": "1m",
+      "labels": {
+        "severity": "critical",
+        "service": "compliance"
+      },
+      "annotations": {
+        "summary": "Encryption audit trail incomplete",
+        "description": "Audit records not matching encryption operations"
+      }
+    },
+    {
+      "name": "PDFGenerationFailureHigh",
+      "expr": "(rate(legal_pdf_generation_failed_total[5m]) / rate(legal_pdf_generation_attempts_total[5m])) > 0.01",
+      "for": "5m",
+      "labels": {
+        "severity": "warning",
+        "service": "legal"
+      },
+      "annotations": {
+        "summary": "PDF generation failure rate >1%",
+        "description": "Current failure rate is {{ $value | humanizePercentage }}"
+      }
+    },
+    {
+      "name": "CircuitBreakerOpen",
+      "expr": "resilience4j_circuitbreaker_state{state=\"open\"} == 1",
+      "for": "1m",
+      "labels": {
+        "severity": "critical",
+        "service": "{{name}}"
+      },
+      "annotations": {
+        "summary": "Circuit breaker {{name}} is OPEN",
+        "description": "Service degradation detected for {{name}}"
+      }
+    },
+    {
+      "name": "HighFailedAuthenticationRate",
+      "expr": "rate(authentication_failed_total[5m]) > 10",
+      "for": "2m",
+      "labels": {
+        "severity": "warning",
+        "service": "security"
+      },
+      "annotations": {
+        "summary": "High failed authentication rate",
+        "description": "{{ $value }} failed authentication attempts per second"
+      }
+    }
+  ]
+}

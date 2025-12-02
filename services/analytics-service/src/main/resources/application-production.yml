@@ -1,0 +1,62 @@
+# Production database configuration for analytics service (read-heavy)
+spring:
+  datasource:
+    hikari:
+      enabled: true
+      # Read-optimized settings for analytics
+      maximum-pool-size: 40           # Moderate pool for analytics
+      minimum-idle: 10                # Lower minimum for batch processing
+      connection-timeout: 30000       # Longer timeout for complex queries
+      idle-timeout: 900000           # 15 minutes idle for long queries
+      max-lifetime: 2700000          # 45 minutes lifetime for analytics
+      validation-timeout: 10000      # 10 seconds validation
+      leak-detection-threshold: 120000 # 2 minutes leak detection
+      
+      # Read-only optimizations
+      read-only: false                # Analytics service also writes metrics
+      
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        # Analytics-optimized settings
+        jdbc.batch_size: 100          # Large batches for analytics inserts
+        order_inserts: true
+        order_updates: true
+        jdbc.batch_versioned_data: true
+        
+        # Query optimization for analytics
+        jdbc.fetch_size: 100
+        use_streams_for_binary: true
+        
+        # Cache settings for analytical queries
+        cache.use_second_level_cache: true
+        cache.use_query_cache: true
+        cache.region.factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
+        
+        # Query plan cache
+        query.plan_cache_max_size: 2048
+        query.plan_parameter_metadata_max_size: 256
+        
+        generate_statistics: true
+
+# Analytics service monitoring
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics,hikaricp,analytics
+  endpoint:
+    health:
+      show-details: when-authorized
+    hikaricp:
+      enabled: true
+
+# Optimized logging for analytics
+logging:
+  level:
+    com.zaxxer.hikari: INFO
+    com.waqiti.analytics: DEBUG
+    org.hibernate.stat: INFO         # Statistics logging for optimization
+    root: INFO

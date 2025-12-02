@@ -1,0 +1,74 @@
+{
+  "properties": [
+    {
+      "name": "bnpl.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Buy Now Pay Later functionality",
+      "defaultValue": true
+    },
+    {
+      "name": "bnpl.credit-check.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable credit check for BNPL",
+      "defaultValue": true
+    },
+    {
+      "name": "bnpl.credit-check.provider",
+      "type": "java.lang.String",
+      "description": "Credit check provider",
+      "defaultValue": "EXPERIAN"
+    },
+    {
+      "name": "bnpl.limits.max-amount",
+      "type": "java.math.BigDecimal",
+      "description": "Maximum BNPL amount",
+      "defaultValue": "5000.00"
+    },
+    {
+      "name": "bnpl.limits.min-amount",
+      "type": "java.math.BigDecimal",
+      "description": "Minimum BNPL amount",
+      "defaultValue": "50.00"
+    },
+    {
+      "name": "bnpl.payment-plans.installments",
+      "type": "java.util.List",
+      "description": "Available installment options"
+    },
+    {
+      "name": "bnpl.interest-rate.apr",
+      "type": "java.math.BigDecimal",
+      "description": "Annual percentage rate",
+      "defaultValue": "0.00"
+    },
+    {
+      "name": "bnpl.late-fees.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable late payment fees",
+      "defaultValue": true
+    },
+    {
+      "name": "bnpl.late-fees.amount",
+      "type": "java.math.BigDecimal",
+      "description": "Late payment fee amount",
+      "defaultValue": "25.00"
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "OAuth2 client ID for service",
+      "defaultValue": "bnpl-service"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "OAuth2 client secret for service"
+    }
+  ]
+}

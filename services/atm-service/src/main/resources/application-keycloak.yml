@@ -1,0 +1,106 @@
+# Keycloak Configuration for ATM Service
+
+keycloak:
+  enabled: true
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  ssl-required: external
+  resource: atm-service
+  bearer-only: true
+  credentials:
+    secret: ${ATM_SERVICE_CLIENT_SECRET}
+  use-resource-role-mappings: true
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# ATM Service Security Configuration
+atm:
+  security:
+    # Public endpoints that don't require authentication
+    public-endpoints:
+      - /actuator/health
+      - /actuator/info
+      - /api/v1/atm/locations/search
+      - /api/v1/atm/locations/nearby
+      - /swagger-ui/**
+      - /v3/api-docs/**
+    
+    # Service-to-service endpoints
+    service-endpoints:
+      - /internal/atm/**
+    
+    # Required roles for ATM operations
+    required-roles:
+      read:
+        - USER
+        - ATM_USER
+      withdraw:
+        - USER
+        - ATM_USER
+      deposit:
+        - USER
+        - ATM_USER
+      balance-inquiry:
+        - USER
+        - ATM_USER
+      mini-statement:
+        - USER
+        - ATM_USER
+      cardless:
+        - USER
+        - ATM_USER
+        - CARDLESS_USER
+      management:
+        - ATM_MANAGER
+        - ATM_OPERATOR
+      admin:
+        - ATM_ADMIN
+        - SYSTEM_ADMIN
+    
+    # Required scopes for operations
+    required-scopes:
+      withdraw: atm:withdraw
+      deposit: atm:deposit
+      balance-inquiry: atm:balance
+      mini-statement: atm:statement
+      cardless: atm:cardless
+      location-search: atm:locations
+      admin: atm:admin
+      management: atm:manage
+    
+    # ATM security features
+    features:
+      pin-validation-enabled: true
+      fraud-detection-enabled: true
+      velocity-checking-enabled: true
+      geo-blocking-enabled: true
+      camera-monitoring-enabled: true
+      skimming-detection-enabled: true
+      
+    # ATM limits and thresholds
+    limits:
+      max-daily-withdrawals: 10
+      max-daily-deposits: 5
+      max-daily-inquiries: 20
+      max-hourly-transactions: 10
+      
+    # Security thresholds requiring additional verification
+    verification-thresholds:
+      suspicious-transaction-count: 5
+      velocity-breach-count: 3
+      location-anomaly-count: 2
+      
+    # Advanced security features
+    advanced-security:
+      require-biometric-high-value: true
+      require-verification-suspicious: true
+      automatic-card-retention: true
+      real-time-fraud-monitoring: true
+      transaction-pattern-analysis: true
+      device-fingerprinting: true

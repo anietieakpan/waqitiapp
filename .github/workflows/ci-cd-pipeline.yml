@@ -1,0 +1,476 @@
+name: Waqiti CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop, release/* ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository }}
+  JAVA_VERSION: '17'
+  NODE_VERSION: '18'
+  GRADLE_VERSION: '8.5'
+  MAVEN_VERSION: '3.9.6'
+
+jobs:
+  # Code Quality & Security Scanning
+  code-quality:
+    name: Code Quality & Security
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up JDK
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: temurin
+        cache: 'maven'
+
+    - name: Cache SonarQube packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.sonar/cache
+        key: ${{ runner.os }}-sonar
+        restore-keys: ${{ runner.os }}-sonar
+
+    - name: Run SonarQube analysis
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      run: |
+        mvn clean verify sonar:sonar \
+          -Dsonar.projectKey=waqiti \
+          -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} \
+          -Dsonar.login=${{ secrets.SONAR_TOKEN }}
+
+    - name: Run OWASP Dependency Check
+      run: |
+        mvn org.owasp:dependency-check-maven:check \
+          -Dformat=ALL \
+          -DfailBuildOnCVSS=7
+
+    - name: Upload dependency check results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: dependency-check-report
+        path: target/dependency-check-report.html
+
+    - name: Run Trivy security scan
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy results to GitHub Security
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  # Backend Tests
+  backend-tests:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    needs: code-quality
+    strategy:
+      matrix:
+        service: [
+          account-service,
+          payment-service,
+          wallet-service,
+          transaction-service,
+          user-service,
+          notification-service,
+          security-service,
+          merchant-service,
+          kyc-service
+        ]
+    
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: waqiti_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+      kafka:
+        image: confluentinc/cp-kafka:latest
+        env:
+          KAFKA_BROKER_ID: 1
+          KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+          KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+        ports:
+          - 9092:9092
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: temurin
+        cache: 'maven'
+
+    - name: Run unit tests for ${{ matrix.service }}
+      working-directory: services/${{ matrix.service }}
+      run: |
+        mvn clean test \
+          -Dspring.profiles.active=test \
+          -Dspring.datasource.url=jdbc:postgresql://localhost:5432/waqiti_test \
+          -Dspring.redis.host=localhost \
+          -Dspring.kafka.bootstrap-servers=localhost:9092
+
+    - name: Run integration tests for ${{ matrix.service }}
+      working-directory: services/${{ matrix.service }}
+      run: |
+        mvn verify -Pintegration-tests \
+          -Dspring.profiles.active=test
+
+    - name: Generate test report
+      if: always()
+      run: |
+        mvn surefire-report:report-only
+        mvn site -DgenerateReports=false
+
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-results-${{ matrix.service }}
+        path: |
+          services/${{ matrix.service }}/target/surefire-reports
+          services/${{ matrix.service }}/target/site/jacoco
+
+    - name: Publish test results
+      uses: dorny/test-reporter@v1
+      if: always()
+      with:
+        name: Test Results - ${{ matrix.service }}
+        path: 'services/${{ matrix.service }}/target/surefire-reports/*.xml'
+        reporter: java-junit
+
+  # Frontend Tests
+  frontend-tests:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    needs: code-quality
+    strategy:
+      matrix:
+        app: [web-app, mobile-app]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: frontend/${{ matrix.app }}/package-lock.json
+
+    - name: Install dependencies
+      working-directory: frontend/${{ matrix.app }}
+      run: npm ci
+
+    - name: Run linting
+      working-directory: frontend/${{ matrix.app }}
+      run: npm run lint
+
+    - name: Run unit tests
+      working-directory: frontend/${{ matrix.app }}
+      run: npm test -- --coverage --watchAll=false
+
+    - name: Run E2E tests
+      if: matrix.app == 'web-app'
+      working-directory: frontend/${{ matrix.app }}
+      run: |
+        npm run build
+        npm run test:e2e
+
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v4
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        directory: frontend/${{ matrix.app }}/coverage
+        flags: frontend-${{ matrix.app }}
+
+  # Build and Push Docker Images
+  build-images:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-tests]
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
+    
+    strategy:
+      matrix:
+        service: [
+          account-service,
+          payment-service,
+          wallet-service,
+          transaction-service,
+          user-service,
+          notification-service,
+          api-gateway,
+          merchant-service,
+          kyc-service
+        ]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=sha,prefix={{branch}}-
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: services/${{ matrix.service }}
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        build-args: |
+          VERSION=${{ github.sha }}
+          BUILD_DATE=${{ github.run_id }}
+
+  # Database Migrations
+  database-migrations:
+    name: Database Migrations
+    runs-on: ubuntu-latest
+    needs: build-images
+    if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Flyway
+      run: |
+        wget -qO- https://repo1.maven.org/maven2/org/flywaydb/flyway-commandline/9.22.3/flyway-commandline-9.22.3-linux-x64.tar.gz | tar xvz
+        sudo ln -s `pwd`/flyway-9.22.3/flyway /usr/local/bin
+
+    - name: Run migrations
+      env:
+        FLYWAY_URL: ${{ secrets.DB_URL }}
+        FLYWAY_USER: ${{ secrets.DB_USER }}
+        FLYWAY_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      run: |
+        for service in services/*/src/main/resources/db/migration; do
+          if [ -d "$service" ]; then
+            echo "Running migrations for $service"
+            flyway -locations="filesystem:$service" migrate
+          fi
+        done
+
+  # Deploy to Staging
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [build-images, database-migrations]
+    if: github.ref == 'refs/heads/develop'
+    environment: staging
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'v1.28.0'
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+
+    - name: Update kubeconfig
+      run: |
+        aws eks update-kubeconfig --name waqiti-staging --region us-east-1
+
+    - name: Deploy to Kubernetes
+      run: |
+        kubectl apply -k infrastructure/kubernetes/overlays/staging
+        kubectl rollout status deployment -n waqiti-staging --timeout=10m
+
+    - name: Run smoke tests
+      run: |
+        npm install -g newman
+        newman run tests/postman/smoke-tests.json \
+          --environment tests/postman/staging-env.json \
+          --reporters cli,junit \
+          --reporter-junit-export results/smoke-tests.xml
+
+    - name: Notify Slack
+      if: always()
+      uses: 8398a7/action-slack@v3
+      with:
+        status: ${{ job.status }}
+        text: 'Staging deployment ${{ job.status }}'
+        webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+
+  # Deploy to Production
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [build-images, database-migrations]
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.PROD_AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.PROD_AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+
+    - name: Update kubeconfig
+      run: |
+        aws eks update-kubeconfig --name waqiti-production --region us-east-1
+
+    - name: Deploy to production (Blue-Green)
+      run: |
+        # Deploy to green environment
+        kubectl apply -k infrastructure/kubernetes/overlays/production-green
+        
+        # Wait for green deployment to be ready
+        kubectl rollout status deployment -n waqiti-production-green --timeout=15m
+        
+        # Run health checks
+        ./scripts/health-check.sh production-green
+        
+        # Switch traffic to green
+        kubectl patch service waqiti-lb -n waqiti-production \
+          -p '{"spec":{"selector":{"version":"green"}}}'
+        
+        # Scale down blue deployment after 30 minutes
+        sleep 1800
+        kubectl scale deployment --all -n waqiti-production-blue --replicas=0
+
+    - name: Create release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ github.run_number }}
+        release_name: Release v${{ github.run_number }}
+        body: |
+          Production deployment completed successfully
+          
+          **Changes**: ${{ github.event.head_commit.message }}
+          **Commit**: ${{ github.sha }}
+          
+        draft: false
+        prerelease: false
+
+  # Performance Tests
+  performance-tests:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    if: github.ref == 'refs/heads/develop'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run k6 performance tests
+      uses: grafana/k6-action@v0.3.0
+      with:
+        filename: load-testing/scenarios/baseline.js
+        flags: --out json=results.json
+
+    - name: Upload performance results
+      uses: actions/upload-artifact@v4
+      with:
+        name: performance-results
+        path: results.json
+
+    - name: Check performance thresholds
+      run: |
+        node scripts/check-performance-thresholds.js results.json
+
+  # Security Scanning
+  security-scan:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    if: github.ref == 'refs/heads/develop'
+    
+    steps:
+    - name: Run OWASP ZAP scan
+      uses: zaproxy/action-full-scan@v0.7.0
+      with:
+        target: 'https://staging-api.example.com'
+        rules_file_name: '.zap/rules.tsv'
+        cmd_options: '-a'
+
+    - name: Upload ZAP results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: zap-scan-results
+        path: report_html.html

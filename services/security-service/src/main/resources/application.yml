@@ -1,0 +1,469 @@
+# Security Service Configuration
+# Advanced security, fraud detection, and compliance service
+
+server:
+  port: 8086
+  servlet:
+    context-path: /api/security
+
+spring:
+  application:
+    name: security-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:production}
+    include: keycloak
+  
+  # Database Configuration
+  datasource:
+    url: jdbc:postgresql://localhost:5432/waqiti_security
+    username: ${DB_USERNAME:waqiti_user}
+    password: ${vault.database.password:${VAULT_SECURITY_SERVICE_DB_PASSWORD}}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      leak-detection-threshold: 60000
+
+  # JPA Configuration
+  jpa:
+    hibernate:
+      ddl-auto: validate
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.SnakeCasePhysicalNamingStrategy
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        show_sql: false
+        generate_statistics: true
+        cache:
+          use_second_level_cache: true
+          use_query_cache: true
+          region:
+            factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
+    show-sql: false
+
+  # Flyway Configuration
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    validate-on-migrate: true
+    locations: classpath:db/migration
+    schemas: public
+
+  # Redis Configuration
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: ${REDIS_PASSWORD:}
+      timeout: 5000ms
+      jedis:
+        pool:
+          max-active: 20
+          max-idle: 8
+          min-idle: 2
+          max-wait: 5000ms
+
+  # Kafka Configuration
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false
+        enable.idempotence: true
+        acks: all
+        retries: 3
+        max.in.flight.requests.per.connection: 1
+    consumer:
+      group-id: security-service-group
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.example.common.events,com.waqiti.security.events,com.example.common.kafka.*"
+        spring.json.use.type.info.headers: false
+        spring.json.use.type.headers: false
+        spring.json.value.default.type: "com.example.common.kafka.GenericKafkaEvent"
+        enable.auto.commit: false
+      enable-auto-commit: false
+      auto-offset-reset: earliest
+      session-timeout-ms: 45000
+      heartbeat-interval-ms: 3000
+      max-poll-records: 50
+      max-poll-interval-ms: 300000
+      request-timeout-ms: 40000
+    listener:
+      ack-mode: manual_immediate
+      concurrency: 5
+
+  # Cache Configuration
+  cache:
+    type: redis
+    redis:
+      time-to-live: 300000 # 5 minutes
+
+  # Security Configuration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:https://auth.example.com/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+  # Mail Configuration
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+# Eureka Configuration
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:https://discovery-service:8761/eureka}/
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${server.port}
+
+# Management Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  tracing:
+    sampling:
+      probability: 0.1
+
+# Security Service Specific Configuration
+security-service:
+  # Fraud Detection Configuration
+  fraud-detection:
+    enabled: true
+    real-time-scoring: true
+    machine-learning: true
+    risk-thresholds:
+      low: 25
+      medium: 50
+      high: 75
+      critical: 90
+    velocity-checks:
+      transaction-count:
+        per-minute: 10
+        per-hour: 100
+        per-day: 500
+      amount-limits:
+        per-minute: 5000.00
+        per-hour: 25000.00
+        per-day: 100000.00
+    suspicious-patterns:
+      round-amounts: true
+      unusual-hours: true
+      geographic-anomalies: true
+      velocity-spikes: true
+      device-fingerprinting: true
+  
+  # AML Configuration
+  aml:
+    enabled: true
+    auto-report-generation: true
+    monitoring-thresholds:
+      single-transaction: 10000.00
+      daily-aggregate: 25000.00
+      monthly-aggregate: 100000.00
+    watchlist-screening: true
+    sanctions-checking: true
+    pep-screening: true
+    adverse-media-screening: true
+  
+  # KYC Configuration
+  kyc:
+    enabled: true
+    verification-levels:
+      basic: 1000.00
+      standard: 10000.00
+      enhanced: 50000.00
+      premium: 250000.00
+    document-verification: true
+    biometric-verification: true
+    liveness-detection: true
+    address-verification: true
+  
+  # Multi-Factor Authentication
+  mfa:
+    enabled: true
+    totp:
+      enabled: true
+      issuer: "Waqiti"
+      algorithm: "SHA256"
+      digits: 6
+      period: 30
+    sms:
+      enabled: true
+      provider: "twilio"
+    email:
+      enabled: true
+    backup-codes:
+      enabled: true
+      count: 10
+  
+  # Behavioral Analysis
+  behavioral-analysis:
+    enabled: true
+    learning-mode: true
+    baseline-period-days: 30
+    anomaly-threshold: 2.5
+    features:
+      transaction-patterns: true
+      device-patterns: true
+      location-patterns: true
+      time-patterns: true
+      velocity-patterns: true
+  
+  # Compliance Configuration
+  compliance:
+    auto-reporting: true
+    sar-generation: true
+    ctr-generation: true
+    data-retention-days: 2555 # 7 years
+    encryption-at-rest: true
+    audit-logging: true
+  
+  # Rate Limiting
+  rate-limiting:
+    enabled: true
+    global-limits:
+      requests-per-minute: 1000
+      requests-per-hour: 10000
+    per-user-limits:
+      requests-per-minute: 60
+      requests-per-hour: 1000
+  
+  # Geolocation
+  geolocation:
+    enabled: true
+    maxmind-database: "/opt/security/GeoLite2-City.mmdb"
+    risk-countries: ["XX", "YY"] # High-risk country codes
+    blocked-countries: ["ZZ"] # Blocked country codes
+  
+  # Device Fingerprinting
+  device-fingerprinting:
+    enabled: true
+    track-changes: true
+    risk-scoring: true
+    session-binding: true
+  
+  # Kafka Consumer Configuration for Orphaned Events
+  kafka-consumers:
+    enabled: ${KAFKA_CONSUMERS_ENABLED:true}
+    
+    # Critical Alerts Consumer Configuration
+    critical-alerts:
+      enabled: true
+      topics:
+        - critical-alerts
+        - critical-system-alerts
+        - critical-security-alerts
+        - alerts-emergency
+      group-id: critical-alert-processor
+      concurrency: 2
+      priority: CRITICAL
+      immediate-escalation: true
+      
+    # Fraud Processing Consumer Configuration  
+    fraud-processing:
+      enabled: true
+      topics:
+        - fraud-alerts
+        - fraud-processed
+        - fraud-analysis-completed
+        - fraud-detection-trigger
+        - fraud-detection-results
+        - fraud-detection-events
+        - fraud-processing-errors
+        - fraud-response-events
+        - fraud-activity-logs
+        - fraud-user-not-found
+        - fraud-team-alerts
+        - fraud-alerts-dlq
+        - ml-fraud-processed
+        - crypto-fraud-alert
+      group-id: fraud-processing-processor
+      concurrency: 3
+      priority: HIGH
+      ml-integration: true
+      real-time-blocking: true
+
+# Logging Configuration
+logging:
+  level:
+    com.waqiti.security: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.kafka: INFO
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+  pattern:
+    console: "%clr(%d{yyyy-MM-dd HH:mm:ss}){faint} %clr(${LOG_LEVEL_PATTERN:-%5p}) %clr([%t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n${LOG_EXCEPTION_CONVERSION_WORD:-%wEx}"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# Health Check Configuration
+health:
+  circuit-breaker:
+    enabled: true
+  rate-limiter:
+    enabled: true
+
+# OpenAPI Configuration
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+
+# Rate Limiting Configuration for Security Service
+rate-limiting:
+  enabled: true
+  key-prefix: "waqiti:security:rate-limit:"
+  bucket-expiration-minutes: 60
+  default:
+    capacity: 100
+    refill-tokens: 100
+    refill-period-minutes: 1
+  services:
+    security-service:
+      capacity: 100
+      refill-tokens: 100
+      refill-period-minutes: 1
+      endpoints:
+        "/api/v1/security/fraud/check-transaction":
+          capacity: 100
+          refill-tokens: 100
+          refill-period-minutes: 1
+          tokens: 1
+        "/api/v1/security/fraud/advanced-check":
+          capacity: 50
+          refill-tokens: 50
+          refill-period-minutes: 1
+          tokens: 1
+        "/api/v1/security/fraud/risk-score/*":
+          capacity: 30
+          refill-tokens: 30
+          refill-period-minutes: 1
+          tokens: 1
+        "/api/v1/security/fraud/report-suspicious":
+          capacity: 5
+          refill-tokens: 5
+          refill-period-minutes: 60
+          tokens: 1
+        "/api/v1/security/fraud/whitelist":
+          capacity: 10
+          refill-tokens: 10
+          refill-period-minutes: 5
+          tokens: 1
+        "/api/v1/security/fraud/patterns/*":
+          capacity: 20
+          refill-tokens: 20
+          refill-period-minutes: 5
+          tokens: 1
+        "/api/v1/security/fraud/actions":
+          capacity: 10
+          refill-tokens: 10
+          refill-period-minutes: 15
+          tokens: 1
+
+# Keycloak Configuration
+keycloak:
+  enabled: ${KEYCLOAK_ENABLED:true}
+  auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8180}
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  resource: security-service
+  bearer-only: true
+  ssl-required: ${KEYCLOAK_SSL_REQUIRED:external}
+  verify-token-audience: true
+  use-resource-role-mappings: true
+  principal-attribute: preferred_username
+  credentials:
+    secret: ${KEYCLOAK_CLIENT_SECRET:${vault.keycloak.security-service.client-secret}}
+
+# Authentication Mode Configuration
+authentication:
+  mode: ${AUTH_MODE:KEYCLOAK}
+  legacy-jwt-enabled: ${LEGACY_JWT_ENABLED:false}
+  keycloak-enabled: ${KEYCLOAK_ENABLED:true}
+  circuit-breaker:
+    failure-threshold: 5
+    timeout-duration: 10000
+    half-open-requests: 3
+
+# Transaction Configuration
+transaction:
+  fraud-detection:
+    velocity-checks:
+      enabled: true
+    risk-scoring:
+      enabled: true
+  processing:
+    retry-delay-seconds: 5
+    timeout-seconds: 30
+  export:
+    max-records: 10000
+
+# Services Configuration
+services:
+  wallet-service:
+    timeout: 5000
+  notification-service:
+    url: ${NOTIFICATION_SERVICE_URL:http://notification-service:8080}
+  security-service:
+    timeout: 5000
+  saga-orchestration-service:
+    url: ${SAGA_ORCHESTRATION_SERVICE_URL:http://saga-service:8085}
+    timeout: 10000
+
+# Security JWT Configuration
+# SECURITY FIX: NO DEFAULT - JWT secret MUST be provided via environment variable or Vault
+security:
+  jwt:
+    secret: ${JWT_SECRET:${vault.jwt.security-service.secret}}  # NO HARDCODED DEFAULT
+    expiration: 3600000
+
+# Application Specific Configurations
+app:
+  version: ${APP_VERSION:1.0.0}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}}
+    
+# Features Configuration
+features:
+  kafka:
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"

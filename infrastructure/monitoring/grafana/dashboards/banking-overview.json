@@ -1,0 +1,838 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "Comprehensive overview dashboard for Waqiti Banking Platform",
+  "editable": true,
+  "gnetId": null,
+  "graphTooltip": 0,
+  "id": 1,
+  "iteration": 1640995200000,
+  "links": [
+    {
+      "asDropdown": false,
+      "icon": "external link",
+      "includeVars": false,
+      "keepTime": false,
+      "tags": ["banking"],
+      "targetBlank": true,
+      "title": "Banking Dashboards",
+      "tooltip": "",
+      "type": "dashboards",
+      "url": ""
+    }
+  ],
+  "panels": [
+    {
+      "alert": {
+        "alertRuleTags": {},
+        "conditions": [
+          {
+            "evaluator": {
+              "params": [0.95],
+              "type": "gt"
+            },
+            "operator": {
+              "type": "and"
+            },
+            "query": {
+              "model": {
+                "expr": "rate(transaction_failures_total[5m]) / rate(transaction_requests_total[5m])",
+                "intervalMs": 1000,
+                "maxDataPoints": 43200,
+                "refId": "A"
+              },
+              "params": ["A", "5m", "now"]
+            },
+            "reducer": {
+              "params": [],
+              "type": "avg"
+            },
+            "type": "query"
+          }
+        ],
+        "executionErrorState": "alerting",
+        "for": "2m",
+        "frequency": "10s",
+        "handler": 1,
+        "name": "Transaction Failure Rate Alert",
+        "noDataState": "no_data",
+        "notifications": []
+      },
+      "datasource": "Prometheus",
+      "description": "Key metrics overview for the banking platform",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "vis": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "expr": "rate(transaction_requests_total[5m])",
+          "interval": "",
+          "legendFormat": "Transaction Rate",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(transaction_failures_total[5m])",
+          "interval": "",
+          "legendFormat": "Failure Rate",
+          "refId": "B"
+        }
+      ],
+      "title": "Transaction Overview",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "description": "Current status of all banking services",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "color": "red",
+                  "index": 0,
+                  "text": "DOWN"
+                },
+                "1": {
+                  "color": "green",
+                  "index": 1,
+                  "text": "UP"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "text": {},
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.3.3",
+      "targets": [
+        {
+          "expr": "up{job=\"core-banking-service\"}",
+          "interval": "",
+          "legendFormat": "Core Banking",
+          "refId": "A"
+        },
+        {
+          "expr": "up{job=\"transaction-service\"}",
+          "interval": "",
+          "legendFormat": "Transaction Service",
+          "refId": "B"
+        },
+        {
+          "expr": "up{job=\"user-service\"}",
+          "interval": "",
+          "legendFormat": "User Service",
+          "refId": "C"
+        },
+        {
+          "expr": "up{job=\"payment-service\"}",
+          "interval": "",
+          "legendFormat": "Payment Service",
+          "refId": "D"
+        },
+        {
+          "expr": "up{job=\"ml-service\"}",
+          "interval": "",
+          "legendFormat": "ML Service",
+          "refId": "E"
+        },
+        {
+          "expr": "up{job=\"api-gateway\"}",
+          "interval": "",
+          "legendFormat": "API Gateway",
+          "refId": "F"
+        }
+      ],
+      "title": "Service Health Status",
+      "type": "stat"
+    },
+    {
+      "datasource": "Prometheus",
+      "description": "Real-time fraud detection metrics",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "vis": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "id": 3,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "expr": "rate(fraud_detections_total{decision=\"APPROVE\"}[5m]) / rate(fraud_detections_total[5m]) * 100",
+          "interval": "",
+          "legendFormat": "Approved %",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(fraud_detections_total{decision=\"REVIEW\"}[5m]) / rate(fraud_detections_total[5m]) * 100",
+          "interval": "",
+          "legendFormat": "Review %",
+          "refId": "B"
+        },
+        {
+          "expr": "rate(fraud_detections_total{decision=\"BLOCK\"}[5m]) / rate(fraud_detections_total[5m]) * 100",
+          "interval": "",
+          "legendFormat": "Blocked %",
+          "refId": "C"
+        }
+      ],
+      "title": "Fraud Detection Results",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "description": "System resource utilization across all services",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "vis": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 70
+              },
+              {
+                "color": "red",
+                "value": 85
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "id": 4,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "expr": "100 - (avg(irate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
+          "interval": "",
+          "legendFormat": "CPU Usage %",
+          "refId": "A"
+        },
+        {
+          "expr": "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100",
+          "interval": "",
+          "legendFormat": "Memory Usage %",
+          "refId": "B"
+        },
+        {
+          "expr": "(1 - (node_filesystem_avail_bytes / node_filesystem_size_bytes)) * 100",
+          "interval": "",
+          "legendFormat": "Disk Usage %",
+          "refId": "C"
+        }
+      ],
+      "title": "System Resource Usage",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "description": "Database performance and connection metrics",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "vis": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Query Duration"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      },
+      "id": 5,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "expr": "postgresql_connections_active",
+          "interval": "",
+          "legendFormat": "Active Connections",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(postgresql_queries_total[5m])",
+          "interval": "",
+          "legendFormat": "Queries/sec",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.95, rate(postgresql_query_duration_seconds_bucket[5m]))",
+          "interval": "",
+          "legendFormat": "95th % Query Duration",
+          "refId": "C"
+        }
+      ],
+      "title": "Database Performance",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "description": "Business metrics and KPIs",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "currencyUSD"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Transaction Volume"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Success Rate"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
+      "id": 6,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "text": {},
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.3.3",
+      "targets": [
+        {
+          "expr": "sum(increase(transaction_amount_total[1h]))",
+          "interval": "",
+          "legendFormat": "Hourly Volume ($)",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(transaction_requests_total[5m])) * 60",
+          "interval": "",
+          "legendFormat": "Transaction Volume (per min)",
+          "refId": "B"
+        },
+        {
+          "expr": "(1 - (rate(transaction_failures_total[5m]) / rate(transaction_requests_total[5m]))) * 100",
+          "interval": "",
+          "legendFormat": "Success Rate",
+          "refId": "C"
+        },
+        {
+          "expr": "sum(rate(fraud_detections_total{decision=\"BLOCK\"}[1h])) * 3600",
+          "interval": "",
+          "legendFormat": "Blocked Transactions (hourly)",
+          "refId": "D"
+        }
+      ],
+      "title": "Business Metrics",
+      "type": "stat"
+    },
+    {
+      "datasource": "Prometheus",
+      "description": "API Gateway performance and traffic metrics",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "vis": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*latency.*"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "ms"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 24
+      },
+      "id": 7,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "expr": "rate(gateway_requests_total[5m])",
+          "interval": "",
+          "legendFormat": "Gateway RPS",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.50, rate(gateway_request_duration_seconds_bucket[5m])) * 1000",
+          "interval": "",
+          "legendFormat": "50th % latency",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.95, rate(gateway_request_duration_seconds_bucket[5m])) * 1000",
+          "interval": "",
+          "legendFormat": "95th % latency",
+          "refId": "C"
+        },
+        {
+          "expr": "histogram_quantile(0.99, rate(gateway_request_duration_seconds_bucket[5m])) * 1000",
+          "interval": "",
+          "legendFormat": "99th % latency",
+          "refId": "D"
+        }
+      ],
+      "title": "API Gateway Performance",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 34,
+  "style": "dark",
+  "tags": ["banking", "overview", "waqiti"],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": false,
+          "text": "Prometheus",
+          "value": "Prometheus"
+        },
+        "description": null,
+        "error": null,
+        "hide": 0,
+        "includeAll": false,
+        "label": "Datasource",
+        "multi": false,
+        "name": "datasource",
+        "options": [],
+        "query": "prometheus",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "type": "datasource"
+      },
+      {
+        "allValue": null,
+        "current": {
+          "selected": false,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": "Prometheus",
+        "definition": "label_values(up, job)",
+        "description": null,
+        "error": null,
+        "hide": 0,
+        "includeAll": true,
+        "label": "Service",
+        "multi": true,
+        "name": "service",
+        "options": [],
+        "query": {
+          "query": "label_values(up, job)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "Waqiti Banking Platform - Overview",
+  "uid": "waqiti-banking-overview",
+  "version": 1,
+  "weekStart": ""
+}

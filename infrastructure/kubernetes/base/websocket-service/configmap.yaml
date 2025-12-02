@@ -1,0 +1,175 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: websocket-service-config
+  namespace: waqiti
+  labels:
+    app: websocket-service
+    component: backend
+data:
+  application.yaml: |
+    spring:
+      application:
+        name: websocket-service
+      websocket:
+        message-broker:
+          relay-host: redis-master
+          relay-port: 6379
+          client-login: ""
+          client-passcode: ${SPRING_REDIS_PASSWORD}
+          system-login: system
+          system-passcode: ${SPRING_REDIS_PASSWORD}
+        application-destination-prefixes:
+          - /app
+        broker-destination-prefixes:
+          - /topic
+          - /queue
+        user-destination-prefix: /user
+      redis:
+        pubsub:
+          enabled: true
+          channels:
+            - websocket-events
+            - transaction-updates
+            - notification-alerts
+      kafka:
+        consumer:
+          group-id: websocket-service
+          auto-offset-reset: latest
+          key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+          value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+          properties:
+            spring.json.trusted.packages: "*"
+    
+    websocket:
+      config:
+        max-text-message-size: 65536
+        max-binary-message-size: 65536
+        send-time-limit: 20000
+        send-buffer-size-limit: 524288
+        time-between-heartbeats: 25000
+        max-session-idle-timeout: 600000
+        
+      security:
+        jwt-enabled: true
+        allowed-origins: ${WEBSOCKET_ALLOWED_ORIGINS}
+        csrf-disabled: true
+        
+      channels:
+        # User-specific channels
+        - name: "/user/queue/notifications"
+          description: "Personal notifications"
+          secured: true
+          
+        - name: "/user/queue/transactions"
+          description: "Transaction updates"
+          secured: true
+          
+        - name: "/user/queue/balance"
+          description: "Balance updates"
+          secured: true
+          
+        - name: "/user/queue/chat"
+          description: "Direct messages"
+          secured: true
+          
+        # Public/Topic channels
+        - name: "/topic/exchange-rates"
+          description: "Real-time exchange rates"
+          secured: false
+          throttle-rate: 1000
+          
+        - name: "/topic/system-status"
+          description: "System status updates"
+          secured: false
+          throttle-rate: 5000
+          
+      rate-limiting:
+        enabled: true
+        default-rate: 100
+        default-duration: 60
+        endpoints:
+          - path: "/ws/connect"
+            rate: 10
+            duration: 60
+          - path: "/app/send"
+            rate: 50
+            duration: 60
+            
+      session:
+        registry:
+          type: redis
+          cleanup-cron: "0 */5 * * * *"
+        tracking:
+          enabled: true
+          metrics-enabled: true
+          
+      events:
+        handlers:
+          - type: TRANSACTION_CREATED
+            channel: "/user/queue/transactions"
+            filter: "userId == principal.name"
+            
+          - type: PAYMENT_RECEIVED
+            channel: "/user/queue/notifications"
+            filter: "recipientId == principal.name"
+            
+          - type: BALANCE_UPDATED
+            channel: "/user/queue/balance"
+            filter: "userId == principal.name"
+            
+          - type: EXCHANGE_RATE_UPDATED
+            channel: "/topic/exchange-rates"
+            broadcast: true
+            
+          - type: SYSTEM_MAINTENANCE
+            channel: "/topic/system-status"
+            broadcast: true
+    
+    resilience4j:
+      circuitbreaker:
+        instances:
+          redis-pubsub:
+            sliding-window-size: 10
+            minimum-number-of-calls: 5
+            permitted-number-of-calls-in-half-open-state: 3
+            automatic-transition-from-open-to-half-open-enabled: true
+            wait-duration-in-open-state: 30s
+            failure-rate-threshold: 50
+      retry:
+        instances:
+          message-delivery:
+            max-attempts: 3
+            wait-duration: 1s
+            retry-exceptions:
+              - java.io.IOException
+              - org.springframework.messaging.MessageDeliveryException
+    
+    management:
+      endpoints:
+        web:
+          exposure:
+            include: health,info,metrics,prometheus,websocket
+      endpoint:
+        health:
+          show-details: always
+          probes:
+            enabled: true
+      metrics:
+        export:
+          prometheus:
+            enabled: true
+        distribution:
+          percentiles-histogram:
+            websocket.sessions: true
+            websocket.messages: true
+        tags:
+          application: ${spring.application.name}
+    
+    logging:
+      level:
+        com.waqiti.websocket: DEBUG
+        org.springframework.web.socket: DEBUG
+        org.springframework.messaging: DEBUG
+      pattern:
+        console: "%d{yyyy-MM-dd HH:mm:ss} - %logger{36} - %msg%n"

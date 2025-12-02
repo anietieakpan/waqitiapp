@@ -1,0 +1,645 @@
+{
+  "properties": [
+    {
+      "name": "ml.models.fraud-detection.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable fraud detection ML model",
+      "defaultValue": true
+    },
+    {
+      "name": "ml.models.fraud-detection.model-path",
+      "type": "java.lang.String",
+      "description": "Path to fraud detection model files"
+    },
+    {
+      "name": "ml.models.fraud-detection.batch-size",
+      "type": "java.lang.Integer",
+      "description": "Batch size for fraud detection processing",
+      "defaultValue": 100
+    },
+    {
+      "name": "ml.models.fraud-detection.confidence-threshold",
+      "type": "java.lang.Double",
+      "description": "Confidence threshold for fraud detection",
+      "defaultValue": 0.7
+    },
+    {
+      "name": "ml.models.fraud-detection.retrain-interval",
+      "type": "java.time.Duration",
+      "description": "Interval for retraining fraud detection model",
+      "defaultValue": "24h"
+    },
+    {
+      "name": "ml.models.fraud-detection.feature-store.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable feature store for fraud detection",
+      "defaultValue": true
+    },
+    {
+      "name": "ml.models.fraud-detection.feature-store.feast-server",
+      "type": "java.lang.String",
+      "description": "Feast feature store server address"
+    },
+    {
+      "name": "ml.models.risk-scoring.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable risk scoring ML model",
+      "defaultValue": true
+    },
+    {
+      "name": "ml.models.risk-scoring.model-path",
+      "type": "java.lang.String",
+      "description": "Path to risk scoring model files"
+    },
+    {
+      "name": "ml.models.risk-scoring.batch-size",
+      "type": "java.lang.Integer",
+      "description": "Batch size for risk scoring processing",
+      "defaultValue": 50
+    },
+    {
+      "name": "ml.models.risk-scoring.confidence-threshold",
+      "type": "java.lang.Double",
+      "description": "Confidence threshold for risk scoring",
+      "defaultValue": 0.8
+    },
+    {
+      "name": "ml.models.risk-scoring.retrain-interval",
+      "type": "java.time.Duration",
+      "description": "Interval for retraining risk scoring model",
+      "defaultValue": "12h"
+    },
+    {
+      "name": "ml.models.behavioral-analysis.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable behavioral analysis ML model",
+      "defaultValue": true
+    },
+    {
+      "name": "ml.models.behavioral-analysis.model-path",
+      "type": "java.lang.String",
+      "description": "Path to behavioral analysis model files"
+    },
+    {
+      "name": "ml.models.behavioral-analysis.batch-size",
+      "type": "java.lang.Integer",
+      "description": "Batch size for behavioral analysis processing",
+      "defaultValue": 200
+    },
+    {
+      "name": "ml.models.behavioral-analysis.confidence-threshold",
+      "type": "java.lang.Double",
+      "description": "Confidence threshold for behavioral analysis",
+      "defaultValue": 0.75
+    },
+    {
+      "name": "ml.models.behavioral-analysis.retrain-interval",
+      "type": "java.time.Duration",
+      "description": "Interval for retraining behavioral analysis model",
+      "defaultValue": "6h"
+    },
+    {
+      "name": "ml.models.pattern-recognition.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable pattern recognition ML model",
+      "defaultValue": true
+    },
+    {
+      "name": "ml.models.pattern-recognition.model-path",
+      "type": "java.lang.String",
+      "description": "Path to pattern recognition model files"
+    },
+    {
+      "name": "ml.models.pattern-recognition.batch-size",
+      "type": "java.lang.Integer",
+      "description": "Batch size for pattern recognition processing",
+      "defaultValue": 150
+    },
+    {
+      "name": "ml.models.pattern-recognition.confidence-threshold",
+      "type": "java.lang.Double",
+      "description": "Confidence threshold for pattern recognition",
+      "defaultValue": 0.8
+    },
+    {
+      "name": "ml.models.pattern-recognition.retrain-interval",
+      "type": "java.time.Duration",
+      "description": "Interval for retraining pattern recognition model",
+      "defaultValue": "8h"
+    },
+    {
+      "name": "ml.feature-store.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable ML feature store",
+      "defaultValue": true
+    },
+    {
+      "name": "ml.feature-store.feast.server",
+      "type": "java.lang.String",
+      "description": "Feast feature store server address"
+    },
+    {
+      "name": "ml.feature-store.feast.project",
+      "type": "java.lang.String",
+      "description": "Feast project name",
+      "defaultValue": "waqiti-ml"
+    },
+    {
+      "name": "ml.feature-store.feast.registry",
+      "type": "java.lang.String",
+      "description": "Path to Feast registry database"
+    },
+    {
+      "name": "ml.feature-store.feast.online-store.type",
+      "type": "java.lang.String",
+      "description": "Type of online feature store",
+      "defaultValue": "redis"
+    },
+    {
+      "name": "ml.feature-store.feast.online-store.connection-string",
+      "type": "java.lang.String",
+      "description": "Connection string for online feature store"
+    },
+    {
+      "name": "ml.feature-store.feast.offline-store.type",
+      "type": "java.lang.String",
+      "description": "Type of offline feature store",
+      "defaultValue": "postgres"
+    },
+    {
+      "name": "ml.feature-store.feast.offline-store.host",
+      "type": "java.lang.String",
+      "description": "Host for offline feature store"
+    },
+    {
+      "name": "ml.feature-store.feast.offline-store.port",
+      "type": "java.lang.Integer",
+      "description": "Port for offline feature store",
+      "defaultValue": 5432
+    },
+    {
+      "name": "ml.feature-store.feast.offline-store.database",
+      "type": "java.lang.String",
+      "description": "Database name for offline feature store"
+    },
+    {
+      "name": "ml.feature-store.feast.offline-store.user",
+      "type": "java.lang.String",
+      "description": "Username for offline feature store"
+    },
+    {
+      "name": "ml.feature-store.feast.offline-store.password",
+      "type": "java.lang.String",
+      "description": "Password for offline feature store"
+    },
+    {
+      "name": "ml.inference.timeout",
+      "type": "java.time.Duration",
+      "description": "Timeout for ML inference operations",
+      "defaultValue": "5s"
+    },
+    {
+      "name": "ml.inference.max-concurrent-requests",
+      "type": "java.lang.Integer",
+      "description": "Maximum concurrent ML inference requests",
+      "defaultValue": 100
+    },
+    {
+      "name": "ml.inference.queue-capacity",
+      "type": "java.lang.Integer",
+      "description": "Queue capacity for ML inference requests",
+      "defaultValue": 1000
+    },
+    {
+      "name": "ml.inference.thread-pool-size",
+      "type": "java.lang.Integer",
+      "description": "Thread pool size for ML inference",
+      "defaultValue": 20
+    },
+    {
+      "name": "ml.inference.batch-processing.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable batch processing for ML inference",
+      "defaultValue": true
+    },
+    {
+      "name": "ml.inference.batch-processing.batch-size",
+      "type": "java.lang.Integer",
+      "description": "Batch size for ML inference processing",
+      "defaultValue": 50
+    },
+    {
+      "name": "ml.inference.batch-processing.max-wait-time",
+      "type": "java.time.Duration",
+      "description": "Maximum wait time for batch processing",
+      "defaultValue": "1s"
+    },
+    {
+      "name": "ml.training.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable ML model training",
+      "defaultValue": true
+    },
+    {
+      "name": "ml.training.schedule",
+      "type": "java.lang.String",
+      "description": "Cron schedule for ML model training",
+      "defaultValue": "0 2 * * *"
+    },
+    {
+      "name": "ml.training.data-retention-days",
+      "type": "java.lang.Integer",
+      "description": "Number of days to retain training data",
+      "defaultValue": 90
+    },
+    {
+      "name": "ml.training.model-backup-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable model backup after training",
+      "defaultValue": true
+    },
+    {
+      "name": "ml.training.model-backup-location",
+      "type": "java.lang.String",
+      "description": "Location for model backups"
+    },
+    {
+      "name": "ml.monitoring.model-drift-detection",
+      "type": "java.lang.Boolean",
+      "description": "Enable model drift detection",
+      "defaultValue": true
+    },
+    {
+      "name": "ml.monitoring.performance-tracking",
+      "type": "java.lang.Boolean",
+      "description": "Enable model performance tracking",
+      "defaultValue": true
+    },
+    {
+      "name": "ml.monitoring.performancetracking",
+      "type": "java.lang.Boolean",
+      "description": "Enable model performance tracking",
+      "defaultValue": true
+    },
+    {
+      "name": "ml.monitoring.data-quality-monitoring",
+      "type": "java.lang.Boolean",
+      "description": "Enable data quality monitoring",
+      "defaultValue": true
+    },
+    {
+      "name": "ml.monitoring.alert-threshold.accuracy-drop",
+      "type": "java.lang.Double",
+      "description": "Alert threshold for accuracy drop",
+      "defaultValue": 0.05
+    },
+    {
+      "name": "ml.monitoring.alert-threshold.prediction-drift",
+      "type": "java.lang.Double",
+      "description": "Alert threshold for prediction drift",
+      "defaultValue": 0.1
+    },
+    {
+      "name": "ml.monitoring.alert-threshold.data-quality",
+      "type": "java.lang.Double",
+      "description": "Alert threshold for data quality",
+      "defaultValue": 0.8
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.token-validation-url",
+      "type": "java.lang.String",
+      "description": "URL for token validation service"
+    },
+    {
+      "name": "service.auth.api-key",
+      "type": "java.lang.String",
+      "description": "API key for service authentication"
+    },
+    {
+      "name": "service.auth.jwt.secret",
+      "type": "java.lang.String",
+      "description": "JWT secret for service authentication"
+    },
+    {
+      "name": "service.auth.jwt.expiration",
+      "type": "java.lang.Long",
+      "description": "JWT token expiration time in milliseconds",
+      "defaultValue": 3600000
+    },
+    {
+      "name": "kafka.topics.fraud-detection",
+      "type": "java.lang.String",
+      "description": "Kafka topic for fraud detection events",
+      "defaultValue": "fraud-detection-events"
+    },
+    {
+      "name": "kafka.topics.risk-scoring",
+      "type": "java.lang.String",
+      "description": "Kafka topic for risk scoring events",
+      "defaultValue": "risk-scoring-events"
+    },
+    {
+      "name": "kafka.topics.model-inference",
+      "type": "java.lang.String",
+      "description": "Kafka topic for model inference events",
+      "defaultValue": "model-inference-events"
+    },
+    {
+      "name": "kafka.topics.transaction-analysis",
+      "type": "java.lang.String",
+      "description": "Kafka topic for transaction analysis events",
+      "defaultValue": "transaction-analysis-events"
+    },
+    {
+      "name": "kafka.topics.model-training",
+      "type": "java.lang.String",
+      "description": "Kafka topic for model training events",
+      "defaultValue": "model-training-events"
+    },
+    {
+      "name": "kafka.topics.notification",
+      "type": "java.lang.String",
+      "description": "Kafka topic for notification events",
+      "defaultValue": "notification-events"
+    },
+    {
+      "name": "external-services.fraud-detection.url",
+      "type": "java.lang.String",
+      "description": "URL for fraud detection service"
+    },
+    {
+      "name": "external-services.fraud-detection.timeout",
+      "type": "java.time.Duration",
+      "description": "Timeout for fraud detection service",
+      "defaultValue": "5s"
+    },
+    {
+      "name": "external-services.fraud-detection.retry-attempts",
+      "type": "java.lang.Integer",
+      "description": "Retry attempts for fraud detection service",
+      "defaultValue": 3
+    },
+    {
+      "name": "external-services.risk-assessment.url",
+      "type": "java.lang.String",
+      "description": "URL for risk assessment service"
+    },
+    {
+      "name": "external-services.risk-assessment.timeout",
+      "type": "java.time.Duration",
+      "description": "Timeout for risk assessment service",
+      "defaultValue": "3s"
+    },
+    {
+      "name": "external-services.risk-assessment.retry-attempts",
+      "type": "java.lang.Integer",
+      "description": "Retry attempts for risk assessment service",
+      "defaultValue": 2
+    },
+    {
+      "name": "external-services.transaction-service.url",
+      "type": "java.lang.String",
+      "description": "URL for transaction service"
+    },
+    {
+      "name": "external-services.transaction-service.timeout",
+      "type": "java.time.Duration",
+      "description": "Timeout for transaction service",
+      "defaultValue": "10s"
+    },
+    {
+      "name": "external-services.transaction-service.retry-attempts",
+      "type": "java.lang.Integer",
+      "description": "Retry attempts for transaction service",
+      "defaultValue": 3
+    },
+    {
+      "name": "external-services.notification-service.url",
+      "type": "java.lang.String",
+      "description": "URL for notification service"
+    },
+    {
+      "name": "external-services.notification-service.timeout",
+      "type": "java.time.Duration",
+      "description": "Timeout for notification service",
+      "defaultValue": "5s"
+    },
+    {
+      "name": "external-services.notification-service.retry-attempts",
+      "type": "java.lang.Integer",
+      "description": "Retry attempts for notification service",
+      "defaultValue": 2
+    },
+    {
+      "name": "async.core-pool-size",
+      "type": "java.lang.Integer",
+      "description": "Core pool size for async executor",
+      "defaultValue": 5
+    },
+    {
+      "name": "async.max-pool-size",
+      "type": "java.lang.Integer",
+      "description": "Maximum pool size for async executor",
+      "defaultValue": 20
+    },
+    {
+      "name": "async.queue-capacity",
+      "type": "java.lang.Integer",
+      "description": "Queue capacity for async executor",
+      "defaultValue": 1000
+    },
+    {
+      "name": "async.thread-name-prefix",
+      "type": "java.lang.String",
+      "description": "Thread name prefix for async executor",
+      "defaultValue": "ml-async-"
+    },
+    {
+      "name": "async.keep-alive-seconds",
+      "type": "java.lang.Integer",
+      "description": "Keep alive time in seconds for async threads",
+      "defaultValue": 60
+    },
+    {
+      "name": "cache.caffeine.spec",
+      "type": "java.lang.String",
+      "description": "Caffeine cache specification",
+      "defaultValue": "maximumSize=1000,expireAfterWrite=1h"
+    },
+    {
+      "name": "cache.redis.ttl",
+      "type": "java.lang.Integer",
+      "description": "Redis cache TTL in seconds",
+      "defaultValue": 3600
+    },
+    {
+      "name": "cache.redis.key-prefix",
+      "type": "java.lang.String",
+      "description": "Redis cache key prefix",
+      "defaultValue": "ml-service:"
+    },
+    {
+      "name": "spring.influxdb.url",
+      "type": "java.lang.String",
+      "description": "InfluxDB URL"
+    },
+    {
+      "name": "spring.influxdb.token",
+      "type": "java.lang.String",
+      "description": "InfluxDB authentication token"
+    },
+    {
+      "name": "spring.influxdb.org",
+      "type": "java.lang.String",
+      "description": "InfluxDB organization"
+    },
+    {
+      "name": "spring.influxdb.bucket",
+      "type": "java.lang.String",
+      "description": "InfluxDB bucket name"
+    },
+    {
+      "name": "spring.influxdb.timeout",
+      "type": "java.time.Duration",
+      "description": "InfluxDB connection timeout",
+      "defaultValue": "10s"
+    },
+    {
+      "name": "keycloak.realm",
+      "type": "java.lang.String",
+      "description": "Keycloak realm name"
+    },
+    {
+      "name": "keycloak.auth-server-url",
+      "type": "java.lang.String",
+      "description": "Keycloak authentication server URL"
+    },
+    {
+      "name": "keycloak.resource",
+      "type": "java.lang.String",
+      "description": "Keycloak client resource ID"
+    },
+    {
+      "name": "keycloak.credentials.secret",
+      "type": "java.lang.String",
+      "description": "Keycloak client secret"
+    },
+    {
+      "name": "keycloak.ssl-required",
+      "type": "java.lang.String",
+      "description": "SSL requirement for Keycloak",
+      "defaultValue": "external"
+    },
+    {
+      "name": "keycloak.use-resource-role-mappings",
+      "type": "java.lang.Boolean",
+      "description": "Use resource role mappings in Keycloak",
+      "defaultValue": true
+    },
+    {
+      "name": "keycloak.bearer-only",
+      "type": "java.lang.Boolean",
+      "description": "Bearer-only authentication mode",
+      "defaultValue": true
+    },
+    {
+      "name": "keycloak.cors",
+      "type": "java.lang.Boolean",
+      "description": "Enable CORS for Keycloak",
+      "defaultValue": true
+    },
+    {
+      "name": "vault.uri",
+      "type": "java.lang.String",
+      "description": "HashiCorp Vault URI"
+    },
+    {
+      "name": "vault.token",
+      "type": "java.lang.String",
+      "description": "HashiCorp Vault authentication token"
+    },
+    {
+      "name": "vault.scheme",
+      "type": "java.lang.String",
+      "description": "HashiCorp Vault connection scheme",
+      "defaultValue": "https"
+    },
+    {
+      "name": "vault.kv.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Vault KV secret engine",
+      "defaultValue": true
+    },
+    {
+      "name": "vault.kv.backend",
+      "type": "java.lang.String",
+      "description": "Vault KV backend path",
+      "defaultValue": "secret"
+    },
+    {
+      "name": "vault.kv.profile-separator",
+      "type": "java.lang.String",
+      "description": "Vault KV profile separator",
+      "defaultValue": "/"
+    }
+  ],
+  "hints": [
+    {
+      "name": "ml.models.fraud-detection.feature-store.enabled",
+      "values": [
+        {
+          "value": true,
+          "description": "Enable feature store integration for fraud detection"
+        },
+        {
+          "value": false,
+          "description": "Disable feature store integration for fraud detection"
+        }
+      ]
+    },
+    {
+      "name": "ml.feature-store.feast.online-store.type",
+      "values": [
+        {
+          "value": "redis",
+          "description": "Use Redis as online feature store"
+        },
+        {
+          "value": "dynamodb",
+          "description": "Use DynamoDB as online feature store"
+        },
+        {
+          "value": "bigtable",
+          "description": "Use Google Bigtable as online feature store"
+        }
+      ]
+    },
+    {
+      "name": "ml.feature-store.feast.offline-store.type",
+      "values": [
+        {
+          "value": "postgres",
+          "description": "Use PostgreSQL as offline feature store"
+        },
+        {
+          "value": "bigquery",
+          "description": "Use Google BigQuery as offline feature store"
+        },
+        {
+          "value": "redshift",
+          "description": "Use AWS Redshift as offline feature store"
+        },
+        {
+          "value": "snowflake",
+          "description": "Use Snowflake as offline feature store"
+        }
+      ]
+    }
+  ]
+}

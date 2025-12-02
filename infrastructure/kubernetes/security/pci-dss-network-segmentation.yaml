@@ -1,0 +1,673 @@
+# PCI DSS Compliant Network Segmentation for Kubernetes
+# Implements strict isolation for Cardholder Data Environment (CDE)
+# Complies with PCI DSS v4.0 Requirements 1.2, 1.3, 1.4
+
+---
+# Create dedicated namespace for PCI DSS scoped services
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: pci-cde
+  labels:
+    name: pci-cde
+    compliance: pci-dss
+    security-zone: restricted
+    data-classification: sensitive
+  annotations:
+    pci-dss-scope: "true"
+    network-segment: "cde"
+    audit-level: "maximum"
+
+---
+# Create namespace for non-CDE services
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: non-cde
+  labels:
+    name: non-cde
+    compliance: standard
+    security-zone: standard
+    data-classification: internal
+
+---
+# Create DMZ namespace for external-facing services
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dmz
+  labels:
+    name: dmz
+    security-zone: dmz
+    data-classification: public
+
+---
+# Default DENY ALL policy for CDE namespace (PCI DSS Req 1.2.1)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: cde-default-deny-all
+  namespace: pci-cde
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+
+---
+# Allow DNS for CDE pods (Required for service discovery)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: cde-allow-dns
+  namespace: pci-cde
+spec:
+  podSelector: {}
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    - podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+
+---
+# Payment Service in CDE (Handles card data)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: payment-service-cde-policy
+  namespace: pci-cde
+spec:
+  podSelector:
+    matchLabels:
+      app: payment-service
+      pci-scope: "true"
+  policyTypes:
+  - Ingress
+  - Egress
+  
+  ingress:
+  # Only from API Gateway via secure channel
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: dmz
+    - podSelector:
+        matchLabels:
+          app: api-gateway
+          pci-certified: "true"
+    ports:
+    - protocol: TCP
+      port: 8443  # TLS only
+  
+  # From tokenization service
+  - from:
+    - podSelector:
+        matchLabels:
+          app: tokenization-service
+    ports:
+    - protocol: TCP
+      port: 8443
+  
+  # Health checks from monitoring (read-only)
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    - podSelector:
+        matchLabels:
+          app: prometheus
+          pci-certified: "true"
+    ports:
+    - protocol: TCP
+      port: 9090  # Metrics only, no card data
+  
+  egress:
+  # To tokenization service only
+  - to:
+    - podSelector:
+        matchLabels:
+          app: tokenization-service
+    ports:
+    - protocol: TCP
+      port: 8443
+  
+  # To HSM for encryption
+  - to:
+    - podSelector:
+        matchLabels:
+          app: hsm-service
+    ports:
+    - protocol: TCP
+      port: 9443
+  
+  # To vault for secure storage
+  - to:
+    - podSelector:
+        matchLabels:
+          app: vault
+          pci-scope: "true"
+    ports:
+    - protocol: TCP
+      port: 8200
+  
+  # To payment processor (external, whitelisted IPs only)
+  - to:
+    - ipBlock:
+        cidr: 0.0.0.0/0
+        except:
+        - 10.0.0.0/8
+        - 172.16.0.0/12
+        - 192.168.0.0/16
+        - 169.254.169.254/32
+    ports:
+    - protocol: TCP
+      port: 443
+  
+  # To CDE database only
+  - to:
+    - podSelector:
+        matchLabels:
+          app: postgres-cde
+          pci-scope: "true"
+    ports:
+    - protocol: TCP
+      port: 5432
+
+---
+# Tokenization Service in CDE
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: tokenization-service-policy
+  namespace: pci-cde
+spec:
+  podSelector:
+    matchLabels:
+      app: tokenization-service
+      pci-scope: "true"
+  policyTypes:
+  - Ingress
+  - Egress
+  
+  ingress:
+  # From payment service
+  - from:
+    - podSelector:
+        matchLabels:
+          app: payment-service
+    ports:
+    - protocol: TCP
+      port: 8443
+  
+  # From authorized services needing detokenization
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: non-cde
+    - podSelector:
+        matchLabels:
+          authorized-detokenization: "true"
+    ports:
+    - protocol: TCP
+      port: 8444  # Separate port for detokenization
+  
+  egress:
+  # To token vault database
+  - to:
+    - podSelector:
+        matchLabels:
+          app: token-vault-db
+          pci-scope: "true"
+    ports:
+    - protocol: TCP
+      port: 5432
+  
+  # To HSM
+  - to:
+    - podSelector:
+        matchLabels:
+          app: hsm-service
+    ports:
+    - protocol: TCP
+      port: 9443
+  
+  # To audit service
+  - to:
+    - podSelector:
+        matchLabels:
+          app: audit-service
+          pci-scope: "true"
+    ports:
+    - protocol: TCP
+      port: 8443
+
+---
+# CDE Database Policy (Stores encrypted card data)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres-cde-policy
+  namespace: pci-cde
+spec:
+  podSelector:
+    matchLabels:
+      app: postgres-cde
+      pci-scope: "true"
+  policyTypes:
+  - Ingress
+  - Egress
+  
+  ingress:
+  # Only from payment service
+  - from:
+    - podSelector:
+        matchLabels:
+          app: payment-service
+    ports:
+    - protocol: TCP
+      port: 5432
+  
+  # From backup service (encrypted backups only)
+  - from:
+    - podSelector:
+        matchLabels:
+          app: backup-service
+          pci-certified: "true"
+    ports:
+    - protocol: TCP
+      port: 5432
+  
+  egress:
+  # To backup storage (encrypted)
+  - to:
+    - podSelector:
+        matchLabels:
+          app: backup-storage
+          encryption: "aes-256"
+    ports:
+    - protocol: TCP
+      port: 9000
+
+---
+# HSM Service Policy (Hardware Security Module)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: hsm-service-policy
+  namespace: pci-cde
+spec:
+  podSelector:
+    matchLabels:
+      app: hsm-service
+      pci-scope: "true"
+  policyTypes:
+  - Ingress
+  - Egress
+  
+  ingress:
+  # From payment service
+  - from:
+    - podSelector:
+        matchLabels:
+          app: payment-service
+    ports:
+    - protocol: TCP
+      port: 9443
+  
+  # From tokenization service
+  - from:
+    - podSelector:
+        matchLabels:
+          app: tokenization-service
+    ports:
+    - protocol: TCP
+      port: 9443
+  
+  # From key rotation service
+  - from:
+    - podSelector:
+        matchLabels:
+          app: key-rotation-service
+          pci-scope: "true"
+    ports:
+    - protocol: TCP
+      port: 9443
+  
+  egress:
+  # HSM typically doesn't need egress except for:
+  # Audit logs
+  - to:
+    - podSelector:
+        matchLabels:
+          app: audit-service
+    ports:
+    - protocol: TCP
+      port: 8443
+
+---
+# Audit Service Policy (PCI DSS Req 10)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: audit-service-policy
+  namespace: pci-cde
+spec:
+  podSelector:
+    matchLabels:
+      app: audit-service
+      pci-scope: "true"
+  policyTypes:
+  - Ingress
+  - Egress
+  
+  ingress:
+  # From all CDE services
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: pci-cde
+    ports:
+    - protocol: TCP
+      port: 8443
+  
+  # From security scanning tools
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: security-tools
+    - podSelector:
+        matchLabels:
+          tool-type: audit-reader
+    ports:
+    - protocol: TCP
+      port: 8444  # Read-only port
+  
+  egress:
+  # To audit database
+  - to:
+    - podSelector:
+        matchLabels:
+          app: audit-database
+          retention: "1-year"
+    ports:
+    - protocol: TCP
+      port: 5432
+  
+  # To SIEM
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    - podSelector:
+        matchLabels:
+          app: siem
+    ports:
+    - protocol: TCP
+      port: 5044  # Logstash
+
+---
+# API Gateway in DMZ (Entry point, no card data storage)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: api-gateway-dmz-policy
+  namespace: dmz
+spec:
+  podSelector:
+    matchLabels:
+      app: api-gateway
+  policyTypes:
+  - Ingress
+  - Egress
+  
+  ingress:
+  # From internet via WAF
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: istio-system
+    - podSelector:
+        matchLabels:
+          app: istio-ingressgateway
+    ports:
+    - protocol: TCP
+      port: 8443
+  
+  egress:
+  # To payment service in CDE (tokenized data only)
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: pci-cde
+    - podSelector:
+        matchLabels:
+          app: payment-service
+    ports:
+    - protocol: TCP
+      port: 8443
+  
+  # To non-CDE services
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: non-cde
+    ports:
+    - protocol: TCP
+      port: 8080
+
+---
+# Wallet Service in Non-CDE (Uses tokens only)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: wallet-service-non-cde-policy
+  namespace: non-cde
+spec:
+  podSelector:
+    matchLabels:
+      app: wallet-service
+  policyTypes:
+  - Ingress
+  - Egress
+  
+  ingress:
+  # From API Gateway
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: dmz
+    - podSelector:
+        matchLabels:
+          app: api-gateway
+    ports:
+    - protocol: TCP
+      port: 8080
+  
+  egress:
+  # To non-CDE database
+  - to:
+    - podSelector:
+        matchLabels:
+          app: postgres-non-cde
+    ports:
+    - protocol: TCP
+      port: 5432
+  
+  # To tokenization service for detokenization (limited)
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: pci-cde
+    - podSelector:
+        matchLabels:
+          app: tokenization-service
+    ports:
+    - protocol: TCP
+      port: 8444  # Detokenization port
+  
+  # To Redis cache
+  - to:
+    - podSelector:
+        matchLabels:
+          app: redis
+    ports:
+    - protocol: TCP
+      port: 6379
+
+---
+# Segmentation validation policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: segmentation-test-policy
+  namespace: pci-cde
+spec:
+  podSelector:
+    matchLabels:
+      app: segmentation-validator
+      test-only: "true"
+  policyTypes:
+  - Ingress
+  - Egress
+  
+  ingress:
+  # No ingress allowed for test pods
+  - {}
+  
+  egress:
+  # Only to test endpoints
+  - to:
+    - podSelector:
+        matchLabels:
+          test-endpoint: "true"
+    ports:
+    - protocol: TCP
+      port: 9999
+
+---
+# Jump host policy for administrative access (PCI DSS Req 8)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: jump-host-policy
+  namespace: pci-cde
+spec:
+  podSelector:
+    matchLabels:
+      app: jump-host
+      pci-scope: "true"
+  policyTypes:
+  - Ingress
+  - Egress
+  
+  ingress:
+  # Only from specific admin IPs with MFA
+  - from:
+    - ipBlock:
+        cidr: 10.100.0.0/24  # Admin network only
+    ports:
+    - protocol: TCP
+      port: 22  # SSH with MFA
+  
+  egress:
+  # To CDE services for maintenance
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: pci-cde
+    ports:
+    - protocol: TCP
+      port: 22
+    - protocol: TCP
+      port: 8443
+
+---
+# File Integrity Monitoring (PCI DSS Req 11.5)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: fim-policy
+  namespace: pci-cde
+spec:
+  podSelector:
+    matchLabels:
+      app: file-integrity-monitor
+      pci-scope: "true"
+  policyTypes:
+  - Ingress
+  - Egress
+  
+  ingress:
+  # No ingress needed
+  - {}
+  
+  egress:
+  # To all CDE pods for monitoring
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: pci-cde
+    ports:
+    - protocol: TCP
+      port: 9100  # Node exporter
+  
+  # To alert manager
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    - podSelector:
+        matchLabels:
+          app: alertmanager
+    ports:
+    - protocol: TCP
+      port: 9093
+
+---
+# Vulnerability Scanner Policy (PCI DSS Req 11.2)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: vulnerability-scanner-policy
+  namespace: security-tools
+spec:
+  podSelector:
+    matchLabels:
+      app: vulnerability-scanner
+      scan-type: quarterly
+  policyTypes:
+  - Ingress
+  - Egress
+  
+  egress:
+  # To all CDE services for scanning
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: pci-cde
+    ports:
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 8443
+    - protocol: TCP
+      port: 8080
+  
+  # To vulnerability database
+  - to:
+    - podSelector:
+        matchLabels:
+          app: vuln-database
+    ports:
+    - protocol: TCP
+      port: 5432

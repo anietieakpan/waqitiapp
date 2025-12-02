@@ -1,0 +1,237 @@
+# Production Resource Limits and Configuration Override
+# This file should be used in production to set proper resource limits
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.override.yml up
+
+version: '3.8'
+
+services:
+  # API Gateway - High traffic entry point
+  api-gateway:
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    environment:
+      - JAVA_OPTS=-Xms512m -Xmx1536m -XX:+UseG1GC -XX:+UseStringDeduplication
+      - MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health,info,prometheus,metrics
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8443/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Payment Service - Critical financial processing
+  payment-service:
+    deploy:
+      resources:
+        limits:
+          cpus: '3.0'
+          memory: 4G
+        reservations:
+          cpus: '1.0'
+          memory: 1G
+    environment:
+      - JAVA_OPTS=-Xms1g -Xmx3g -XX:+UseG1GC -XX:+UseStringDeduplication -XX:MaxGCPauseMillis=200
+      - MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health,info,prometheus,metrics
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+
+  # User Service - High read volume
+  user-service:
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    environment:
+      - JAVA_OPTS=-Xms512m -Xmx1536m -XX:+UseG1GC -XX:+UseStringDeduplication
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+
+  # Wallet Service - Financial data processing
+  wallet-service:
+    deploy:
+      resources:
+        limits:
+          cpus: '2.5'
+          memory: 3G
+        reservations:
+          cpus: '0.75'
+          memory: 768M
+    environment:
+      - JAVA_OPTS=-Xms768m -Xmx2304m -XX:+UseG1GC -XX:+UseStringDeduplication
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+
+  # Fraud Detection Service - ML intensive
+  fraud-detection-service:
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 3G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+    environment:
+      - JAVA_OPTS=-Xms1g -Xmx2304m -XX:+UseG1GC -XX:+UseStringDeduplication
+
+  # Transaction Service - High volume processing
+  transaction-service:
+    deploy:
+      resources:
+        limits:
+          cpus: '2.5'
+          memory: 3G
+        reservations:
+          cpus: '0.75'
+          memory: 768M
+    environment:
+      - JAVA_OPTS=-Xms768m -Xmx2304m -XX:+UseG1GC -XX:+UseStringDeduplication
+
+  # Event Sourcing Service - Event processing
+  event-sourcing-service:
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    environment:
+      - JAVA_OPTS=-Xms512m -Xmx1536m -XX:+UseG1GC
+
+  # Discovery Service - Lightweight coordination
+  discovery-service:
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    environment:
+      - JAVA_OPTS=-Xms256m -Xmx768m -XX:+UseG1GC
+
+  # Config Service - Configuration management
+  config-service:
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    environment:
+      - JAVA_OPTS=-Xms256m -Xmx768m -XX:+UseG1GC
+
+  # Database Resources
+  postgres-main:
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 8G
+        reservations:
+          cpus: '1.0'
+          memory: 2G
+    environment:
+      - POSTGRES_SHARED_BUFFERS=2GB
+      - POSTGRES_EFFECTIVE_CACHE_SIZE=6GB
+      - POSTGRES_MAINTENANCE_WORK_MEM=512MB
+      - POSTGRES_CHECKPOINT_COMPLETION_TARGET=0.9
+      - POSTGRES_WAL_BUFFERS=64MB
+      - POSTGRES_DEFAULT_STATISTICS_TARGET=100
+      - POSTGRES_RANDOM_PAGE_COST=1.1
+      - POSTGRES_EFFECTIVE_IO_CONCURRENCY=200
+
+  # Redis Resources
+  redis:
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    command: redis-server --maxmemory 1536mb --maxmemory-policy allkeys-lru --appendonly yes
+
+  # Kafka Resources
+  kafka:
+    deploy:
+      resources:
+        limits:
+          cpus: '3.0'
+          memory: 4G
+        reservations:
+          cpus: '1.0'
+          memory: 1G
+    environment:
+      KAFKA_HEAP_OPTS: "-Xms1g -Xmx3g"
+      KAFKA_JVM_PERFORMANCE_OPTS: "-XX:+UseG1GC -XX:MaxGCPauseMillis=20 -XX:InitiatingHeapOccupancyPercent=35"
+
+  # Vault Resources
+  vault:
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    cap_add:
+      - IPC_LOCK
+
+  # Monitoring Resources
+  prometheus:
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+        reservations:
+          cpus: '0.25'
+          memory: 512M
+
+  grafana:
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+
+# Network configuration for production
+networks:
+  waqiti-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

@@ -1,0 +1,427 @@
+# Common configuration template for all Waqiti services
+# This file should be included by all service configurations
+
+# Spring Framework Configuration
+spring:
+  application:
+    name: ${SERVICE_NAME:waqiti-service}
+  
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+
+  # Database Configuration (PostgreSQL)
+  # SECURITY: Credentials sourced from Vault (production) or environment variables (dev/test)
+  # Production: Vault dynamic database credentials (auto-rotated)
+  # Development: Environment variables with NO empty defaults (fail-fast if missing)
+  # See: application-vault.yml for Vault configuration
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:waqiti}
+    username: ${DB_USERNAME}  # NO DEFAULT - Vault/env var REQUIRED
+    password: ${DB_PASSWORD}  # NO DEFAULT - Vault/env var REQUIRED
+    driver-class-name: org.postgresql.Driver
+    
+    # HikariCP Connection Pool Configuration
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:20}
+      minimum-idle: ${DB_POOL_MIN_IDLE:5}
+      connection-timeout: ${DB_CONNECTION_TIMEOUT:20000}
+      idle-timeout: ${DB_IDLE_TIMEOUT:300000}
+      max-lifetime: ${DB_MAX_LIFETIME:1200000}
+      leak-detection-threshold: ${DB_LEAK_DETECTION_THRESHOLD:60000}
+      pool-name: ${spring.application.name}-db-pool
+
+  # JPA Configuration
+  jpa:
+    hibernate:
+      ddl-auto: validate
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.SnakeCasePhysicalNamingStrategy
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: false
+        show_sql: false
+        jdbc:
+          batch_size: 20
+          order_inserts: true
+          order_updates: true
+        connection:
+          provider_disables_autocommit: true
+
+  # Flyway Configuration
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+
+  # Redis Configuration
+  # SECURITY: Password sourced from Vault (production) or environment variable (dev/test)
+  # Production: Vault provides centrally managed Redis password
+  # Development: Environment variable REQUIRED (no empty default)
+  # Local dev: Can override in application-dev.yml if needed
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD}  # NO DEFAULT - Vault/env var REQUIRED
+      timeout: ${REDIS_TIMEOUT:2000ms}
+      database: ${REDIS_DATABASE:0}
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
+        shutdown-timeout: 100ms
+      
+  # Cache Configuration
+  cache:
+    type: redis
+    redis:
+      time-to-live: ${CACHE_TTL:3600000} # 1 hour default
+      cache-null-values: false
+      use-key-prefix: true
+
+  # Kafka Configuration
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      batch-size: 16384
+      linger-ms: 5
+      buffer-memory: 33554432
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+    consumer:
+      group-id: ${spring.application.name}
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      properties:
+        spring.json.trusted.packages: com.waqiti
+
+  # Jackson Configuration
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+      fail-on-empty-beans: false
+    deserialization:
+      fail-on-unknown-properties: false
+    default-property-inclusion: non_null
+
+  # Enhanced Vault Configuration
+  cloud:
+    vault:
+      enabled: ${VAULT_ENABLED:true}
+      uri: ${VAULT_URI:https://vault.example.internal:8200}
+      scheme: ${VAULT_SCHEME:https}
+      host: ${VAULT_HOST:vault.example.internal}
+      port: ${VAULT_PORT:8200}
+      
+      # Kubernetes authentication (preferred for production)
+      authentication: ${VAULT_AUTH_METHOD:KUBERNETES}
+      kubernetes:
+        role: ${VAULT_K8S_ROLE:${spring.application.name}-role}
+        kubernetes-path: ${VAULT_K8S_PATH:kubernetes}
+        service-account-token-file: ${VAULT_SA_TOKEN_FILE:/var/run/secrets/kubernetes.io/serviceaccount/token}
+      
+      # AppRole authentication (fallback)
+      app-role:
+        role-id: ${VAULT_ROLE_ID:}
+        secret-id: ${VAULT_SECRET_ID:}
+        role: ${spring.application.name}-role
+        app-role-path: ${VAULT_APPROLE_PATH:approle}
+      
+      # Token authentication (development only)
+      token: ${VAULT_TOKEN:}
+      
+      # Enhanced connection settings
+      connection-timeout: ${VAULT_CONNECTION_TIMEOUT:10000}
+      read-timeout: ${VAULT_READ_TIMEOUT:30000}
+      fail-fast: ${VAULT_FAIL_FAST:false}
+      
+      # Enhanced KV engine configuration
+      kv:
+        enabled: true
+        backend: ${VAULT_KV_BACKEND:secret}
+        backend-version: ${VAULT_KV_VERSION:2}
+        profile-separator: /
+        default-context: ${spring.application.name}
+        application-name: ${spring.application.name}
+        profiles: ${spring.profiles.active:dev}
+        additional-contexts:
+          - common
+          - infrastructure
+      
+      # Database dynamic credentials
+      database:
+        enabled: ${VAULT_DATABASE_ENABLED:true}
+        role: ${VAULT_DB_ROLE:${spring.application.name}-db-role}
+        backend: database
+        username-property: spring.datasource.username
+        password-property: spring.datasource.password
+        ttl: ${VAULT_DB_TTL:24h}
+        max-ttl: ${VAULT_DB_MAX_TTL:168h}
+      
+      # Generic secrets
+      generic:
+        enabled: true
+        backend: secret
+        default-context: ${spring.application.name}
+        application-name: ${spring.application.name}
+
+# Cache Configuration
+cache:
+  redis:
+    default-ttl: ${CACHE_DEFAULT_TTL:PT1H} # 1 hour
+    enable-statistics: ${CACHE_ENABLE_STATS:true}
+    key-prefix: ${CACHE_KEY_PREFIX:${spring.application.name}}
+  
+  warmup:
+    enabled: ${CACHE_WARMUP_ENABLED:true}
+    on-startup: ${CACHE_WARMUP_ON_STARTUP:true}
+    batch-size: ${CACHE_WARMUP_BATCH_SIZE:100}
+    scheduled-refresh: ${CACHE_SCHEDULED_REFRESH:true}
+    refresh-interval: ${CACHE_REFRESH_INTERVAL:PT30M} # 30 minutes
+    
+  # Service-specific cache TTL overrides
+  ttl:
+    users: ${CACHE_TTL_USERS:PT30M}           # 30 minutes
+    auth-tokens: ${CACHE_TTL_AUTH:PT15M}       # 15 minutes
+    exchange-rates: ${CACHE_TTL_FX:PT5M}       # 5 minutes
+    configurations: ${CACHE_TTL_CONFIG:PT1H}   # 1 hour
+    static-data: ${CACHE_TTL_STATIC:PT6H}      # 6 hours
+    analytics: ${CACHE_TTL_ANALYTICS:PT15M}    # 15 minutes
+    compliance: ${CACHE_TTL_COMPLIANCE:PT10M}  # 10 minutes
+    merchants: ${CACHE_TTL_MERCHANTS:PT30M}    # 30 minutes
+    transactions: ${CACHE_TTL_TRANSACTIONS:PT15M} # 15 minutes
+    
+  # Cache eviction settings
+  eviction:
+    enabled: ${CACHE_EVICTION_ENABLED:true}
+    memory-threshold: ${CACHE_MEMORY_THRESHOLD:0.8} # 80%
+    low-hit-rate-threshold: ${CACHE_LOW_HIT_RATE:0.3} # 30%
+    
+  # Testing configuration (dev/test only)
+  testing:
+    enabled: ${CACHE_TESTING_ENABLED:false}
+      
+      # SSL configuration for production
+      ssl:
+        trust-store: ${VAULT_TRUST_STORE:/etc/ssl/certs/vault-ca.jks}
+        trust-store-password: ${VAULT_TRUST_STORE_PASSWORD:changeit}
+        trust-store-type: ${VAULT_TRUST_STORE_TYPE:JKS}
+        verify-hostname: ${VAULT_VERIFY_HOSTNAME:true}
+      
+      # Session lifecycle management
+      session:
+        lifecycle:
+          enabled: true
+          expiry-threshold: ${VAULT_SESSION_EXPIRY_THRESHOLD:7200s}
+          refresh-before-expiry: ${VAULT_SESSION_REFRESH_BEFORE_EXPIRY:600s}
+          min-renewal: ${VAULT_SESSION_MIN_RENEWAL:300s}
+          token-renewal:
+            enabled: ${VAULT_TOKEN_RENEWAL_ENABLED:true}
+            grace-period: ${VAULT_TOKEN_GRACE_PERIOD:60s}
+      
+      # Retry configuration for resilience
+      retry:
+        enabled: ${VAULT_RETRY_ENABLED:true}
+        max-attempts: ${VAULT_RETRY_MAX_ATTEMPTS:5}
+        initial-interval: ${VAULT_RETRY_INITIAL_INTERVAL:1000ms}
+        max-interval: ${VAULT_RETRY_MAX_INTERVAL:10000ms}
+        multiplier: ${VAULT_RETRY_MULTIPLIER:2.0}
+      
+      # Configuration properties with caching
+      config:
+        order: ${VAULT_CONFIG_ORDER:-10}
+        lifecycle:
+          enabled: true
+          min-renewal: ${VAULT_CONFIG_MIN_RENEWAL:300s}
+          expiry-threshold: ${VAULT_CONFIG_EXPIRY_THRESHOLD:10m}
+          lease-endpoints: ${VAULT_LEASE_ENDPOINTS:SysLeases}
+        cache:
+          enabled: ${VAULT_CONFIG_CACHE_ENABLED:true}
+          ttl: ${VAULT_CONFIG_CACHE_TTL:300s}
+        refresh:
+          enabled: ${VAULT_CONFIG_REFRESH_ENABLED:true}
+          period: ${VAULT_CONFIG_REFRESH_PERIOD:30m}
+
+# Server Configuration
+server:
+  port: ${SERVER_PORT:8080}
+  compression:
+    enabled: true
+    mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json
+    min-response-size: 1024
+  http2:
+    enabled: true
+
+# Management/Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics,vault
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+      show-components: always
+    vault:
+      enabled: ${VAULT_ENDPOINT_ENABLED:true}
+      cache:
+        time-to-live: ${VAULT_ENDPOINT_CACHE_TTL:30s}
+      show-details: when_authorized
+  health:
+    circuitbreakers:
+      enabled: true
+    ratelimiters:
+      enabled: true
+    diskspace:
+      enabled: true
+      threshold: 10GB
+    db:
+      enabled: true
+    redis:
+      enabled: true
+    vault:
+      enabled: ${VAULT_HEALTH_ENABLED:true}
+      timeout: ${VAULT_HEALTH_TIMEOUT:5s}
+      interval: ${VAULT_HEALTH_INTERVAL:30s}
+      cache:
+        enabled: true
+        ttl: ${VAULT_HEALTH_CACHE_TTL:60s}
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      percentiles:
+        http.server.requests: 0.50,0.90,0.95,0.99
+    tags:
+      application: ${spring.application.name}
+      environment: ${ENVIRONMENT:dev}
+      vault.enabled: ${VAULT_ENABLED:true}
+    # Vault-specific metrics
+    vault:
+      enabled: ${VAULT_METRICS_ENABLED:true}
+      timer:
+        enabled: true
+        percentiles: 0.5,0.95,0.99
+      counter:
+        enabled: true
+      cache:
+        enabled: true
+
+# Logging Configuration
+logging:
+  level:
+    root: ${LOG_LEVEL_ROOT:INFO}
+    com.waqiti: ${LOG_LEVEL_WAQITI:DEBUG}
+    org.springframework.security: ${LOG_LEVEL_SECURITY:INFO}
+    org.springframework.cloud: ${LOG_LEVEL_CLOUD:INFO}
+    org.springframework.kafka: ${LOG_LEVEL_KAFKA:INFO}
+    org.hibernate.SQL: ${LOG_LEVEL_SQL:INFO}
+    org.springframework.transaction: ${LOG_LEVEL_TRANSACTION:INFO}
+    # Enhanced Vault logging
+    org.springframework.vault: ${LOG_LEVEL_VAULT:INFO}
+    org.springframework.cloud.vault: ${LOG_LEVEL_VAULT_CLOUD:INFO}
+    com.example.common.vault: ${LOG_LEVEL_VAULT_COMMON:DEBUG}
+    com.waqiti.vault.service: ${LOG_LEVEL_VAULT_SERVICE:DEBUG}
+  pattern:
+    console: "%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(${LOG_LEVEL_PATTERN:-%5p}) %clr(${PID:- }){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n${LOG_EXCEPTION_CONVERSION_WORD:-%wEx}"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} ${LOG_LEVEL_PATTERN:-%5p} ${PID:- } --- [%t] %-40.40logger{39} : %m%n${LOG_EXCEPTION_CONVERSION_WORD:-%wEx}"
+  file:
+    name: ${LOG_FILE_PATH:logs}/${spring.application.name}.log
+    max-size: 10MB
+    max-history: 30
+
+# Security Configuration
+security:
+  jwt:
+    vault-enabled: ${JWT_VAULT_ENABLED:true}
+  service:
+    authentication:
+      enabled: ${SERVICE_AUTH_ENABLED:true}
+
+# Resilience4j Configuration
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        recordExceptions:
+          - org.springframework.web.client.HttpServerErrorException
+          - java.util.concurrent.TimeoutException
+          - java.io.IOException
+  retry:
+    configs:
+      default:
+        maxAttempts: 3
+        waitDuration: 500ms
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - org.springframework.web.client.ResourceAccessException
+          - java.util.concurrent.TimeoutException
+  timelimiter:
+    configs:
+      default:
+        timeoutDuration: 30s
+        cancelRunningFuture: true
+
+# OpenAPI Configuration
+springdoc:
+  api-docs:
+    enabled: true
+    path: /api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    operationsSorter: method
+  show-actuator: false
+
+# Distributed Tracing Configuration (Spring Boot 3.x)
+management:
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLE_RATE:0.1}
+  zipkin:
+    tracing:
+      endpoint: ${ZIPKIN_BASE_URL:http://jaeger:14268}/api/v2/spans
+
+# Custom Application Configuration
+waqiti:
+  financial:
+    decimal-places: 4
+    rounding-mode: HALF_UP
+    default-currency: USD
+  
+  security:
+    encryption:
+      enabled: ${ENCRYPTION_ENABLED:true}
+    
+  monitoring:
+    enabled: ${MONITORING_ENABLED:true}
+    
+  external-services:
+    timeout: ${EXTERNAL_SERVICE_TIMEOUT:30s}
+    retry-attempts: ${EXTERNAL_SERVICE_RETRIES:3}

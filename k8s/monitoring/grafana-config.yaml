@@ -1,0 +1,411 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-config
+  namespace: monitoring
+  labels:
+    app: grafana
+    component: visualization
+data:
+  grafana.ini: |
+    [server]
+    http_port = 3000
+    root_url = https://monitoring.example.com
+    serve_from_sub_path = false
+    
+    [security]
+    admin_user = admin
+    admin_password = $__file{/etc/secrets/admin-password}
+    secret_key = $__file{/etc/secrets/secret-key}
+    disable_gravatar = true
+    cookie_secure = true
+    cookie_samesite = strict
+    content_security_policy = true
+    
+    [auth]
+    disable_login_form = false
+    disable_signout_menu = false
+    
+    [auth.ldap]
+    enabled = true
+    config_file = /etc/grafana/ldap.toml
+    allow_sign_up = true
+    
+    [smtp]
+    enabled = true
+    host = smtp.example.com:587
+    user = monitoring@example.com
+    password = $__file{/etc/secrets/smtp-password}
+    from_address = monitoring@example.com
+    from_name = Waqiti Monitoring
+    
+    [alerting]
+    enabled = true
+    execute_alerts = true
+    
+    [unified_alerting]
+    enabled = true
+    
+    [database]
+    type = postgres
+    host = waqiti-postgres-primary.database.svc.cluster.local:5432
+    name = grafana
+    user = grafana
+    password = $__file{/etc/secrets/db-password}
+    ssl_mode = require
+    
+    [session]
+    provider = postgres
+    provider_config = user=grafana password=$__file{/etc/secrets/db-password} host=waqiti-postgres-primary.database.svc.cluster.local port=5432 dbname=grafana sslmode=require
+    
+    [analytics]
+    reporting_enabled = false
+    check_for_updates = false
+    
+    [log]
+    mode = console
+    level = info
+    
+    [metrics]
+    enabled = true
+    
+    [tracing.jaeger]
+    address = jaeger:14268
+    
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+    - name: Prometheus
+      type: prometheus
+      access: proxy
+      url: http://prometheus:9090
+      isDefault: true
+      editable: true
+      jsonData:
+        timeInterval: 15s
+        queryTimeout: 60s
+        httpMethod: POST
+        
+    - name: Loki
+      type: loki
+      access: proxy
+      url: http://loki:3100
+      editable: true
+      jsonData:
+        maxLines: 1000
+        
+    - name: Jaeger
+      type: jaeger
+      access: proxy
+      url: http://jaeger:16686
+      editable: true
+      
+    - name: PostgreSQL
+      type: postgres
+      access: proxy
+      url: waqiti-postgres-primary.database.svc.cluster.local:5432
+      database: waqiti
+      user: grafana_readonly
+      secureJsonData:
+        password: $__file{/etc/secrets/postgres-readonly-password}
+      jsonData:
+        sslmode: require
+        postgresVersion: 1500
+        timescaledb: false
+        
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+    - name: 'waqiti-dashboards'
+      type: file
+      disableDeletion: false
+      updateIntervalSeconds: 30
+      allowUiUpdates: true
+      options:
+        path: /var/lib/grafana/dashboards/waqiti
+        
+    - name: 'infrastructure-dashboards'
+      type: file
+      disableDeletion: false
+      updateIntervalSeconds: 30
+      options:
+        path: /var/lib/grafana/dashboards/infrastructure
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-waqiti-dashboards
+  namespace: monitoring
+  labels:
+    app: grafana
+    component: dashboards
+data:
+  waqiti-financial-overview.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "Waqiti Financial Services Overview",
+        "tags": ["waqiti", "financial", "overview"],
+        "timezone": "UTC",
+        "panels": [
+          {
+            "id": 1,
+            "title": "Payment Transactions per Second",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "sum(rate(payment_transactions_total[5m]))",
+                "legendFormat": "Transactions/sec"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "reqps",
+                "thresholds": {
+                  "steps": [
+                    {"color": "green", "value": null},
+                    {"color": "yellow", "value": 100},
+                    {"color": "red", "value": 500}
+                  ]
+                }
+              }
+            },
+            "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0}
+          },
+          {
+            "id": 2,
+            "title": "Payment Success Rate",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "sum(rate(payment_transactions_success_total[5m])) / sum(rate(payment_transactions_total[5m])) * 100",
+                "legendFormat": "Success Rate"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "percent",
+                "min": 0,
+                "max": 100,
+                "thresholds": {
+                  "steps": [
+                    {"color": "red", "value": null},
+                    {"color": "yellow", "value": 95},
+                    {"color": "green", "value": 99}
+                  ]
+                }
+              }
+            },
+            "gridPos": {"h": 8, "w": 6, "x": 6, "y": 0}
+          },
+          {
+            "id": 3,
+            "title": "Active Wallets",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "wallet_active_count",
+                "legendFormat": "Active Wallets"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "short",
+                "thresholds": {
+                  "steps": [
+                    {"color": "green", "value": null},
+                    {"color": "yellow", "value": 10000},
+                    {"color": "red", "value": 50000}
+                  ]
+                }
+              }
+            },
+            "gridPos": {"h": 8, "w": 6, "x": 12, "y": 0}
+          },
+          {
+            "id": 4,
+            "title": "Fraud Detection Rate",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "sum(rate(fraud_alerts_generated_total[5m]))",
+                "legendFormat": "Fraud Alerts/sec"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "reqps",
+                "thresholds": {
+                  "steps": [
+                    {"color": "green", "value": null},
+                    {"color": "yellow", "value": 1},
+                    {"color": "red", "value": 10}
+                  ]
+                }
+              }
+            },
+            "gridPos": {"h": 8, "w": 6, "x": 18, "y": 0}
+          }
+        ],
+        "time": {"from": "now-1h", "to": "now"},
+        "refresh": "30s"
+      }
+    }
+    
+  waqiti-payment-service.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "Waqiti Payment Service",
+        "tags": ["waqiti", "payment", "service"],
+        "panels": [
+          {
+            "id": 1,
+            "title": "Payment Request Rate",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "sum(rate(payment_requests_total[5m])) by (instance)",
+                "legendFormat": "{{instance}}"
+              }
+            ],
+            "yAxes": [
+              {"unit": "reqps", "min": 0}
+            ],
+            "gridPos": {"h": 9, "w": 12, "x": 0, "y": 0}
+          },
+          {
+            "id": 2,
+            "title": "Payment Response Time",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.50, sum(rate(payment_request_duration_seconds_bucket[5m])) by (le))",
+                "legendFormat": "50th percentile"
+              },
+              {
+                "expr": "histogram_quantile(0.95, sum(rate(payment_request_duration_seconds_bucket[5m])) by (le))",
+                "legendFormat": "95th percentile"
+              },
+              {
+                "expr": "histogram_quantile(0.99, sum(rate(payment_request_duration_seconds_bucket[5m])) by (le))",
+                "legendFormat": "99th percentile"
+              }
+            ],
+            "yAxes": [
+              {"unit": "s", "min": 0}
+            ],
+            "gridPos": {"h": 9, "w": 12, "x": 12, "y": 0}
+          }
+        ]
+      }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: monitoring
+  labels:
+    app: grafana
+    component: visualization
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3000"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: grafana
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        fsGroup: 65534
+      containers:
+      - name: grafana
+        image: grafana/grafana:10.2.0
+        ports:
+        - containerPort: 3000
+          name: http
+        env:
+        - name: GF_SECURITY_ADMIN_PASSWORD__FILE
+          value: /etc/secrets/admin-password
+        - name: GF_DATABASE_PASSWORD__FILE
+          value: /etc/secrets/db-password
+        volumeMounts:
+        - name: grafana-config
+          mountPath: /etc/grafana
+        - name: grafana-secrets
+          mountPath: /etc/secrets
+          readOnly: true
+        - name: grafana-storage
+          mountPath: /var/lib/grafana
+        - name: grafana-dashboards-waqiti
+          mountPath: /var/lib/grafana/dashboards/waqiti
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: 3000
+          initialDelaySeconds: 60
+          timeoutSeconds: 10
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: 3000
+          initialDelaySeconds: 10
+          timeoutSeconds: 10
+          periodSeconds: 10
+      volumes:
+      - name: grafana-config
+        configMap:
+          name: grafana-config
+      - name: grafana-secrets
+        secret:
+          secretName: grafana-secrets
+      - name: grafana-storage
+        persistentVolumeClaim:
+          claimName: grafana-storage
+      - name: grafana-dashboards-waqiti
+        configMap:
+          name: grafana-waqiti-dashboards
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: grafana-storage
+  namespace: monitoring
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: fast-ssd
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: grafana-secrets
+  namespace: monitoring
+type: Opaque
+stringData:
+  admin-password: "${vault.grafana.admin.password:VAULT_SECRET_REQUIRED}"
+  secret-key: "${vault.grafana.session.secret:VAULT_SECRET_REQUIRED}"
+  db-password: "${vault.grafana.database.password:VAULT_SECRET_REQUIRED}"
+  smtp-password: "${vault.grafana.smtp.password:VAULT_SECRET_REQUIRED}"
+  postgres-readonly-password: "${vault.grafana.postgres.readonly.password:VAULT_SECRET_REQUIRED}"

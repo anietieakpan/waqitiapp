@@ -1,0 +1,465 @@
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: payment-service-circuit-breaker
+  namespace: waqiti
+  labels:
+    traffic.example.com/policy: circuit-breaker
+spec:
+  host: payment-service.example.svc.cluster.local
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 100
+        connectTimeout: 30s
+        keepAlive:
+          time: 7200s
+          interval: 75s
+      http:
+        http1MaxPendingRequests: 64
+        http2MaxRequests: 100
+        maxRequestsPerConnection: 2
+        maxRetries: 3
+        consecutiveGatewayErrors: 5
+        interval: 30s
+        baseEjectionTime: 30s
+        maxEjectionPercent: 50
+        minHealthPercent: 50
+    outlierDetection:
+      consecutiveGatewayErrors: 5
+      interval: 30s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+      minHealthPercent: 50
+    tls:
+      mode: ISTIO_MUTUAL
+  portLevelSettings:
+  - port:
+      number: 8443
+    connectionPool:
+      tcp:
+        maxConnections: 50
+        connectTimeout: 10s
+      http:
+        http1MaxPendingRequests: 32
+        maxRequestsPerConnection: 1
+        maxRetries: 2
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: compliance-service-circuit-breaker
+  namespace: waqiti
+  labels:
+    traffic.example.com/policy: circuit-breaker
+spec:
+  host: compliance-service.example.svc.cluster.local
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 50
+        connectTimeout: 45s
+      http:
+        http1MaxPendingRequests: 32
+        http2MaxRequests: 50
+        maxRequestsPerConnection: 2
+        maxRetries: 2
+        consecutiveGatewayErrors: 3
+        interval: 60s
+        baseEjectionTime: 60s
+        maxEjectionPercent: 30
+        minHealthPercent: 70
+    outlierDetection:
+      consecutiveGatewayErrors: 3
+      interval: 60s
+      baseEjectionTime: 60s
+      maxEjectionPercent: 30
+      minHealthPercent: 70
+    tls:
+      mode: ISTIO_MUTUAL
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: kyc-service-circuit-breaker
+  namespace: waqiti
+  labels:
+    traffic.example.com/policy: circuit-breaker
+spec:
+  host: kyc-service.example.svc.cluster.local
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 20
+        connectTimeout: 120s
+      http:
+        http1MaxPendingRequests: 16
+        http2MaxRequests: 20
+        maxRequestsPerConnection: 1
+        maxRetries: 1
+        consecutiveGatewayErrors: 2
+        interval: 120s
+        baseEjectionTime: 120s
+        maxEjectionPercent: 50
+        minHealthPercent: 50
+    outlierDetection:
+      consecutiveGatewayErrors: 2
+      interval: 120s
+      baseEjectionTime: 120s
+      maxEjectionPercent: 50
+      minHealthPercent: 50
+    tls:
+      mode: ISTIO_MUTUAL
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: payment-service-fault-injection
+  namespace: waqiti
+  labels:
+    traffic.example.com/policy: fault-injection
+spec:
+  hosts:
+  - payment-service.example.svc.cluster.local
+  http:
+  - match:
+    - headers:
+        x-test-scenario:
+          exact: "chaos-testing"
+    fault:
+      delay:
+        percentage:
+          value: 50.0
+        fixedDelay: 5s
+      abort:
+        percentage:
+          value: 10.0
+        httpStatus: 503
+    route:
+    - destination:
+        host: payment-service.example.svc.cluster.local
+        port:
+          number: 8443
+  - route:
+    - destination:
+        host: payment-service.example.svc.cluster.local
+        port:
+          number: 8443
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: payment-service-traffic-splitting
+  namespace: waqiti
+  labels:
+    traffic.example.com/policy: canary-deployment
+spec:
+  hosts:
+  - payment-service.example.svc.cluster.local
+  http:
+  - match:
+    - headers:
+        x-canary:
+          exact: "true"
+    route:
+    - destination:
+        host: payment-service.example.svc.cluster.local
+        port:
+          number: 8443
+        subset: canary
+      weight: 100
+  - route:
+    - destination:
+        host: payment-service.example.svc.cluster.local
+        port:
+          number: 8443
+        subset: stable
+      weight: 95
+    - destination:
+        host: payment-service.example.svc.cluster.local
+        port:
+          number: 8443
+        subset: canary
+      weight: 5
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: payment-service-subsets
+  namespace: waqiti
+  labels:
+    traffic.example.com/policy: canary-deployment
+spec:
+  host: payment-service.example.svc.cluster.local
+  subsets:
+  - name: stable
+    labels:
+      version: stable
+    trafficPolicy:
+      tls:
+        mode: ISTIO_MUTUAL
+  - name: canary
+    labels:
+      version: canary
+    trafficPolicy:
+      tls:
+        mode: ISTIO_MUTUAL
+      connectionPool:
+        tcp:
+          maxConnections: 10
+        http:
+          maxRequestsPerConnection: 1
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: api-rate-limiting
+  namespace: waqiti
+  labels:
+    traffic.example.com/policy: rate-limiting
+spec:
+  hosts:
+  - api-gateway.example.svc.cluster.local
+  http:
+  - match:
+    - uri:
+        prefix: "/api/v1/auth/login"
+    route:
+    - destination:
+        host: user-service.example.svc.cluster.local
+        port:
+          number: 8443
+    headers:
+      request:
+        set:
+          x-rate-limit-type: "auth"
+    timeout: 15s
+    retries:
+      attempts: 2
+      perTryTimeout: 7s
+  - match:
+    - uri:
+        prefix: "/api/v1/payments"
+    route:
+    - destination:
+        host: payment-service.example.svc.cluster.local
+        port:
+          number: 8443
+    headers:
+      request:
+        set:
+          x-rate-limit-type: "payment"
+    timeout: 60s
+    retries:
+      attempts: 2
+      perTryTimeout: 30s
+  - match:
+    - uri:
+        prefix: "/api/v1/kyc"
+    route:
+    - destination:
+        host: kyc-service.example.svc.cluster.local
+        port:
+          number: 8443
+    headers:
+      request:
+        set:
+          x-rate-limit-type: "kyc"
+    timeout: 120s
+    retries:
+      attempts: 1
+      perTryTimeout: 120s
+  - route:
+    - destination:
+        host: api-gateway.example.svc.cluster.local
+        port:
+          number: 8443
+    timeout: 30s
+    retries:
+      attempts: 3
+      perTryTimeout: 10s
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: rate-limit-filter
+  namespace: waqiti
+  labels:
+    traffic.example.com/policy: rate-limiting
+spec:
+  workloadSelector:
+    labels:
+      app: api-gateway
+  configPatches:
+  - applyTo: HTTP_FILTER
+    match:
+      context: SIDECAR_INBOUND
+      listener:
+        filterChain:
+          filter:
+            name: "envoy.filters.network.http_connection_manager"
+    patch:
+      operation: INSERT_BEFORE
+      value:
+        name: envoy.filters.http.local_ratelimit
+        typed_config:
+          "@type": type.googleapis.com/udpa.type.v1.TypedStruct
+          type_url: type.googleapis.com/envoy.extensions.filters.http.local_ratelimit.v3.LocalRateLimit
+          value:
+            stat_prefix: local_rate_limiter
+            token_bucket:
+              max_tokens: 1000
+              tokens_per_fill: 100
+              fill_interval: 60s
+            filter_enabled:
+              runtime_key: local_rate_limit_enabled
+              default_value:
+                numerator: 100
+                denominator: HUNDRED
+            filter_enforced:
+              runtime_key: local_rate_limit_enforced
+              default_value:
+                numerator: 100
+                denominator: HUNDRED
+            response_headers_to_add:
+            - append: false
+              header:
+                key: x-local-rate-limit
+                value: 'true'
+            descriptors:
+            - entries:
+              - key: header_match
+                value: auth
+              token_bucket:
+                max_tokens: 10
+                tokens_per_fill: 5
+                fill_interval: 60s
+            - entries:
+              - key: header_match
+                value: payment
+              token_bucket:
+                max_tokens: 50
+                tokens_per_fill: 25
+                fill_interval: 60s
+            - entries:
+              - key: header_match
+                value: kyc
+              token_bucket:
+                max_tokens: 5
+                tokens_per_fill: 2
+                fill_interval: 60s
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: waqiti-custom-headers
+  namespace: waqiti
+  labels:
+    traffic.example.com/policy: custom-headers
+spec:
+  configPatches:
+  - applyTo: HTTP_FILTER
+    match:
+      context: SIDECAR_INBOUND
+      listener:
+        filterChain:
+          filter:
+            name: "envoy.filters.network.http_connection_manager"
+    patch:
+      operation: INSERT_BEFORE
+      value:
+        name: envoy.filters.http.lua
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
+          inline_code: |
+            function envoy_on_request(request_handle)
+              -- Add correlation ID if not present
+              local correlation_id = request_handle:headers():get("x-correlation-id")
+              if correlation_id == nil then
+                request_handle:headers():add("x-correlation-id", 
+                  "waqiti-" .. os.time() .. "-" .. math.random(10000, 99999))
+              end
+              
+              -- Add timestamp
+              request_handle:headers():add("x-request-timestamp", os.time())
+              
+              -- Add service mesh indicator
+              request_handle:headers():add("x-service-mesh", "istio")
+              
+              -- Log high-value transactions
+              local payment_amount = request_handle:headers():get("x-payment-amount")
+              if payment_amount and tonumber(payment_amount) > 10000 then
+                request_handle:logInfo("High-value transaction detected: " .. payment_amount)
+                request_handle:headers():add("x-high-value", "true")
+              end
+            end
+            
+            function envoy_on_response(response_handle)
+              -- Add security headers
+              response_handle:headers():add("x-content-type-options", "nosniff")
+              response_handle:headers():add("x-frame-options", "DENY")
+              response_handle:headers():add("x-xss-protection", "1; mode=block")
+              
+              -- Add response timestamp
+              response_handle:headers():add("x-response-timestamp", os.time())
+              
+              -- Track response time for analytics
+              local request_timestamp = response_handle:headers():get("x-request-timestamp")
+              if request_timestamp then
+                local response_time = os.time() - tonumber(request_timestamp)
+                response_handle:headers():add("x-response-time-ms", response_time * 1000)
+              end
+            end
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: external-payment-providers-routing
+  namespace: waqiti
+  labels:
+    traffic.example.com/policy: external-routing
+spec:
+  hosts:
+  - api.stripe.com
+  http:
+  - match:
+    - uri:
+        prefix: "/v1/"
+    route:
+    - destination:
+        host: api.stripe.com
+    timeout: 30s
+    retries:
+      attempts: 3
+      perTryTimeout: 10s
+      retryOn: 5xx,gateway-error,connect-failure,refused-stream
+    headers:
+      request:
+        set:
+          user-agent: "WaqitiPlatform/1.0"
+          x-correlation-id: "%{REQUEST_ID}"
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: compliance-providers-routing
+  namespace: waqiti
+  labels:
+    traffic.example.com/policy: external-routing
+spec:
+  hosts:
+  - api.onfido.com
+  http:
+  - route:
+    - destination:
+        host: api.onfido.com
+    timeout: 120s
+    retries:
+      attempts: 2
+      perTryTimeout: 60s
+      retryOn: 5xx,gateway-error,connect-failure,refused-stream
+    headers:
+      request:
+        set:
+          user-agent: "WaqitiPlatform/1.0"
+          x-correlation-id: "%{REQUEST_ID}"

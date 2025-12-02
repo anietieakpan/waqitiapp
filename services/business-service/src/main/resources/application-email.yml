@@ -1,0 +1,56 @@
+# SendGrid Email Service Configuration
+#
+# Required Environment Variables:
+# - SENDGRID_API_KEY: Your SendGrid API key (from SendGrid dashboard)
+#
+# To enable email sending in production:
+# 1. Sign up for SendGrid account (https://sendgrid.com)
+# 2. Generate API key with "Mail Send" permission
+# 3. Set SENDGRID_API_KEY environment variable
+# 4. Configure verified sender email
+# 5. Set up webhook endpoint for delivery tracking (optional)
+
+sendgrid:
+  # API Key - MUST be set via environment variable for security
+  api-key: ${SENDGRID_API_KEY:}
+
+  # Default sender configuration
+  from-email: ${SENDGRID_FROM_EMAIL:noreply@example.com}
+  from-name: ${SENDGRID_FROM_NAME:Waqiti Platform}
+
+  # Enable/disable email sending
+  # Set to false in dev/test to prevent accidental email sends
+  enabled: ${SENDGRID_ENABLED:false}
+
+  # Webhook configuration for delivery tracking
+  webhook:
+    enabled: ${SENDGRID_WEBHOOK_ENABLED:false}
+    secret: ${SENDGRID_WEBHOOK_SECRET:}
+    endpoint: /api/v1/webhooks/sendgrid
+
+# Email queue processing configuration
+email:
+  queue:
+    # Process email queue every 30 seconds
+    process-interval-ms: 30000
+
+    # Maximum emails to process per batch
+    batch-size: 100
+
+    # Retry configuration
+    max-retries: 5
+
+    # Exponential backoff for retries
+    # Retry after: 2min, 4min, 8min, 16min, 32min
+    initial-retry-delay-minutes: 2
+    max-retry-delay-minutes: 1440  # 24 hours
+
+    # Alert on stuck emails (pending > 1 hour)
+    stuck-email-threshold-minutes: 60
+
+# Monitoring and alerts
+management:
+  metrics:
+    tags:
+      service: business-service
+      component: email

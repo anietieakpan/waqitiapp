@@ -1,0 +1,147 @@
+# Prometheus configuration for Waqiti microservices monitoring
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - "alert_rules.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Infrastructure services
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']
+    metrics_path: /metrics
+    
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres:5432']
+
+  # API Gateway
+  - job_name: 'api-gateway'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['api-gateway:8080']
+    scrape_interval: 10s
+
+  # Core business services
+  - job_name: 'user-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['user-service:8081']
+    scrape_interval: 10s
+
+  - job_name: 'account-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['account-service:8082']
+    scrape_interval: 10s
+
+  - job_name: 'payment-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['payment-service:8083']
+    scrape_interval: 5s  # More frequent for critical payment metrics
+
+  - job_name: 'transaction-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['transaction-service:8084']
+    scrape_interval: 5s
+
+  - job_name: 'notification-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['notification-service:8085']
+    scrape_interval: 10s
+
+  - job_name: 'kyc-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['kyc-service:8090']
+    scrape_interval: 15s
+
+  - job_name: 'security-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['security-service:8091']
+    scrape_interval: 5s  # Frequent for security monitoring
+
+  - job_name: 'compliance-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['compliance-service:8089']
+    scrape_interval: 10s
+
+  - job_name: 'audit-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['audit-service:8092']
+    scrape_interval: 15s
+
+  - job_name: 'analytics-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['analytics-service:8093']
+    scrape_interval: 20s
+
+  - job_name: 'ml-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['ml-service:8094']
+    scrape_interval: 30s
+
+  # Service discovery with Eureka
+  - job_name: 'eureka-discovery'
+    eureka_sd_configs:
+      - server: http://eureka:8761/eureka
+    relabel_configs:
+      - source_labels: [__meta_eureka_app_name]
+        target_label: job
+      - source_labels: [__meta_eureka_app_instance_metadata_management_port]
+        target_label: __address__
+        regex: (.+)
+        replacement: ${1}
+      - source_labels: [__address__, __meta_eureka_app_instance_metadata_management_port]
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        target_label: __address__
+      - source_labels: [__meta_eureka_app_instance_metadata_management_context_path]
+        target_label: __metrics_path__
+        regex: (.*)
+        replacement: ${1}/actuator/prometheus
+
+  # Kafka monitoring (if kafka-exporter is added)
+  - job_name: 'kafka'
+    static_configs:
+      - targets: ['kafka:9092']
+    scrape_interval: 30s
+
+  # JVM metrics for all services
+  - job_name: 'jvm-metrics'
+    static_configs:
+      - targets: 
+        - 'user-service:8081'
+        - 'account-service:8082'
+        - 'payment-service:8083'
+        - 'transaction-service:8084'
+        - 'notification-service:8085'
+        - 'kyc-service:8090'
+        - 'security-service:8091'
+        - 'compliance-service:8089'
+        - 'audit-service:8092'
+        - 'analytics-service:8093'
+        - 'ml-service:8094'
+    metrics_path: '/actuator/prometheus'
+    params:
+      format: ['prometheus']

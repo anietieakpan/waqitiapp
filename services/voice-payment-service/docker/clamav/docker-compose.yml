@@ -1,0 +1,92 @@
+# ClamAV Antivirus Docker Compose
+#
+# CRITICAL SECURITY: Virus scanning for audio file uploads
+#
+# Features:
+# - Automatic signature updates
+# - Health checks
+# - Persistent signature database
+# - Resource limits
+# - Logging
+#
+# Usage:
+# docker-compose -f docker/clamav/docker-compose.yml up -d
+
+version: '3.8'
+
+services:
+  clamav:
+    image: clamav/clamav:latest
+    container_name: waqiti-clamav
+
+    ports:
+      - "3310:3310"
+
+    volumes:
+      # Persistent virus signature database
+      - clamav_signatures:/var/lib/clamav
+      # Logs
+      - clamav_logs:/var/log/clamav
+
+    environment:
+      # ClamAV configuration
+      - CLAMAV_NO_CLAMD=false
+      - CLAMAV_NO_FRESHCLAM=false
+      - CLAMAV_NO_MILTERD=true
+
+      # Clamd settings
+      - CLAMD_STARTUP_TIMEOUT=1800
+      - CLAMD_CONF_StreamMaxLength=25M
+      - CLAMD_CONF_MaxThreads=12
+      - CLAMD_CONF_MaxConnectionQueueLength=15
+      - CLAMD_CONF_LogTime=yes
+      - CLAMD_CONF_LogClean=no
+      - CLAMD_CONF_LogVerbose=no
+
+      # Freshclam settings (signature updates)
+      - FRESHCLAM_CONF_Checks=24
+      - FRESHCLAM_CONF_LogTime=yes
+      - FRESHCLAM_CONF_LogVerbose=no
+      - FRESHCLAM_CONF_DatabaseMirror=database.clamav.net
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '1.0'
+          memory: 1G
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/clamdcheck.sh"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+
+    # Restart policy
+    restart: unless-stopped
+
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    # Network
+    networks:
+      - voice-payment-network
+
+volumes:
+  clamav_signatures:
+    driver: local
+  clamav_logs:
+    driver: local
+
+networks:
+  voice-payment-network:
+    driver: bridge

@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_container"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/widget_background"
+    android:padding="16dp">
+
+    <!-- Header Row -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="12dp">
+
+        <!-- App Icon and Title -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_wallet"
+                android:layout_marginEnd="8dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Waqiti"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="@android:color/white" />
+
+        </LinearLayout>
+
+        <!-- Last Updated -->
+        <TextView
+            android:id="@+id/last_updated"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="now"
+            android:textSize="12sp"
+            android:textColor="#B3FFFFFF" />
+
+    </LinearLayout>
+
+    <!-- Balance Section -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginBottom="12dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Total Balance"
+            android:textSize="12sp"
+            android:textColor="#B3FFFFFF"
+            android:layout_marginBottom="4dp" />
+
+        <TextView
+            android:id="@+id/balance_amount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="$1,234.56"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:textColor="@android:color/white" />
+
+    </LinearLayout>
+
+    <!-- Divider -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#4DFFFFFF"
+        android:layout_marginVertical="12dp" />
+
+    <!-- Recent Transaction Section -->
+    <LinearLayout
+        android:id="@+id/recent_transaction_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:visibility="visible">
+
+        <!-- Transaction Info -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Recent"
+                android:textSize="11sp"
+                android:textColor="#B3FFFFFF"
+                android:layout_marginBottom="2dp" />
+
+            <TextView
+                android:id="@+id/transaction_description"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Coffee Shop"
+                android:textSize="13sp"
+                android:textColor="@android:color/white"
+                android:maxLines="1"
+                android:ellipsize="end" />
+
+        </LinearLayout>
+
+        <!-- Transaction Amount -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="end">
+
+            <TextView
+                android:id="@+id/transaction_amount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="-$5.75"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:textColor="#FF5252"
+                android:layout_marginBottom="2dp" />
+
+            <TextView
+                android:id="@+id/transaction_time"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="2h"
+                android:textSize="11sp"
+                android:textColor="#99FFFFFF" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- Refresh Button (Hidden by default) -->
+    <ImageButton
+        android:id="@+id/refresh_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="end"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:src="@drawable/ic_refresh"
+        android:padding="8dp"
+        android:visibility="gone" />
+
+</LinearLayout>

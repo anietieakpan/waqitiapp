@@ -1,0 +1,243 @@
+# Chaos Engineering Monitoring Dashboard Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: chaos-grafana-dashboards
+  namespace: monitoring
+data:
+  chaos-overview.json: |
+    {
+      "dashboard": {
+        "title": "Waqiti Chaos Engineering Dashboard",
+        "tags": ["chaos", "litmus", "resilience"],
+        "timezone": "browser",
+        "schemaVersion": 16,
+        "version": 0,
+        "refresh": "10s",
+        "panels": [
+          {
+            "title": "Chaos Experiment Status",
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "litmuschaos_experiment_status",
+                "legendFormat": "{{chaosengine_name}} - {{experiment_name}}"
+              }
+            ]
+          },
+          {
+            "title": "System Health Score",
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+            "type": "gauge",
+            "targets": [
+              {
+                "expr": "(1 - (sum(rate(http_requests_total{status=~\"5..\"}[5m])) / sum(rate(http_requests_total[5m])))) * 100"
+              }
+            ],
+            "options": {
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "red", "value": 0},
+                  {"color": "yellow", "value": 90},
+                  {"color": "green", "value": 95}
+                ]
+              }
+            }
+          },
+          {
+            "title": "Payment Success Rate During Chaos",
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "(sum(rate(payment_service_payments_successful_total[5m])) / sum(rate(payment_service_payments_total[5m]))) * 100",
+                "legendFormat": "Payment Success Rate %"
+              }
+            ]
+          },
+          {
+            "title": "API Latency P99 During Chaos",
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, service))",
+                "legendFormat": "{{service}} P99"
+              }
+            ]
+          },
+          {
+            "title": "Chaos Experiments Timeline",
+            "gridPos": {"h": 8, "w": 24, "x": 0, "y": 16},
+            "type": "table",
+            "targets": [
+              {
+                "expr": "litmuschaos_experiment_info",
+                "format": "table"
+              }
+            ]
+          },
+          {
+            "title": "Service Availability During Chaos",
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24},
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "up{job=~\"payment-service|transaction-service|user-service|wallet-service\"}",
+                "legendFormat": "{{job}}"
+              }
+            ]
+          },
+          {
+            "title": "Error Budget Consumption",
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24},
+            "type": "bargauge",
+            "targets": [
+              {
+                "expr": "(1 - ((sum(rate(http_requests_total{status!~\"5..\"}[24h])) / sum(rate(http_requests_total[24h]))) / 0.999)) * 100",
+                "legendFormat": "Error Budget Used %"
+              }
+            ]
+          }
+        ]
+      }
+    }
+---
+# Prometheus Rules for Chaos Monitoring
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: chaos-monitoring-rules
+  namespace: monitoring
+spec:
+  groups:
+  - name: chaos.rules
+    interval: 30s
+    rules:
+    # Alert when chaos experiment fails
+    - alert: ChaosExperimentFailed
+      expr: litmuschaos_experiment_status{verdict="Fail"} > 0
+      for: 1m
+      labels:
+        severity: warning
+        team: platform
+      annotations:
+        summary: "Chaos experiment failed"
+        description: "Chaos experiment {{ $labels.experiment_name }} in {{ $labels.chaosengine_name }} has failed"
+    
+    # Alert when system degrades during chaos
+    - alert: SystemDegradationDuringChaos
+      expr: |
+        (sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m]))) > 0.05
+        AND
+        litmuschaos_experiment_status > 0
+      for: 2m
+      labels:
+        severity: critical
+        team: platform
+      annotations:
+        summary: "System degradation detected during chaos experiment"
+        description: "Error rate exceeded 5% during active chaos experiments"
+    
+    # Alert when payment success rate drops during chaos
+    - alert: PaymentSuccessRateDropDuringChaos
+      expr: |
+        (sum(rate(payment_service_payments_successful_total[5m])) / sum(rate(payment_service_payments_total[5m]))) < 0.90
+        AND
+        litmuschaos_experiment_status > 0
+      for: 2m
+      labels:
+        severity: critical
+        team: payments
+      annotations:
+        summary: "Payment success rate dropped below 90% during chaos"
+        description: "Payment success rate is {{ $value }}% during chaos experiment"
+    
+    # Alert when API latency exceeds SLO during chaos
+    - alert: APILatencyExceedsSLODuringChaos
+      expr: |
+        histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 1.0
+        AND
+        litmuschaos_experiment_status > 0
+      for: 5m
+      labels:
+        severity: warning
+        team: platform
+      annotations:
+        summary: "API latency P99 exceeded 1s during chaos"
+        description: "API latency P99 is {{ $value }}s during chaos experiment"
+---
+# Chaos Experiment Schedule CronJob
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: chaos-scheduler
+  namespace: litmus
+spec:
+  schedule: "0 */4 * * *" # Every 4 hours
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: litmus-admin
+          containers:
+          - name: chaos-scheduler
+            image: litmuschaos/chaos-scheduler:latest
+            env:
+            - name: EXPERIMENT_NAME
+              value: "payment-service-pod-delete"
+            - name: NAMESPACE
+              value: "waqiti"
+            command:
+            - /bin/bash
+            - -c
+            - |
+              kubectl apply -f /experiments/payment-service-pod-delete.yaml
+              sleep 300
+              kubectl delete chaosengine payment-service-pod-delete-chaos -n waqiti
+          restartPolicy: OnFailure
+---
+# Litmus Analytics for Chaos Insights
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: litmus-analytics-config
+  namespace: litmus
+data:
+  analytics-config.yaml: |
+    analytics:
+      enabled: true
+      exporters:
+        - type: prometheus
+          endpoint: http://prometheus.monitoring.svc.cluster.local:9090
+        - type: elasticsearch
+          endpoint: http://elasticsearch.logging.svc.cluster.local:9200
+          index: chaos-experiments
+      
+      insights:
+        - name: mttr-analysis
+          description: "Analyze Mean Time To Recovery during chaos"
+          query: |
+            avg_over_time(
+              (time() - max by (service) (
+                up{job=~"payment-service|transaction-service|user-service"} == 0
+              ) * time())[5m:])
+        
+        - name: blast-radius
+          description: "Identify services affected by chaos"
+          query: |
+            count by (service) (
+              rate(http_requests_total{status=~"5.."}[5m]) > 0
+              AND
+              litmuschaos_experiment_status > 0
+            )
+        
+        - name: resilience-score
+          description: "Calculate overall system resilience score"
+          query: |
+            (
+              sum(rate(http_requests_total{status!~"5.."}[5m])) / 
+              sum(rate(http_requests_total[5m]))
+            ) * 100

@@ -1,0 +1,554 @@
+# Zero-downtime deployment strategies for Waqiti services
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: example-production
+  labels:
+    app: waqiti
+    environment: production
+
+---
+# Blue-Green Deployment Configuration
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: payment-service-rollout
+  namespace: example-production
+spec:
+  replicas: 10
+  strategy:
+    blueGreen:
+      # Service that the rollout modifies as the active service
+      activeService: payment-service-active
+      # Service that the rollout modifies as the preview service
+      previewService: payment-service-preview
+      # Auto-promote after successful health checks
+      autoPromotionEnabled: false
+      # Scale down old ReplicaSet 30 seconds after promotion
+      scaleDownDelaySeconds: 30
+      # Pre-promotion analysis
+      prePromotionAnalysis:
+        templates:
+        - templateName: success-rate
+        args:
+        - name: service-name
+          value: payment-service-preview
+      # Post-promotion analysis
+      postPromotionAnalysis:
+        templates:
+        - templateName: success-rate
+        args:
+        - name: service-name
+          value: payment-service-active
+      # Prometheus metrics analysis
+      analysisRunMetadata:
+        labels:
+          app: payment-service
+        annotations:
+          analysisrun.argoproj.io/background: "true"
+  selector:
+    matchLabels:
+      app: payment-service
+  template:
+    metadata:
+      labels:
+        app: payment-service
+    spec:
+      containers:
+      - name: payment-service
+        image: waqiti/payment-service:v1.2.0
+        ports:
+        - containerPort: 8080
+          name: http
+        - containerPort: 8081
+          name: management
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "production,kubernetes"
+        - name: GRACEFUL_SHUTDOWN_TIMEOUT
+          value: "30s"
+        - name: SERVER_SHUTDOWN
+          value: "graceful"
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        # Enhanced health checks for zero-downtime
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8081
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8081
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          timeoutSeconds: 5
+          failureThreshold: 3
+          successThreshold: 1
+        startupProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8081
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30
+        # Graceful shutdown
+        lifecycle:
+          preStop:
+            httpGet:
+              path: /actuator/shutdown
+              port: 8081
+      terminationGracePeriodSeconds: 60
+      # Ensure pods are distributed across nodes
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - payment-service
+              topologyKey: kubernetes.io/hostname
+
+---
+# Canary Deployment Configuration
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: user-service-rollout
+  namespace: example-production
+spec:
+  replicas: 8
+  strategy:
+    canary:
+      # Max surge of 25% (2 additional pods)
+      maxSurge: "25%"
+      # Max unavailable of 25% (2 pods)
+      maxUnavailable: "25%"
+      steps:
+      # Start with 20% traffic to canary
+      - setWeight: 20
+      # Pause for manual approval or automatic analysis
+      - pause:
+          duration: 2m
+      # Analysis during canary phase
+      - analysis:
+          templates:
+          - templateName: success-rate
+          - templateName: latency
+          args:
+          - name: service-name
+            value: user-service
+      # Increase to 40% if analysis passes
+      - setWeight: 40
+      - pause:
+          duration: 2m
+      # Increase to 60%
+      - setWeight: 60
+      - pause:
+          duration: 2m
+      # Increase to 80%
+      - setWeight: 80
+      - pause:
+          duration: 2m
+      # Full rollout
+      - setWeight: 100
+      # Analysis templates
+      analysisRunMetadata:
+        labels:
+          app: user-service
+      # Traffic routing
+      trafficRouting:
+        istio:
+          virtualService:
+            name: user-service-vsvc
+          destinationRule:
+            name: user-service-dest
+            canarySubsetName: canary
+            stableSubsetName: stable
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+    spec:
+      containers:
+      - name: user-service
+        image: waqiti/user-service:v1.1.0
+        ports:
+        - containerPort: 8080
+          name: http
+        - containerPort: 8081
+          name: management
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "production,kubernetes"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8081
+          initialDelaySeconds: 60
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8081
+          initialDelaySeconds: 30
+          periodSeconds: 5
+        lifecycle:
+          preStop:
+            exec:
+              command:
+              - /bin/sh
+              - -c
+              - sleep 15
+
+---
+# Analysis Templates for Deployment Validation
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: success-rate
+  namespace: example-production
+spec:
+  args:
+  - name: service-name
+  metrics:
+  - name: success-rate
+    interval: 30s
+    count: 5
+    successCondition: result[0] >= 0.95
+    failureLimit: 3
+    provider:
+      prometheus:
+        address: http://prometheus:9090
+        query: >
+          sum(rate(http_requests_total{job="{{ args.service-name }}",code!~"5.."}[2m])) /
+          sum(rate(http_requests_total{job="{{ args.service-name }}"}[2m]))
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: latency
+  namespace: example-production
+spec:
+  args:
+  - name: service-name
+  metrics:
+  - name: latency
+    interval: 30s
+    count: 5
+    successCondition: result[0] <= 0.5
+    failureLimit: 3
+    provider:
+      prometheus:
+        address: http://prometheus:9090
+        query: >
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket{job="{{ args.service-name }}"}[2m]))
+            by (le)
+          )
+
+---
+# Services for Blue-Green Deployment
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-service-active
+  namespace: example-production
+  labels:
+    app: payment-service
+    role: active
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  selector:
+    app: payment-service
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-service-preview
+  namespace: example-production
+  labels:
+    app: payment-service
+    role: preview
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  selector:
+    app: payment-service
+
+---
+# Istio Virtual Service for Canary Routing
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: user-service-vsvc
+  namespace: example-production
+spec:
+  hosts:
+  - user-service
+  http:
+  - match:
+    - headers:
+        canary:
+          exact: "true"
+    route:
+    - destination:
+        host: user-service
+        subset: canary
+  - route:
+    - destination:
+        host: user-service
+        subset: stable
+      weight: 100
+    - destination:
+        host: user-service
+        subset: canary
+      weight: 0
+
+---
+# Istio Destination Rule for Canary Subsets
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: user-service-dest
+  namespace: example-production
+spec:
+  host: user-service
+  subsets:
+  - name: stable
+    labels:
+      app: user-service
+  - name: canary
+    labels:
+      app: user-service
+
+---
+# Pre-deployment Health Checks
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pre-deployment-checks
+  namespace: example-production
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: health-check
+        image: curlimages/curl:latest
+        command:
+        - /bin/sh
+        - -c
+        - |
+          echo "Running pre-deployment health checks..."
+          
+          # Check database connectivity
+          curl -f http://postgres-service:5432 || exit 1
+          
+          # Check Redis connectivity
+          curl -f http://redis-service:6379 || exit 1
+          
+          # Check Kafka connectivity
+          curl -f http://kafka-service:9092 || exit 1
+          
+          # Check existing service health
+          curl -f http://payment-service:80/actuator/health || exit 1
+          
+          echo "All pre-deployment checks passed!"
+
+---
+# Post-deployment Validation
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: post-deployment-validation
+  namespace: example-production
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: validation
+        image: waqiti/deployment-validator:latest
+        env:
+        - name: SERVICE_URL
+          value: "http://payment-service:80"
+        - name: VALIDATION_TIMEOUT
+          value: "300s"
+        command:
+        - /bin/sh
+        - -c
+        - |
+          echo "Running post-deployment validation..."
+          
+          # Wait for service to be ready
+          timeout 300s sh -c 'until curl -f $SERVICE_URL/actuator/health/readiness; do sleep 5; done'
+          
+          # Run basic API tests
+          curl -f $SERVICE_URL/api/v1/health || exit 1
+          
+          # Validate metrics endpoint
+          curl -f $SERVICE_URL/actuator/prometheus || exit 1
+          
+          # Check database migrations
+          curl -f $SERVICE_URL/actuator/flyway || exit 1
+          
+          echo "Post-deployment validation completed successfully!"
+
+---
+# Database Migration Job
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: database-migration
+  namespace: example-production
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: flyway
+        image: flyway/flyway:latest
+        env:
+        - name: FLYWAY_URL
+          valueFrom:
+            secretKeyRef:
+              name: database-credentials
+              key: url
+        - name: FLYWAY_USER
+          valueFrom:
+            secretKeyRef:
+              name: database-credentials
+              key: username
+        - name: FLYWAY_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: database-credentials
+              key: password
+        command:
+        - flyway
+        - migrate
+        - -connectRetries=60
+        volumeMounts:
+        - name: migration-scripts
+          mountPath: /flyway/sql
+      volumes:
+      - name: migration-scripts
+        configMap:
+          name: database-migrations
+
+---
+# Network Policy for Zero-Downtime Communication
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: zero-downtime-communication
+  namespace: example-production
+spec:
+  podSelector:
+    matchLabels:
+      app: payment-service
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: api-gateway
+    - podSelector:
+        matchLabels:
+          app: user-service
+    ports:
+    - protocol: TCP
+      port: 8080
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app: postgres
+    ports:
+    - protocol: TCP
+      port: 5432
+  - to:
+    - podSelector:
+        matchLabels:
+          app: redis
+    ports:
+    - protocol: TCP
+      port: 6379
+
+---
+# Pod Disruption Budget for High Availability
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: payment-service-pdb
+  namespace: example-production
+spec:
+  minAvailable: 75%
+  selector:
+    matchLabels:
+      app: payment-service
+
+---
+# Service Monitor for Prometheus
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: payment-service-monitor
+  namespace: example-production
+spec:
+  selector:
+    matchLabels:
+      app: payment-service
+  endpoints:
+  - port: management
+    path: /actuator/prometheus
+    interval: 30s
+    scrapeTimeout: 10s

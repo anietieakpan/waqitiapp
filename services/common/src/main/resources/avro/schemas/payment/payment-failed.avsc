@@ -1,0 +1,121 @@
+{
+  "type": "record",
+  "name": "PaymentFailedEvent",
+  "namespace": "com.waqiti.events.v1",
+  "doc": "Event published when a payment fails",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "Unique event identifier (UUID)"
+    },
+    {
+      "name": "eventType",
+      "type": "string",
+      "default": "payment-failed",
+      "doc": "Type of event"
+    },
+    {
+      "name": "timestamp",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "Event timestamp in epoch milliseconds"
+    },
+    {
+      "name": "correlationId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Correlation ID for distributed tracing"
+    },
+    {
+      "name": "version",
+      "type": "string",
+      "default": "1.0",
+      "doc": "Schema version"
+    },
+    {
+      "name": "transactionId",
+      "type": "string",
+      "doc": "Unique transaction identifier (UUID)"
+    },
+    {
+      "name": "paymentType",
+      "type": "string",
+      "doc": "Type of payment transaction"
+    },
+    {
+      "name": "amount",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 19,
+        "scale": 4
+      },
+      "doc": "Payment amount as decimal"
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "default": "USD",
+      "doc": "Currency code (ISO 4217)"
+    },
+    {
+      "name": "fromUserId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Source user ID (payer, UUID)"
+    },
+    {
+      "name": "toUserId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Destination user ID (payee, UUID)"
+    },
+    {
+      "name": "failureReason",
+      "type": "string",
+      "doc": "Reason for payment failure"
+    },
+    {
+      "name": "errorCode",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Error code from payment processor"
+    },
+    {
+      "name": "errorMessage",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Detailed error message"
+    },
+    {
+      "name": "retryable",
+      "type": "boolean",
+      "default": false,
+      "doc": "Indicates if the payment can be retried"
+    },
+    {
+      "name": "retryCount",
+      "type": "int",
+      "default": 0,
+      "doc": "Number of retry attempts"
+    },
+    {
+      "name": "paymentProcessor",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Payment processor name"
+    },
+    {
+      "name": "metadata",
+      "type": ["null", {
+        "type": "map",
+        "values": "string"
+      }],
+      "default": null,
+      "doc": "Additional metadata"
+    }
+  ]
+}

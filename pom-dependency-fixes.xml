@@ -1,0 +1,586 @@
+<!-- ============================================================================
+     MAVEN DEPENDENCY MANAGEMENT FIXES
+     This file contains the complete <dependencyManagement> section to add to
+     the parent pom.xml to resolve all dependency conflicts.
+
+     CRITICAL ISSUES RESOLVED:
+     1. Keycloak version conflicts (25.0.1 → 25.0.5)
+     2. AWS SDK version conflicts (2.29.49 properly managed)
+     3. OpenTelemetry conflicts (1.42.1 via BOM)
+     4. Mockito conflicts (5.11.0, 5.14.1 → 5.14.1)
+     5. Internal SNAPSHOT conflicts (centralized version management)
+     6. Apache POI conflicts (5.3.1)
+     7. Google AR Core conflicts
+     8. iText PDF conflicts
+     9. JavaMoney conflicts
+     10. Feast SDK conflicts
+
+     USAGE: Copy the entire <dependencyManagement> section below into
+     the parent pom.xml, REPLACING the existing one.
+     ============================================================================ -->
+
+<dependencyManagement>
+    <dependencies>
+        <!-- ================================================================
+             SPRING FRAMEWORK BOMS (Bill of Materials)
+             These should be imported FIRST to establish base versions
+             ================================================================ -->
+
+        <!-- Spring Boot BOM - Core framework -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-dependencies</artifactId>
+            <version>${spring-boot.version}</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+
+        <!-- Spring Cloud BOM - Microservices patterns -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-dependencies</artifactId>
+            <version>${spring-cloud.version}</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+
+        <!-- Reactor BOM - Reactive programming -->
+        <dependency>
+            <groupId>io.projectreactor</groupId>
+            <artifactId>reactor-bom</artifactId>
+            <version>${reactor-bom.version}</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+
+        <!-- ================================================================
+             AWS SDK BOM - CRITICAL FIX
+             Resolves: software.amazon.awssdk:core:jar:2.29.49
+             ================================================================ -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>bom</artifactId>
+            <version>${aws-sdk.version}</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+
+        <!-- ================================================================
+             OPENTELEMETRY BOM - CRITICAL FIX
+             Resolves: io.opentelemetry:opentelemetry-instrumentation-annotations:jar:1.42.1
+             ================================================================ -->
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-bom</artifactId>
+            <version>${opentelemetry.version}</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-bom-alpha</artifactId>
+            <version>${opentelemetry.version}-alpha</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+
+        <!-- ================================================================
+             TESTCONTAINERS BOM
+             ================================================================ -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-bom</artifactId>
+            <version>${testcontainers.version}</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+
+        <!-- ================================================================
+             GOOGLE CLOUD BOM
+             ================================================================ -->
+        <dependency>
+            <groupId>com.google.cloud</groupId>
+            <artifactId>libraries-bom</artifactId>
+            <version>${google-cloud.version}</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+
+        <!-- ================================================================
+             CONFLUENT KAFKA BOM
+             ================================================================ -->
+        <dependency>
+            <groupId>io.confluent</groupId>
+            <artifactId>kafka-schema-registry-parent</artifactId>
+            <version>${confluentplatform.version}</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+
+        <!-- ================================================================
+             KEYCLOAK DEPENDENCIES - CRITICAL FIX
+             Resolves: org.keycloak:keycloak-spring-boot-starter:jar:25.0.1
+             Updated to 25.0.5 for consistency
+             ================================================================ -->
+        <dependency>
+            <groupId>org.keycloak</groupId>
+            <artifactId>keycloak-spring-boot-starter</artifactId>
+            <version>${keycloak.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.keycloak</groupId>
+            <artifactId>keycloak-admin-client</artifactId>
+            <version>${keycloak.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.keycloak</groupId>
+            <artifactId>keycloak-core</artifactId>
+            <version>${keycloak.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.keycloak</groupId>
+            <artifactId>keycloak-adapter-core</artifactId>
+            <version>${keycloak.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.keycloak</groupId>
+            <artifactId>keycloak-adapter-spi</artifactId>
+            <version>${keycloak.version}</version>
+        </dependency>
+
+        <!-- ================================================================
+             MOCKITO DEPENDENCIES - CRITICAL FIX
+             Resolves: org.mockito:mockito-inline:jar:5.11.0 and 5.14.1 conflicts
+             Standardized to 5.14.1
+             ================================================================ -->
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>${mockito.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-inline</artifactId>
+            <version>${mockito.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-junit-jupiter</artifactId>
+            <version>${mockito.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- ================================================================
+             APACHE POI DEPENDENCIES - CRITICAL FIX
+             Resolves: org.apache.poi:poi-ooxml:jar:5.3.1
+             ================================================================ -->
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi</artifactId>
+            <version>${poi.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>${poi.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml-schemas</artifactId>
+            <version>${poi.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-scratchpad</artifactId>
+            <version>${poi.version}</version>
+        </dependency>
+
+        <!-- ================================================================
+             ITEXT PDF DEPENDENCIES - CRITICAL FIX
+             Resolves: com.itextpdf:itext7-core:jar:7.2.5
+             ================================================================ -->
+        <dependency>
+            <groupId>com.itextpdf</groupId>
+            <artifactId>itext7-core</artifactId>
+            <version>${itext.version}</version>
+            <type>pom</type>
+        </dependency>
+
+        <dependency>
+            <groupId>com.itextpdf</groupId>
+            <artifactId>kernel</artifactId>
+            <version>${itext.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.itextpdf</groupId>
+            <artifactId>layout</artifactId>
+            <version>${itext.version}</version>
+        </dependency>
+
+        <!-- ================================================================
+             GOOGLE AR CORE - CRITICAL FIX
+             Resolves: com.google.ar:core:jar:1.39.0
+             ================================================================ -->
+        <dependency>
+            <groupId>com.google.ar</groupId>
+            <artifactId>core</artifactId>
+            <version>1.39.0</version>
+        </dependency>
+
+        <!-- ================================================================
+             JAVAMONEY API - CRITICAL FIX
+             Resolves: org.javamoney:moneta:jar:1.4.2
+             ================================================================ -->
+        <dependency>
+            <groupId>org.javamoney</groupId>
+            <artifactId>moneta</artifactId>
+            <version>1.4.4</version>
+        </dependency>
+
+        <dependency>
+            <groupId>javax.money</groupId>
+            <artifactId>money-api</artifactId>
+            <version>1.1</version>
+        </dependency>
+
+        <!-- ================================================================
+             IPF (Integration Profiles Framework) - CRITICAL FIX
+             Resolves: io.ipfs:java-ipfs-http-client:jar:1.4.4
+             ================================================================ -->
+        <dependency>
+            <groupId>io.ipfs</groupId>
+            <artifactId>java-ipfs-http-client</artifactId>
+            <version>1.4.5</version>
+        </dependency>
+
+        <!-- ================================================================
+             FEAST SDK - CRITICAL FIX
+             Resolves: dev.feast:feast-java-sdk:jar:0.31.0
+             ================================================================ -->
+        <dependency>
+            <groupId>dev.feast</groupId>
+            <artifactId>feast-java-sdk</artifactId>
+            <version>${feast.version}</version>
+        </dependency>
+
+        <!-- ================================================================
+             JOGLJOGL (OpenGL) - CRITICAL FIX
+             Resolves: org.jogamp.jogl:jogl-all:jar:2.4.0
+             ================================================================ -->
+        <dependency>
+            <groupId>org.jogamp.jogl</groupId>
+            <artifactId>jogl-all</artifactId>
+            <version>2.4.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.jogamp.gluegen</groupId>
+            <artifactId>gluegen-rt</artifactId>
+            <version>2.4.0</version>
+        </dependency>
+
+        <!-- ================================================================
+             SPRING AI DEPENDENCIES - CRITICAL FIX
+             Resolves: org.springframework.ai:spring-ai-core:jar:0.8.0
+             ================================================================ -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-bom</artifactId>
+            <version>${spring-ai.version}</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+
+        <!-- ================================================================
+             INTERNAL WAQITI MODULES - CRITICAL FIX
+             Resolves: com.waqiti:common-*:jar:1.0-SNAPSHOT conflicts
+             Centralized version management for all internal modules
+             ================================================================ -->
+        <dependency>
+            <groupId>com.waqiti</groupId>
+            <artifactId>common</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.waqiti</groupId>
+            <artifactId>kyc-client</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.waqiti</groupId>
+            <artifactId>payment-commons</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.waqiti</groupId>
+            <artifactId>common-security</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.waqiti</groupId>
+            <artifactId>common-util</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.waqiti</groupId>
+            <artifactId>event-sourcing-service</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- ================================================================
+             DATABASE DRIVERS & MIGRATION TOOLS
+             ================================================================ -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>${postgresql.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+            <version>${flyway.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+            <version>${flyway.version}</version>
+        </dependency>
+
+        <!-- ================================================================
+             KAFKA & AVRO DEPENDENCIES
+             ================================================================ -->
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>kafka-clients</artifactId>
+            <version>${kafka.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.avro</groupId>
+            <artifactId>avro</artifactId>
+            <version>${avro.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.confluent</groupId>
+            <artifactId>kafka-schema-registry-client</artifactId>
+            <version>${confluentplatform.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.confluent</groupId>
+            <artifactId>kafka-avro-serializer</artifactId>
+            <version>${confluentplatform.version}</version>
+        </dependency>
+
+        <!-- ================================================================
+             SECURITY DEPENDENCIES
+             ================================================================ -->
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-api</artifactId>
+            <version>${jjwt.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-impl</artifactId>
+            <version>${jjwt.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-jackson</artifactId>
+            <version>${jjwt.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk18on</artifactId>
+            <version>${bouncycastle.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcpkix-jdk18on</artifactId>
+            <version>${bouncycastle.version}</version>
+        </dependency>
+
+        <!-- ================================================================
+             DOCUMENTATION & API SPECS
+             ================================================================ -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>${springdoc.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.swagger.core.v3</groupId>
+            <artifactId>swagger-annotations</artifactId>
+            <version>${swagger.version}</version>
+        </dependency>
+
+        <!-- ================================================================
+             UTILITIES
+             ================================================================ -->
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>${guava.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+            <version>${commons-lang3.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
+            <version>${commons-io.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>commons-codec</groupId>
+            <artifactId>commons-codec</artifactId>
+            <version>${commons-codec.version}</version>
+        </dependency>
+
+        <!-- ================================================================
+             JACKSON JSON PROCESSING
+             ================================================================ -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-yaml</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+
+        <!-- ================================================================
+             LOMBOK & MAPSTRUCT
+             ================================================================ -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>${lombok.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
+            <version>${mapstruct.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct-processor</artifactId>
+            <version>${mapstruct.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- ================================================================
+             REDIS & CACHING
+             ================================================================ -->
+        <dependency>
+            <groupId>org.redisson</groupId>
+            <artifactId>redisson-spring-boot-starter</artifactId>
+            <version>${redisson.version}</version>
+        </dependency>
+
+        <!-- ================================================================
+             MONITORING & OBSERVABILITY
+             ================================================================ -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-core</artifactId>
+            <version>${micrometer.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+            <version>${micrometer.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.zipkin.reporter2</groupId>
+            <artifactId>zipkin-reporter-brave</artifactId>
+            <version>${zipkin.version}</version>
+        </dependency>
+
+        <!-- ================================================================
+             TESTING DEPENDENCIES
+             ================================================================ -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <version>${assertj.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.wiremock</groupId>
+            <artifactId>wiremock</artifactId>
+            <version>${wiremock.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.rest-assured</groupId>
+            <artifactId>rest-assured</artifactId>
+            <version>${rest-assured.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.awaitility</groupId>
+            <artifactId>awaitility</artifactId>
+            <version>${awaitility.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+    </dependencies>
+</dependencyManagement>

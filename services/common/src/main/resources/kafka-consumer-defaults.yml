@@ -1,0 +1,273 @@
+# Default Kafka Consumer Configuration
+# This file provides default settings for all Kafka consumers in the Waqiti platform
+
+spring:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    security:
+      protocol: ${KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
+    consumer:
+      # Basic consumer configuration
+      # CRITICAL FIX (2025-11-22): Dynamic group IDs per service
+      # Format: ${spring.application.name}-{purpose}
+      # DO NOT use static group-id across services
+      group-id: ${KAFKA_CONSUMER_GROUP_ID:${spring.application.name}-default}
+      auto-offset-reset: ${KAFKA_AUTO_OFFSET_RESET:earliest}
+      enable-auto-commit: false
+      
+      # Serialization
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      
+      # Performance tuning
+      session-timeout-ms: ${KAFKA_SESSION_TIMEOUT_MS:30000}
+      heartbeat-interval-ms: ${KAFKA_HEARTBEAT_INTERVAL_MS:3000}
+      max-poll-records: ${KAFKA_MAX_POLL_RECORDS:100}
+      max-poll-interval-ms: ${KAFKA_MAX_POLL_INTERVAL_MS:300000}
+      request-timeout-ms: ${KAFKA_REQUEST_TIMEOUT_MS:40000}
+      
+      # Connection settings
+      connections-max-idle-ms: 600000
+      reconnect-backoff-ms: 1000
+      reconnect-backoff-max-ms: 10000
+      
+      # JSON deserializer settings
+      properties:
+        spring.json.trusted.packages: "com.waqiti.*"
+        spring.json.use.type.info.headers: false
+        spring.json.value.default.type: "com.example.common.kafka.GenericKafkaEvent"
+    
+    # Producer configuration for DLQ and error handling
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      batch-size: 16384
+      linger-ms: 5
+      buffer-memory: 33554432
+
+# Kafka consumer specific configuration
+kafka:
+  enabled: ${KAFKA_ENABLED:true}
+  
+  consumer:
+    # Consumer behavior
+    # CRITICAL FIX (2025-11-22): Dynamic group IDs per service
+    group-id: ${KAFKA_CONSUMER_GROUP_ID:${spring.application.name}-default}
+    auto-offset-reset: ${KAFKA_AUTO_OFFSET_RESET:earliest}
+    enable-auto-commit: false
+    use-dynamic-group-ids: ${KAFKA_USE_DYNAMIC_GROUP_IDS:true}
+    
+    # Performance settings
+    session-timeout-ms: ${KAFKA_SESSION_TIMEOUT_MS:30000}
+    heartbeat-interval-ms: ${KAFKA_HEARTBEAT_INTERVAL_MS:3000}
+    max-poll-records: ${KAFKA_MAX_POLL_RECORDS:100}
+    max-poll-interval-ms: ${KAFKA_MAX_POLL_INTERVAL_MS:300000}
+    request-timeout-ms: ${KAFKA_REQUEST_TIMEOUT_MS:40000}
+    
+    # Retry configuration
+    retry-attempts: ${KAFKA_RETRY_ATTEMPTS:3}
+    retry-delay-ms: ${KAFKA_RETRY_DELAY_MS:1000}
+    
+    # Concurrency
+    concurrency: ${KAFKA_CONCURRENCY:3}
+    
+    # Health check settings
+    health-check-interval-ms: ${KAFKA_HEALTH_CHECK_INTERVAL_MS:60000}
+    lag-threshold-ms: ${KAFKA_LAG_THRESHOLD_MS:300000}
+    error-rate-threshold: ${KAFKA_ERROR_RATE_THRESHOLD:5.0}
+  
+  # Dead Letter Queue configuration
+  dlq:
+    enabled: ${KAFKA_DLQ_ENABLED:true}
+    suffix: ${KAFKA_DLQ_SUFFIX:.DLQ}
+    max-retries: ${KAFKA_DLQ_MAX_RETRIES:3}
+    retry-delay-ms: ${KAFKA_DLQ_RETRY_DELAY_MS:5000}
+    
+  # Topic configuration
+  topics:
+    # Critical system topics
+    critical-alerts: "critical-alerts"
+    critical-system-alerts: "critical-system-alerts"
+    critical-security-alerts: "critical-security-alerts"
+    alerts-emergency: "alerts-emergency"
+    
+    # Transaction control topics
+    transaction-blocks: "transaction-blocks"
+    transaction-unblocks: "transaction-unblocks"
+    transaction-control: "transaction-control"
+    transaction-delays: "transaction-delays"
+    transaction-resumes: "transaction-resumes"
+    transaction-monitoring-blocks: "transaction-monitoring-blocks"
+    transaction-auto-review-blocks: "transaction-auto-review-blocks"
+    
+    # Compliance topics
+    compliance-screening-errors: "compliance-screening-errors"
+    sanctions-clearance-notifications: "sanctions-clearance-notifications"
+    compliance-screening-completed: "compliance-screening-completed"
+    aml-alerts: "aml-alerts"
+    regulatory-notifications: "regulatory-notifications"
+    pci-audit-events: "pci-audit-events"
+    compliance-warnings: "compliance-warnings"
+    compliance-incidents: "compliance-incidents"
+    
+    # Monitoring topics
+    monitoring-alerts: "monitoring.alerts"
+    monitoring-sla-breaches: "monitoring.sla.breaches"
+    monitoring-metrics: "monitoring.metrics."
+    system-alerts: "system-alerts"
+    incident-alerts: "incident-alerts"
+    dlq-alerts: "dlq-alerts"
+    audit-alerts: "audit-alerts"
+    anomaly-alerts: "anomaly-alerts"
+    analytics-alerts: "analytics-alerts"
+    operations-alerts: "operations-alerts"
+    real-time-alerts: "real-time-alerts"
+    circuit-breaker-metrics: "circuit-breaker-metrics"
+    service-metrics: "service-metrics"
+    security-health-metrics: "security-health-metrics"
+
+# Database configuration for event tracking
+datasource:
+  event-tracking:
+    url: ${EVENT_TRACKING_DB_URL:jdbc:postgresql://localhost:5432/waqiti_events}
+    username: ${EVENT_TRACKING_DB_USERNAME:waqiti_app_user}
+    password: ${EVENT_TRACKING_DB_PASSWORD:?Event tracking database password required}
+    driver-class-name: org.postgresql.Driver
+    
+    # Connection pool settings
+    hikari:
+      maximum-pool-size: ${EVENT_TRACKING_DB_POOL_SIZE:20}
+      minimum-idle: ${EVENT_TRACKING_DB_MIN_IDLE:5}
+      connection-timeout: ${EVENT_TRACKING_DB_CONNECTION_TIMEOUT:30000}
+      idle-timeout: ${EVENT_TRACKING_DB_IDLE_TIMEOUT:600000}
+      max-lifetime: ${EVENT_TRACKING_DB_MAX_LIFETIME:1800000}
+      leak-detection-threshold: ${EVENT_TRACKING_DB_LEAK_DETECTION:60000}
+
+# Monitoring and alerting configuration
+monitoring:
+  kafka:
+    enabled: ${MONITORING_KAFKA_ENABLED:true}
+    metrics-interval-ms: ${MONITORING_METRICS_INTERVAL_MS:60000}
+    health-check-interval-ms: ${MONITORING_HEALTH_CHECK_INTERVAL_MS:60000}
+    performance-report-interval-ms: ${MONITORING_PERFORMANCE_REPORT_INTERVAL_MS:300000}
+
+# Alerting configuration
+alerting:
+  enabled: ${ALERTING_ENABLED:true}
+  
+  # Email alerts
+  email:
+    enabled: ${ALERTING_EMAIL_ENABLED:true}
+    recipients: ${ALERTING_EMAIL_RECIPIENTS:admin@example.com}
+    
+  # Slack alerts
+  slack:
+    enabled: ${ALERTING_SLACK_ENABLED:false}
+    webhook-url: ${ALERTING_SLACK_WEBHOOK_URL:}
+    
+  # PagerDuty alerts
+  pagerduty:
+    enabled: ${ALERTING_PAGERDUTY_ENABLED:false}
+    integration-key: ${ALERTING_PAGERDUTY_INTEGRATION_KEY:}
+    
+  # Alert throttling
+  throttle:
+    enabled: ${ALERTING_THROTTLE_ENABLED:true}
+    window-minutes: ${ALERTING_THROTTLE_WINDOW_MINUTES:15}
+
+# Micrometer metrics configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,info,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+    metrics:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: ${METRICS_PROMETHEUS_ENABLED:true}
+      simple:
+        enabled: true
+    tags:
+      application: waqiti
+      service: ${spring.application.name:unknown}
+      environment: ${ENVIRONMENT:development}
+
+# Logging configuration
+logging:
+  level:
+    com.example.common.kafka: ${KAFKA_LOG_LEVEL:INFO}
+    com.example.common.monitoring: ${MONITORING_LOG_LEVEL:INFO}
+    org.springframework.kafka: ${SPRING_KAFKA_LOG_LEVEL:WARN}
+    org.apache.kafka: ${APACHE_KAFKA_LOG_LEVEL:WARN}
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
+
+# Circuit breaker configuration
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        slow-call-rate-threshold: 50
+        slow-call-duration-threshold: 5s
+    instances:
+      kafka-consumer:
+        base-config: default
+      ofac-screening:
+        base-config: default
+        wait-duration-in-open-state: 60s
+  
+  retry:
+    configs:
+      default:
+        max-attempts: 3
+        wait-duration: 1s
+        exponential-backoff-multiplier: 2
+    instances:
+      kafka-processing:
+        base-config: default
+      external-api:
+        base-config: default
+        max-attempts: 5
+
+# Health check configuration
+health:
+  kafka:
+    enabled: ${HEALTH_KAFKA_ENABLED:true}
+    timeout: ${HEALTH_KAFKA_TIMEOUT:10s}
+  database:
+    enabled: ${HEALTH_DATABASE_ENABLED:true}
+    timeout: ${HEALTH_DATABASE_TIMEOUT:5s}
+
+# Security configuration
+security:
+  kafka:
+    ssl:
+      enabled: ${KAFKA_SSL_ENABLED:false}
+      truststore-location: ${KAFKA_SSL_TRUSTSTORE_LOCATION:}
+      truststore-password: ${KAFKA_SSL_TRUSTSTORE_PASSWORD:}
+      keystore-location: ${KAFKA_SSL_KEYSTORE_LOCATION:}
+      keystore-password: ${KAFKA_SSL_KEYSTORE_PASSWORD:}
+    sasl:
+      enabled: ${KAFKA_SASL_ENABLED:false}
+      mechanism: ${KAFKA_SASL_MECHANISM:PLAIN}
+      jaas-config: ${KAFKA_SASL_JAAS_CONFIG:}
+
+# Tracing configuration
+tracing:
+  enabled: ${TRACING_ENABLED:false}
+  jaeger:
+    endpoint: ${JAEGER_ENDPOINT:http://localhost:14268/api/traces}
+  zipkin:
+    endpoint: ${ZIPKIN_ENDPOINT:http://localhost:9411/api/v2/spans}

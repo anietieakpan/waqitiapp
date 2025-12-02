@@ -1,0 +1,69 @@
+{
+  "properties": [
+    {
+      "name": "webhook.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable webhook functionality",
+      "defaultValue": true
+    },
+    {
+      "name": "webhook.retry.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable webhook retry on failure",
+      "defaultValue": true
+    },
+    {
+      "name": "webhook.retry.max-attempts",
+      "type": "java.lang.Integer",
+      "description": "Maximum retry attempts",
+      "defaultValue": 3
+    },
+    {
+      "name": "webhook.retry.backoff-multiplier",
+      "type": "java.lang.Double",
+      "description": "Retry backoff multiplier",
+      "defaultValue": 2.0
+    },
+    {
+      "name": "webhook.timeout.connection-ms",
+      "type": "java.lang.Integer",
+      "description": "Connection timeout in milliseconds",
+      "defaultValue": 5000
+    },
+    {
+      "name": "webhook.timeout.read-ms",
+      "type": "java.lang.Integer",
+      "description": "Read timeout in milliseconds",
+      "defaultValue": 30000
+    },
+    {
+      "name": "webhook.security.signature-validation",
+      "type": "java.lang.Boolean",
+      "description": "Enable signature validation",
+      "defaultValue": true
+    },
+    {
+      "name": "webhook.logging.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable webhook logging",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "OAuth2 client ID for service",
+      "defaultValue": "webhook-service"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "OAuth2 client secret for service"
+    }
+  ]
+}

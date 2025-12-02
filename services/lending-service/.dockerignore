@@ -1,0 +1,46 @@
+# Build artifacts
+target/
+*.jar
+*.war
+*.ear
+*.class
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+
+# Version control
+.git/
+.gitignore
+
+# Documentation
+*.md
+docs/
+
+# Test files
+src/test/
+**/test/
+
+# Environment files
+.env
+.env.local
+*.local
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.swp
+*.swo

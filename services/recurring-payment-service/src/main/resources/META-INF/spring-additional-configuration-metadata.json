@@ -1,0 +1,56 @@
+{
+  "properties": [
+    {
+      "name": "recurring-payments.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable recurring payment functionality",
+      "defaultValue": true
+    },
+    {
+      "name": "recurring-payments.frequencies",
+      "type": "java.util.List",
+      "description": "Supported payment frequencies"
+    },
+    {
+      "name": "recurring-payments.max-amount",
+      "type": "java.math.BigDecimal",
+      "description": "Maximum recurring payment amount",
+      "defaultValue": "2000.00"
+    },
+    {
+      "name": "recurring-payments.retry.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable payment retry on failure",
+      "defaultValue": true
+    },
+    {
+      "name": "recurring-payments.retry.max-attempts",
+      "type": "java.lang.Integer",
+      "description": "Maximum retry attempts",
+      "defaultValue": 3
+    },
+    {
+      "name": "recurring-payments.notifications.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable recurring payment notifications",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "OAuth2 client ID for service",
+      "defaultValue": "recurring-payment-service"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "OAuth2 client secret for service"
+    }
+  ]
+}

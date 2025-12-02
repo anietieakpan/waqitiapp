@@ -1,0 +1,345 @@
+global:
+  smtp_smarthost: 'localhost:587'
+  smtp_from: 'alerts@example.com'
+  smtp_auth_username: 'alerts@example.com'
+  smtp_auth_password_file: '/etc/alertmanager/email-password'
+
+# Templates for custom notification formats
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# Route configuration
+route:
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 1h
+  receiver: 'default-receiver'
+  routes:
+    # Critical alerts - immediate notification
+    - match:
+        severity: critical
+      receiver: 'critical-alerts'
+      group_wait: 1s
+      group_interval: 1s
+      repeat_interval: 5m
+    
+    # Payment service specific alerts
+    - match:
+        service: payment-service
+      receiver: 'payment-team'
+      routes:
+        - match:
+            severity: critical
+          receiver: 'payment-critical'
+          group_wait: 1s
+          repeat_interval: 2m
+    
+    # Security alerts
+    - match:
+        service: security-service
+      receiver: 'security-team'
+      routes:
+        - match:
+            severity: critical
+          receiver: 'security-critical'
+          group_wait: 1s
+          repeat_interval: 1m
+    
+    # Fraud detection alerts
+    - match:
+        service: fraud-service
+      receiver: 'fraud-team'
+    
+    # Infrastructure alerts
+    - match_re:
+        service: postgresql|redis|kafka
+      receiver: 'infrastructure-team'
+    
+    # Business metrics alerts
+    - match:
+        service: business
+      receiver: 'business-team'
+      routes:
+        - match:
+            severity: critical
+          receiver: 'business-critical'
+          group_wait: 1s
+          repeat_interval: 15m
+
+# Inhibition rules to prevent alert spam
+inhibit_rules:
+  # Inhibit any warning-level alert if the same alert with critical severity is firing
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'cluster', 'service']
+  
+  # Inhibit service-specific alerts when the entire service is down
+  - source_match:
+      alertname: 'PaymentServiceDown'
+    target_match_re:
+      alertname: 'Payment.*'
+    equal: ['service']
+
+# Receiver configurations
+receivers:
+  - name: 'default-receiver'
+    email_configs:
+      - to: 'alerts@example.com'
+        subject: '[Waqiti Alert] {{ .GroupLabels.alertname }}'
+        body: |
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Labels: {{ range .Labels.SortedPairs }} {{ .Name }}={{ .Value }} {{ end }}
+          {{ end }}
+
+  - name: 'critical-alerts'
+    email_configs:
+      - to: 'critical-alerts@example.com'
+        subject: '🚨 [CRITICAL] {{ .GroupLabels.alertname }}'
+        body: |
+          CRITICAL ALERT TRIGGERED
+          
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Service: {{ .Labels.service }}
+          Severity: {{ .Labels.severity }}
+          Time: {{ .StartsAt.Format "2006-01-02 15:04:05 UTC" }}
+          {{ end }}
+          
+          Please investigate immediately.
+    
+    slack_configs:
+      - api_url_file: '/etc/alertmanager/slack-webhook-url'
+        channel: '#critical-alerts'
+        title: '🚨 Critical Alert: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          *{{ .Annotations.summary }}*
+          {{ .Annotations.description }}
+          Service: {{ .Labels.service }}
+          {{ end }}
+        color: 'danger'
+        send_resolved: true
+    
+    pagerduty_configs:
+      - routing_key_file: '/etc/alertmanager/pagerduty-key'
+        description: '{{ .GroupLabels.alertname }}: {{ .CommonAnnotations.summary }}'
+        severity: 'critical'
+
+  - name: 'payment-team'
+    email_configs:
+      - to: 'payment-team@example.com'
+        subject: '[Payment Alert] {{ .GroupLabels.alertname }}'
+        body: |
+          Payment Service Alert
+          
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Time: {{ .StartsAt.Format "2006-01-02 15:04:05 UTC" }}
+          {{ end }}
+    
+    slack_configs:
+      - api_url_file: '/etc/alertmanager/slack-webhook-url'
+        channel: '#payment-alerts'
+        title: '💳 Payment Alert: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          {{ .Annotations.summary }}
+          {{ .Annotations.description }}
+          {{ end }}
+        color: 'warning'
+
+  - name: 'payment-critical'
+    email_configs:
+      - to: 'payment-team@example.com,critical-alerts@example.com'
+        subject: '🚨 [CRITICAL PAYMENT] {{ .GroupLabels.alertname }}'
+        body: |
+          CRITICAL PAYMENT SYSTEM ALERT
+          
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Time: {{ .StartsAt.Format "2006-01-02 15:04:05 UTC" }}
+          {{ end }}
+          
+          IMMEDIATE ACTION REQUIRED - PAYMENT PROCESSING MAY BE AFFECTED
+    
+    slack_configs:
+      - api_url_file: '/etc/alertmanager/slack-webhook-url'
+        channel: '#critical-alerts'
+        title: '🚨💳 CRITICAL Payment Alert: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          *CRITICAL PAYMENT ALERT*
+          {{ .Annotations.summary }}
+          {{ .Annotations.description }}
+          {{ end }}
+        color: 'danger'
+    
+    pagerduty_configs:
+      - routing_key_file: '/etc/alertmanager/pagerduty-payment-key'
+        description: 'CRITICAL Payment: {{ .GroupLabels.alertname }}'
+        severity: 'critical'
+
+  - name: 'security-team'
+    email_configs:
+      - to: 'security@example.com'
+        subject: '[Security Alert] {{ .GroupLabels.alertname }}'
+        body: |
+          Security Alert Detected
+          
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Time: {{ .StartsAt.Format "2006-01-02 15:04:05 UTC" }}
+          {{ end }}
+    
+    slack_configs:
+      - api_url_file: '/etc/alertmanager/slack-webhook-url'
+        channel: '#security-alerts'
+        title: '🔒 Security Alert: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          {{ .Annotations.summary }}
+          {{ .Annotations.description }}
+          {{ end }}
+        color: 'warning'
+
+  - name: 'security-critical'
+    email_configs:
+      - to: 'security@example.com,critical-alerts@example.com'
+        subject: '🚨 [CRITICAL SECURITY] {{ .GroupLabels.alertname }}'
+        body: |
+          CRITICAL SECURITY ALERT
+          
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Time: {{ .StartsAt.Format "2006-01-02 15:04:05 UTC" }}
+          {{ end }}
+          
+          IMMEDIATE SECURITY INVESTIGATION REQUIRED
+    
+    slack_configs:
+      - api_url_file: '/etc/alertmanager/slack-webhook-url'
+        channel: '#critical-alerts'
+        title: '🚨🔒 CRITICAL Security Alert: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          *CRITICAL SECURITY ALERT*
+          {{ .Annotations.summary }}
+          {{ .Annotations.description }}
+          {{ end }}
+        color: 'danger'
+    
+    pagerduty_configs:
+      - routing_key_file: '/etc/alertmanager/pagerduty-security-key'
+        description: 'CRITICAL Security: {{ .GroupLabels.alertname }}'
+        severity: 'critical'
+
+  - name: 'fraud-team'
+    email_configs:
+      - to: 'fraud-team@example.com'
+        subject: '[Fraud Alert] {{ .GroupLabels.alertname }}'
+        body: |
+          Fraud Detection Alert
+          
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Time: {{ .StartsAt.Format "2006-01-02 15:04:05 UTC" }}
+          {{ end }}
+    
+    slack_configs:
+      - api_url_file: '/etc/alertmanager/slack-webhook-url'
+        channel: '#fraud-alerts'
+        title: '🕵️ Fraud Alert: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          {{ .Annotations.summary }}
+          {{ .Annotations.description }}
+          {{ end }}
+        color: 'warning'
+
+  - name: 'infrastructure-team'
+    email_configs:
+      - to: 'infrastructure-team@example.com'
+        subject: '[Infrastructure Alert] {{ .GroupLabels.alertname }}'
+        body: |
+          Infrastructure Alert
+          
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Service: {{ .Labels.service }}
+          Time: {{ .StartsAt.Format "2006-01-02 15:04:05 UTC" }}
+          {{ end }}
+    
+    slack_configs:
+      - api_url_file: '/etc/alertmanager/slack-webhook-url'
+        channel: '#infrastructure-alerts'
+        title: '🏗️ Infrastructure Alert: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          {{ .Annotations.summary }}
+          {{ .Annotations.description }}
+          Service: {{ .Labels.service }}
+          {{ end }}
+        color: 'warning'
+
+  - name: 'business-team'
+    email_configs:
+      - to: 'business-team@example.com'
+        subject: '[Business Metrics Alert] {{ .GroupLabels.alertname }}'
+        body: |
+          Business Metrics Alert
+          
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Time: {{ .StartsAt.Format "2006-01-02 15:04:05 UTC" }}
+          {{ end }}
+    
+    slack_configs:
+      - api_url_file: '/etc/alertmanager/slack-webhook-url'
+        channel: '#business-alerts'
+        title: '📊 Business Alert: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          {{ .Annotations.summary }}
+          {{ .Annotations.description }}
+          {{ end }}
+        color: 'warning'
+
+  - name: 'business-critical'
+    email_configs:
+      - to: 'business-team@example.com,executive-team@example.com'
+        subject: '🚨 [CRITICAL BUSINESS] {{ .GroupLabels.alertname }}'
+        body: |
+          CRITICAL BUSINESS IMPACT ALERT
+          
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Time: {{ .StartsAt.Format "2006-01-02 15:04:05 UTC" }}
+          {{ end }}
+          
+          SIGNIFICANT BUSINESS IMPACT DETECTED - EXECUTIVE ATTENTION REQUIRED
+    
+    slack_configs:
+      - api_url_file: '/etc/alertmanager/slack-webhook-url'
+        channel: '#executive-alerts'
+        title: '🚨📊 CRITICAL Business Alert: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          *CRITICAL BUSINESS IMPACT*
+          {{ .Annotations.summary }}
+          {{ .Annotations.description }}
+          {{ end }}
+        color: 'danger'

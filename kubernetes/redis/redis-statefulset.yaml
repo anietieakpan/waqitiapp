@@ -1,0 +1,304 @@
+---
+# Waqiti Platform - Redis Kubernetes Deployment
+# High Availability Redis with StatefulSet
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-config
+  namespace: waqiti
+data:
+  redis.conf: |
+    maxmemory 2gb
+    maxmemory-policy allkeys-lru
+    appendonly yes
+    appendfsync everysec
+    save 900 1
+    save 300 10
+    save 60 10000
+    tcp-keepalive 300
+    timeout 0
+    databases 16
+    slowlog-log-slower-than 10000
+    slowlog-max-len 128
+    loglevel notice
+
+  sentinel.conf: |
+    port 26379
+    sentinel monitor waqiti-master redis-0.redis-headless.example.svc.cluster.local 6379 2
+    sentinel down-after-milliseconds waqiti-master 5000
+    sentinel parallel-syncs waqiti-master 1
+    sentinel failover-timeout waqiti-master 10000
+    sentinel deny-scripts-reconfig yes
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: redis-secret
+  namespace: waqiti
+type: Opaque
+data:
+  # CONFIGURE_IN_VAULT: Replace with actual base64-encoded secret
+  redis-password: CHANGE_ME_BASE64_ENCODED
+
+---
+# Headless service for StatefulSet DNS
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-headless
+  namespace: waqiti
+  labels:
+    app: redis
+spec:
+  clusterIP: None
+  ports:
+  - name: redis
+    port: 6379
+    targetPort: 6379
+  - name: sentinel
+    port: 26379
+    targetPort: 26379
+  selector:
+    app: redis
+
+---
+# External service for client connections
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-master
+  namespace: waqiti
+  labels:
+    app: redis
+spec:
+  type: ClusterIP
+  ports:
+  - name: redis
+    port: 6379
+    targetPort: 6379
+  selector:
+    app: redis
+    role: master
+
+---
+# Redis StatefulSet (Master + Replicas)
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis
+  namespace: waqiti
+spec:
+  serviceName: redis-headless
+  replicas: 3
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9121"
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - redis
+            topologyKey: kubernetes.io/hostname
+      containers:
+      # Redis container
+      - name: redis
+        image: redis:7-alpine
+        ports:
+        - name: redis
+          containerPort: 6379
+        command:
+        - sh
+        - -c
+        - |
+          if [ "$(hostname)" == "redis-0" ]; then
+            # This is the master
+            redis-server /etc/redis/redis.conf --requirepass $REDIS_PASSWORD
+          else
+            # This is a replica
+            redis-server /etc/redis/redis.conf \
+              --requirepass $REDIS_PASSWORD \
+              --masterauth $REDIS_PASSWORD \
+              --replicaof redis-0.redis-headless.example.svc.cluster.local 6379 \
+              --replica-read-only yes
+          fi
+        env:
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-secret
+              key: redis-password
+        volumeMounts:
+        - name: redis-data
+          mountPath: /data
+        - name: redis-config
+          mountPath: /etc/redis
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+          limits:
+            cpu: 1000m
+            memory: 2Gi
+        livenessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - redis-cli -a $REDIS_PASSWORD ping
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - redis-cli -a $REDIS_PASSWORD ping
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+
+      # Redis Exporter for Prometheus metrics
+      - name: redis-exporter
+        image: oliver006/redis_exporter:latest
+        ports:
+        - name: metrics
+          containerPort: 9121
+        env:
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-secret
+              key: redis-password
+        - name: REDIS_ADDR
+          value: "localhost:6379"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+
+      volumes:
+      - name: redis-config
+        configMap:
+          name: redis-config
+
+  volumeClaimTemplates:
+  - metadata:
+      name: redis-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: fast-ssd
+      resources:
+        requests:
+          storage: 10Gi
+
+---
+# Sentinel StatefulSet for automatic failover
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-sentinel
+  namespace: waqiti
+spec:
+  serviceName: redis-sentinel
+  replicas: 3
+  selector:
+    matchLabels:
+      app: redis-sentinel
+  template:
+    metadata:
+      labels:
+        app: redis-sentinel
+    spec:
+      containers:
+      - name: sentinel
+        image: redis:7-alpine
+        ports:
+        - name: sentinel
+          containerPort: 26379
+        command:
+        - sh
+        - -c
+        - |
+          cp /tmp/sentinel.conf /data/sentinel.conf
+          sed -i "s/\${REDIS_PASSWORD}/$REDIS_PASSWORD/g" /data/sentinel.conf
+          redis-sentinel /data/sentinel.conf
+        env:
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-secret
+              key: redis-password
+        volumeMounts:
+        - name: sentinel-config
+          mountPath: /tmp
+        - name: sentinel-data
+          mountPath: /data
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+        livenessProbe:
+          exec:
+            command:
+            - redis-cli
+            - -p
+            - "26379"
+            - ping
+          initialDelaySeconds: 30
+          periodSeconds: 10
+      volumes:
+      - name: sentinel-config
+        configMap:
+          name: redis-config
+          items:
+          - key: sentinel.conf
+            path: sentinel.conf
+
+  volumeClaimTemplates:
+  - metadata:
+      name: sentinel-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: fast-ssd
+      resources:
+        requests:
+          storage: 1Gi
+
+---
+# ServiceMonitor for Prometheus scraping
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: redis-metrics
+  namespace: waqiti
+spec:
+  selector:
+    matchLabels:
+      app: redis
+  endpoints:
+  - port: metrics
+    interval: 15s
+    path: /metrics

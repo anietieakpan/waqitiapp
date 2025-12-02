@@ -1,0 +1,116 @@
+{
+  "properties": [
+    {
+      "name": "fineract.base-url",
+      "type": "java.lang.String",
+      "description": "Fineract API base URL",
+      "defaultValue": "https://localhost:8443/fineract-provider/api/v1"
+    },
+    {
+      "name": "fineract.username",
+      "type": "java.lang.String",
+      "description": "Fineract username",
+      "defaultValue": "mifos"
+    },
+    {
+      "name": "fineract.password",
+      "type": "java.lang.String",
+      "description": "Fineract password"
+    },
+    {
+      "name": "fineract.tenant-id",
+      "type": "java.lang.String",
+      "description": "Fineract tenant ID",
+      "defaultValue": "default"
+    },
+    {
+      "name": "fineract.connection-timeout",
+      "type": "java.lang.Integer",
+      "description": "Fineract connection timeout in milliseconds",
+      "defaultValue": 60000
+    },
+    {
+      "name": "fineract.read-timeout",
+      "type": "java.lang.Integer",
+      "description": "Fineract read timeout in milliseconds",
+      "defaultValue": 60000
+    },
+    {
+      "name": "integration.internal.users-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable internal users integration",
+      "defaultValue": true
+    },
+    {
+      "name": "integration.internal.accounts-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable internal accounts integration",
+      "defaultValue": true
+    },
+    {
+      "name": "integration.internal.balance-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable internal balance integration",
+      "defaultValue": true
+    },
+    {
+      "name": "integration.internal.payments-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable internal payments integration",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "OAuth2 client ID for service",
+      "defaultValue": "integration-service"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "OAuth2 client secret for service"
+    },
+    {
+      "name": "kafka.topics.integration-event",
+      "type": "java.lang.String",
+      "description": "Kafka topic for integration events",
+      "defaultValue": "integration-events"
+    },
+    {
+      "name": "kafka.topics.data-sync",
+      "type": "java.lang.String",
+      "description": "Kafka topic for data sync events",
+      "defaultValue": "data-sync-events"
+    },
+    {
+      "name": "kafka.topics.webhook-received",
+      "type": "java.lang.String",
+      "description": "Kafka topic for webhook events",
+      "defaultValue": "webhook-events"
+    },
+    {
+      "name": "kafka.topics.api-call",
+      "type": "java.lang.String",
+      "description": "Kafka topic for API call events",
+      "defaultValue": "api-call-events"
+    },
+    {
+      "name": "kafka.topics.error-event",
+      "type": "java.lang.String",
+      "description": "Kafka topic for error events",
+      "defaultValue": "error-events"
+    },
+    {
+      "name": "kafka.topics.notification",
+      "type": "java.lang.String",
+      "description": "Kafka topic for notification events",
+      "defaultValue": "notification-events"
+    }
+  ]
+}

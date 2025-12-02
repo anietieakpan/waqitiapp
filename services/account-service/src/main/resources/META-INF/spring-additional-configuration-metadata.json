@@ -1,0 +1,171 @@
+{
+  "properties": [
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "OAuth2 client ID for service",
+      "defaultValue": "account-service"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "OAuth2 client secret for service"
+    },
+    {
+      "name": "feign.client.config.ledger-service.url",
+      "type": "java.lang.String",
+      "description": "Ledger service URL",
+      "defaultValue": "http://ledger-service/api/v1"
+    },
+    {
+      "name": "feign.client.config.compliance-service.url",
+      "type": "java.lang.String",
+      "description": "Compliance service URL",
+      "defaultValue": "http://compliance-service/api/v1"
+    },
+    {
+      "name": "feign.client.config.user-service.url",
+      "type": "java.lang.String",
+      "description": "User service URL",
+      "defaultValue": "http://user-service/api/v1"
+    },
+    {
+      "name": "feign.client.config.notification-service.url",
+      "type": "java.lang.String",
+      "description": "Notification service URL",
+      "defaultValue": "http://notification-service/api/v1"
+    },
+    {
+      "name": "kafka.topics.account-created",
+      "type": "java.lang.String",
+      "description": "Kafka topic for account created events",
+      "defaultValue": "account-created-events"
+    },
+    {
+      "name": "kafka.topics.account-updated",
+      "type": "java.lang.String",
+      "description": "Kafka topic for account updated events",
+      "defaultValue": "account-updated-events"
+    },
+    {
+      "name": "kafka.topics.account-closed",
+      "type": "java.lang.String",
+      "description": "Kafka topic for account closed events",
+      "defaultValue": "account-closed-events"
+    },
+    {
+      "name": "kafka.topics.account-frozen",
+      "type": "java.lang.String",
+      "description": "Kafka topic for account frozen events",
+      "defaultValue": "account-frozen-events"
+    },
+    {
+      "name": "kafka.topics.balance-updated",
+      "type": "java.lang.String",
+      "description": "Kafka topic for balance updated events",
+      "defaultValue": "balance-updated-events"
+    },
+    {
+      "name": "kafka.topics.transaction-processed",
+      "type": "java.lang.String",
+      "description": "Kafka topic for transaction processed events",
+      "defaultValue": "transaction-processed-events"
+    },
+    {
+      "name": "kafka.topics.notification",
+      "type": "java.lang.String",
+      "description": "Kafka topic for notification events",
+      "defaultValue": "notification-events"
+    },
+    {
+      "name": "account.validation.min-balance",
+      "type": "java.math.BigDecimal",
+      "description": "Minimum account balance",
+      "defaultValue": "0.00"
+    },
+    {
+      "name": "account.validation.max-balance",
+      "type": "java.math.BigDecimal",
+      "description": "Maximum account balance",
+      "defaultValue": "999999999.99"
+    },
+    {
+      "name": "account.validation.max-accounts-per-user",
+      "type": "java.lang.Integer",
+      "description": "Maximum accounts per user",
+      "defaultValue": 10
+    },
+    {
+      "name": "account.validation.require-kyc",
+      "type": "java.lang.Boolean",
+      "description": "Require KYC verification",
+      "defaultValue": true
+    },
+    {
+      "name": "account.validation.require-compliance-check",
+      "type": "java.lang.Boolean",
+      "description": "Require compliance check",
+      "defaultValue": true
+    },
+    {
+      "name": "account.number-generation.format",
+      "type": "java.lang.String",
+      "description": "Account number format pattern",
+      "defaultValue": "WAQ-{REGION}-{TYPE}-{SEQUENCE}"
+    },
+    {
+      "name": "account.number-generation.sequence-length",
+      "type": "java.lang.Integer",
+      "description": "Account number sequence length",
+      "defaultValue": 10
+    },
+    {
+      "name": "account.number-generation.checksum-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable checksum for account numbers",
+      "defaultValue": true
+    },
+    {
+      "name": "account.limits.daily-transaction-limit",
+      "type": "java.math.BigDecimal",
+      "description": "Daily transaction limit",
+      "defaultValue": "50000.00"
+    },
+    {
+      "name": "account.limits.monthly-transaction-limit",
+      "type": "java.math.BigDecimal",
+      "description": "Monthly transaction limit",
+      "defaultValue": "500000.00"
+    },
+    {
+      "name": "account.limits.single-transaction-limit",
+      "type": "java.math.BigDecimal",
+      "description": "Single transaction limit",
+      "defaultValue": "10000.00"
+    },
+    {
+      "name": "account.freeze.auto-freeze-suspicious",
+      "type": "java.lang.Boolean",
+      "description": "Automatically freeze suspicious accounts",
+      "defaultValue": true
+    },
+    {
+      "name": "account.freeze.freeze-threshold-amount",
+      "type": "java.math.BigDecimal",
+      "description": "Transaction amount threshold for freezing",
+      "defaultValue": "25000.00"
+    },
+    {
+      "name": "account.freeze.freeze-pattern-detection",
+      "type": "java.lang.Boolean",
+      "description": "Enable pattern detection for account freezing",
+      "defaultValue": true
+    }
+  ]
+}

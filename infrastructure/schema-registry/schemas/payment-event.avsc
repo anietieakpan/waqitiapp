@@ -1,0 +1,152 @@
+{
+  "type": "record",
+  "name": "PaymentEvent",
+  "namespace": "com.waqiti.events.payment",
+  "doc": "Payment processing event with provider details and compliance metadata",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "Unique event identifier"
+    },
+    {
+      "name": "paymentId",
+      "type": "string",
+      "doc": "Unique payment identifier"
+    },
+    {
+      "name": "transactionId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Associated transaction identifier"
+    },
+    {
+      "name": "eventType",
+      "type": {
+        "type": "enum",
+        "name": "PaymentEventType",
+        "symbols": [
+          "INITIATED",
+          "PROVIDER_SUBMITTED",
+          "PROVIDER_PROCESSING",
+          "PROVIDER_COMPLETED",
+          "PROVIDER_FAILED",
+          "SETTLED",
+          "REFUNDED",
+          "CHARGEBACK"
+        ]
+      }
+    },
+    {
+      "name": "timestamp",
+      "type": "long",
+      "logicalType": "timestamp-millis"
+    },
+    {
+      "name": "userId",
+      "type": "string"
+    },
+    {
+      "name": "merchantId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Merchant identifier for payment"
+    },
+    {
+      "name": "amount",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 19,
+        "scale": 4
+      }
+    },
+    {
+      "name": "currency",
+      "type": "string"
+    },
+    {
+      "name": "paymentMethod",
+      "type": {
+        "type": "enum",
+        "name": "PaymentMethod",
+        "symbols": [
+          "CARD",
+          "BANK_TRANSFER",
+          "WALLET",
+          "CRYPTO",
+          "MOBILE_MONEY",
+          "CASH"
+        ]
+      }
+    },
+    {
+      "name": "paymentProvider",
+      "type": {
+        "type": "enum",
+        "name": "PaymentProvider",
+        "symbols": [
+          "STRIPE",
+          "PAYPAL",
+          "ADYEN",
+          "SQUARE",
+          "PLAID",
+          "INTERNAL"
+        ]
+      }
+    },
+    {
+      "name": "providerTransactionId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Payment provider's transaction identifier"
+    },
+    {
+      "name": "status",
+      "type": {
+        "type": "enum",
+        "name": "PaymentStatus",
+        "symbols": [
+          "PENDING",
+          "PROCESSING",
+          "AUTHORIZED",
+          "CAPTURED",
+          "COMPLETED",
+          "FAILED",
+          "CANCELLED",
+          "REFUNDED"
+        ]
+      }
+    },
+    {
+      "name": "threeDSecureCompleted",
+      "type": "boolean",
+      "default": false,
+      "doc": "Whether 3D Secure authentication was completed"
+    },
+    {
+      "name": "pciCompliant",
+      "type": "boolean",
+      "default": true,
+      "doc": "Whether payment is PCI DSS compliant"
+    },
+    {
+      "name": "metadata",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "default": {}
+    },
+    {
+      "name": "errorCode",
+      "type": ["null", "string"],
+      "default": null
+    },
+    {
+      "name": "errorMessage",
+      "type": ["null", "string"],
+      "default": null
+    }
+  ]
+}

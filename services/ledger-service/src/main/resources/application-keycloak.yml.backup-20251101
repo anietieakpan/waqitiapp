@@ -1,0 +1,109 @@
+# Keycloak Configuration for Ledger Service
+
+keycloak:
+  enabled: true
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  ssl-required: external
+  resource: ledger-service
+  bearer-only: true
+  credentials:
+    secret: ${LEDGER_SERVICE_CLIENT_SECRET:CHANGE_ME_SECURE_SECRET_REQUIRED}
+  use-resource-role-mappings: true
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# Ledger Service Security Configuration
+ledger:
+  security:
+    # Public endpoints that don't require authentication
+    public-endpoints:
+      - /actuator/health
+      - /actuator/info
+      - /swagger-ui/**
+      - /v3/api-docs/**
+    
+    # Service-to-service endpoints
+    service-endpoints:
+      - /internal/ledger/**
+    
+    # Required roles for ledger operations
+    required-roles:
+      read:
+        - LEDGER_READER
+        - ACCOUNTING_USER
+      entry-create:
+        - LEDGER_WRITER
+        - ACCOUNTING_USER
+      entry-read:
+        - LEDGER_READER
+        - ACCOUNTING_USER
+      balance-read:
+        - LEDGER_READER
+        - ACCOUNTING_USER
+      journal-read:
+        - LEDGER_READER
+        - ACCOUNTING_MANAGER
+      reconciliation:
+        - RECONCILIATION_OFFICER
+        - ACCOUNTING_MANAGER
+      audit:
+        - LEDGER_AUDITOR
+        - INTERNAL_AUDITOR
+      management:
+        - LEDGER_MANAGER
+        - ACCOUNTING_MANAGER
+      admin:
+        - LEDGER_ADMIN
+        - SYSTEM_ADMIN
+    
+    # Required scopes for operations
+    required-scopes:
+      entry-read: ledger:entry:read
+      entry-write: ledger:entry:write
+      balance-read: ledger:balance:read
+      journal-read: ledger:journal:read
+      reconciliation: ledger:reconciliation
+      trial-balance: ledger:trial-balance
+      financial-reports: ledger:financial-reports
+      audit: ledger:audit
+      admin: ledger:admin
+      management: ledger:manage
+    
+    # Ledger security features
+    features:
+      double-entry-validation: true
+      immutable-entries: true
+      cryptographic-integrity: true
+      audit-trail-enabled: true
+      real-time-balancing: true
+      regulatory-compliance: true
+      
+    # Ledger limits and thresholds
+    limits:
+      max-entry-amount: 10000000.00
+      max-entries-per-batch: 10000
+      max-concurrent-transactions: 100
+      balance-variance-tolerance: 0.01
+      
+    # Security thresholds requiring verification
+    verification-thresholds:
+      high-value-entry: 1000000.00
+      balance-discrepancy: 1.00
+      unusual-entry-pattern: 5
+      bulk-entry-threshold: 1000
+      
+    # Advanced security features
+    advanced-security:
+      require-dual-authorization: true
+      cryptographic-proof-required: true
+      immutable-audit-trail: true
+      real-time-fraud-detection: true
+      automated-reconciliation: true
+      regulatory-reporting-automation: true

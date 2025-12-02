@@ -1,0 +1,250 @@
+{
+  "dashboard": {
+    "title": "Waqiti Payment Service - Production Dashboard",
+    "tags": ["waqiti", "payment", "production"],
+    "timezone": "browser",
+    "schemaVersion": 38,
+    "version": 1,
+    "refresh": "30s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Payment Transaction Rate",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(payment_transactions_total[5m])) by (status)",
+            "legendFormat": "{{status}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "ops", "label": "Transactions/sec"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Payment Success Rate",
+        "type": "stat",
+        "gridPos": {"x": 12, "y": 0, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(rate(payment_transactions_total{status=\"success\"}[5m])) / sum(rate(payment_transactions_total[5m])) * 100",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "reduceOptions": {"values": false, "calcs": ["lastNotNull"]},
+          "textMode": "value_and_name",
+          "colorMode": "background",
+          "graphMode": "area"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": null, "color": "red"},
+                {"value": 95, "color": "yellow"},
+                {"value": 99, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 3,
+        "title": "Payment P95 Latency",
+        "type": "stat",
+        "gridPos": {"x": 18, "y": 0, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(payment_request_duration_seconds_bucket[5m])) by (le))",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "reduceOptions": {"values": false, "calcs": ["lastNotNull"]},
+          "textMode": "value",
+          "colorMode": "background"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": null, "color": "green"},
+                {"value": 2, "color": "yellow"},
+                {"value": 5, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 4,
+        "title": "Total Revenue (Last Hour)",
+        "type": "stat",
+        "gridPos": {"x": 12, "y": 4, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(increase(payment_revenue_total[1h]))",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyUSD",
+            "decimals": 2
+          }
+        }
+      },
+      {
+        "id": 5,
+        "title": "Active Payment Methods",
+        "type": "stat",
+        "gridPos": {"x": 18, "y": 4, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "count(payment_method_active == 1)",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Payment Errors by Type",
+        "type": "piechart",
+        "gridPos": {"x": 0, "y": 8, "w": 8, "h": 8},
+        "targets": [
+          {
+            "expr": "sum by (error_type) (increase(payment_errors_total[1h]))",
+            "legendFormat": "{{error_type}}",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "ACH Transfer Status",
+        "type": "graph",
+        "gridPos": {"x": 8, "y": 8, "w": 8, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(ach_transfer_total[5m])) by (status)",
+            "legendFormat": "{{status}}",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "Stripe API Call Success Rate",
+        "type": "graph",
+        "gridPos": {"x": 16, "y": 8, "w": 8, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(stripe_api_calls_total{status=\"success\"}[5m])) / sum(rate(stripe_api_calls_total[5m])) * 100",
+            "legendFormat": "Success Rate",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "percent", "min": 0, "max": 100}
+        ]
+      },
+      {
+        "id": 9,
+        "title": "Database Connection Pool Usage",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 16, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "hikaricp_connections_active{service=\"payment-service\"}",
+            "legendFormat": "Active",
+            "refId": "A"
+          },
+          {
+            "expr": "hikaricp_connections_idle{service=\"payment-service\"}",
+            "legendFormat": "Idle",
+            "refId": "B"
+          },
+          {
+            "expr": "hikaricp_connections_max{service=\"payment-service\"}",
+            "legendFormat": "Max",
+            "refId": "C"
+          }
+        ]
+      },
+      {
+        "id": 10,
+        "title": "Kafka Consumer Lag",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 16, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "kafka_consumergroup_lag{service=\"payment-service\"}",
+            "legendFormat": "{{topic}} - {{partition}}",
+            "refId": "A"
+          }
+        ],
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": {"params": [1000], "type": "gt"},
+              "operator": {"type": "and"},
+              "query": {"params": ["A", "5m", "now"]},
+              "reducer": {"params": [], "type": "avg"},
+              "type": "query"
+            }
+          ],
+          "executionErrorState": "alerting",
+          "frequency": "60s",
+          "handler": 1,
+          "name": "Kafka Consumer Lag Alert",
+          "noDataState": "no_data",
+          "notifications": []
+        }
+      },
+      {
+        "id": 11,
+        "title": "Circuit Breaker Status",
+        "type": "table",
+        "gridPos": {"x": 0, "y": 24, "w": 24, "h": 8},
+        "targets": [
+          {
+            "expr": "resilience4j_circuitbreaker_state{service=\"payment-service\"}",
+            "format": "table",
+            "instant": true,
+            "refId": "A"
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {
+                "Time": true,
+                "__name__": true
+              },
+              "indexByName": {
+                "name": 0,
+                "state": 1,
+                "Value": 2
+              },
+              "renameByName": {
+                "name": "Circuit Breaker",
+                "state": "State",
+                "Value": "Status"
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

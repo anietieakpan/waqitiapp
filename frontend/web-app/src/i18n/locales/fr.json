@@ -1,0 +1,16 @@
+{
+  "common": {
+    "loading": "Chargement...",
+    "error": "Erreur",
+    "success": "Succès",
+    "cancel": "Annuler",
+    "save": "Sauvegarder"
+  },
+  "navigation": {
+    "home": "Accueil",
+    "dashboard": "Tableau de bord",
+    "wallet": "Portefeuille",
+    "transactions": "Transactions",
+    "settings": "Paramètres"
+  }
+}

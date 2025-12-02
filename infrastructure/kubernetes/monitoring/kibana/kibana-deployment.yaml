@@ -1,0 +1,317 @@
+# Kibana Deployment for ELK Stack
+# Provides visualization and search interface for Elasticsearch
+
+apiVersion: kibana.k8s.elastic.co/v1
+kind: Kibana
+metadata:
+  name: waqiti-kibana
+  namespace: example-monitoring
+  labels:
+    app.kubernetes.io/name: kibana
+    app.kubernetes.io/component: logging
+    app.kubernetes.io/part-of: elk-stack
+spec:
+  version: 8.11.0
+  count: 2
+  
+  elasticsearchRef:
+    name: example-elasticsearch
+    namespace: example-monitoring
+
+  podTemplate:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kibana
+        app.kubernetes.io/component: logging
+      annotations:
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/role: "monitoring"
+        vault.hashicorp.com/agent-inject-secret-encryption: "waqiti/kibana/encryption-keys"
+    spec:
+      containers:
+      - name: kibana
+        resources:
+          requests:
+            memory: 2Gi
+            cpu: 1000m
+          limits:
+            memory: 4Gi
+            cpu: 2000m
+        env:
+        - name: NODE_OPTIONS
+          value: "--max-old-space-size=2048"
+        
+      nodeSelector:
+        node-type: application
+        
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: kibana
+              topologyKey: kubernetes.io/hostname
+
+  config:
+    # Server configuration
+    server.publicBaseUrl: "https://kibana.example.com"
+    server.host: "0.0.0.0"
+    server.port: 5601
+    server.ssl.enabled: true
+    
+    # Elasticsearch configuration
+    elasticsearch.hosts: ["https://example-elasticsearch-http:9200"]
+    elasticsearch.ssl.verificationMode: certificate
+    
+    # Security configuration
+    xpack.security.enabled: true
+    xpack.security.encryptionKey: "${vault.kibana.security.encryption_key:VAULT_SECRET_REQUIRED}"
+    xpack.reporting.encryptionKey: "${vault.kibana.reporting.encryption_key:VAULT_SECRET_REQUIRED}"
+    xpack.encryptedSavedObjects.encryptionKey: "${vault.kibana.saved_objects.encryption_key:VAULT_SECRET_REQUIRED}"
+    
+    # Monitoring
+    xpack.monitoring.ui.container.elasticsearch.enabled: true
+    monitoring.ui.ccs.enabled: false
+    
+    # Maps
+    xpack.maps.enabled: true
+    
+    # Canvas
+    xpack.canvas.enabled: true
+    
+    # APM
+    xpack.apm.ui.enabled: true
+    
+    # ML
+    xpack.ml.enabled: true
+    
+    # Alerting
+    xpack.alerting.enabled: true
+    xpack.actions.enabled: true
+    
+    # Spaces
+    xpack.spaces.enabled: true
+    
+    # Index patterns
+    kibana.defaultAppId: "discover"
+    
+    # Logging
+    logging.appenders.default:
+      type: console
+      layout:
+        type: json
+    logging.root.level: info
+
+  http:
+    service:
+      metadata:
+        name: waqiti-kibana-http
+        annotations:
+          service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+          service.beta.kubernetes.io/aws-load-balancer-ssl-cert: "arn:aws:acm:region:account:certificate/cert-id"
+          service.beta.kubernetes.io/aws-load-balancer-ssl-ports: "https"
+          service.beta.kubernetes.io/aws-load-balancer-backend-protocol: "tcp"
+      spec:
+        type: LoadBalancer
+        ports:
+        - name: https
+          port: 5601
+          targetPort: 5601
+    tls:
+      selfSignedCertificate:
+        subjectAltNames:
+        - ip: 127.0.0.1
+        - dns: kibana.example.com
+        - dns: waqiti-kibana-http
+        - dns: waqiti-kibana-http.example-monitoring
+        - dns: waqiti-kibana-http.example-monitoring.svc
+        - dns: waqiti-kibana-http.example-monitoring.svc.cluster.local
+
+---
+# Ingress for Kibana (alternative to LoadBalancer)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kibana-ingress
+  namespace: example-monitoring
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    nginx.ingress.kubernetes.io/auth-type: basic
+    nginx.ingress.kubernetes.io/auth-secret: kibana-basic-auth
+    nginx.ingress.kubernetes.io/auth-realm: "Waqiti Kibana - Authentication Required"
+spec:
+  tls:
+  - hosts:
+    - kibana.example.com
+    secretName: kibana-tls
+  rules:
+  - host: kibana.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: waqiti-kibana-http
+            port:
+              number: 5601
+
+---
+# ConfigMap for Kibana saved objects (dashboards, visualizations, etc.)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kibana-saved-objects
+  namespace: example-monitoring
+  labels:
+    app.kubernetes.io/name: kibana
+data:
+  # Application Logs Dashboard
+  application-logs-dashboard.json: |
+    {
+      "version": "8.11.0",
+      "objects": [
+        {
+          "id": "waqiti-application-logs",
+          "type": "dashboard",
+          "attributes": {
+            "title": "Waqiti Application Logs",
+            "description": "Overview of application logs across all services",
+            "panelsJSON": "[{\"id\":\"service-logs-by-level\",\"type\":\"visualization\",\"gridData\":{\"x\":0,\"y\":0,\"w\":24,\"h\":15}},{\"id\":\"error-logs-timeline\",\"type\":\"visualization\",\"gridData\":{\"x\":24,\"y\":0,\"w\":24,\"h\":15}},{\"id\":\"service-logs-table\",\"type\":\"search\",\"gridData\":{\"x\":0,\"y\":15,\"w\":48,\"h\":20}}]",
+            "timeRestore": false,
+            "kibanaSavedObjectMeta": {
+              "searchSourceJSON": "{\"query\":{\"match_all\":{}},\"filter\":[]}"
+            }
+          }
+        }
+      ]
+    }
+
+  # Security Events Dashboard
+  security-dashboard.json: |
+    {
+      "version": "8.11.0",
+      "objects": [
+        {
+          "id": "waqiti-security-events",
+          "type": "dashboard",
+          "attributes": {
+            "title": "Waqiti Security Events",
+            "description": "Security events and alerts monitoring",
+            "panelsJSON": "[{\"id\":\"security-alerts-count\",\"type\":\"visualization\",\"gridData\":{\"x\":0,\"y\":0,\"w\":12,\"h\":10}},{\"id\":\"login-attempts\",\"type\":\"visualization\",\"gridData\":{\"x\":12,\"y\":0,\"w\":12,\"h\":10}},{\"id\":\"jwt-activity\",\"type\":\"visualization\",\"gridData\":{\"x\":24,\"y\":0,\"w\":12,\"h\":10}},{\"id\":\"failed-requests\",\"type\":\"visualization\",\"gridData\":{\"x\":36,\"y\":0,\"w\":12,\"h\":10}}]",
+            "timeRestore": false,
+            "kibanaSavedObjectMeta": {
+              "searchSourceJSON": "{\"query\":{\"match_all\":{}},\"filter\":[{\"term\":{\"security_event.keyword\":\"*\"}}]}"
+            }
+          }
+        }
+      ]
+    }
+
+  # Business Metrics Dashboard
+  business-dashboard.json: |
+    {
+      "version": "8.11.0",
+      "objects": [
+        {
+          "id": "waqiti-business-metrics",
+          "type": "dashboard",
+          "attributes": {
+            "title": "Waqiti Business Metrics",
+            "description": "Business KPIs and transaction monitoring",
+            "panelsJSON": "[{\"id\":\"payment-volume\",\"type\":\"visualization\",\"gridData\":{\"x\":0,\"y\":0,\"w\":24,\"h\":15}},{\"id\":\"transaction-success-rate\",\"type\":\"visualization\",\"gridData\":{\"x\":24,\"y\":0,\"w\":24,\"h\":15}},{\"id\":\"user-activity\",\"type\":\"visualization\",\"gridData\":{\"x\":0,\"y\":15,\"w\":24,\"h\":15}},{\"id\":\"api-performance\",\"type\":\"visualization\",\"gridData\":{\"x\":24,\"y\":15,\"w\":24,\"h\":15}}]",
+            "timeRestore": false,
+            "kibanaSavedObjectMeta": {
+              "searchSourceJSON": "{\"query\":{\"match_all\":{}},\"filter\":[{\"term\":{\"business_event.keyword\":\"*\"}}]}"
+            }
+          }
+        }
+      ]
+    }
+
+---
+# Network Policy for Kibana
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kibana-network-policy
+  namespace: example-monitoring
+spec:
+  podSelector:
+    matchLabels:
+      kibana.k8s.elastic.co/name: waqiti-kibana
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Allow external access via ingress
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 5601
+  # Allow monitoring access
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: example-monitoring
+    ports:
+    - protocol: TCP
+      port: 5601
+  egress:
+  # Allow DNS resolution
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+  # Allow Elasticsearch access
+  - to:
+    - podSelector:
+        matchLabels:
+          elasticsearch.k8s.elastic.co/cluster-name: example-elasticsearch
+    ports:
+    - protocol: TCP
+      port: 9200
+  # Allow external services (for maps, etc.)
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 80
+
+---
+# Secret for basic authentication (create manually or via CI/CD)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: kibana-basic-auth
+  namespace: example-monitoring
+type: Opaque
+data:
+  # admin:$2y$10$... (bcrypt hash populated by Vault Agent)
+  auth: "${vault.kibana.basic_auth.credentials:VAULT_SECRET_REQUIRED}"
+
+---
+# Pod Disruption Budget for Kibana
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: kibana-pdb
+  namespace: example-monitoring
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      kibana.k8s.elastic.co/name: waqiti-kibana

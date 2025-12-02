@@ -1,0 +1,152 @@
+{
+  "namespace": "com.waqiti.events.v1.payment",
+  "type": "record",
+  "name": "PaymentCompletedEvent",
+  "doc": "Event published when a payment completes successfully. This is a CRITICAL event for financial operations. Consumers: rewards-service, analytics-service, ledger-service, notification-service, reporting-service",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "Unique identifier for this event (UUID)"
+    },
+    {
+      "name": "eventType",
+      "type": "string",
+      "default": "payment.completed",
+      "doc": "Type of event"
+    },
+    {
+      "name": "eventVersion",
+      "type": "string",
+      "default": "1.0.0",
+      "doc": "Event schema version for evolution tracking"
+    },
+    {
+      "name": "eventSource",
+      "type": "string",
+      "default": "payment-service",
+      "doc": "Service that published this event"
+    },
+    {
+      "name": "publishedAt",
+      "type": "long",
+      "logicalType": "timestamp-millis",
+      "doc": "Event published timestamp in epoch milliseconds"
+    },
+    {
+      "name": "correlationId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Transaction correlation ID for end-to-end tracking"
+    },
+    {
+      "name": "paymentId",
+      "type": "string",
+      "doc": "Unique payment identifier (UUID)"
+    },
+    {
+      "name": "userId",
+      "type": "string",
+      "doc": "User who made the payment (UUID)"
+    },
+    {
+      "name": "amount",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 19,
+        "scale": 4
+      },
+      "doc": "Payment amount with up to 4 decimal places"
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "doc": "ISO 4217 currency code (e.g., USD, EUR, GBP)"
+    },
+    {
+      "name": "feeAmount",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 19,
+        "scale": 4
+      },
+      "doc": "Fee amount charged for this payment"
+    },
+    {
+      "name": "netAmount",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 19,
+        "scale": 4
+      },
+      "doc": "Net amount after fees deducted"
+    },
+    {
+      "name": "paymentMethod",
+      "type": "string",
+      "doc": "Payment method used (CARD, BANK_TRANSFER, WALLET, ACH, WIRE, etc.)"
+    },
+    {
+      "name": "paymentProvider",
+      "type": "string",
+      "doc": "Payment provider (STRIPE, PAYPAL, PLAID, ADYEN, etc.)"
+    },
+    {
+      "name": "providerTransactionId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Provider's transaction ID for reconciliation"
+    },
+    {
+      "name": "merchantId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Merchant identifier if applicable (UUID)"
+    },
+    {
+      "name": "merchantName",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Merchant name"
+    },
+    {
+      "name": "merchantCategory",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Merchant category code (MCC) for classification"
+    },
+    {
+      "name": "recipientId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Recipient user ID for P2P payments (UUID)"
+    },
+    {
+      "name": "description",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Payment description or memo"
+    },
+    {
+      "name": "initiatedAt",
+      "type": "long",
+      "logicalType": "timestamp-millis",
+      "doc": "Payment initiated timestamp"
+    },
+    {
+      "name": "completedAt",
+      "type": "long",
+      "logicalType": "timestamp-millis",
+      "doc": "Payment completed timestamp"
+    },
+    {
+      "name": "metadata",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Additional metadata as JSON string"
+    }
+  ]
+}

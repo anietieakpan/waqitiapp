@@ -1,0 +1,13 @@
+package com.waqiti.user.service;
+
+public enum SecurityEventType {
+    AUTHENTICATION_SUCCESS,
+    AUTHENTICATION_FAILURE,
+    MFA_CHALLENGE,
+    TOKEN_REFRESH,
+    LOGOUT,
+    PRIVILEGE_ESCALATION,
+    SUSPICIOUS_ACTIVITY,
+    UNAUTHORIZED_ACCESS,
+    RATE_LIMIT_EXCEEDED
+}

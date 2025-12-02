@@ -1,0 +1,194 @@
+version: '3.8'
+
+services:
+  # Bitcoin Core Node - Required for Lightning Network
+  bitcoin-node:
+    image: btcpayserver/bitcoin:25.0
+    container_name: waqiti-bitcoin-node
+    restart: unless-stopped
+    networks:
+      - waqiti-network
+    volumes:
+      - bitcoin-data:/data
+      - ./bitcoin.conf:/data/bitcoin.conf:ro
+    ports:
+      - "8333:8333"    # Bitcoin P2P Network
+      - "8332:8332"    # Bitcoin JSON-RPC
+      - "28332:28332"  # ZMQ Raw Block
+      - "28333:28333"  # ZMQ Raw TX
+    environment:
+      BITCOIN_NETWORK: ${BITCOIN_NETWORK:-testnet}  # Use testnet for development
+      BITCOIN_WALLETDIR: /data/wallets
+      BITCOIN_RPC_AUTH: ${vault.bitcoin.rpc.auth:VAULT_SECRET_REQUIRED}
+    healthcheck:
+      test: ["CMD", "bitcoin-cli", "-rpcconnect=127.0.0.1", "-rpcport=8332", "getblockchaininfo"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Lightning Network Daemon (LND)
+  lnd-node:
+    image: lightninglabs/lnd:v0.17.0-beta
+    container_name: waqiti-lnd-node
+    restart: unless-stopped
+    depends_on:
+      bitcoin-node:
+        condition: service_healthy
+    networks:
+      - waqiti-network
+    volumes:
+      - lnd-data:/root/.lnd
+      - ./lnd.conf:/root/.lnd/lnd.conf:ro
+      - shared-data:/shared
+    ports:
+      - "10009:10009"  # gRPC
+      - "10010:10010"  # REST API
+      - "9735:9735"    # Lightning P2P
+      - "8080:8080"    # REST API (HTTP)
+    environment:
+      - NETWORK=${BITCOIN_NETWORK:-testnet}
+    command: >
+      lnd
+      --bitcoin.active
+      --bitcoin.${BITCOIN_NETWORK:-testnet}
+      --bitcoin.node=bitcoind
+      --bitcoind.rpchost=bitcoin-node:8332
+      --bitcoind.rpcuser=waqiti
+      --bitcoind.rpcpass=${vault.bitcoin.rpc.password:VAULT_SECRET_REQUIRED}
+      --bitcoind.zmqpubrawblock=tcp://bitcoin-node:28332
+      --bitcoind.zmqpubrawtx=tcp://bitcoin-node:28333
+      --noseedbackup
+      --tlsautorefresh
+      --tlsextradomain=waqiti-lnd
+      --alias=WaqitiPayments
+      --color=#7B68EE
+      --accept-keysend
+      --accept-amp
+      --protocol.wumbo-channels
+      --minchansize=100000
+      --maxchansize=16777215
+      --coop-close-target-confs=6
+      --default-remote-max-htlcs=483
+      --max-channel-fee-allocation=1.0
+      --allow-circular-route
+      --feeurl=https://nodes.lightning.computer/fees/v1/btc-fee-estimates.json
+    healthcheck:
+      test: ["CMD", "lncli", "--network=${BITCOIN_NETWORK:-testnet}", "getinfo"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Lightning Terminal (Loop, Pool, Faraday)
+  lightning-terminal:
+    image: lightninglabs/lightning-terminal:v0.12.0-alpha
+    container_name: waqiti-lit
+    restart: unless-stopped
+    depends_on:
+      lnd-node:
+        condition: service_healthy
+    networks:
+      - waqiti-network
+    volumes:
+      - lit-data:/root/.lit
+      - lnd-data:/root/.lnd
+    ports:
+      - "8443:8443"  # Lightning Terminal UI
+    environment:
+      - NETWORK=${BITCOIN_NETWORK:-testnet}
+      - LND_MODE=remote
+      - REMOTE_LND_RPC_HOST=lnd-node:10009
+    command: >
+      litd
+      --httpslisten=0.0.0.0:8443
+      --uipassword=${vault.lightning.terminal.ui.password:VAULT_SECRET_REQUIRED}
+      --lnd-mode=remote
+      --remote.lnd.rpcserver=lnd-node:10009
+      --remote.lnd.macaroonpath=/root/.lnd/data/chain/bitcoin/${BITCOIN_NETWORK:-testnet}/admin.macaroon
+      --remote.lnd.tlscertpath=/root/.lnd/tls.cert
+
+  # RTL (Ride The Lightning) - Lightning Node Management UI
+  rtl:
+    image: shahanafarooqui/rtl:0.14.0
+    container_name: waqiti-rtl
+    restart: unless-stopped
+    depends_on:
+      - lnd-node
+    networks:
+      - waqiti-network
+    volumes:
+      - rtl-data:/database
+      - lnd-data:/root/.lnd:ro
+      - ./rtl.conf:/RTL/RTL-Config.json:ro
+    ports:
+      - "3000:3000"  # RTL Web UI
+    environment:
+      - NETWORK=${BITCOIN_NETWORK:-testnet}
+      - LN_IMPLEMENTATION=LND
+      - CONFIG_PATH=/RTL/RTL-Config.json
+
+  # Watchtower Service for Channel Protection
+  lnd-watchtower:
+    image: lightninglabs/lnd:v0.17.0-beta
+    container_name: waqiti-watchtower
+    restart: unless-stopped
+    networks:
+      - waqiti-network
+    volumes:
+      - watchtower-data:/root/.lnd
+    ports:
+      - "9911:9911"  # Watchtower port
+    command: >
+      lnd
+      --watchtower
+      --watchtower.towerdir=/root/.lnd/data/watchtower
+      --watchtower.listen=0.0.0.0:9911
+      --watchtower.readtimeout=15s
+      --watchtower.writetimeout=15s
+
+  # Electrum Server for Light Clients
+  electrs:
+    image: blockstream/electrs:latest
+    container_name: waqiti-electrs
+    restart: unless-stopped
+    depends_on:
+      - bitcoin-node
+    networks:
+      - waqiti-network
+    volumes:
+      - electrs-data:/data
+      - bitcoin-data:/bitcoin:ro
+    ports:
+      - "50001:50001"  # Electrum TCP
+      - "50002:50002"  # Electrum SSL
+    environment:
+      - NETWORK=${BITCOIN_NETWORK:-testnet}
+      - DAEMON_RPC_ADDR=bitcoin-node:8332
+      - DAEMON_P2P_ADDR=bitcoin-node:8333
+
+volumes:
+  bitcoin-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${BITCOIN_DATA_PATH:-./data/bitcoin}
+  lnd-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${LND_DATA_PATH:-./data/lnd}
+  lit-data:
+    driver: local
+  rtl-data:
+    driver: local
+  watchtower-data:
+    driver: local
+  electrs-data:
+    driver: local
+  shared-data:
+    driver: local
+
+networks:
+  waqiti-network:
+    external: true

@@ -1,0 +1,22 @@
+package com.waqiti.payment.domain;
+
+/**
+ * Enum representing different account control actions
+ */
+public enum AccountControlAction {
+    FREEZE_ACCOUNTS,
+    SUSPEND_PAYMENTS,
+    RESTRICT_TRANSACTIONS,
+    BLOCK_CARD_OPERATIONS,
+    LIMIT_WITHDRAWALS,
+    DISABLE_INTERNATIONAL,
+    REQUIRE_ADDITIONAL_VERIFICATION,
+    TEMPORARY_HOLD,
+    PERMANENT_BLOCK,
+    REVIEW_REQUIRED,
+    COMPLIANCE_HOLD,
+    REGULATORY_FREEZE,
+    SECURITY_LOCK,
+    FRAUD_PREVENTION,
+    AML_RESTRICTION
+}

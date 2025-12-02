@@ -1,0 +1,480 @@
+---
+# ==============================================================================
+# WAQITI PLATFORM - KUBERNETES HEALTH PROBE CONFIGURATION TEMPLATE
+# ==============================================================================
+# This template provides standardized liveness and readiness probe configurations
+# for all Waqiti microservices using Spring Boot Actuator endpoints.
+#
+# USAGE:
+#   Copy the livenessProbe and readinessProbe sections into each service's
+#   Deployment manifest under spec.template.spec.containers[].
+#
+# PROBE TYPES:
+#
+#   LIVENESS PROBE:
+#   - Purpose: Determines if the container should be restarted
+#   - Endpoint: /actuator/health/liveness
+#   - Failure Action: Kubernetes restarts the pod
+#   - Checks: Application state, critical system health
+#
+#   READINESS PROBE:
+#   - Purpose: Determines if the container can accept traffic
+#   - Endpoint: /actuator/health/readiness
+#   - Failure Action: Pod removed from service endpoints (no new traffic)
+#   - Checks: Database, Redis, Kafka, Vault connectivity
+#
+# TIMING GUIDELINES:
+#
+#   initialDelaySeconds:
+#   - Liveness: 30-60s (allow time for Spring Boot startup)
+#   - Readiness: 20-30s (can check sooner)
+#
+#   periodSeconds:
+#   - Liveness: 10s (check every 10 seconds)
+#   - Readiness: 5s (more frequent checks for traffic routing)
+#
+#   timeoutSeconds:
+#   - Liveness: 5s (health check must respond within 5s)
+#   - Readiness: 3s (faster timeout for readiness)
+#
+#   failureThreshold:
+#   - Liveness: 3 (3 consecutive failures before restart)
+#   - Readiness: 3 (3 consecutive failures before removing from service)
+#
+# @author: Platform Engineering Team
+# @date: 2025-11-23
+# @version: 1.0.0
+# ==============================================================================
+
+# ==============================================================================
+# EXAMPLE DEPLOYMENT WITH HEALTH PROBES
+# ==============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-service
+  namespace: waqiti
+  labels:
+    app: payment-service
+    tier: backend
+    prometheus: enabled
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: payment-service
+  template:
+    metadata:
+      labels:
+        app: payment-service
+      annotations:
+        # Prometheus scraping annotations
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      containers:
+      - name: payment-service
+        image: waqiti/payment-service:latest
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        - name: management
+          containerPort: 8080
+          protocol: TCP
+
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "production"
+        - name: JAVA_OPTS
+          value: "-Xmx2g -Xms1g -XX:+UseG1GC"
+
+        # ==============================================================================
+        # LIVENESS PROBE CONFIGURATION
+        # ==============================================================================
+        # Checks if the application is alive and should continue running.
+        # If this probe fails, Kubernetes will restart the container.
+        #
+        # Use cases for liveness probe failure:
+        # - Application is deadlocked
+        # - Application is in an unrecoverable state
+        # - Critical system resources are exhausted
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 60    # Wait 60s after container starts
+          periodSeconds: 10          # Check every 10 seconds
+          timeoutSeconds: 5          # Timeout after 5 seconds
+          failureThreshold: 3        # Restart after 3 consecutive failures
+          successThreshold: 1        # 1 success = healthy
+
+        # ==============================================================================
+        # READINESS PROBE CONFIGURATION
+        # ==============================================================================
+        # Checks if the application is ready to accept traffic.
+        # If this probe fails, the pod is removed from service endpoints.
+        #
+        # Use cases for readiness probe failure:
+        # - Database connection is down
+        # - Redis connection is down
+        # - Kafka connection is down
+        # - Vault connection is down
+        # - Dependent services are unavailable
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 30    # Start checking after 30s
+          periodSeconds: 5           # Check every 5 seconds
+          timeoutSeconds: 3          # Timeout after 3 seconds
+          failureThreshold: 3        # Remove from service after 3 failures
+          successThreshold: 1        # 1 success = ready
+
+        # ==============================================================================
+        # STARTUP PROBE (OPTIONAL - FOR SLOW-STARTING APPLICATIONS)
+        # ==============================================================================
+        # Some services (especially large Spring Boot apps) may take longer to start.
+        # Use a startup probe to give extra time without affecting liveness checks.
+        #
+        # Uncomment if your service takes >60s to start:
+        #
+        # startupProbe:
+        #   httpGet:
+        #     path: /actuator/health/liveness
+        #     port: 8080
+        #     scheme: HTTP
+        #   initialDelaySeconds: 0
+        #   periodSeconds: 10
+        #   timeoutSeconds: 5
+        #   failureThreshold: 30      # 30 * 10s = 5 minutes max startup time
+        #   successThreshold: 1
+
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+          limits:
+            cpu: 2000m
+            memory: 2Gi
+
+---
+# ==============================================================================
+# SERVICE MANIFEST WITH PROMETHEUS ANNOTATIONS
+# ==============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-service
+  namespace: waqiti
+  labels:
+    app: payment-service
+    prometheus: enabled
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8080"
+    prometheus.io/path: "/actuator/prometheus"
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+    protocol: TCP
+  selector:
+    app: payment-service
+
+---
+# ==============================================================================
+# PROMETHEUS SERVICEMONITOR
+# ==============================================================================
+# ServiceMonitor is a Prometheus Operator CRD that automatically configures
+# Prometheus to scrape metrics from services.
+#
+# This will configure Prometheus to scrape /actuator/prometheus from all
+# services labeled with prometheus: enabled
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: waqiti-services
+  namespace: waqiti
+  labels:
+    prometheus: kube-prometheus
+spec:
+  selector:
+    matchLabels:
+      prometheus: enabled
+  endpoints:
+  - port: http
+    path: /actuator/prometheus
+    interval: 30s
+    scrapeTimeout: 10s
+    scheme: http
+
+---
+# ==============================================================================
+# CONFIGMAP FOR ACTUATOR CREDENTIALS (OPTIONAL)
+# ==============================================================================
+# If you need to secure actuator endpoints with authentication,
+# use a ConfigMap for the username and a Secret for the password.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: actuator-config
+  namespace: waqiti
+data:
+  actuator.username: "actuator-admin"
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: actuator-credentials
+  namespace: waqiti
+type: Opaque
+data:
+  # Base64 encoded password - replace with actual password from Vault
+  # Example: echo -n "your-secure-password" | base64
+  actuator.password: ${VAULT_ACTUATOR_PASSWORD_BASE64}
+
+---
+# ==============================================================================
+# HORIZONTAL POD AUTOSCALER (HPA) EXAMPLE
+# ==============================================================================
+# HPA can use custom metrics from Actuator/Prometheus for autoscaling.
+# This example scales based on CPU, but can be extended to use custom metrics.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: payment-service-hpa
+  namespace: waqiti
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: payment-service
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  # CPU-based scaling
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+
+  # Memory-based scaling
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+
+  # Custom metric example (requires Prometheus Adapter)
+  # - type: Pods
+  #   pods:
+  #     metric:
+  #       name: http_requests_per_second
+  #     target:
+  #       type: AverageValue
+  #       averageValue: "100"
+
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 60
+      - type: Pods
+        value: 2
+        periodSeconds: 60
+      selectPolicy: Max
+
+---
+# ==============================================================================
+# POD DISRUPTION BUDGET (PDB)
+# ==============================================================================
+# Ensures high availability during voluntary disruptions (node drains, etc.)
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: payment-service-pdb
+  namespace: waqiti
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: payment-service
+
+---
+# ==============================================================================
+# NETWORK POLICY (OPTIONAL)
+# ==============================================================================
+# Restricts network access to the service.
+# Only allow traffic from specific sources.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: payment-service-network-policy
+  namespace: waqiti
+spec:
+  podSelector:
+    matchLabels:
+      app: payment-service
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Allow traffic from API Gateway
+  - from:
+    - podSelector:
+        matchLabels:
+          app: api-gateway-service
+    ports:
+    - protocol: TCP
+      port: 8080
+
+  # Allow traffic from Prometheus for metrics scraping
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    ports:
+    - protocol: TCP
+      port: 8080
+
+  # Allow traffic from within the same namespace
+  - from:
+    - podSelector: {}
+    ports:
+    - protocol: TCP
+      port: 8080
+
+  egress:
+  # Allow DNS
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: UDP
+      port: 53
+
+  # Allow PostgreSQL
+  - to:
+    - podSelector:
+        matchLabels:
+          app: postgresql
+    ports:
+    - protocol: TCP
+      port: 5432
+
+  # Allow Redis
+  - to:
+    - podSelector:
+        matchLabels:
+          app: redis
+    ports:
+    - protocol: TCP
+      port: 6379
+
+  # Allow Kafka
+  - to:
+    - podSelector:
+        matchLabels:
+          app: kafka
+    ports:
+    - protocol: TCP
+      port: 9092
+
+  # Allow Vault
+  - to:
+    - podSelector:
+        matchLabels:
+          app: vault
+    ports:
+    - protocol: TCP
+      port: 8200
+
+  # Allow egress to other services in the namespace
+  - to:
+    - podSelector: {}
+
+---
+# ==============================================================================
+# ALERTING RULES (PROMETHEUSRULE CRD)
+# ==============================================================================
+# Define Prometheus alerting rules for service health
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: waqiti-service-alerts
+  namespace: waqiti
+  labels:
+    prometheus: kube-prometheus
+spec:
+  groups:
+  - name: waqiti-services
+    interval: 30s
+    rules:
+    # Alert when service is down
+    - alert: ServiceDown
+      expr: up{job="waqiti-services"} == 0
+      for: 1m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Service {{ $labels.instance }} is down"
+        description: "Service {{ $labels.service }} has been down for more than 1 minute."
+
+    # Alert when service is not ready
+    - alert: ServiceNotReady
+      expr: |
+        (
+          count by (service) (up{job="waqiti-services"} == 1)
+          /
+          count by (service) (up{job="waqiti-services"})
+        ) < 0.5
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Less than 50% of {{ $labels.service }} pods are ready"
+        description: "{{ $labels.service }} has less than 50% pods ready for more than 5 minutes."
+
+    # Alert on high error rate
+    - alert: HighErrorRate
+      expr: |
+        sum by (service) (rate(http_server_requests_seconds_count{status=~"5.."}[5m]))
+        /
+        sum by (service) (rate(http_server_requests_seconds_count[5m]))
+        > 0.05
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High error rate for {{ $labels.service }}"
+        description: "{{ $labels.service }} has error rate > 5% for more than 5 minutes."
+
+    # Alert on high latency
+    - alert: HighLatency
+      expr: |
+        histogram_quantile(0.95,
+          sum by (service, le) (rate(http_server_requests_seconds_bucket[5m]))
+        ) > 2
+      for: 10m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High latency for {{ $labels.service }}"
+        description: "{{ $labels.service }} 95th percentile latency > 2s for more than 10 minutes."

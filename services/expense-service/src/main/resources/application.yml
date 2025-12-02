@@ -1,0 +1,220 @@
+server:
+  port: 8055
+  servlet:
+    context-path: /api/v1
+
+spring:
+  application:
+    name: expense-service
+  
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:waqiti_expense}?ssl=${DB_SSL_ENABLED:true}&stringtype=unspecified
+    username: ${DB_USERNAME:waqiti_user}
+    password: ${EXPENSE_DB_PASSWORD:${vault.database.expense-service.password}}
+    driver-class-name: org.postgresql.Driver
+    
+  jpa:
+    hibernate:
+      ddl-auto: ${DDL_AUTO:validate}
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+    show-sql: ${SHOW_SQL:false}
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        use_sql_comments: true
+        jdbc:
+          time_zone: UTC
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false
+    consumer:
+      group-id: expense-service
+      enable-auto-commit: false  # Manual acknowledgment for DLQ support
+      max-poll-records: 50  # Batch size control
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.waqiti.expense.dto,com.example.common.events"
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 10
+          max-idle: 10
+          min-idle: 1
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8080/realms/waqiti}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:https://auth.example.com/realms/waqiti/protocol/openid-connect/certs}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:${EUREKA_SERVER_URL:https://discovery-service:8761/eureka}/}
+    fetch-registry: true
+    register-with-eureka: true
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 10
+    lease-expiration-duration-in-seconds: 30
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+
+logging:
+  level:
+    com.waqiti.expense: ${LOG_LEVEL:INFO}
+    org.springframework.security: ${SECURITY_LOG_LEVEL:WARN}
+    org.hibernate.SQL: ${SQL_LOG_LEVEL:WARN}
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%logger{36}] - %msg%n"
+
+waqiti:
+  expense:
+    max-expense-amount: ${MAX_EXPENSE_AMOUNT:10000.00}
+    max-monthly-expenses: ${MAX_MONTHLY_EXPENSES:50000.00}
+    auto-approval-threshold: ${AUTO_APPROVAL_THRESHOLD:100.00}
+    receipt-required-threshold: ${RECEIPT_REQUIRED_THRESHOLD:25.00}
+    
+    categories:
+      allowed: "MEALS,TRAVEL,OFFICE_SUPPLIES,ENTERTAINMENT,TRANSPORTATION,ACCOMMODATION,TRAINING,EQUIPMENT,MARKETING,OTHER"
+      
+    approval:
+      workflow-enabled: ${APPROVAL_WORKFLOW_ENABLED:true}
+      manager-approval-threshold: ${MANAGER_APPROVAL_THRESHOLD:500.00}
+      finance-approval-threshold: ${FINANCE_APPROVAL_THRESHOLD:2000.00}
+      
+    notifications:
+      enabled: ${EXPENSE_NOTIFICATIONS_ENABLED:true}
+      approval-timeout-hours: ${APPROVAL_TIMEOUT_HOURS:72}
+      
+    receipt:
+      storage:
+        provider: ${RECEIPT_STORAGE_PROVIDER:s3}
+        s3:
+          bucket: ${RECEIPT_S3_BUCKET:waqiti-expense-receipts}
+          region: ${AWS_REGION:us-east-1}
+        max-file-size: ${MAX_RECEIPT_SIZE:10MB}
+        allowed-types: "image/jpeg,image/png,image/gif,application/pdf"
+        
+    reporting:
+      enabled: ${EXPENSE_REPORTING_ENABLED:true}
+      export-formats: "CSV,PDF,EXCEL"
+      retention-days: ${EXPENSE_RETENTION_DAYS:2555} # 7 years
+      
+    integrations:
+      accounting:
+        enabled: ${ACCOUNTING_INTEGRATION_ENABLED:false}
+        provider: ${ACCOUNTING_PROVIDER:quickbooks}
+        sync-interval: ${ACCOUNTING_SYNC_INTERVAL:3600} # 1 hour
+        
+    mileage:
+      tracking-enabled: ${MILEAGE_TRACKING_ENABLED:true}
+      rate-per-mile: ${MILEAGE_RATE:0.65}
+      gps-required: ${GPS_REQUIRED:true}
+      
+    policy:
+      enforcement-enabled: ${POLICY_ENFORCEMENT_ENABLED:true}
+      weekend-expenses-allowed: ${WEEKEND_EXPENSES_ALLOWED:false}
+      international-expenses-enabled: ${INTERNATIONAL_EXPENSES_ENABLED:true}
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      payment-service:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+      notification-service:
+        sliding-window-size: 5
+        failure-rate-threshold: 60
+        wait-duration-in-open-state: 20s
+        
+  retry:
+    instances:
+      expense-processing:
+        max-attempts: 3
+        wait-duration: 1s
+        exponential-backoff-multiplier: 2
+        
+  ratelimiter:
+    instances:
+      expense-submission:
+        limit-for-period: 10
+        limit-refresh-period: 60s
+        timeout-duration: 5s
+
+---
+spring:
+  config:
+    activate:
+      on-profile: test
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    database-platform: org.hibernate.dialect.H2Dialect
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+  
+  datasource:
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 20000
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      
+logging:
+  level:
+    com.waqiti.expense: INFO
+    org.springframework.security: WARN
+    root: WARN
+  file:
+    name: /var/log/waqiti/expense-service.log
+  logback:
+    rollingpolicy:
+      max-file-size: 100MB
+      max-history: 30
+
+waqiti:
+  expense:
+    max-expense-amount: 25000.00
+    max-monthly-expenses: 100000.00

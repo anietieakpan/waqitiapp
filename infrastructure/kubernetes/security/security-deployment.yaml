@@ -1,0 +1,425 @@
+# Production Security Deployment Configuration
+# This file contains security-hardened deployment templates for all services
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: security-config
+  namespace: waqiti-backend
+data:
+  # Java Security Properties
+  java.security: |
+    # Waqiti Production Java Security Configuration
+    jdk.tls.disabledAlgorithms=SSLv2Hello,SSLv3,TLSv1,TLSv1.1,RC4,DES,MD5withRSA,DSA,SHA1withDSA,SHA1withRSA
+    jdk.certpath.disabledAlgorithms=MD2,MD5,SHA1 jdkCA & usage TLSServer,RSA keySize < 2048,DSA keySize < 1024,EC keySize < 224
+    jdk.jar.disabledAlgorithms=MD2,MD5,RSA keySize < 2048,DSA keySize < 2048
+    securerandom.source=file:/dev/urandom
+    networkaddress.cache.ttl=60
+    networkaddress.cache.negative.ttl=10
+    jdk.xml.entityExpansionLimit=64000
+    jdk.xml.elementAttributeLimit=128000
+    jdk.xml.maxOccurLimit=5000
+    jdk.xml.totalEntitySizeLimit=50000000
+    jdk.xml.maxGeneralEntitySizeLimit=0
+    jdk.xml.maxParameterEntitySizeLimit=1000000
+
+  # Security Headers Configuration
+  security-headers.yml: |
+    app:
+      security:
+        headers:
+          enabled: true
+          hsts-max-age: 31536000
+          frame-deny-enabled: true
+          content-security-policy: "default-src 'self'; script-src 'self' 'nonce-{nonce}'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.example.com; connect-src 'self' https://*.example.com wss://*.example.com; frame-src 'none'; object-src 'none'"
+          permissions-policy: "camera=(), microphone=(), geolocation=(), payment=(self), publickey-credentials-get=(self)"
+          feature-policy: "camera 'none'; microphone 'none'; geolocation 'none'"
+          enable-api-headers: true
+          enable-custom-headers: true
+          enable-security-reporting: true
+          csp-report-endpoint: "https://waqiti.report-uri.com/r/d/csp/enforce"
+          nel-report-endpoint: "https://waqiti.report-uri.com/r/d/nel/enforce"
+          expect-ct-report-uri: "https://waqiti.report-uri.com/r/d/ct/enforce"
+          api-version: "v1"
+          service-name: "${SPRING_APPLICATION_NAME}"
+
+  # Rate Limiting Configuration
+  rate-limiting.yml: |
+    app:
+      security:
+        rate-limiting:
+          enabled: true
+          redis-host: ${REDIS_HOST}
+          redis-port: ${REDIS_PORT}
+          global-limit: 1000
+          global-window: PT1M
+          endpoints:
+            "/api/v1/auth/login":
+              limit: 5
+              window: PT1M
+            "/api/v1/auth/register":
+              limit: 3
+              window: PT5M
+            "/api/v1/users/password/reset":
+              limit: 3
+              window: PT5M
+            "/api/v1/payments/**":
+              limit: 50
+              window: PT1M
+            "/api/v1/crypto/trade/**":
+              limit: 20
+              window: PT1M
+            "/api/v1/investment/orders/**":
+              limit: 30
+              window: PT1M
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: security-secrets
+  namespace: waqiti-backend
+type: Opaque
+data:
+  jwt-secret: # Base64 encoded JWT secret
+  encryption-key: # Base64 encoded encryption key
+  api-key-salt: # Base64 encoded API key salt
+  database-encryption-key: # Base64 encoded database encryption key
+
+---
+# Pod Security Policy
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: waqiti-security-policy
+spec:
+  privileged: false
+  allowPrivilegeEscalation: false
+  requiredDropCapabilities:
+    - ALL
+  volumes:
+    - 'configMap'
+    - 'emptyDir'
+    - 'projected'
+    - 'secret'
+    - 'downwardAPI'
+    - 'persistentVolumeClaim'
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+  runAsUser:
+    rule: 'MustRunAsNonRoot'
+  seLinux:
+    rule: 'RunAsAny'
+  supplementalGroups:
+    rule: 'MustRunAs'
+    ranges:
+      - min: 1001
+        max: 65535
+  fsGroup:
+    rule: 'MustRunAs'
+    ranges:
+      - min: 1001
+        max: 65535
+  readOnlyRootFilesystem: true
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1001
+    fsGroup: 1001
+
+---
+# Security Deployment Template
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: waqiti-service-template
+  namespace: waqiti-backend
+  labels:
+    app: waqiti-service
+    version: v1
+    security.example.com/policy: strict
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: waqiti-service
+  template:
+    metadata:
+      labels:
+        app: waqiti-service
+        version: v1
+      annotations:
+        # Security annotations
+        seccomp.security.alpha.kubernetes.io/pod: runtime/default
+        apparmor.security.beta.kubernetes.io/container: runtime/default
+        # Istio security
+        sidecar.istio.io/inject: "true"
+        traffic.sidecar.istio.io/includeInboundPorts: "8443"
+        traffic.sidecar.istio.io/excludeOutboundPorts: "443"
+    spec:
+      # Security context
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
+      
+      # Service account
+      serviceAccountName: waqiti-service-account
+      automountServiceAccountToken: false
+      
+      # Pod security
+      hostNetwork: false
+      hostIPC: false
+      hostPID: false
+      
+      containers:
+      - name: waqiti-service
+        image: waqiti/service:latest
+        imagePullPolicy: Always
+        
+        # Security context
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1001
+          runAsGroup: 1001
+          capabilities:
+            drop:
+              - ALL
+          seccompProfile:
+            type: RuntimeDefault
+        
+        # Resource limits
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        
+        # Environment variables
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "production,security"
+        - name: SPRING_APPLICATION_NAME
+          value: "waqiti-service"
+        - name: SERVER_PORT
+          value: "8443"
+        - name: SERVER_SSL_ENABLED
+          value: "true"
+        - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
+          value: "health,info,metrics,prometheus"
+        - name: JAVA_TOOL_OPTIONS
+          value: "-Djava.security.properties=/app/config/java.security -Xms512m -Xmx1536m"
+        
+        # Secret environment variables
+        envFrom:
+        - secretRef:
+            name: security-secrets
+        - configMapRef:
+            name: security-config
+        
+        # Ports
+        ports:
+        - containerPort: 8443
+          name: https
+          protocol: TCP
+        - containerPort: 8080
+          name: management
+          protocol: TCP
+        
+        # Volume mounts
+        volumeMounts:
+        - name: security-config
+          mountPath: /app/config
+          readOnly: true
+        - name: ssl-certs
+          mountPath: /app/ssl
+          readOnly: true
+        - name: tmp-volume
+          mountPath: /tmp
+        - name: cache-volume
+          mountPath: /app/cache
+        
+        # Health checks
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        startupProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30
+      
+      # Volumes
+      volumes:
+      - name: security-config
+        configMap:
+          name: security-config
+          defaultMode: 0444
+      - name: ssl-certs
+        secret:
+          secretName: waqiti-internal-services-tls-secret
+          defaultMode: 0400
+      - name: tmp-volume
+        emptyDir:
+          sizeLimit: 100Mi
+      - name: cache-volume
+        emptyDir:
+          sizeLimit: 500Mi
+      
+      # Scheduling
+      nodeSelector:
+        kubernetes.io/os: linux
+        example.com/node-type: application
+      
+      tolerations:
+      - key: "example.com/dedicated"
+        operator: "Equal"
+        value: "application"
+        effect: "NoSchedule"
+      
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app: waqiti-service
+              topologyKey: kubernetes.io/hostname
+
+---
+# Service Account for Application
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: waqiti-service-account
+  namespace: waqiti-backend
+automountServiceAccountToken: false
+
+---
+# Role for Service Account
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: waqiti-backend
+  name: waqiti-service-role
+rules:
+- apiGroups: [""]
+  resources: ["configmaps", "secrets"]
+  verbs: ["get", "list"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list"]
+
+---
+# Role Binding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: waqiti-service-binding
+  namespace: waqiti-backend
+subjects:
+- kind: ServiceAccount
+  name: waqiti-service-account
+  namespace: waqiti-backend
+roleRef:
+  kind: Role
+  name: waqiti-service-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# Network Policy for Service Communication
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: waqiti-service-network-policy
+  namespace: waqiti-backend
+spec:
+  podSelector:
+    matchLabels:
+      app: waqiti-service
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: waqiti-backend
+    - namespaceSelector:
+        matchLabels:
+          name: istio-system
+    ports:
+    - protocol: TCP
+      port: 8443
+    - protocol: TCP
+      port: 8080
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: waqiti-backend
+    - namespaceSelector:
+        matchLabels:
+          name: waqiti-data
+    ports:
+    - protocol: TCP
+      port: 8443
+    - protocol: TCP
+      port: 5432
+    - protocol: TCP
+      port: 6379
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 443
+
+---
+# Service Monitor for Prometheus
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: waqiti-service-monitor
+  namespace: waqiti-backend
+spec:
+  selector:
+    matchLabels:
+      app: waqiti-service
+  endpoints:
+  - port: management
+    path: /actuator/prometheus
+    interval: 30s
+    scrapeTimeout: 10s
+  namespaceSelector:
+    matchNames:
+    - waqiti-backend

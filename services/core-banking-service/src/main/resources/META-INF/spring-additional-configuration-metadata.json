@@ -1,0 +1,351 @@
+{
+  "properties": [
+    {
+      "name": "core-banking.migration-mode",
+      "type": "java.lang.String",
+      "description": "Migration mode for core banking transition (FULLY_MIGRATED, PARTIAL, LEGACY)",
+      "defaultValue": "FULLY_MIGRATED"
+    },
+    {
+      "name": "core-banking.cyclos-integration",
+      "type": "java.lang.Boolean",
+      "description": "Enable integration with Cyclos banking system",
+      "defaultValue": false
+    },
+    {
+      "name": "core-banking.accounts.auto-approval",
+      "type": "java.lang.Boolean",
+      "description": "Enable automatic account approval",
+      "defaultValue": true
+    },
+    {
+      "name": "core-banking.accounts.default-currency",
+      "type": "java.lang.String",
+      "description": "Default currency for new accounts",
+      "defaultValue": "USD"
+    },
+    {
+      "name": "core-banking.accounts.minimum-balance.wallet",
+      "type": "java.math.BigDecimal",
+      "description": "Minimum balance requirement for wallet accounts",
+      "defaultValue": "0.00"
+    },
+    {
+      "name": "core-banking.accounts.minimum-balance.savings",
+      "type": "java.math.BigDecimal",
+      "description": "Minimum balance requirement for savings accounts",
+      "defaultValue": "100.00"
+    },
+    {
+      "name": "core-banking.accounts.minimum-balance.credit",
+      "type": "java.math.BigDecimal",
+      "description": "Minimum balance requirement for credit accounts",
+      "defaultValue": "0.00"
+    },
+    {
+      "name": "core-banking.accounts.daily-limits.standard",
+      "type": "java.math.BigDecimal",
+      "description": "Daily transaction limit for standard accounts",
+      "defaultValue": "5000.00"
+    },
+    {
+      "name": "core-banking.accounts.daily-limits.premium",
+      "type": "java.math.BigDecimal",
+      "description": "Daily transaction limit for premium accounts",
+      "defaultValue": "25000.00"
+    },
+    {
+      "name": "core-banking.accounts.daily-limits.business",
+      "type": "java.math.BigDecimal",
+      "description": "Daily transaction limit for business accounts",
+      "defaultValue": "100000.00"
+    },
+    {
+      "name": "core-banking.accounts.monthly-limits.standard",
+      "type": "java.math.BigDecimal",
+      "description": "Monthly transaction limit for standard accounts",
+      "defaultValue": "50000.00"
+    },
+    {
+      "name": "core-banking.accounts.monthly-limits.premium",
+      "type": "java.math.BigDecimal",
+      "description": "Monthly transaction limit for premium accounts",
+      "defaultValue": "250000.00"
+    },
+    {
+      "name": "core-banking.accounts.monthly-limits.business",
+      "type": "java.math.BigDecimal",
+      "description": "Monthly transaction limit for business accounts",
+      "defaultValue": "1000000.00"
+    },
+    {
+      "name": "core-banking.transactions.batch-size",
+      "type": "java.lang.Integer",
+      "description": "Batch size for transaction processing",
+      "defaultValue": 1000
+    },
+    {
+      "name": "core-banking.transactions.timeout-seconds",
+      "type": "java.lang.Integer",
+      "description": "Transaction timeout in seconds",
+      "defaultValue": 30
+    },
+    {
+      "name": "core-banking.transactions.retry-attempts",
+      "type": "java.lang.Integer",
+      "description": "Number of retry attempts for failed transactions",
+      "defaultValue": 3
+    },
+    {
+      "name": "core-banking.transactions.fee-calculation",
+      "type": "java.lang.Boolean",
+      "description": "Enable automatic fee calculation",
+      "defaultValue": true
+    },
+    {
+      "name": "core-banking.transactions.auto-reconciliation",
+      "type": "java.lang.Boolean",
+      "description": "Enable automatic transaction reconciliation",
+      "defaultValue": true
+    },
+    {
+      "name": "core-banking.double-entry.enforce-balance",
+      "type": "java.lang.Boolean",
+      "description": "Enforce balance checks in double-entry bookkeeping",
+      "defaultValue": true
+    },
+    {
+      "name": "core-banking.double-entry.audit-all-entries",
+      "type": "java.lang.Boolean",
+      "description": "Enable auditing for all double-entry transactions",
+      "defaultValue": true
+    },
+    {
+      "name": "core-banking.double-entry.reconciliation-interval",
+      "type": "java.lang.String",
+      "description": "Cron expression for reconciliation interval",
+      "defaultValue": "0 */15 * * * *"
+    },
+    {
+      "name": "core-banking.compliance.aml-checks",
+      "type": "java.lang.Boolean",
+      "description": "Enable Anti-Money Laundering checks",
+      "defaultValue": true
+    },
+    {
+      "name": "core-banking.compliance.transaction-monitoring",
+      "type": "java.lang.Boolean",
+      "description": "Enable real-time transaction monitoring",
+      "defaultValue": true
+    },
+    {
+      "name": "core-banking.compliance.suspicious-activity-threshold",
+      "type": "java.math.BigDecimal",
+      "description": "Transaction amount threshold for suspicious activity reporting",
+      "defaultValue": "10000.00"
+    },
+    {
+      "name": "core-banking.compliance.kyc-required-threshold",
+      "type": "java.math.BigDecimal",
+      "description": "Transaction amount threshold requiring KYC verification",
+      "defaultValue": "1000.00"
+    },
+    {
+      "name": "core-banking.interest.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable interest calculation",
+      "defaultValue": true
+    },
+    {
+      "name": "core-banking.interest.batch-size",
+      "type": "java.lang.Integer",
+      "description": "Batch size for interest calculation processing",
+      "defaultValue": 100
+    },
+    {
+      "name": "core-banking.interest.calculation-days",
+      "type": "java.lang.Integer",
+      "description": "Number of days in year for interest calculation",
+      "defaultValue": 365
+    },
+    {
+      "name": "core-banking.interest.cron",
+      "type": "java.lang.String",
+      "description": "Cron expression for interest calculation schedule",
+      "defaultValue": "0 0 2 * * ?"
+    },
+    {
+      "name": "core-banking.interest.default-savings-rate",
+      "type": "java.math.BigDecimal",
+      "description": "Default annual interest rate for savings accounts (percentage)",
+      "defaultValue": "0.50"
+    },
+    {
+      "name": "core-banking.interest.default-fixed-deposit-rate",
+      "type": "java.math.BigDecimal",
+      "description": "Default annual interest rate for fixed deposits (percentage)",
+      "defaultValue": "2.50"
+    },
+    {
+      "name": "core-banking.interest.default-money-market-rate",
+      "type": "java.math.BigDecimal",
+      "description": "Default annual interest rate for money market accounts (percentage)",
+      "defaultValue": "1.25"
+    },
+    {
+      "name": "core-banking.statements.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable statement generation",
+      "defaultValue": true
+    },
+    {
+      "name": "core-banking.statements.auto-generate",
+      "type": "java.lang.Boolean",
+      "description": "Enable automatic statement generation",
+      "defaultValue": true
+    },
+    {
+      "name": "core-banking.statements.batch-size",
+      "type": "java.lang.Integer",
+      "description": "Batch size for statement generation",
+      "defaultValue": 50
+    },
+    {
+      "name": "core-banking.statements.cron",
+      "type": "java.lang.String",
+      "description": "Cron expression for automatic statement generation",
+      "defaultValue": "0 0 1 1 * ?"
+    },
+    {
+      "name": "core-banking.statements.retention-days",
+      "type": "java.lang.Integer",
+      "description": "Number of days to retain generated statements",
+      "defaultValue": 2555
+    },
+    {
+      "name": "core-banking.currency.default",
+      "type": "java.lang.String",
+      "description": "Default system currency",
+      "defaultValue": "USD"
+    },
+    {
+      "name": "core-banking.currency.supported",
+      "type": "java.util.List",
+      "description": "List of supported currencies"
+    },
+    {
+      "name": "core-banking.currency.exchange-rate-provider",
+      "type": "java.lang.String",
+      "description": "Exchange rate provider service",
+      "defaultValue": "OPEN_EXCHANGE_RATES"
+    },
+    {
+      "name": "core-banking.currency.cache-duration-minutes",
+      "type": "java.lang.Integer",
+      "description": "Duration to cache exchange rates in minutes",
+      "defaultValue": 60
+    },
+    {
+      "name": "core-banking.security.encryption-algorithm",
+      "type": "java.lang.String",
+      "description": "Algorithm for encrypting sensitive data",
+      "defaultValue": "AES-256-GCM"
+    },
+    {
+      "name": "core-banking.security.pii-masking",
+      "type": "java.lang.Boolean",
+      "description": "Enable masking of Personally Identifiable Information in logs",
+      "defaultValue": true
+    },
+    {
+      "name": "core-banking.security.audit-logging",
+      "type": "java.lang.Boolean",
+      "description": "Enable comprehensive audit logging",
+      "defaultValue": true
+    },
+    {
+      "name": "core-banking.security.fraud-detection",
+      "type": "java.lang.Boolean",
+      "description": "Enable fraud detection system",
+      "defaultValue": true
+    },
+    {
+      "name": "auth.mode",
+      "type": "java.lang.String",
+      "description": "Authentication mode (KEYCLOAK, LEGACY_JWT, NONE)",
+      "defaultValue": "KEYCLOAK"
+    },
+    {
+      "name": "auth.legacy-jwt-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable legacy JWT authentication",
+      "defaultValue": false
+    },
+    {
+      "name": "auth.keycloak-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Keycloak authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "keycloak.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Keycloak integration",
+      "defaultValue": true
+    },
+    {
+      "name": "keycloak.auth-server-url",
+      "type": "java.lang.String",
+      "description": "Keycloak authentication server URL",
+      "defaultValue": "https://localhost:8180"
+    },
+    {
+      "name": "keycloak.realm",
+      "type": "java.lang.String",
+      "description": "Keycloak realm name",
+      "defaultValue": "waqiti-fintech"
+    },
+    {
+      "name": "keycloak.resource",
+      "type": "java.lang.String",
+      "description": "Keycloak client resource name",
+      "defaultValue": "core-banking-service"
+    },
+    {
+      "name": "keycloak.bearer-only",
+      "type": "java.lang.Boolean",
+      "description": "Use bearer-only access type",
+      "defaultValue": true
+    },
+    {
+      "name": "keycloak.ssl-required",
+      "type": "java.lang.String",
+      "description": "SSL requirement mode (external, none, all)",
+      "defaultValue": "external"
+    },
+    {
+      "name": "keycloak.verify-token-audience",
+      "type": "java.lang.Boolean",
+      "description": "Verify token audience",
+      "defaultValue": true
+    },
+    {
+      "name": "keycloak.use-resource-role-mappings",
+      "type": "java.lang.Boolean",
+      "description": "Use resource role mappings",
+      "defaultValue": true
+    },
+    {
+      "name": "keycloak.principal-attribute",
+      "type": "java.lang.String",
+      "description": "Principal attribute name",
+      "defaultValue": "preferred_username"
+    },
+    {
+      "name": "resilience4j.circuit-breaker.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable circuit breaker pattern",
+      "defaultValue": true
+    }
+  ]
+}

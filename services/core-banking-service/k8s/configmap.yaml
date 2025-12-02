@@ -1,0 +1,60 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: core-banking-config
+  namespace: waqiti-prod
+data:
+  # Database Configuration
+  db.host: "postgres-primary.database.svc.cluster.local"
+  db.port: "5432"
+  db.name: "waqiti_core_banking"
+
+  # Kafka Configuration
+  kafka.bootstrap.servers: "kafka-0.kafka-headless.kafka.svc.cluster.local:9092,kafka-1.kafka-headless.kafka.svc.cluster.local:9092,kafka-2.kafka-headless.kafka.svc.cluster.local:9092"
+
+  # Redis Configuration
+  redis.host: "redis-master.cache.svc.cluster.local"
+  redis.port: "6379"
+
+  # Eureka Service Discovery
+  eureka.server.url: "http://discovery-service.infrastructure.svc.cluster.local:8761/eureka"
+
+  # Keycloak Authentication
+  keycloak.server.url: "https://auth.example.com"
+  keycloak.realm: "waqiti-fintech"
+  keycloak.client.id: "core-banking-service"
+
+  # Application Configuration
+  spring.application.name: "core-banking-service"
+  logging.level.root: "INFO"
+  logging.level.com.waqiti: "DEBUG"
+
+  # Circuit Breaker Configuration
+  resilience4j.circuitbreaker.instances.ledger-service.failureRateThreshold: "50"
+  resilience4j.circuitbreaker.instances.ledger-service.waitDurationInOpenState: "60000"
+  resilience4j.circuitbreaker.instances.compliance-service.failureRateThreshold: "30"
+  resilience4j.circuitbreaker.instances.compliance-service.waitDurationInOpenState: "30000"
+
+  # Core Banking Business Configuration
+  core-banking.migration-mode: "FULLY_MIGRATED"
+  core-banking.cyclos-integration: "false"
+  core-banking.accounts.auto-approval: "true"
+  core-banking.accounts.default-currency: "USD"
+  core-banking.transactions.fee-calculation: "true"
+  core-banking.transactions.auto-reconciliation: "true"
+  core-banking.double-entry.enforce-balance: "true"
+  core-banking.compliance.aml-checks: "true"
+  core-banking.compliance.transaction-monitoring: "true"
+  core-banking.interest.enabled: "true"
+  core-banking.statements.enabled: "true"
+  core-banking.statements.auto-generate: "true"
+
+  # GDPR Configuration
+  gdpr.erasure.enabled: "true"
+  gdpr.data-retention.years: "7"
+
+  # Monitoring Configuration
+  management.endpoints.web.exposure.include: "health,info,metrics,prometheus,env,configprops"
+  management.endpoint.health.show-details: "when-authorized"
+  management.metrics.export.prometheus.enabled: "true"
+  management.tracing.sampling.probability: "0.1"

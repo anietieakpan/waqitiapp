@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Waqiti API Documentation</title>
+    <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui.css" />
+    <link rel="icon" type="image/png" href="./favicon-32x32.png" sizes="32x32" />
+    <link rel="icon" type="image/png" href="./favicon-16x16.png" sizes="16x16" />
+    
+    <style>
+        html {
+            box-sizing: border-box;
+            overflow: -moz-scrollbars-vertical;
+            overflow-y: scroll;
+        }
+
+        *, *:before, *:after {
+            box-sizing: inherit;
+        }
+
+        body {
+            margin: 0;
+            background: #fafafa;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+        
+        .swagger-ui .topbar {
+            background-color: #1976D2;
+        }
+        
+        .swagger-ui .topbar .download-url-wrapper {
+            display: flex;
+            align-items: center;
+        }
+        
+        .swagger-ui .topbar .download-url-wrapper .select-label {
+            color: #fff;
+            margin-right: 10px;
+        }
+        
+        .swagger-ui .topbar .download-url-wrapper input[type="text"] {
+            border: 2px solid #1976D2;
+            border-radius: 4px;
+            padding: 8px;
+            margin-right: 10px;
+        }
+        
+        .service-selector {
+            position: fixed;
+            top: 10px;
+            right: 20px;
+            z-index: 1000;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 10px;
+            min-width: 200px;
+        }
+        
+        .service-selector label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #1976D2;
+        }
+        
+        .service-selector select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .waqiti-header {
+            background: linear-gradient(135deg, #1976D2 0%, #1565C0 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .waqiti-header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            font-weight: 300;
+        }
+        
+        .waqiti-header p {
+            margin: 10px 0 0 0;
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+        
+        .api-info {
+            background: white;
+            margin: 0;
+            padding: 20px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .api-info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .api-info-card {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            border-left: 4px solid #1976D2;
+        }
+        
+        .api-info-card h3 {
+            margin: 0 0 10px 0;
+            color: #1976D2;
+            font-size: 1rem;
+        }
+        
+        .api-info-card p {
+            margin: 0;
+            color: #666;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+        
+        .environment-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-left: 10px;
+        }
+        
+        .env-production {
+            background-color: #4CAF50;
+            color: white;
+        }
+        
+        .env-staging {
+            background-color: #FF9800;
+            color: white;
+        }
+        
+        .env-sandbox {
+            background-color: #2196F3;
+            color: white;
+        }
+        
+        .quick-links {
+            background: white;
+            padding: 15px 20px;
+            border-bottom: 1px solid #e0e0e0;
+            text-align: center;
+        }
+        
+        .quick-links a {
+            display: inline-block;
+            margin: 0 10px;
+            padding: 8px 16px;
+            background: #1976D2;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            transition: background-color 0.3s;
+        }
+        
+        .quick-links a:hover {
+            background: #1565C0;
+        }
+        
+        @media (max-width: 768px) {
+            .service-selector {
+                position: static;
+                margin: 20px auto;
+                max-width: 300px;
+            }
+            
+            .api-info-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .quick-links a {
+                display: block;
+                margin: 5px auto;
+                max-width: 200px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="waqiti-header">
+        <h1>Waqiti Platform API</h1>
+        <p>Comprehensive API documentation for P2P payments, digital wallets, and financial services</p>
+    </div>
+    
+    <div class="api-info">
+        <div class="api-info-grid">
+            <div class="api-info-card">
+                <h3>🚀 Getting Started</h3>
+                <p>New to Waqiti? Start with our authentication guide and basic payment flows.</p>
+            </div>
+            <div class="api-info-card">
+                <h3>🔐 Authentication</h3>
+                <p>All endpoints use JWT Bearer token authentication with optional MFA support.</p>
+            </div>
+            <div class="api-info-card">
+                <h3>⚡ Rate Limits</h3>
+                <p>Generous rate limits with clear headers. Premium tiers available for high-volume usage.</p>
+            </div>
+            <div class="api-info-card">
+                <h3>📊 Real-time Updates</h3>
+                <p>WebSocket support for real-time notifications and transaction updates.</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="quick-links">
+        <a href="#/Authentication/post_auth_login">Try Authentication</a>
+        <a href="#/Payments/post_payments">Send Payment</a>
+        <a href="#/Wallets/get_wallets">View Wallets</a>
+        <a href="./postman/Waqiti_API_Collection.json" target="_blank">Postman Collection</a>
+        <a href="./integration-guides/" target="_blank">Integration Guides</a>
+    </div>
+    
+    <div class="service-selector">
+        <label for="service-select">Select Service:</label>
+        <select id="service-select">
+            <option value="payment-service.yaml">Payment Service</option>
+            <option value="user-service.yaml">User Service</option>
+            <option value="wallet-service.yaml">Wallet Service</option>
+            <option value="transaction-service.yaml">Transaction Service</option>
+            <option value="notification-service.yaml">Notification Service</option>
+            <option value="kyc-service.yaml">KYC Service</option>
+            <option value="crypto-service.yaml">Crypto Service</option>
+            <option value="merchant-service.yaml">Merchant Service</option>
+            <option value="international-transfer-service.yaml">International Transfer Service</option>
+            <option value="compliance-service.yaml">Compliance Service</option>
+        </select>
+    </div>
+
+    <div id="swagger-ui"></div>
+
+    <script src="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui-bundle.js"></script>
+    <script src="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui-standalone-preset.js"></script>
+    
+    <script>
+        // Environment detection
+        function detectEnvironment() {
+            const hostname = window.location.hostname;
+            if (hostname.includes('sandbox') || hostname.includes('dev')) {
+                return 'sandbox';
+            } else if (hostname.includes('staging') || hostname.includes('test')) {
+                return 'staging';
+            } else {
+                return 'production';
+            }
+        }
+        
+        // Get base URLs for different environments
+        function getBaseUrls() {
+            const env = detectEnvironment();
+            return {
+                production: 'https://api.example.com/v1',
+                staging: 'https://staging-api.example.com/v1',
+                sandbox: 'https://sandbox-api.example.com/v1'
+            };
+        }
+        
+        // Service configurations
+        const services = {
+            'payment-service.yaml': {
+                name: 'Payment Service',
+                description: 'P2P transfers, merchant payments, and payment processing',
+                basePath: '/payments'
+            },
+            'user-service.yaml': {
+                name: 'User Service', 
+                description: 'User authentication, profiles, and account management',
+                basePath: '/users'
+            },
+            'wallet-service.yaml': {
+                name: 'Wallet Service',
+                description: 'Digital wallet management and balance operations',
+                basePath: '/wallets'
+            },
+            'transaction-service.yaml': {
+                name: 'Transaction Service',
+                description: 'Transaction history, analytics, and reporting',
+                basePath: '/transactions'
+            },
+            'notification-service.yaml': {
+                name: 'Notification Service',
+                description: 'Push notifications and messaging',
+                basePath: '/notifications'
+            },
+            'kyc-service.yaml': {
+                name: 'KYC Service',
+                description: 'Know Your Customer verification and compliance',
+                basePath: '/kyc'
+            },
+            'crypto-service.yaml': {
+                name: 'Crypto Service',
+                description: 'Cryptocurrency trading and wallet management',
+                basePath: '/crypto'
+            },
+            'merchant-service.yaml': {
+                name: 'Merchant Service',
+                description: 'Merchant onboarding and payment processing',
+                basePath: '/merchants'
+            },
+            'international-transfer-service.yaml': {
+                name: 'International Transfer Service',
+                description: 'Cross-border payments and currency exchange',
+                basePath: '/international'
+            },
+            'compliance-service.yaml': {
+                name: 'Compliance Service',
+                description: 'AML, fraud detection, and regulatory compliance',
+                basePath: '/compliance'
+            }
+        };
+        
+        let ui;
+        
+        function initSwaggerUI(specFile) {
+            const service = services[specFile] || {};
+            const baseUrls = getBaseUrls();
+            const currentEnv = detectEnvironment();
+            
+            // Destroy existing UI
+            if (ui) {
+                const swaggerContainer = document.getElementById('swagger-ui');
+                swaggerContainer.innerHTML = '';
+            }
+            
+            ui = SwaggerUIBundle({
+                url: './openapi/' + specFile,
+                dom_id: '#swagger-ui',
+                deepLinking: true,
+                presets: [
+                    SwaggerUIBundle.presets.apis,
+                    SwaggerUIStandalonePreset
+                ],
+                plugins: [
+                    SwaggerUIBundle.plugins.DownloadUrl
+                ],
+                layout: "StandaloneLayout",
+                requestInterceptor: (req) => {
+                    // Add environment badge to request
+                    console.log('Request to:', req.url, `[${currentEnv.toUpperCase()}]`);
+                    return req;
+                },
+                responseInterceptor: (res) => {
+                    // Log response for debugging
+                    console.log('Response:', res.status, res.url);
+                    return res;
+                },
+                onComplete: function() {
+                    // Add environment indicators
+                    setTimeout(() => {
+                        addEnvironmentBadges(currentEnv);
+                        customizeUI(service);
+                    }, 500);
+                },
+                tryItOutEnabled: true,
+                filter: true,
+                showExtensions: true,
+                showCommonExtensions: true,
+                defaultModelsExpandDepth: 1,
+                defaultModelExpandDepth: 1,
+                docExpansion: 'list',
+                operationsSorter: 'alpha',
+                tagsSorter: 'alpha',
+                validatorUrl: null,
+                syntaxHighlight: {
+                    activated: true,
+                    theme: 'agate'
+                }
+            });
+        }
+        
+        function addEnvironmentBadges(env) {
+            const servers = document.querySelectorAll('.servers .servers-title');
+            servers.forEach(server => {
+                if (!server.querySelector('.environment-badge')) {
+                    const badge = document.createElement('span');
+                    badge.className = `environment-badge env-${env}`;
+                    badge.textContent = env;
+                    server.appendChild(badge);
+                }
+            });
+        }
+        
+        function customizeUI(service) {
+            // Add service description
+            const infoSection = document.querySelector('.information-container');
+            if (infoSection && service.description) {
+                const serviceDesc = document.createElement('div');
+                serviceDesc.innerHTML = `
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #1976D2;">
+                        <strong>Service:</strong> ${service.name}<br>
+                        <strong>Description:</strong> ${service.description}
+                    </div>
+                `;
+                infoSection.appendChild(serviceDesc);
+            }
+            
+            // Customize request samples
+            setTimeout(() => {
+                const curlSamples = document.querySelectorAll('.curl-command');
+                curlSamples.forEach(sample => {
+                    if (sample.textContent.includes('localhost')) {
+                        sample.textContent = sample.textContent.replace(
+                            'http://localhost:8080/v1',
+                            getBaseUrls()[detectEnvironment()]
+                        );
+                    }
+                });
+            }, 1000);
+        }
+        
+        // Handle service selection
+        document.getElementById('service-select').addEventListener('change', function(e) {
+            initSwaggerUI(e.target.value);
+            
+            // Update URL hash for bookmarking
+            window.location.hash = e.target.value.replace('.yaml', '');
+            
+            // Track service switch for analytics
+            if (typeof gtag !== 'undefined') {
+                gtag('event', 'service_switch', {
+                    'service_name': services[e.target.value]?.name || e.target.value
+                });
+            }
+        });
+        
+        // Initialize with default service or from URL hash
+        function initFromHash() {
+            const hash = window.location.hash.substring(1);
+            let defaultService = 'payment-service.yaml';
+            
+            if (hash && services[hash + '.yaml']) {
+                defaultService = hash + '.yaml';
+                document.getElementById('service-select').value = defaultService;
+            }
+            
+            initSwaggerUI(defaultService);
+        }
+        
+        // Handle browser back/forward
+        window.addEventListener('popstate', initFromHash);
+        
+        // Add keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            // Alt + S to focus service selector
+            if (e.altKey && e.key === 's') {
+                e.preventDefault();
+                document.getElementById('service-select').focus();
+            }
+            
+            // Alt + T to try the first operation
+            if (e.altKey && e.key === 't') {
+                e.preventDefault();
+                const firstTryBtn = document.querySelector('.try-out__btn');
+                if (firstTryBtn) firstTryBtn.click();
+            }
+        });
+        
+        // Add helpful tooltips
+        setTimeout(() => {
+            const selector = document.getElementById('service-select');
+            selector.title = 'Switch between different Waqiti API services (Alt+S)';
+        }, 1000);
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', initFromHash);
+        
+        // Add copy functionality for code samples
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('copy-to-clipboard')) {
+                const code = e.target.closest('.highlight-code').querySelector('code');
+                if (code) {
+                    navigator.clipboard.writeText(code.textContent).then(() => {
+                        e.target.textContent = 'Copied!';
+                        setTimeout(() => {
+                            e.target.textContent = 'Copy';
+                        }, 2000);
+                    });
+                }
+            }
+        });
+        
+        // Service health check (optional)
+        async function checkServiceHealth() {
+            const baseUrls = getBaseUrls();
+            const currentEnv = detectEnvironment();
+            
+            try {
+                const response = await fetch(`${baseUrls[currentEnv]}/health`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                const status = response.ok ? 'healthy' : 'unhealthy';
+                console.log(`Service health: ${status}`);
+                
+                // Could add visual indicator here
+            } catch (error) {
+                console.log('Service health check failed:', error.message);
+            }
+        }
+        
+        // Check service health on load (optional)
+        // checkServiceHealth();
+    </script>
+</body>
+</html>

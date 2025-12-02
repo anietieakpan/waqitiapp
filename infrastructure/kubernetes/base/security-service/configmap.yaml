@@ -1,0 +1,159 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: security-service-config
+  namespace: waqiti
+  labels:
+    app: security-service
+    component: security
+data:
+  application.yaml: |
+    spring:
+      application:
+        name: security-service
+      security:
+        oauth2:
+          resourceserver:
+            jwt:
+              issuer-uri: http://security-service:8080
+              jwk-set-uri: http://security-service:8080/.well-known/jwks.json
+      datasource:
+        hikari:
+          connection-timeout: 30000
+          maximum-pool-size: 20
+          minimum-idle: 5
+          idle-timeout: 600000
+          max-lifetime: 1800000
+      jpa:
+        hibernate:
+          ddl-auto: validate
+        properties:
+          hibernate:
+            dialect: org.hibernate.dialect.PostgreSQL10Dialect
+            format_sql: true
+      session:
+        store-type: redis
+        redis:
+          flush-mode: on-save
+          namespace: waqiti:session
+      cache:
+        type: redis
+        redis:
+          time-to-live: 3600000
+          cache-null-values: false
+    
+    security:
+      jwt:
+        token-validity: 86400
+        refresh-token-validity: 2592000
+        issuer: waqiti
+        algorithm: RS256
+      oauth2:
+        client-id: ${OAUTH_CLIENT_ID}
+        authorization-grant-types:
+          - authorization_code
+          - refresh_token
+          - client_credentials
+          - password
+        redirect-uris:
+          - https://app.example.com/callback
+          - http://localhost:3000/callback
+        scopes:
+          - read
+          - write
+          - admin
+      authentication:
+        max-attempts: 5
+        lockout-duration: 900
+        password-policy:
+          min-length: 8
+          require-uppercase: true
+          require-lowercase: true
+          require-numbers: true
+          require-special-chars: true
+          max-age-days: 90
+        mfa:
+          enabled: true
+          methods:
+            - SMS
+            - EMAIL
+            - TOTP
+          required-for-amount: 1000
+      authorization:
+        enable-rbac: true
+        enable-abac: true
+        cache-permissions: true
+        cache-ttl: 3600
+      session:
+        timeout: 1800
+        max-concurrent: 5
+        invalidate-on-password-change: true
+      cors:
+        allowed-origins:
+          - https://app.example.com
+          - https://example.com
+          - http://localhost:3000
+        allowed-methods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - OPTIONS
+        allowed-headers:
+          - "*"
+        allow-credentials: true
+        max-age: 3600
+    
+    rate-limiting:
+      enabled: true
+      default-limit: 100
+      default-duration: 60
+      endpoints:
+        - path: /auth/login
+          limit: 10
+          duration: 60
+        - path: /auth/register
+          limit: 5
+          duration: 3600
+        - path: /auth/forgot-password
+          limit: 3
+          duration: 3600
+    
+    audit:
+      enabled: true
+      events:
+        - LOGIN
+        - LOGOUT
+        - REGISTER
+        - PASSWORD_CHANGE
+        - PASSWORD_RESET
+        - MFA_ENABLE
+        - MFA_DISABLE
+        - PERMISSION_CHANGE
+        - ACCOUNT_LOCK
+        - ACCOUNT_UNLOCK
+    
+    management:
+      endpoints:
+        web:
+          exposure:
+            include: health,info,metrics,prometheus
+      endpoint:
+        health:
+          show-details: always
+          probes:
+            enabled: true
+      metrics:
+        export:
+          prometheus:
+            enabled: true
+        tags:
+          application: ${spring.application.name}
+    
+    logging:
+      level:
+        com.waqiti.security: DEBUG
+        org.springframework.security: DEBUG
+        org.springframework.web: INFO
+      pattern:
+        console: "%d{yyyy-MM-dd HH:mm:ss} - %logger{36} - %msg%n"

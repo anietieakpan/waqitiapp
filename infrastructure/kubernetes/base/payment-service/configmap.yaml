@@ -1,0 +1,163 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: payment-service-config
+  namespace: waqiti
+  labels:
+    app: payment-service
+    component: backend
+data:
+  application.yaml: |
+    spring:
+      application:
+        name: payment-service
+      datasource:
+        hikari:
+          connection-timeout: 30000
+          maximum-pool-size: 20
+          minimum-idle: 5
+          idle-timeout: 600000
+          max-lifetime: 1800000
+      jpa:
+        hibernate:
+          ddl-auto: validate
+        properties:
+          hibernate:
+            dialect: org.hibernate.dialect.PostgreSQL10Dialect
+            format_sql: true
+            use_sql_comments: true
+            generate_statistics: true
+            cache:
+              use_second_level_cache: true
+              use_query_cache: true
+              region.factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
+      cache:
+        type: redis
+        redis:
+          time-to-live: 3600000
+          cache-null-values: false
+      kafka:
+        producer:
+          key-serializer: org.apache.kafka.common.serialization.StringSerializer
+          value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+          properties:
+            spring.json.type.mapping: payment:com.waqiti.payment.event.PaymentEvent
+        consumer:
+          group-id: payment-service
+          auto-offset-reset: earliest
+          key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+          value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+          properties:
+            spring.json.trusted.packages: "*"
+    
+    payment:
+      providers:
+        stripe:
+          enabled: true
+          webhook-secret: ${STRIPE_WEBHOOK_SECRET}
+          api-version: "2023-10-16"
+        paypal:
+          enabled: true
+          mode: live
+          webhook-id: ${PAYPAL_WEBHOOK_ID}
+        plaid:
+          enabled: true
+          environment: production
+          products:
+            - transactions
+            - accounts
+            - identity
+            - balance
+      processing:
+        retry-attempts: 3
+        retry-delay: 1000
+        timeout: 30000
+      limits:
+        daily-limit: 10000
+        transaction-limit: 5000
+        minimum-amount: 0.01
+      security:
+        encryption-enabled: true
+        pci-compliance-mode: true
+        tokenization-enabled: true
+      fees:
+        p2p-percentage: 0
+        instant-transfer-percentage: 1.5
+        instant-transfer-minimum: 0.25
+        international-percentage: 3.0
+        international-minimum: 0.50
+    
+    resilience4j:
+      circuitbreaker:
+        instances:
+          payment-provider:
+            sliding-window-size: 10
+            minimum-number-of-calls: 5
+            permitted-number-of-calls-in-half-open-state: 3
+            automatic-transition-from-open-to-half-open-enabled: true
+            wait-duration-in-open-state: 30s
+            failure-rate-threshold: 50
+            event-consumer-buffer-size: 10
+      retry:
+        instances:
+          payment-provider:
+            max-attempts: 3
+            wait-duration: 1s
+            retry-exceptions:
+              - java.net.SocketTimeoutException
+              - java.io.IOException
+      ratelimiter:
+        instances:
+          payment-api:
+            limit-for-period: 100
+            limit-refresh-period: 1s
+            timeout-duration: 0s
+    
+    management:
+      endpoints:
+        web:
+          exposure:
+            include: health,info,metrics,prometheus,circuitbreakers
+      endpoint:
+        health:
+          show-details: always
+          probes:
+            enabled: true
+      metrics:
+        export:
+          prometheus:
+            enabled: true
+        distribution:
+          percentiles-histogram:
+            http.server.requests: true
+        tags:
+          application: ${spring.application.name}
+    
+    logging:
+      level:
+        com.waqiti.payment: DEBUG
+        org.springframework.web: INFO
+        org.hibernate.SQL: DEBUG
+        org.hibernate.type: TRACE
+      pattern:
+        console: "%d{yyyy-MM-dd HH:mm:ss} - %logger{36} - %msg%n"
+    
+  payment-rules.yaml: |
+    rules:
+      fraud-detection:
+        enabled: true
+        rules:
+          - name: "velocity-check"
+            description: "Check transaction velocity"
+            threshold: 5
+            window: 3600
+          - name: "amount-check"
+            description: "Check for unusual amounts"
+            threshold: 5000
+          - name: "location-check"
+            description: "Check for unusual locations"
+            enabled: true
+      compliance:
+        aml-enabled: true
+        kyc-required-amount: 1000
+        reporting-threshold: 10000

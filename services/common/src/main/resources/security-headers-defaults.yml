@@ -1,0 +1,158 @@
+# Default security headers configuration for all Waqiti services
+# Include this file in your service's application.yml using spring.config.import
+
+waqiti:
+  security:
+    headers:
+      enabled: true
+      
+      # HSTS Configuration
+      hsts-max-age: 31536000  # 1 year
+      hsts-include-sub-domains: true
+      hsts-preload: true
+      
+      # Frame Options
+      frame-deny-enabled: true
+      
+      # Content Security Policy
+      content-security-policy: |
+        default-src 'self';
+        script-src 'self' 'strict-dynamic' 'nonce-{nonce}' https://apis.example.com;
+        style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+        img-src 'self' data: https: blob:;
+        font-src 'self' https://fonts.gstatic.com;
+        connect-src 'self' https://api.example.com wss://ws.example.com https://analytics.example.com;
+        media-src 'self';
+        object-src 'none';
+        frame-src 'self' https://payments.example.com;
+        base-uri 'self';
+        form-action 'self';
+        frame-ancestors 'none';
+        block-all-mixed-content;
+        upgrade-insecure-requests;
+        report-uri https://csp.example.com/report;
+        report-to csp-endpoint
+      
+      # Permissions Policy
+      permissions-policy: |
+        accelerometer=(),
+        ambient-light-sensor=(),
+        autoplay=(),
+        battery=(),
+        camera=(),
+        cross-origin-isolated=(),
+        display-capture=(),
+        document-domain=(),
+        encrypted-media=(),
+        execution-while-not-rendered=(),
+        execution-while-out-of-viewport=(),
+        fullscreen=(self),
+        geolocation=(self),
+        gyroscope=(),
+        layout-animations=(self),
+        legacy-image-formats=(),
+        magnetometer=(),
+        microphone=(),
+        midi=(),
+        navigation-override=(),
+        oversized-images=(),
+        payment=(self),
+        picture-in-picture=(),
+        publickey-credentials-get=(self),
+        screen-wake-lock=(),
+        sync-xhr=(),
+        usb=(),
+        web-share=(),
+        xr-spatial-tracking=()
+      
+      # Feature Policy (legacy)
+      feature-policy: |
+        accelerometer 'none';
+        ambient-light-sensor 'none';
+        autoplay 'none';
+        battery 'none';
+        camera 'none';
+        display-capture 'none';
+        document-domain 'none';
+        encrypted-media 'none';
+        fullscreen 'self';
+        geolocation 'self';
+        gyroscope 'none';
+        layout-animations 'self';
+        legacy-image-formats 'none';
+        magnetometer 'none';
+        microphone 'none';
+        midi 'none';
+        oversized-images 'none';
+        payment 'self';
+        picture-in-picture 'none';
+        publickey-credentials-get 'self';
+        sync-xhr 'none';
+        usb 'none';
+        wake-lock 'none';
+        xr-spatial-tracking 'none'
+      
+      # API Configuration
+      api-version: "1.0"
+      service-name: "${spring.application.name:waqiti-service}"
+      
+      # Certificate Transparency
+      expect-ct-report-uri: "https://ct.example.com/report"
+      
+      # Custom headers
+      enable-custom-headers: true
+      enable-api-headers: true
+      enable-security-reporting: true
+      
+      # Report endpoints
+      csp-report-endpoint: "https://csp.example.com/report"
+      ct-report-endpoint: "https://ct.example.com/report"
+      nel-report-endpoint: "https://nel.example.com/report"
+
+# Security headers for different environments
+---
+spring:
+  config:
+    activate:
+      on-profile: development
+
+waqiti:
+  security:
+    headers:
+      # Relax some policies for development
+      frame-deny-enabled: false  # Allow same-origin for development tools
+      content-security-policy: |
+        default-src 'self' localhost:*;
+        script-src 'self' 'unsafe-inline' 'unsafe-eval' localhost:*;
+        style-src 'self' 'unsafe-inline' localhost:*;
+        img-src 'self' data: https: blob: localhost:*;
+        connect-src 'self' localhost:* ws://localhost:* wss://localhost:*;
+        object-src 'none';
+        frame-ancestors 'self' localhost:*
+
+---
+spring:
+  config:
+    activate:
+      on-profile: staging
+
+waqiti:
+  security:
+    headers:
+      # Staging environment with production-like security
+      content-security-policy: |
+        default-src 'self';
+        script-src 'self' 'strict-dynamic' 'nonce-{nonce}' https://*.staging.example.com;
+        style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+        img-src 'self' data: https: blob:;
+        font-src 'self' https://fonts.gstatic.com;
+        connect-src 'self' https://*.staging.example.com wss://*.staging.example.com;
+        media-src 'self';
+        object-src 'none';
+        frame-src 'self' https://*.staging.example.com;
+        base-uri 'self';
+        form-action 'self';
+        frame-ancestors 'none';
+        block-all-mixed-content;
+        upgrade-insecure-requests;
+        report-uri https://csp.staging.example.com/report

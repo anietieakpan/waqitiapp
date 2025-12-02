@@ -1,0 +1,49 @@
+apiVersion: v2
+name: example-platform
+description: A comprehensive Helm chart for Waqiti P2P Payment Platform
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+home: https://example.com
+icon: https://example.com/logo.png
+keywords:
+  - p2p
+  - payment
+  - fintech
+  - microservices
+  - kubernetes
+maintainers:
+  - name: Platform Team
+    email: platform@example.com
+  - name: DevOps Team
+    email: devops@example.com
+sources:
+  - https://github.com/waqiti/waqiti-app
+dependencies:
+  - name: postgresql
+    version: "12.1.6"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: postgresql.enabled
+  - name: redis
+    version: "17.3.14"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: redis.enabled
+  - name: kafka
+    version: "26.4.2"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: kafka.enabled
+  - name: elasticsearch
+    version: "19.13.8"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: elasticsearch.enabled
+  - name: prometheus
+    version: "19.0.1"
+    repository: "https://prometheus-community.github.io/helm-charts"
+    condition: prometheus.enabled
+  - name: grafana
+    version: "6.43.5"
+    repository: "https://grafana.github.io/helm-charts"
+    condition: grafana.enabled
+annotations:
+  category: Financial
+  licenses: Apache-2.0

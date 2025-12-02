@@ -1,0 +1,211 @@
+# Payment Service Configuration
+# Extends the shared Waqiti configuration template
+
+# Import shared configuration
+spring:
+  config:
+    import: classpath:application-waqiti-template.yml
+  
+  application:
+    name: payment-service
+  
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:development}
+    include: keycloak, shared
+
+server:
+  port: ${SERVER_PORT:8083}
+  servlet:
+    context-path: /api/v1
+
+# Service-specific database configuration
+spring.datasource:
+  url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/waqiti_payment}
+  username: ${DATABASE_USERNAME:payment_user}
+  password: ${DATABASE_PASSWORD:password}
+
+# Service-specific JPA configuration
+spring.jpa:
+  hibernate:
+    ddl-auto: ${JPA_DDL_AUTO:validate}
+  properties:
+    hibernate:
+      default_schema: payment
+
+# Flyway configuration for database migrations
+spring.flyway:
+  enabled: true
+  baseline-on-migrate: true
+  locations: classpath:db/migration
+  schemas: payment
+  table: flyway_schema_history
+
+# Payment service specific configuration
+payment:
+  processing:
+    timeout: ${PAYMENT_PROCESSING_TIMEOUT:30s}
+    retry-attempts: ${PAYMENT_RETRY_ATTEMPTS:3}
+    max-concurrent-requests: ${PAYMENT_MAX_CONCURRENT:100}
+  
+  limits:
+    instant-transfer:
+      max-amount: ${INSTANT_TRANSFER_MAX_AMOUNT:10000}
+      daily-limit: ${INSTANT_TRANSFER_DAILY_LIMIT:50000}
+      monthly-limit: ${INSTANT_TRANSFER_MONTHLY_LIMIT:500000}
+    
+    payment-request:
+      max-amount: ${PAYMENT_REQUEST_MAX_AMOUNT:5000}
+      expiry-hours: ${PAYMENT_REQUEST_EXPIRY_HOURS:72}
+    
+    scheduled-payment:
+      max-future-days: ${SCHEDULED_PAYMENT_MAX_DAYS:365}
+      max-recurring-count: ${SCHEDULED_PAYMENT_MAX_COUNT:52}
+  
+  fees:
+    instant-transfer:
+      fixed: ${INSTANT_TRANSFER_FEE_FIXED:0.25}
+      percentage: ${INSTANT_TRANSFER_FEE_PERCENT:0.0}
+    
+    international:
+      fixed: ${INTERNATIONAL_FEE_FIXED:5.00}
+      percentage: ${INTERNATIONAL_FEE_PERCENT:0.5}
+  
+  networks:
+    fednow:
+      enabled: ${FEDNOW_ENABLED:true}
+      endpoint: ${FEDNOW_ENDPOINT:https://api.fednow.org}
+      api-key: ${FEDNOW_API_KEY:}
+    
+    rtp:
+      enabled: ${RTP_ENABLED:true}
+      endpoint: ${RTP_ENDPOINT:https://api.tch.org/rtp}
+      api-key: ${RTP_API_KEY:}
+    
+    zelle:
+      enabled: ${ZELLE_ENABLED:true}
+      endpoint: ${ZELLE_ENDPOINT:https://api.zellepay.com}
+      api-key: ${ZELLE_API_KEY:}
+
+# Service client configurations
+feign:
+  client:
+    config:
+      wallet-service:
+        url: ${WALLET_SERVICE_URL:http://wallet-service:8082}
+        connect-timeout: 10000
+        read-timeout: 30000
+      
+      user-service:
+        url: ${USER_SERVICE_URL:http://user-service:8081}
+        connect-timeout: 10000
+        read-timeout: 30000
+      
+      notification-service:
+        url: ${NOTIFICATION_SERVICE_URL:http://notification-service:8084}
+        connect-timeout: 5000
+        read-timeout: 10000
+      
+      fraud-detection-service:
+        url: ${FRAUD_SERVICE_URL:http://fraud-detection-service:8085}
+        connect-timeout: 5000
+        read-timeout: 15000
+      
+      rtp-network-service:
+        url: ${RTP_NETWORK_SERVICE_URL:http://rtp-network-service:8086}
+        connect-timeout: 10000
+        read-timeout: 30000
+
+# Kafka topics for payment service
+payment.kafka:
+  topics:
+    payment-events: ${KAFKA_TOPIC_PAYMENT_EVENTS:payment-events}
+    payment-requests: ${KAFKA_TOPIC_PAYMENT_REQUESTS:payment-request-events}
+    instant-transfers: ${KAFKA_TOPIC_INSTANT_TRANSFERS:instant-transfer-events}
+    fraud-alerts: ${KAFKA_TOPIC_FRAUD_ALERTS:fraud-alert-events}
+    reconciliation: ${KAFKA_TOPIC_RECONCILIATION:payment-reconciliation-events}
+
+# Resilience4j circuit breaker instances
+resilience4j.circuitbreaker:
+  instances:
+    wallet-service:
+      base-config: default
+      sliding-window-size: 20
+      minimum-number-of-calls: 10
+    
+    fraud-detection:
+      base-config: default
+      failure-rate-threshold: 30
+      slow-call-rate-threshold: 30
+    
+    payment-networks:
+      base-config: default
+      wait-duration-in-open-state: 60s
+      permitted-number-of-calls-in-half-open-state: 5
+
+# Resilience4j retry instances
+resilience4j.retry:
+  instances:
+    payment-processing:
+      max-attempts: 3
+      wait-duration: 1s
+      exponential-backoff-multiplier: 2
+      retry-exceptions:
+        - com.waqiti.payment.exception.TransientPaymentException
+        - org.springframework.dao.TransientDataAccessException
+    
+    instant-transfer:
+      max-attempts: 2
+      wait-duration: 500ms
+    
+    fraud-check:
+      max-attempts: 3
+      wait-duration: 2s
+
+# Resilience4j rate limiter
+resilience4j.ratelimiter:
+  instances:
+    instant-transfer:
+      limit-for-period: 100
+      limit-refresh-period: 1s
+      timeout-duration: 10s
+    
+    payment-request:
+      limit-for-period: 500
+      limit-refresh-period: 1s
+      timeout-duration: 5s
+
+# Scheduled tasks configuration
+payment.scheduled:
+  payment-request-expiry:
+    enabled: ${SCHEDULED_EXPIRY_ENABLED:true}
+    cron: ${SCHEDULED_EXPIRY_CRON:0 0 * * * *} # Every hour
+  
+  reconciliation:
+    enabled: ${SCHEDULED_RECONCILIATION_ENABLED:true}
+    cron: ${SCHEDULED_RECONCILIATION_CRON:0 0 2 * * *} # Daily at 2 AM
+  
+  velocity-reset:
+    enabled: ${SCHEDULED_VELOCITY_RESET_ENABLED:true}
+    cron: ${SCHEDULED_VELOCITY_RESET_CRON:0 0 0 * * *} # Daily at midnight
+
+# Monitoring and metrics
+management:
+  metrics:
+    tags:
+      service: payment-service
+      version: ${APP_VERSION:1.0.0}
+    distribution:
+      percentiles-histogram:
+        payment.processing.time: true
+        instant.transfer.time: true
+      percentiles:
+        payment.processing.time: 0.5, 0.95, 0.99
+        instant.transfer.time: 0.5, 0.95, 0.99
+
+# Logging configuration
+logging:
+  level:
+    com.waqiti.payment: ${LOG_LEVEL_PAYMENT:INFO}
+    com.waqiti.payment.instant: ${LOG_LEVEL_INSTANT:INFO}
+    com.waqiti.payment.client: ${LOG_LEVEL_CLIENT:INFO}
+    com.waqiti.payment.fraud: ${LOG_LEVEL_FRAUD:WARN}

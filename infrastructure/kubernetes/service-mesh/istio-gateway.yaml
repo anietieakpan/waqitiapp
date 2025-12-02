@@ -1,0 +1,343 @@
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: waqiti-gateway
+  namespace: istio-system
+  labels:
+    app: waqiti
+    component: gateway
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  - port:
+      number: 443
+      name: https
+      protocol: HTTPS
+    tls:
+      mode: SIMPLE
+      credentialName: waqiti-tls-cert
+    hosts:
+    - "api.example.com"
+    - "app.example.com"
+    - "admin.example.com"
+    - "logs.example.com"
+    - "auth.example.com"
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "api.example.com"
+    - "app.example.com"
+    - "admin.example.com"
+    - "logs.example.com"
+    - "auth.example.com"
+    tls:
+      httpsRedirect: true
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: waqiti-api
+  namespace: waqiti
+  labels:
+    app: waqiti
+    component: api-routing
+spec:
+  hosts:
+  - "api.example.com"
+  gateways:
+  - istio-system/waqiti-gateway
+  http:
+  - match:
+    - uri:
+        prefix: /api/v1/auth
+    route:
+    - destination:
+        host: user-service.example.svc.cluster.local
+        port:
+          number: 8443
+      weight: 100
+    headers:
+      request:
+        set:
+          x-forwarded-proto: https
+          x-service-mesh: istio
+    timeout: 30s
+    retries:
+      attempts: 3
+      perTryTimeout: 10s
+  - match:
+    - uri:
+        prefix: /api/v1/payments
+    route:
+    - destination:
+        host: payment-service.example.svc.cluster.local
+        port:
+          number: 8443
+      weight: 100
+    headers:
+      request:
+        set:
+          x-forwarded-proto: https
+          x-service-mesh: istio
+    timeout: 60s
+    retries:
+      attempts: 2
+      perTryTimeout: 30s
+  - match:
+    - uri:
+        prefix: /api/v1/wallet
+    route:
+    - destination:
+        host: wallet-service.example.svc.cluster.local
+        port:
+          number: 8443
+      weight: 100
+    headers:
+      request:
+        set:
+          x-forwarded-proto: https
+          x-service-mesh: istio
+    timeout: 30s
+    retries:
+      attempts: 3
+      perTryTimeout: 10s
+  - match:
+    - uri:
+        prefix: /api/v1/notifications
+    route:
+    - destination:
+        host: notification-service.example.svc.cluster.local
+        port:
+          number: 8443
+      weight: 100
+    headers:
+      request:
+        set:
+          x-forwarded-proto: https
+          x-service-mesh: istio
+    timeout: 15s
+    retries:
+      attempts: 2
+      perTryTimeout: 7s
+  - match:
+    - uri:
+        prefix: /api/v1/compliance
+    route:
+    - destination:
+        host: compliance-service.example.svc.cluster.local
+        port:
+          number: 8443
+      weight: 100
+    headers:
+      request:
+        set:
+          x-forwarded-proto: https
+          x-service-mesh: istio
+    timeout: 45s
+    retries:
+      attempts: 2
+      perTryTimeout: 22s
+  - match:
+    - uri:
+        prefix: /api/v1/kyc
+    route:
+    - destination:
+        host: kyc-service.example.svc.cluster.local
+        port:
+          number: 8443
+      weight: 100
+    headers:
+      request:
+        set:
+          x-forwarded-proto: https
+          x-service-mesh: istio
+    timeout: 120s
+    retries:
+      attempts: 1
+      perTryTimeout: 120s
+  - match:
+    - uri:
+        prefix: /api/
+    route:
+    - destination:
+        host: api-gateway.example.svc.cluster.local
+        port:
+          number: 8443
+      weight: 100
+    headers:
+      request:
+        set:
+          x-forwarded-proto: https
+          x-service-mesh: istio
+    timeout: 30s
+    retries:
+      attempts: 3
+      perTryTimeout: 10s
+  fault:
+    delay:
+      percentage:
+        value: 0.1
+      fixedDelay: 5s
+  cors:
+    allowOrigins:
+    - exact: "https://app.example.com"
+    - exact: "https://admin.example.com"
+    allowMethods:
+    - GET
+    - POST
+    - PUT
+    - DELETE
+    - OPTIONS
+    allowHeaders:
+    - authorization
+    - content-type
+    - x-requested-with
+    - x-correlation-id
+    - x-device-id
+    maxAge: 24h
+    allowCredentials: true
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: waqiti-web-app
+  namespace: waqiti
+  labels:
+    app: waqiti
+    component: web-routing
+spec:
+  hosts:
+  - "app.example.com"
+  gateways:
+  - istio-system/waqiti-gateway
+  http:
+  - match:
+    - uri:
+        prefix: /static/
+    route:
+    - destination:
+        host: web-app.example.svc.cluster.local
+        port:
+          number: 443
+      weight: 100
+    headers:
+      response:
+        set:
+          cache-control: "public, max-age=31536000, immutable"
+    timeout: 10s
+  - match:
+    - uri:
+        prefix: /
+    route:
+    - destination:
+        host: web-app.example.svc.cluster.local
+        port:
+          number: 443
+      weight: 100
+    headers:
+      request:
+        set:
+          x-forwarded-proto: https
+          x-service-mesh: istio
+      response:
+        set:
+          cache-control: "no-cache, no-store, must-revalidate"
+    timeout: 30s
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: waqiti-admin
+  namespace: waqiti
+  labels:
+    app: waqiti
+    component: admin-routing
+spec:
+  hosts:
+  - "admin.example.com"
+  gateways:
+  - istio-system/waqiti-gateway
+  http:
+  - match:
+    - uri:
+        prefix: /
+    route:
+    - destination:
+        host: admin-dashboard.example.svc.cluster.local
+        port:
+          number: 443
+      weight: 100
+    headers:
+      request:
+        set:
+          x-forwarded-proto: https
+          x-service-mesh: istio
+    timeout: 30s
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: waqiti-kibana
+  namespace: example-monitoring
+  labels:
+    app: waqiti
+    component: monitoring-routing
+spec:
+  hosts:
+  - "logs.example.com"
+  gateways:
+  - istio-system/waqiti-gateway
+  http:
+  - match:
+    - uri:
+        prefix: /
+    route:
+    - destination:
+        host: kibana.example-monitoring.svc.cluster.local
+        port:
+          number: 5601
+      weight: 100
+    headers:
+      request:
+        set:
+          x-forwarded-proto: https
+          x-service-mesh: istio
+    timeout: 60s
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: waqiti-keycloak
+  namespace: keycloak
+  labels:
+    app: waqiti
+    component: auth-routing
+spec:
+  hosts:
+  - "auth.example.com"
+  gateways:
+  - istio-system/waqiti-gateway
+  http:
+  - match:
+    - uri:
+        prefix: /
+    route:
+    - destination:
+        host: keycloak.keycloak.svc.cluster.local
+        port:
+          number: 8080
+      weight: 100
+    headers:
+      request:
+        set:
+          x-forwarded-proto: https
+          x-service-mesh: istio
+          x-forwarded-for: "%{DOWNSTREAM_REMOTE_ADDRESS_WITHOUT_PORT}"
+          x-forwarded-host: "auth.example.com"
+    timeout: 60s
+    retries:
+      attempts: 2
+      perTryTimeout: 30s

@@ -1,0 +1,99 @@
+# Keycloak Configuration for Analytics Service
+
+keycloak:
+  enabled: true
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  ssl-required: external
+  resource: analytics-service
+  bearer-only: true
+  credentials:
+    secret: ${ANALYTICS_SERVICE_CLIENT_SECRET:CHANGE_ME_SECURE_SECRET_REQUIRED}
+  use-resource-role-mappings: true
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# Analytics Service Security Configuration
+analytics:
+  security:
+    # Public endpoints that don't require authentication
+    public-endpoints:
+      - /actuator/health
+      - /actuator/info
+      - /api/v1/analytics/public/**
+      - /swagger-ui/**
+      - /v3/api-docs/**
+    
+    # Service-to-service endpoints
+    service-endpoints:
+      - /internal/analytics/**
+    
+    # Required roles for analytics operations
+    required-roles:
+      read:
+        - ANALYTICS_USER
+        - ANALYTICS_VIEWER
+      write:
+        - ANALYTICS_USER
+        - ANALYTICS_ANALYST
+      management:
+        - ANALYTICS_MANAGER
+        - ANALYTICS_OPERATOR
+      admin:
+        - ANALYTICS_ADMIN
+        - SYSTEM_ADMIN
+    
+    # Required scopes for operations
+    required-scopes:
+      read: analytics:read
+      write: analytics:write
+      query: analytics:query
+      dashboard: analytics:dashboard
+      report: analytics:report
+      export: analytics:export
+      real-time: analytics:realtime
+      historical: analytics:historical
+      user-metrics: analytics:user-metrics
+      transaction-metrics: analytics:transaction-metrics
+      business-intelligence: analytics:bi
+      custom-reports: analytics:custom-reports
+      data-mining: analytics:data-mining
+      insights: analytics:insights
+    
+    # Analytics security features
+    features:
+      pii-masking-enabled: true
+      data-anonymization-enabled: true
+      access-logging-enabled: true
+      query-auditing-enabled: true
+      data-retention-enabled: true
+      encryption-enabled: true
+      
+    # Data access limits and thresholds
+    limits:
+      max-query-results: 10000
+      max-export-records: 50000
+      max-time-range-days: 365
+      max-concurrent-queries: 5
+      
+    # Security thresholds requiring additional verification
+    verification-thresholds:
+      large-dataset-threshold: 100000
+      sensitive-data-threshold: 1000
+      export-size-threshold: 10000
+      query-complexity-threshold: 5
+      
+    # Advanced security features
+    advanced-security:
+      require-approval-large-exports: true
+      require-manager-approval-pii: true
+      automatic-pii-detection: true
+      data-classification: true
+      query-optimization: true
+      rate-limiting: true

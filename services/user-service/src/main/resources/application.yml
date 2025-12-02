@@ -1,0 +1,289 @@
+# User Service Configuration
+spring:
+  config:
+    import:
+      - classpath:application-common.yml
+      - optional:configserver:http://config-service:8888
+  
+  application:
+    name: user-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:production}
+    include: keycloak
+  
+  # Service-Specific Database Configuration with comprehensive fallback chain
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:${USER_DB_HOST:postgres-user}}:${DB_PORT:${USER_DB_PORT:5432}}/${DB_NAME:${USER_DB_NAME:waqiti_users}}
+    username: ${DB_USERNAME:${vault.database.username:${USER_DB_USERNAME:waqiti_user_service}}
+    password: ${DB_PASSWORD:${vault.database.password:${USER_DB_PASSWORD:${spring.datasource.fallback-password:user_dev_pass}}}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:20}
+      minimum-idle: ${DB_POOL_MIN_IDLE:5}
+      connection-timeout: ${DB_CONNECTION_TIMEOUT:20000}
+      idle-timeout: ${DB_IDLE_TIMEOUT:300000}
+      max-lifetime: ${DB_MAX_LIFETIME:1200000}
+      leak-detection-threshold: ${DB_LEAK_DETECTION_THRESHOLD:60000}
+      pool-name: ${DB_POOL_NAME:user-service-db-pool}
+      validation-timeout: ${DB_VALIDATION_TIMEOUT:5000}
+      initialization-fail-timeout: ${DB_INIT_FAIL_TIMEOUT:1}
+      connection-test-query: SELECT 1
+  
+  # Service-Specific Kafka Topics
+  kafka:
+    consumer:
+      group-id: user-service-consumers
+      enable-auto-commit: false  # Manual acknowledgment for DLQ support
+      max-poll-records: 50  # Batch size control
+
+  # Redis Cache Configuration
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD}  # SECURITY: No default - service must fail if password not provided
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 2
+
+  cache:
+    type: redis
+    redis:
+      time-to-live: 3600000  # 1 hour
+      cache-null-values: false
+      enable-statistics: true
+
+  # Spring Security OAuth2 Configuration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti
+          jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/certs
+      client:
+        registration:
+          keycloak:
+            client-id: user-service
+            client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+            authorization-grant-type: client_credentials
+            scope: openid,profile,email,user
+        provider:
+          keycloak:
+            issuer-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti
+            token-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/token
+            authorization-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/auth
+            userinfo-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/userinfo
+            jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/certs
+
+# Server Configuration
+server:
+  port: 8081
+
+# Actuator / Health Check Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+      group:
+        liveness:
+          include: livenessState,diskSpace
+        readiness:
+          include: readinessState,database,kafka,externalServices
+  health:
+    livenessState:
+      enabled: true
+    readinessState:
+      enabled: true
+
+# Eureka Configuration
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:${EUREKA_SERVER_URL:https://discovery-service:8761/eureka}/}
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+
+# Circuit Breaker Configuration
+resilience4j:
+  circuitbreaker:
+    instances:
+      integrationService:
+        baseConfig: default
+      notificationService:
+        baseConfig: default
+        waitDurationInOpenState: 5s
+
+# Service-Specific Configuration
+waqiti:
+  user:
+    kyc:
+      auto-verification-enabled: ${KYC_AUTO_VERIFICATION:false}
+      verification-timeout: ${KYC_VERIFICATION_TIMEOUT:24h}
+    
+    security:
+      password:
+        min-length: ${PASSWORD_MIN_LENGTH:8}
+        require-special-chars: ${PASSWORD_REQUIRE_SPECIAL:true}
+      
+      mfa:
+        enabled: ${MFA_ENABLED:true}
+        totp-window: ${TOTP_WINDOW:30}
+        backup-codes-count: ${BACKUP_CODES_COUNT:10}
+      
+      device-fingerprinting:
+        enabled: ${DEVICE_FINGERPRINTING_ENABLED:true}
+        max-devices: ${MAX_DEVICES_PER_USER:5}
+    
+    rate-limiting:
+      login-attempts: ${LOGIN_RATE_LIMIT:5}
+      registration-attempts: ${REGISTRATION_RATE_LIMIT:3}
+
+# Keycloak Configuration
+keycloak:
+  enabled: true
+  realm: waqiti-fintech
+  auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}
+  ssl-required: external
+  resource: user-service
+  bearer-only: true
+  use-resource-role-mappings: true
+  cors: true
+  cors-allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+  cors-allowed-headers: Authorization,Content-Type,X-Requested-With
+  cors-max-age: 3600
+  public-client: false
+  credentials:
+    secret: ${KEYCLOAK_CLIENT_SECRET:}
+  # Admin client configuration for user management
+  admin:
+    username: ${KEYCLOAK_ADMIN_USERNAME}
+    password: ${KEYCLOAK_ADMIN_PASSWORD}
+    client-id: ${KEYCLOAK_ADMIN_CLIENT_ID:admin-cli}
+
+# Service-to-Service Authentication
+service:
+  auth:
+    enabled: true
+    client-id: user-service
+    client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+
+# External Service URLs
+services:
+  integration-service:
+    url: ${INTEGRATION_SERVICE_URL:http://integration-service:8085}
+  notification-service:
+    url: ${NOTIFICATION_SERVICE_URL:http://notification-service:8084}
+
+---
+# Development Profile
+spring:
+  config:
+    activate:
+      on-profile: dev
+  
+  datasource:
+    url: jdbc:postgresql://localhost:5433/waqiti_users_dev
+    username: waqiti_user_service
+    password: ${USER_DB_PASSWORD:${vault.database.user-service.password}}
+
+logging:
+  level:
+    com.waqiti.user: DEBUG
+    org.springframework.security: DEBUG
+
+---
+# Test Profile
+spring:
+  config:
+    activate:
+      on-profile: test
+  
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+    username: ${H2_USERNAME:sa}
+    password: ${H2_PASSWORD:${vault.database.user-service.test-password}}
+  
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+
+  kafka:
+    consumer:
+      bootstrap-servers: ${spring.embedded.kafka.brokers}
+
+---
+# Production Profile
+spring:
+  config:
+    activate:
+      on-profile: production
+
+  datasource:
+    hikari:
+      maximum-pool-size: 30
+      minimum-idle: 10
+      connection-timeout: 30000
+      validation-timeout: 5000
+
+logging:
+  level:
+    root: WARN
+    com.waqiti: INFO
+
+  # Rate Limiting Configuration
+  rate-limiting:
+    enabled: true
+    key-prefix: "waqiti:user:rate-limit:"
+    bucket-expiration-minutes: 60
+    default:
+      capacity: 200
+      refill-tokens: 200
+      refill-period-minutes: 1
+    services:
+      user-service:
+        capacity: 200
+        refill-tokens: 200
+        refill-period-minutes: 1
+        endpoints:
+          "/api/v1/auth/login":
+            capacity: 5
+            refill-tokens: 5
+            refill-period-minutes: 15
+            tokens: 1
+          "/api/v1/auth/register":
+            capacity: 3
+            refill-tokens: 3
+            refill-period-minutes: 60
+            tokens: 1
+          "/api/v1/biometric/register":
+            capacity: 3
+            refill-tokens: 3
+            refill-period-minutes: 60
+            tokens: 1
+          "/api/v1/users/profile":
+            capacity: 50
+            refill-tokens: 50
+            refill-period-minutes: 1
+
+  waqiti:
+    user:
+      security:
+        device-fingerprinting:
+          enabled: true
+        mfa:
+          enabled: true

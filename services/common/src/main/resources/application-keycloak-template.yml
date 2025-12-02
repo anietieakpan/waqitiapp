@@ -1,0 +1,129 @@
+# Standardized Keycloak Configuration Template
+# This template should be included by all services using: include: keycloak
+#
+# Usage in service application.yml:
+# spring:
+#   profiles:
+#     include: keycloak
+
+keycloak:
+  enabled: true
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  ssl-required: external
+  resource: ${spring.application.name}
+  bearer-only: true
+  credentials:
+    secret: ${KEYCLOAK_CLIENT_SECRET:${spring.application.name}-secret}
+  use-resource-role-mappings: true
+  cors: true
+  cors-max-age: 1000
+  cors-allowed-headers: "X-Requested-With,Content-Type,Accept,Origin,Authorization,X-Forwarded-For,X-Forwarded-Proto"
+  cors-allowed-methods: "GET,POST,PUT,DELETE,OPTIONS"
+  verify-token-audience: true
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Standardized issuer and JWK URIs
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+          # JWT validation settings
+          jws-algorithms: RS256,RS384,RS512
+          cache-duration: PT5M
+      client:
+        registration:
+          keycloak:
+            client-id: ${spring.application.name}
+            client-secret: ${KEYCLOAK_CLIENT_SECRET:${spring.application.name}-secret}
+            authorization-grant-type: client_credentials
+            scope: openid,profile,email,roles
+        provider:
+          keycloak:
+            issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+            user-name-attribute: preferred_username
+
+# Security Configuration Template
+security:
+  jwt:
+    # Standard JWT configuration
+    token:
+      secret-key: ${JWT_SECRET:${vault.jwt.${spring.application.name}.secret}}
+      expiration: 3600000  # 1 hour
+    refresh:
+      secret-key: ${JWT_REFRESH_SECRET:${vault.jwt.${spring.application.name}.refresh-secret}}
+      expiration: 604800000  # 7 days
+      
+  # Standard public endpoints for all services
+  public-endpoints:
+    - /actuator/health
+    - /actuator/info
+    - /actuator/prometheus
+    - /swagger-ui/**
+    - /v3/api-docs/**
+    - /swagger-resources/**
+    - /webjars/**
+    - /error
+    
+  # Service-to-service endpoints
+  service-endpoints:
+    - /internal/**
+    - /service/**
+    
+  # Security headers
+  headers:
+    frame-options: DENY
+    content-type-options: nosniff
+    xss-protection: "1; mode=block"
+    referrer-policy: strict-origin-when-cross-origin
+    
+  # CORS configuration
+  cors:
+    allowed-origins: 
+      - ${FRONTEND_URL:https://localhost:3000}
+      - ${ADMIN_URL:https://localhost:3001}
+      - ${KEYCLOAK_URL:https://localhost:8180}
+    allowed-methods: GET,POST,PUT,DELETE,OPTIONS,PATCH
+    allowed-headers: "*"
+    exposed-headers: "Authorization,Content-Type,X-Total-Count"
+    allow-credentials: true
+    max-age: 3600
+
+# Logging configuration for security events
+logging:
+  level:
+    org.springframework.security: INFO
+    org.keycloak: INFO
+    com.example.common.security: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%X{correlationId}] %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%X{correlationId}] %logger{36} - %msg%n"
+
+# Management endpoints security
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+      roles: ADMIN,SYSTEM_ADMIN
+  security:
+    enabled: true
+
+# Standard rate limiting for authentication endpoints
+waqiti:
+  security:
+    rate-limiting:
+      auth-endpoints:
+        "/oauth/**":
+          capacity: 10
+          refill-tokens: 10
+          refill-period-minutes: 1
+        "/api/**/auth/**":
+          capacity: 5
+          refill-tokens: 5
+          refill-period-minutes: 5

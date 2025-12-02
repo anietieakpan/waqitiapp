@@ -1,0 +1,71 @@
+package com.waqiti.gdpr.domain;
+
+/**
+ * Actions that can be audited in privacy operations
+ */
+public enum AuditAction {
+    // Data Subject Requests
+    REQUEST_CREATED,
+    REQUEST_VERIFIED,
+    REQUEST_APPROVED,
+    REQUEST_REJECTED,
+    REQUEST_COMPLETED,
+    REQUEST_CANCELLED,
+
+    // Data Export
+    EXPORT_INITIATED,
+    EXPORT_DATA_COLLECTED,
+    EXPORT_ENCRYPTED,
+    EXPORT_STORED,
+    EXPORT_DOWNLOADED,
+    EXPORT_EXPIRED,
+    EXPORT_DELETED,
+
+    // Data Erasure
+    ERASURE_INITIATED,
+    ERASURE_VERIFIED,
+    ERASURE_EXECUTED,
+    ERASURE_COMPLETED,
+    ERASURE_FAILED,
+
+    // Consent Management
+    CONSENT_GRANTED,
+    CONSENT_WITHDRAWN,
+    CONSENT_UPDATED,
+    CONSENT_EXPIRED,
+
+    // Data Breach
+    BREACH_REPORTED,
+    BREACH_INVESTIGATED,
+    BREACH_CONTAINED,
+    BREACH_RESOLVED,
+    BREACH_NOTIFIED_REGULATORY,
+    BREACH_NOTIFIED_USERS,
+
+    // Privacy Impact Assessment
+    DPIA_INITIATED,
+    DPIA_COMPLETED,
+    DPIA_REVIEWED,
+    DPIA_UPDATED,
+
+    // Data Access
+    DATA_ACCESSED,
+    DATA_MODIFIED,
+    DATA_DELETED,
+    DATA_SHARED,
+
+    // System Operations
+    CONFIGURATION_CHANGED,
+    POLICY_UPDATED,
+    RETENTION_APPLIED,
+    CLEANUP_EXECUTED,
+
+    // Security
+    ACCESS_GRANTED,
+    ACCESS_DENIED,
+    AUTHENTICATION_FAILED,
+    AUTHORIZATION_FAILED,
+
+    // Other
+    UNKNOWN
+}

@@ -1,0 +1,100 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: external-payment-services-policy
+  namespace: waqiti
+spec:
+  podSelector:
+    matchLabels:
+      requires-external-payment: "true"
+  policyTypes:
+  - Egress
+  egress:
+  # Allow HTTPS traffic to payment gateways
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: TCP
+      port: 443
+  # Specific payment provider IPs (example)
+  # Stripe
+  - to:
+    - ipBlock:
+        cidr: 54.187.174.169/32
+    - ipBlock:
+        cidr: 54.187.205.235/32
+    - ipBlock:
+        cidr: 54.187.216.72/32
+    ports:
+    - protocol: TCP
+      port: 443
+  # PayPal (example IPs - should be updated with actual ranges)
+  - to:
+    - ipBlock:
+        cidr: 173.0.80.0/20
+    - ipBlock:
+        cidr: 64.4.240.0/21
+    ports:
+    - protocol: TCP
+      port: 443
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: bank-integration-services-policy
+  namespace: waqiti
+spec:
+  podSelector:
+    matchLabels:
+      app: bank-integration-service
+  policyTypes:
+  - Egress
+  egress:
+  # Allow HTTPS traffic to banking APIs
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: TCP
+      port: 443
+  # Allow SFTP for batch processing (if needed)
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: TCP
+      port: 22
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: notification-external-policy
+  namespace: waqiti
+spec:
+  podSelector:
+    matchLabels:
+      app: notification-service
+  policyTypes:
+  - Egress
+  egress:
+  # Allow SMTP for email
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: TCP
+      port: 587
+    - protocol: TCP
+      port: 465
+    - protocol: TCP
+      port: 25
+  # Allow HTTPS for push notifications and SMS providers
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: TCP
+      port: 443
+  # Twilio specific IPs (example)
+  - to:
+    - ipBlock:
+        cidr: 54.172.60.0/23
+    ports:
+    - protocol: TCP
+      port: 443

@@ -1,0 +1,303 @@
+# Keycloak Configuration for Billing Orchestrator Service
+
+keycloak:
+  enabled: true
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  ssl-required: external
+  resource: billing-orchestrator-service
+  bearer-only: true
+  credentials:
+    secret: ${BILLING_ORCHESTRATOR_SERVICE_CLIENT_SECRET:CHANGE_ME_SECURE_SECRET_REQUIRED}
+  use-resource-role-mappings: true
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# Billing Orchestrator Service Security Configuration
+billing:
+  security:
+    # Public endpoints that don't require authentication
+    public-endpoints:
+      - /actuator/health
+      - /actuator/info
+      - /swagger-ui/**
+      - /v3/api-docs/**
+    
+    # Service-to-service endpoints
+    service-endpoints:
+      - /internal/billing/**
+    
+    # Required roles for billing operations
+    required-roles:
+      read:
+        - USER
+        - BILLING_USER
+      invoice-create:
+        - USER
+        - BILLING_USER
+      invoice-read:
+        - USER
+        - BILLING_USER
+      payment-process:
+        - USER
+        - BILLING_USER
+        - PAYMENT_USER
+      subscription-manage:
+        - USER
+        - BILLING_USER
+        - SUBSCRIPTION_USER
+      refund-process:
+        - BILLING_MANAGER
+        - REFUND_PROCESSOR
+      management:
+        - BILLING_MANAGER
+        - BILLING_OPERATOR
+      admin:
+        - BILLING_ADMIN
+        - SYSTEM_ADMIN
+    
+    # Required scopes for operations
+    required-scopes:
+      # Billing Cycle Operations
+      cycle-create: billing:cycle-create
+      cycle-update: billing:cycle-update
+      cycle-start: billing:cycle-start
+      cycle-complete: billing:cycle-complete
+      cycle-cancel: billing:cycle-cancel
+      cycle-status: billing:cycle-status
+      cycles-list: billing:cycles-list
+      cycle-details: billing:cycle-details
+      
+      # Invoice Operations
+      invoice-generate: billing:invoice-generate
+      invoice-send: billing:invoice-send
+      invoice-cancel: billing:invoice-cancel
+      invoice-void: billing:invoice-void
+      invoice-mark-paid: billing:invoice-mark-paid
+      invoice-download: billing:invoice-download
+      invoice-details: billing:invoice-details
+      invoice-update: billing:invoice-update
+      invoices-list: billing:invoices-list
+      
+      # Subscription Operations
+      subscription-create: billing:subscription-create
+      subscription-activate: billing:subscription-activate
+      subscription-pause: billing:subscription-pause
+      subscription-resume: billing:subscription-resume
+      subscription-cancel: billing:subscription-cancel
+      subscription-upgrade: billing:subscription-upgrade
+      subscription-downgrade: billing:subscription-downgrade
+      subscription-details: billing:subscription-details
+      subscription-update: billing:subscription-update
+      subscriptions-list: billing:subscriptions-list
+      
+      # Payment Operations
+      payment-process: billing:payment-process
+      payment-retry: billing:payment-retry
+      payment-refund: billing:payment-refund
+      payment-status: billing:payment-status
+      payment-batch: billing:payment-batch
+      payment-details: billing:payment-details
+      payments-list: billing:payments-list
+      
+      # Plan Management
+      plan-create: billing:plan-create
+      plan-update: billing:plan-update
+      plan-delete: billing:plan-delete
+      plan-activate: billing:plan-activate
+      plan-deactivate: billing:plan-deactivate
+      plan-details: billing:plan-details
+      plans-list: billing:plans-list
+      
+      # Usage & Metering
+      usage-record: billing:usage-record
+      usage-view: billing:usage-view
+      usage-summary: billing:usage-summary
+      usage-calculate: billing:usage-calculate
+      
+      # Credits & Adjustments
+      credit-apply: billing:credit-apply
+      credits-view: billing:credits-view
+      adjustment-create: billing:adjustment-create
+      adjustments-view: billing:adjustments-view
+      
+      # Dunning Management
+      dunning-status: billing:dunning-status
+      dunning-process: billing:dunning-process
+      dunning-campaigns: billing:dunning-campaigns
+      dunning-skip: billing:dunning-skip
+      
+      # Reporting & Analytics
+      report-revenue: billing:report-revenue
+      report-churn: billing:report-churn
+      report-mrr: billing:report-mrr
+      report-arr: billing:report-arr
+      analytics-trends: billing:analytics-trends
+      
+      # Tax Management
+      tax-calculate: billing:tax-calculate
+      tax-rates: billing:tax-rates
+      tax-exemptions: billing:tax-exemptions
+    
+    # Billing security features
+    features:
+      payment-validation-enabled: true
+      fraud-detection-enabled: true
+      subscription-validation-enabled: true
+      invoice-encryption-enabled: true
+      audit-logging-enabled: true
+      
+    # Billing limits and thresholds
+    limits:
+      max-invoices-per-day: 1000
+      max-payment-amount: 50000.00
+      max-refund-amount: 10000.00
+      max-subscription-changes-per-month: 5
+      
+    # Security thresholds requiring additional verification
+    verification-thresholds:
+      high-value-payment: 5000.00
+      suspicious-billing-pattern: 10
+      failed-payment-count: 3
+      
+    # Advanced security features
+    advanced-security:
+      require-mfa-high-value: true
+      require-verification-suspicious: true
+      automatic-fraud-detection: true
+      real-time-payment-monitoring: true
+      billing-anomaly-detection: true
+      pci-compliance-enabled: true
+      
+    # CORS Configuration
+    cors:
+      allowed-origins:
+        - "https://*.waqiti.com"
+        - "https://waqiti.com"
+        - "https://localhost:*"
+        - "http://localhost:*"
+      allowed-methods:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - OPTIONS
+        - PATCH
+      allowed-headers:
+        - "*"
+      exposed-headers:
+        - "Authorization"
+        - "X-Total-Count"
+        - "X-Page-Number"
+        - "X-Page-Size"
+        - "X-Request-Id"
+        - "X-Trace-Id"
+        - "X-Service-Name"
+        - "X-Billing-Session-Id"
+      allow-credentials: true
+      max-age: 3600
+    
+    # Rate Limiting Configuration
+    rate-limiting:
+      enabled: true
+      global:
+        requests-per-minute: 1000
+        requests-per-hour: 10000
+        requests-per-day: 100000
+      endpoint-specific:
+        "/api/v1/billing/payments/process":
+          requests-per-minute: 100
+          requests-per-hour: 1000
+        "/api/v1/billing/payments/refund":
+          requests-per-minute: 10
+          requests-per-hour: 100
+        "/api/v1/billing/invoices/generate":
+          requests-per-minute: 500
+          requests-per-hour: 5000
+        "/api/v1/billing/admin/**":
+          requests-per-minute: 50
+          requests-per-hour: 500
+      user-specific:
+        requests-per-minute: 100
+        requests-per-hour: 1000
+        burst-capacity: 200
+    
+    # Circuit Breaker Configuration
+    circuit-breaker:
+      enabled: true
+      patterns:
+        external-payment-processor:
+          failure-rate-threshold: 50
+          wait-duration-in-open-state: 60s
+          sliding-window-size: 10
+          minimum-number-of-calls: 5
+        external-tax-service:
+          failure-rate-threshold: 30
+          wait-duration-in-open-state: 30s
+          sliding-window-size: 8
+          minimum-number-of-calls: 4
+        database-operations:
+          failure-rate-threshold: 60
+          wait-duration-in-open-state: 30s
+          sliding-window-size: 15
+          minimum-number-of-calls: 10
+    
+    # PCI DSS Compliance Configuration
+    pci-dss:
+      enabled: true
+      data-encryption:
+        enabled: true
+        algorithm: "AES-256-GCM"
+        key-rotation-interval: "P30D" # 30 days
+      access-logging:
+        enabled: true
+        log-all-requests: true
+        log-response-bodies: false
+        log-sensitive-data: false
+      network-security:
+        tls-version: "1.3"
+        cipher-suites:
+          - "TLS_AES_256_GCM_SHA384"
+          - "TLS_AES_128_GCM_SHA256"
+        disable-weak-protocols: true
+      vulnerability-scanning:
+        enabled: true
+        scan-interval: "P7D" # Weekly
+      access-control:
+        two-factor-auth-required: true
+        session-timeout: "PT15M" # 15 minutes
+        password-complexity-required: true
+        account-lockout-threshold: 3
+      cardholder-data:
+        storage-prohibited: true
+        transmission-encryption: true
+        display-masking: true
+        secure-deletion: true
+    
+    # Audit Logging Configuration
+    audit:
+      enabled: true
+      log-level: "INFO"
+      include-request-body: false
+      include-response-body: false
+      sensitive-data-masking: true
+      retention-period: "P7Y" # 7 years for financial records
+      events:
+        - "PAYMENT_PROCESSED"
+        - "INVOICE_GENERATED"
+        - "SUBSCRIPTION_CREATED"
+        - "SUBSCRIPTION_CANCELLED"
+        - "REFUND_PROCESSED"
+        - "BILLING_CYCLE_COMPLETED"
+        - "TAX_CALCULATED"
+        - "ADMIN_ACTION"
+        - "FRAUD_DETECTED"
+        - "AUTHENTICATION_SUCCESS"
+        - "AUTHENTICATION_FAILURE"
+        - "AUTHORIZATION_FAILURE"

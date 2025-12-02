@@ -1,0 +1,79 @@
+{
+  "properties": [
+    {
+      "name": "currency.exchange.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable currency exchange functionality",
+      "defaultValue": true
+    },
+    {
+      "name": "currency.exchange.provider",
+      "type": "java.lang.String",
+      "description": "Currency exchange rate provider",
+      "defaultValue": "FIXER_IO"
+    },
+    {
+      "name": "currency.exchange.api-key",
+      "type": "java.lang.String",
+      "description": "Exchange rate provider API key"
+    },
+    {
+      "name": "currency.exchange.refresh-interval-minutes",
+      "type": "java.lang.Integer",
+      "description": "Exchange rate refresh interval in minutes",
+      "defaultValue": 60
+    },
+    {
+      "name": "currency.supported-currencies",
+      "type": "java.util.List",
+      "description": "List of supported currencies"
+    },
+    {
+      "name": "currency.base-currency",
+      "type": "java.lang.String",
+      "description": "Base currency for calculations",
+      "defaultValue": "USD"
+    },
+    {
+      "name": "currency.conversion.fee-percentage",
+      "type": "java.math.BigDecimal",
+      "description": "Currency conversion fee percentage",
+      "defaultValue": "1.5"
+    },
+    {
+      "name": "currency.conversion.min-fee",
+      "type": "java.math.BigDecimal",
+      "description": "Minimum conversion fee",
+      "defaultValue": "0.50"
+    },
+    {
+      "name": "currency.conversion.max-fee",
+      "type": "java.math.BigDecimal",
+      "description": "Maximum conversion fee",
+      "defaultValue": "50.00"
+    },
+    {
+      "name": "currency.cache.ttl-minutes",
+      "type": "java.lang.Integer",
+      "description": "Exchange rate cache TTL in minutes",
+      "defaultValue": 30
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "OAuth2 client ID for service",
+      "defaultValue": "currency-service"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "OAuth2 client secret for service"
+    }
+  ]
+}

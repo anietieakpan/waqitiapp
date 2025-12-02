@@ -1,0 +1,608 @@
+{
+  "dashboard": {
+    "id": null,
+    "uid": "waqiti-security-001",
+    "title": "Waqiti Security Monitoring Dashboard",
+    "tags": ["security", "pci-dss", "compliance", "fraud"],
+    "timezone": "browser",
+    "schemaVersion": 30,
+    "version": 1,
+    "refresh": "30s",
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "timepicker": {
+      "refresh_intervals": ["5s", "10s", "30s", "1m", "5m", "15m", "30m", "1h", "2h", "1d"]
+    },
+    "templating": {
+      "list": [
+        {
+          "name": "datasource",
+          "type": "datasource",
+          "query": "prometheus",
+          "current": {},
+          "hide": 0,
+          "includeAll": false,
+          "multi": false,
+          "refresh": 1,
+          "regex": "",
+          "skipUrlSync": false
+        },
+        {
+          "name": "service",
+          "type": "query",
+          "datasource": "$datasource",
+          "query": "label_values(up, job)",
+          "current": {},
+          "hide": 0,
+          "includeAll": true,
+          "multi": true,
+          "refresh": 2,
+          "regex": "",
+          "skipUrlSync": false,
+          "sort": 1
+        },
+        {
+          "name": "namespace",
+          "type": "query",
+          "datasource": "$datasource",
+          "query": "label_values(kubernetes_namespace)",
+          "current": {},
+          "hide": 0,
+          "includeAll": true,
+          "multi": true,
+          "refresh": 2,
+          "regex": "",
+          "skipUrlSync": false,
+          "sort": 1
+        }
+      ]
+    },
+    "annotations": {
+      "list": [
+        {
+          "datasource": "$datasource",
+          "enable": true,
+          "expr": "ALERTS{alertstate=\"firing\", severity=\"critical\"}",
+          "iconColor": "red",
+          "name": "Critical Alerts",
+          "tagKeys": "alertname,service",
+          "titleFormat": "Critical: {{alertname}}",
+          "textFormat": "{{description}}"
+        },
+        {
+          "datasource": "$datasource",
+          "enable": true,
+          "expr": "ALERTS{alertstate=\"firing\", severity=\"warning\"}",
+          "iconColor": "orange",
+          "name": "Warning Alerts",
+          "tagKeys": "alertname,service",
+          "titleFormat": "Warning: {{alertname}}"
+        }
+      ]
+    },
+    "panels": [
+      {
+        "id": 1,
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+        "type": "stat",
+        "title": "Security Score",
+        "datasource": "$datasource",
+        "targets": [
+          {
+            "expr": "100 - (sum(rate(security_violations_total[5m])) * 10)",
+            "refId": "A",
+            "format": "time_series"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 50, "color": "orange"},
+                {"value": 80, "color": "green"}
+              ]
+            },
+            "unit": "percent",
+            "min": 0,
+            "max": 100
+          }
+        },
+        "options": {
+          "orientation": "auto",
+          "textMode": "value_and_name",
+          "colorMode": "background",
+          "graphMode": "area",
+          "justifyMode": "center"
+        }
+      },
+      {
+        "id": 2,
+        "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
+        "type": "stat",
+        "title": "Active Threats",
+        "datasource": "$datasource",
+        "targets": [
+          {
+            "expr": "sum(ALERTS{alertstate=\"firing\", severity=\"critical\"})",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 1, "color": "orange"},
+                {"value": 5, "color": "red"}
+              ]
+            },
+            "unit": "short"
+          }
+        },
+        "options": {
+          "colorMode": "background",
+          "graphMode": "none",
+          "justifyMode": "center"
+        }
+      },
+      {
+        "id": 3,
+        "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
+        "type": "stat",
+        "title": "Failed Authentications (24h)",
+        "datasource": "$datasource",
+        "targets": [
+          {
+            "expr": "sum(increase(authentication_failures_total[24h]))",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 100, "color": "yellow"},
+                {"value": 500, "color": "red"}
+              ]
+            },
+            "unit": "short"
+          }
+        }
+      },
+      {
+        "id": 4,
+        "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
+        "type": "stat",
+        "title": "Fraud Detections (24h)",
+        "datasource": "$datasource",
+        "targets": [
+          {
+            "expr": "sum(increase(fraud_detections_total[24h]))",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 10, "color": "yellow"},
+                {"value": 50, "color": "red"}
+              ]
+            },
+            "unit": "short"
+          }
+        }
+      },
+      {
+        "id": 5,
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
+        "type": "graph",
+        "title": "Authentication Attempts",
+        "datasource": "$datasource",
+        "targets": [
+          {
+            "expr": "sum(rate(authentication_attempts_total[5m])) by (service)",
+            "legendFormat": "{{service}} - Attempts",
+            "refId": "A"
+          },
+          {
+            "expr": "sum(rate(authentication_failures_total[5m])) by (service)",
+            "legendFormat": "{{service}} - Failures",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {"format": "ops", "show": true},
+          {"format": "short", "show": false}
+        ],
+        "xaxis": {"show": true},
+        "lines": true,
+        "fill": 1,
+        "linewidth": 2,
+        "points": false,
+        "pointradius": 5,
+        "bars": false,
+        "stack": false,
+        "percentage": false,
+        "legend": {
+          "show": true,
+          "values": true,
+          "min": false,
+          "max": false,
+          "current": true,
+          "total": false,
+          "avg": false
+        },
+        "nullPointMode": "null",
+        "tooltip": {
+          "shared": true,
+          "sort": 0,
+          "value_type": "individual"
+        },
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": {
+                "params": [0.2],
+                "type": "gt"
+              },
+              "operator": {
+                "type": "and"
+              },
+              "query": {
+                "params": ["B", "5m", "now"]
+              },
+              "reducer": {
+                "params": [],
+                "type": "avg"
+              },
+              "type": "query"
+            }
+          ],
+          "executionErrorState": "alerting",
+          "frequency": "60s",
+          "handler": 1,
+          "name": "High Authentication Failure Rate",
+          "noDataState": "no_data",
+          "notifications": []
+        }
+      },
+      {
+        "id": 6,
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
+        "type": "graph",
+        "title": "Fraud Risk Score Distribution",
+        "datasource": "$datasource",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(fraud_score_bucket[5m])) by (le))",
+            "legendFormat": "95th percentile",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.50, sum(rate(fraud_score_bucket[5m])) by (le))",
+            "legendFormat": "Median",
+            "refId": "B"
+          },
+          {
+            "expr": "avg(fraud_score)",
+            "legendFormat": "Average",
+            "refId": "C"
+          }
+        ],
+        "yaxes": [
+          {"format": "percent", "show": true, "min": 0, "max": 100},
+          {"format": "short", "show": false}
+        ]
+      },
+      {
+        "id": 7,
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 12},
+        "type": "table",
+        "title": "Recent Security Incidents",
+        "datasource": "$datasource",
+        "targets": [
+          {
+            "expr": "topk(10, ALERTS{alertstate=\"firing\"})",
+            "format": "table",
+            "instant": true,
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "align": "left",
+              "displayMode": "auto"
+            }
+          }
+        },
+        "options": {
+          "showHeader": true,
+          "sortBy": [
+            {
+              "desc": true,
+              "displayName": "Time"
+            }
+          ]
+        },
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {},
+              "indexByName": {},
+              "renameByName": {
+                "alertname": "Alert",
+                "severity": "Severity",
+                "service": "Service",
+                "description": "Description",
+                "Time": "Time"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 20},
+        "type": "heatmap",
+        "title": "API Request Latency Heatmap",
+        "datasource": "$datasource",
+        "targets": [
+          {
+            "expr": "sum(rate(http_request_duration_seconds_bucket[5m])) by (le)",
+            "format": "heatmap",
+            "refId": "A"
+          }
+        ],
+        "dataFormat": "timeseries",
+        "yAxis": {
+          "format": "s",
+          "decimals": null,
+          "logBase": 1,
+          "show": true
+        },
+        "xAxis": {
+          "show": true
+        },
+        "color": {
+          "mode": "spectrum",
+          "scheme": "interpolateOranges",
+          "exponent": 0.5,
+          "colorScheme": "interpolateOranges"
+        }
+      },
+      {
+        "id": 9,
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 20},
+        "type": "piechart",
+        "title": "Security Violations by Type",
+        "datasource": "$datasource",
+        "targets": [
+          {
+            "expr": "sum(increase(security_violations_total[24h])) by (violation_type)",
+            "legendFormat": "{{violation_type}}",
+            "refId": "A"
+          }
+        ],
+        "pieType": "donut",
+        "options": {
+          "legend": {
+            "displayMode": "list",
+            "placement": "right",
+            "values": ["value", "percent"]
+          },
+          "pieType": "donut",
+          "tooltipDisplayMode": "single",
+          "displayLabels": ["percent"],
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          }
+        }
+      },
+      {
+        "id": 10,
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 28},
+        "type": "graph",
+        "title": "Payment Transaction Monitoring",
+        "datasource": "$datasource",
+        "targets": [
+          {
+            "expr": "sum(rate(payment_transactions_total[5m]))",
+            "legendFormat": "Total Transactions",
+            "refId": "A"
+          },
+          {
+            "expr": "sum(rate(payment_failures_total[5m]))",
+            "legendFormat": "Failed Transactions",
+            "refId": "B"
+          },
+          {
+            "expr": "sum(rate(payment_transactions_total{risk_level=\"high\"}[5m]))",
+            "legendFormat": "High Risk Transactions",
+            "refId": "C"
+          }
+        ],
+        "yaxes": [
+          {"format": "ops", "show": true},
+          {"format": "percent", "show": true}
+        ],
+        "seriesOverrides": [
+          {
+            "alias": "Failed Transactions",
+            "color": "#E02F44"
+          },
+          {
+            "alias": "High Risk Transactions",
+            "color": "#FF9830"
+          }
+        ]
+      },
+      {
+        "id": 11,
+        "gridPos": {"h": 6, "w": 8, "x": 0, "y": 36},
+        "type": "gauge",
+        "title": "PCI DSS Compliance Score",
+        "datasource": "$datasource",
+        "targets": [
+          {
+            "expr": "(sum(pci_dss_requirements_met) / sum(pci_dss_requirements_total)) * 100",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 70, "color": "yellow"},
+                {"value": 90, "color": "green"}
+              ]
+            },
+            "unit": "percent",
+            "min": 0,
+            "max": 100
+          }
+        },
+        "options": {
+          "orientation": "auto",
+          "showThresholdLabels": true,
+          "showThresholdMarkers": true
+        }
+      },
+      {
+        "id": 12,
+        "gridPos": {"h": 6, "w": 8, "x": 8, "y": 36},
+        "type": "stat",
+        "title": "Encryption Operations",
+        "datasource": "$datasource",
+        "targets": [
+          {
+            "expr": "sum(rate(encryption_operations_total[5m]))",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ops"
+          }
+        },
+        "options": {
+          "graphMode": "area",
+          "justifyMode": "center"
+        }
+      },
+      {
+        "id": 13,
+        "gridPos": {"h": 6, "w": 8, "x": 16, "y": 36},
+        "type": "bargauge",
+        "title": "Service Health Status",
+        "datasource": "$datasource",
+        "targets": [
+          {
+            "expr": "up{job=~\"$service\"}",
+            "legendFormat": "{{job}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 1, "color": "green"}
+              ]
+            },
+            "unit": "short",
+            "min": 0,
+            "max": 1
+          }
+        },
+        "options": {
+          "displayMode": "lcd",
+          "orientation": "horizontal",
+          "showUnfilled": true
+        }
+      },
+      {
+        "id": 14,
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 42},
+        "type": "logs",
+        "title": "Security Audit Trail",
+        "datasource": {
+          "type": "elasticsearch",
+          "uid": "elasticsearch-logs"
+        },
+        "targets": [
+          {
+            "query": "event.category:security AND (event.outcome:failure OR alert.severity:*)",
+            "refId": "A",
+            "metrics": [
+              {
+                "field": "@timestamp",
+                "id": "1",
+                "type": "date_histogram",
+                "settings": {
+                  "interval": "auto"
+                }
+              }
+            ],
+            "bucketAggs": [],
+            "timeField": "@timestamp"
+          }
+        ],
+        "options": {
+          "showTime": true,
+          "showLabels": false,
+          "showCommonLabels": false,
+          "wrapLogMessage": true,
+          "sortOrder": "Descending",
+          "dedupStrategy": "none",
+          "enableLogDetails": true,
+          "prettifyLogMessage": false
+        }
+      },
+      {
+        "id": 15,
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 50},
+        "type": "alertlist",
+        "title": "Active Security Alerts",
+        "datasource": "$datasource",
+        "options": {
+          "showOptions": "current",
+          "maxItems": 20,
+          "sortOrder": 1,
+          "dashboardAlerts": false,
+          "alertName": "",
+          "dashboardTitle": "",
+          "tags": ["security", "fraud", "compliance"],
+          "stateFilter": {
+            "ok": false,
+            "paused": false,
+            "no_data": false,
+            "execution_error": false,
+            "alerting": true,
+            "pending": true
+          },
+          "folderId": null
+        }
+      }
+    ]
+  },
+  "overwrite": true,
+  "folderUid": "security",
+  "message": "Initial security dashboard configuration"
+}

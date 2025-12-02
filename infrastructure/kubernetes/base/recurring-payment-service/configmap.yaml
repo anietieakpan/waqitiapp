@@ -1,0 +1,137 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: recurring-payment-config
+  namespace: waqiti-system
+  labels:
+    app: recurring-payment-service
+    component: backend
+    tier: application
+data:
+  # Database Configuration
+  redis-host: "redis-service.waqiti-system.svc.cluster.local"
+  
+  # Kafka Configuration
+  kafka-bootstrap-servers: "kafka-service.waqiti-system.svc.cluster.local:9092"
+  
+  # Service Discovery
+  eureka-service-url: "http://discovery-service.waqiti-system.svc.cluster.local:8761/eureka/"
+  
+  # External Services
+  payment-service-url: "http://payment-service.waqiti-system.svc.cluster.local:8092"
+  wallet-service-url: "http://wallet-service.waqiti-system.svc.cluster.local:8089"
+  notification-service-url: "http://notification-service.waqiti-system.svc.cluster.local:8093"
+  fraud-detection-service-url: "http://fraud-detection-service.waqiti-system.svc.cluster.local:8090"
+  
+  # CORS Configuration
+  cors-allowed-origins: "https://app.example.com,https://admin.example.com"
+  
+  # Application Configuration
+  application.yml: |
+    spring:
+      application:
+        name: recurring-payment-service
+      profiles:
+        active: production
+      
+      kafka:
+        topics:
+          recurring-payment-events: recurring-payment-events
+          payment-events: payment-events
+          notification-events: notification-events
+    
+    recurring-payment:
+      processing:
+        enabled: true
+        batch-size: 100
+        thread-pool-size: 10
+        max-retries: 3
+        retry-delay: 5s
+      
+      scheduling:
+        enabled: true
+        initial-delay: 60s
+        fixed-delay: 300s
+        timezone: UTC
+      
+      validation:
+        enabled: true
+        mfa-required: true
+        fraud-check-required: true
+        balance-check-required: true
+      
+      notifications:
+        enabled: true
+        success-notifications: true
+        failure-notifications: true
+        reminder-notifications: true
+        reminder-hours-before: 24
+      
+      limits:
+        max-amount-per-transaction: 50000.00
+        max-daily-amount: 100000.00
+        max-monthly-amount: 1000000.00
+        max-transactions-per-day: 100
+        max-active-schedules-per-user: 50
+      
+      monitoring:
+        enabled: true
+        metrics-collection: true
+        performance-tracking: true
+        health-checks: true
+    
+    security:
+      enabled: true
+      rate-limiting:
+        enabled: true
+        requests-per-minute: 1000
+        burst-capacity: 100
+      
+      mfa:
+        enabled: true
+        required-for-setup: true
+        required-for-modification: true
+        required-for-high-value: true
+        high-value-threshold: 10000.00
+    
+    feign:
+      client:
+        config:
+          default:
+            connectTimeout: 5000
+            readTimeout: 10000
+            loggerLevel: basic
+          payment-service:
+            connectTimeout: 10000
+            readTimeout: 30000
+          wallet-service:
+            connectTimeout: 5000
+            readTimeout: 15000
+          notification-service:
+            connectTimeout: 3000
+            readTimeout: 10000
+          fraud-detection-service:
+            connectTimeout: 5000
+            readTimeout: 10000
+    
+    management:
+      endpoints:
+        web:
+          exposure:
+            include: health,info,metrics,prometheus,loggers
+          base-path: /actuator
+      endpoint:
+        health:
+          show-details: always
+      metrics:
+        export:
+          prometheus:
+            enabled: true
+    
+    logging:
+      level:
+        com.waqiti.recurring: INFO
+        org.springframework.kafka: WARN
+        org.hibernate: WARN
+      file:
+        name: /app/logs/recurring-payment-service.log

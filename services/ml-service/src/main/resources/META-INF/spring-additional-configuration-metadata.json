@@ -1,0 +1,249 @@
+{
+  "properties": [
+    {
+      "name": "ml.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable machine learning functionality",
+      "defaultValue": true
+    },
+    {
+      "name": "ml.models.path",
+      "type": "java.lang.String",
+      "description": "Path to ML models directory",
+      "defaultValue": "/opt/ml/models"
+    },
+    {
+      "name": "ml.training.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable model training",
+      "defaultValue": false
+    },
+    {
+      "name": "ml.training.auto-retrain",
+      "type": "java.lang.Boolean",
+      "description": "Enable automatic model retraining",
+      "defaultValue": false
+    },
+    {
+      "name": "ml.training.schedule",
+      "type": "java.lang.String",
+      "description": "Model training schedule cron expression",
+      "defaultValue": "0 0 2 * * ?"
+    },
+    {
+      "name": "ml.inference.batch-size",
+      "type": "java.lang.Integer",
+      "description": "Batch size for inference",
+      "defaultValue": 32
+    },
+    {
+      "name": "ml.inference.timeout-seconds",
+      "type": "java.lang.Integer",
+      "description": "Inference timeout in seconds",
+      "defaultValue": 30
+    },
+    {
+      "name": "ml.feature-engineering.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable feature engineering",
+      "defaultValue": true
+    },
+    {
+      "name": "ml.monitoring.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable ML model monitoring",
+      "defaultValue": true
+    },
+    {
+      "name": "ml.monitoring.drift-detection",
+      "type": "java.lang.Boolean",
+      "description": "Enable data drift detection",
+      "defaultValue": true
+    },
+    {
+      "name": "ml.cache.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable ML predictions cache",
+      "defaultValue": true
+    },
+    {
+      "name": "ml.cache.ttl-minutes",
+      "type": "java.lang.Integer",
+      "description": "Cache TTL in minutes",
+      "defaultValue": 60
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "OAuth2 client ID for service",
+      "defaultValue": "ml-service"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "OAuth2 client secret for service"
+    },
+    {
+      "name": "ml.models.fraud-detection.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable fraud detection model",
+      "defaultValue": true
+    },
+    {
+      "name": "ml.models.fraud-detection.model-path",
+      "type": "java.lang.String",
+      "description": "Path to fraud detection model",
+      "defaultValue": "/app/models/fraud-detection"
+    },
+    {
+      "name": "ml.models.fraud-detection.batch-size",
+      "type": "java.lang.Integer",
+      "description": "Batch size for fraud detection",
+      "defaultValue": 100
+    },
+    {
+      "name": "ml.models.fraud-detection.confidence-threshold",
+      "type": "java.lang.Double",
+      "description": "Confidence threshold for fraud detection",
+      "defaultValue": 0.7
+    },
+    {
+      "name": "ml.models.fraud-detection.retrain-interval",
+      "type": "java.lang.String",
+      "description": "Model retraining interval",
+      "defaultValue": "24h"
+    },
+    {
+      "name": "ml.models.risk-scoring.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable risk scoring model",
+      "defaultValue": true
+    },
+    {
+      "name": "ml.models.risk-scoring.model-path",
+      "type": "java.lang.String",
+      "description": "Path to risk scoring model",
+      "defaultValue": "/app/models/risk-scoring"
+    },
+    {
+      "name": "ml.models.risk-scoring.batch-size",
+      "type": "java.lang.Integer",
+      "description": "Batch size for risk scoring",
+      "defaultValue": 50
+    },
+    {
+      "name": "ml.models.risk-scoring.confidence-threshold",
+      "type": "java.lang.Double",
+      "description": "Confidence threshold for risk scoring",
+      "defaultValue": 0.8
+    },
+    {
+      "name": "ml.models.behavioral-analysis.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable behavioral analysis model",
+      "defaultValue": true
+    },
+    {
+      "name": "ml.models.behavioral-analysis.model-path",
+      "type": "java.lang.String",
+      "description": "Path to behavioral analysis model",
+      "defaultValue": "/app/models/behavioral-analysis"
+    },
+    {
+      "name": "ml.models.pattern-recognition.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable pattern recognition model",
+      "defaultValue": true
+    },
+    {
+      "name": "ml.feature-store.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable feature store",
+      "defaultValue": true
+    },
+    {
+      "name": "ml.feature-store.feast.server",
+      "type": "java.lang.String",
+      "description": "Feast feature store server",
+      "defaultValue": "localhost:6566"
+    },
+    {
+      "name": "ml.feature-store.feast.project",
+      "type": "java.lang.String",
+      "description": "Feast project name",
+      "defaultValue": "waqiti-ml"
+    },
+    {
+      "name": "ml.feature-store.feast.registry",
+      "type": "java.lang.String",
+      "description": "Feast registry path",
+      "defaultValue": "/app/feature-store/registry.db"
+    },
+    {
+      "name": "ml.training.schedule",
+      "type": "java.lang.String",
+      "description": "Training schedule cron expression",
+      "defaultValue": "0 2 * * *"
+    },
+    {
+      "name": "ml.training.data-retention-days",
+      "type": "java.lang.Integer",
+      "description": "Training data retention in days",
+      "defaultValue": 90
+    },
+    {
+      "name": "ml.training.model-backup-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable model backup",
+      "defaultValue": true
+    },
+    {
+      "name": "ml.training.model-backup-location",
+      "type": "java.lang.String",
+      "description": "Model backup location",
+      "defaultValue": "/app/backups/models"
+    },
+    {
+      "name": "ml.monitoring.model-drift-detection",
+      "type": "java.lang.Boolean",
+      "description": "Enable model drift detection",
+      "defaultValue": true
+    },
+    {
+      "name": "ml.monitoring.performance-tracking",
+      "type": "java.lang.Boolean",
+      "description": "Enable performance tracking",
+      "defaultValue": true
+    },
+    {
+      "name": "ml.monitoring.data-quality-monitoring",
+      "type": "java.lang.Boolean",
+      "description": "Enable data quality monitoring",
+      "defaultValue": true
+    },
+    {
+      "name": "ml.monitoring.alert-threshold.accuracy-drop",
+      "type": "java.lang.Double",
+      "description": "Alert threshold for accuracy drop",
+      "defaultValue": 0.05
+    },
+    {
+      "name": "ml.monitoring.alert-threshold.prediction-drift",
+      "type": "java.lang.Double",
+      "description": "Alert threshold for prediction drift",
+      "defaultValue": 0.1
+    },
+    {
+      "name": "ml.monitoring.alert-threshold.data-quality",
+      "type": "java.lang.Double",
+      "description": "Alert threshold for data quality",
+      "defaultValue": 0.8
+    }
+  ]
+}

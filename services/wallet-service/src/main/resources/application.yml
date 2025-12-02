@@ -1,0 +1,403 @@
+# Wallet Service Configuration
+spring:
+  config:
+    import:
+      - classpath:application-common.yml
+      - optional:configserver:http://config-service:8888
+
+  application:
+    name: wallet-service
+
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+    include: keycloak
+
+# P1 FIX: Distributed Tracing Configuration
+tracing:
+  enabled: ${TRACING_ENABLED:true}
+
+opentelemetry:
+  enabled: ${OTEL_ENABLED:true}
+  service-name: ${spring.application.name}
+  exporter:
+    type: ${OTEL_EXPORTER_TYPE:otlp}
+    endpoint: ${OTEL_COLLECTOR_ENDPOINT:http://otel-collector:4317}
+  sampler:
+    type: adaptive  # 100% errors, 100% critical, 10% normal
+    probability: ${OTEL_SAMPLER_PROBABILITY:0.1}
+  resource:
+    attributes:
+      service.name: ${spring.application.name}
+      service.namespace: waqiti-fintech
+      service.version: ${APPLICATION_VERSION:1.0.0}
+      deployment.environment: ${SPRING_PROFILES_ACTIVE:dev}
+  
+  # OAuth2 Resource Server Configuration for Keycloak
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# Server Configuration
+server:
+  port: 8082
+
+# Service-Specific Database Configuration - OPTIMIZED with PgBouncer
+# ARCHITECTURE: wallet-service -> PgBouncer (port 6432) -> PostgreSQL (port 5432)
+# CONNECTION MATH: 10 replicas × 15 pool = 150 client connections -> 25 PostgreSQL connections
+spring:
+  datasource:
+    # CRITICAL: Use PgBouncer endpoint for connection pooling
+    url: jdbc:postgresql://${DB_HOST:${PGBOUNCER_HOST:pgbouncer}}:${DB_PORT:${PGBOUNCER_PORT:6432}}/${DB_NAME:${WALLET_DB_NAME:waqiti_wallets}}
+    username: ${DB_USERNAME:${vault.database.username:${WALLET_DB_USERNAME:waqiti_wallet_service}}
+    password: ${DB_PASSWORD:${vault.database.password:${WALLET_DB_PASSWORD:${spring.datasource.fallback-password:wallet_dev_pass}}}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      # OPTIMIZED: Reduced from 40 to 15 (62% reduction)
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:15}
+      minimum-idle: ${DB_POOL_MIN_IDLE:5}
+
+      # Faster timeout with PgBouncer
+      connection-timeout: ${DB_CONNECTION_TIMEOUT:5000}
+
+      # Optimized timeouts for PgBouncer
+      idle-timeout: ${DB_IDLE_TIMEOUT:300000}
+      max-lifetime: ${DB_MAX_LIFETIME:900000}
+
+      # Stricter leak detection for wallet operations
+      leak-detection-threshold: ${DB_LEAK_DETECTION_THRESHOLD:20000}
+
+      pool-name: ${DB_POOL_NAME:wallet-service-pgbouncer-pool}
+      validation-timeout: ${DB_VALIDATION_TIMEOUT:3000}
+      initialization-fail-timeout: ${DB_INIT_FAIL_TIMEOUT:1}
+      connection-test-query: SELECT 1
+      health-check-registry: true
+
+# Service-Specific Kafka Topics
+spring:
+  kafka:
+    consumer:
+      group-id: wallet-service-consumers
+      enable-auto-commit: false  # Manual acknowledgment for DLQ support
+      max-poll-records: 50  # Batch size control
+    # P1 FIX: Kafka Tracing Interceptors
+
+    listener:
+      ack-mode: record  # Acknowledge each record individually for better error handling
+      missing-topics-fatal: false  # Don't fail on missing topics
+      type: batch  # Support batch processing
+      concurrency: 3  # Number of concurrent consumer threads
+    producer:
+      properties:
+        interceptor.classes: com.example.common.telemetry.kafka.WaqitiKafkaTracingProducerInterceptor
+    consumer:
+      properties:
+        interceptor.classes: com.example.common.telemetry.kafka.WaqitiKafkaTracingConsumerInterceptor
+
+  # Redis Cache Configuration
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD}  # SECURITY: No default - service must fail if password not provided
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 2
+
+  cache:
+    type: redis
+    redis:
+      time-to-live: 3600000  # 1 hour
+      cache-null-values: false
+      enable-statistics: true
+
+# SECURITY FIX: Session Security Configuration
+wallet:
+  security:
+    session:
+      enabled: true
+      max-age-minutes: 30
+      regeneration-required-operations: "WITHDRAW,TRANSFER,FREEZE,UNFREEZE,LIMIT_UPDATE"
+      token-blacklist-duration-hours: 24
+      redis-key-prefix: "wallet:session:"
+      pattern-detection:
+        enabled: true
+        rapid-operation-threshold-ms: 2000
+        max-operations-per-session: 50
+        max-sensitive-operations-per-session: 10
+
+# Eureka Configuration
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:${EUREKA_SERVER_URL:https://discovery-service:8761/eureka}/}
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+
+# Keycloak Configuration
+keycloak:
+  enabled: ${KEYCLOAK_ENABLED:true}
+  auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8180}
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  resource: wallet-service
+  bearer-only: true
+  ssl-required: ${KEYCLOAK_SSL_REQUIRED:external}
+  use-resource-role-mappings: true
+  principal-attribute: preferred_username
+  credentials:
+    secret: ${KEYCLOAK_CLIENT_SECRET:${vault.keycloak.wallet-service.client-secret}}
+  public-client: false
+  verify-token-audience: true
+
+# Feature Flags for Authentication Migration
+features:
+  auth:
+    mode: ${AUTH_MODE:KEYCLOAK}  # KEYCLOAK only - Legacy JWT retired
+    keycloak:
+      enabled: ${KEYCLOAK_ENABLED:true}
+    legacy:
+      enabled: ${LEGACY_AUTH_ENABLED:false}
+
+# Circuit Breaker Configuration for External Integrations
+resilience4j:
+  circuitbreaker:
+    instances:
+      integrationService:
+        baseConfig: default
+        slidingWindowSize: 20
+        minimumNumberOfCalls: 10
+        failureRateThreshold: 30  # More lenient for financial operations
+        waitDurationInOpenState: 15s
+      notificationService:
+        baseConfig: default
+        waitDurationInOpenState: 5s
+  
+  retry:
+    instances:
+      walletTransfer:
+        maxAttempts: 2  # Limited retries for financial operations
+        waitDuration: 1s
+        enableExponentialBackoff: false
+      balanceCheck:
+        maxAttempts: 3
+        waitDuration: 500ms
+
+# Service-Specific Configuration
+waqiti:
+  wallet:
+    balance:
+      sync-frequency: ${BALANCE_SYNC_FREQUENCY:5m}
+      real-time-validation: ${REAL_TIME_VALIDATION:true}
+    
+    transaction:
+      max-amount: ${MAX_TRANSACTION_AMOUNT:10000}
+      daily-limit: ${DAILY_TRANSACTION_LIMIT:50000}
+      require-confirmation-above: ${CONFIRMATION_THRESHOLD:1000}
+    
+    currency:
+      supported: ${SUPPORTED_CURRENCIES:USD,EUR,GBP,CAD}
+      default: ${DEFAULT_CURRENCY:USD}
+    
+    locking:
+      timeout: ${WALLET_LOCK_TIMEOUT:30s}
+
+    # Daily Reconciliation Configuration
+    reconciliation:
+      enabled: ${WALLET_RECONCILIATION_ENABLED:true}
+      schedule: ${WALLET_RECONCILIATION_SCHEDULE:0 0 2 * * *}  # 2 AM daily
+      auto-correct-threshold: ${AUTO_CORRECT_THRESHOLD:0.10}  # Auto-fix discrepancies < $0.10
+      batch-size: ${RECONCILIATION_BATCH_SIZE:100}
+      alerts:
+        enabled: true
+        finance-team-email: ${FINANCE_TEAM_EMAIL:finance@example.com}
+        ops-team-email: ${OPS_TEAM_EMAIL:ops@example.com}
+      retry-interval: ${WALLET_LOCK_RETRY:100ms}
+
+# External Service URLs
+services:
+  integration-service:
+    url: ${INTEGRATION_SERVICE_URL:http://integration-service:8085}
+  notification-service:
+    url: ${NOTIFICATION_SERVICE_URL:http://notification-service:8084}
+  user-service:
+    url: ${USER_SERVICE_URL:http://user-service:8081}
+
+---
+# Development Profile
+spring:
+  config:
+    activate:
+      on-profile: dev
+  
+  datasource:
+    url: jdbc:postgresql://localhost:5432/waqiti_wallets_dev
+
+logging:
+  level:
+    com.waqiti.wallet: DEBUG
+    org.springframework.transaction: DEBUG
+
+waqiti:
+  wallet:
+    transaction:
+      max-amount: 1000
+      daily-limit: 5000
+
+---
+# Test Profile
+spring:
+  config:
+    activate:
+      on-profile: test
+  
+  datasource:
+    url: jdbc:h2:mem:walletdb
+    driver-class-name: org.h2.Driver
+  
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+
+  kafka:
+    consumer:
+      bootstrap-servers: ${spring.embedded.kafka.brokers}
+
+---
+# Production Profile
+spring:
+  config:
+    activate:
+      on-profile: production
+
+  datasource:
+    hikari:
+      maximum-pool-size: 50  # Higher for production load
+      minimum-idle: 15
+
+logging:
+  level:
+    root: WARN
+    com.waqiti: INFO
+
+waqiti:
+  wallet:
+    balance:
+      real-time-validation: true
+    transaction:
+      max-amount: 50000
+      daily-limit: 250000
+
+# Rate Limiting Configuration
+rate-limiting:
+  enabled: true
+  key-prefix: "waqiti:wallet:rate-limit:"
+  bucket-expiration-minutes: 60
+  default:
+    capacity: 200
+    refill-tokens: 200
+    refill-period-minutes: 1
+  services:
+    wallet-service:
+      capacity: 200
+      refill-tokens: 200
+      refill-period-minutes: 1
+      endpoints:
+        "/api/v1/wallets":
+          capacity: 5
+          refill-tokens: 5
+          refill-period-minutes: 60
+          tokens: 1
+        "/api/v1/wallets/transfer":
+          capacity: 10
+          refill-tokens: 10
+          refill-period-minutes: 5
+          tokens: 1
+        "/api/v1/wallets/deposit":
+          capacity: 20
+          refill-tokens: 20
+          refill-period-minutes: 5
+          tokens: 1
+        "/api/v1/wallets/withdraw":
+          capacity: 15
+          refill-tokens: 15
+          refill-period-minutes: 10
+          tokens: 1
+        "/api/v1/currency/convert":
+          capacity: 30
+          refill-tokens: 30
+          refill-period-minutes: 1
+          tokens: 1
+
+# Keycloak Configuration
+keycloak:
+  enabled: ${KEYCLOAK_ENABLED:true}
+  auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8180}
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  resource: wallet-service
+  bearer-only: true
+  ssl-required: ${KEYCLOAK_SSL_REQUIRED:external}
+  use-resource-role-mappings: true
+  principal-attribute: preferred_username
+
+# Feature Flags for Authentication Migration
+features:
+  auth:
+    mode: ${AUTH_MODE:KEYCLOAK}  # KEYCLOAK only - Legacy JWT retired
+    keycloak:
+      enabled: ${KEYCLOAK_ENABLED:true}
+    legacy:
+      enabled: ${LEGACY_AUTH_ENABLED:false}
+
+# ============================================================================
+# ALERTING CONFIGURATION
+# ============================================================================
+alerting:
+  # PagerDuty Configuration
+  pagerduty:
+    enabled: ${PAGERDUTY_ENABLED:false}
+    api-key: ${PAGERDUTY_API_KEY:}
+    integration-key: ${PAGERDUTY_INTEGRATION_KEY:}
+    service-id: ${PAGERDUTY_SERVICE_ID:}
+
+  # Slack Configuration
+  slack:
+    enabled: ${SLACK_ENABLED:false}
+    webhook-url: ${SLACK_WEBHOOK_URL:}
+    channels:
+      risk-ops: ${SLACK_CHANNEL_RISK_OPS:#risk-ops}
+      compliance: ${SLACK_CHANNEL_COMPLIANCE:#compliance}
+      security-ops: ${SLACK_CHANNEL_SECURITY_OPS:#security-ops}
+      finance-ops: ${SLACK_CHANNEL_FINANCE_OPS:#finance-ops}
+      customer-service: ${SLACK_CHANNEL_CS:#customer-service}
+
+  # Email Configuration
+  email:
+    enabled: ${EMAIL_ALERTING_ENABLED:true}
+    risk-ops: ${EMAIL_RISK_OPS:risk-ops@example.com}
+    compliance: ${EMAIL_COMPLIANCE:compliance@example.com}
+    security-ops: ${EMAIL_SECURITY_OPS:security-ops@example.com}
+    finance: ${EMAIL_FINANCE:finance@example.com}
+    cs-escalations: ${EMAIL_CS_ESCALATIONS:cs-escalations@example.com}
+
+  # Alert Deduplication
+  deduplication:
+    enabled: true
+    default-window-seconds: 300  # 5 minutes
+    critical-fraud-window-seconds: 180  # 3 minutes
+    balance-anomaly-window-seconds: 60  # 1 minute
+
+  # Alert Rate Limiting (per channel, per hour)
+  rate-limiting:
+    enabled: true
+    pagerduty-max-per-hour: 10
+    slack-max-per-hour: 100
+    email-max-per-hour: 50

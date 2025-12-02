@@ -1,0 +1,109 @@
+camunda:
+  bpm:
+    # Process Engine Configuration
+    process-engine-name: waqiti-kyc-engine
+    default-serialization-format: application/json
+    
+    # Database Configuration
+    database:
+      schema-update: true
+      schema-name: camunda
+      table-prefix: CAMUNDA_
+      
+    # History Configuration
+    history-level: FULL
+    history-time-to-live: P180D # Keep history for 180 days
+    history-cleanup-enabled: true
+    history-cleanup-batch-window-start-time: "03:00"
+    history-cleanup-batch-window-end-time: "05:00"
+    
+    # Job Execution
+    job-execution:
+      enabled: true
+      core-pool-size: 3
+      max-pool-size: 10
+      queue-capacity: 100
+      lock-time-in-millis: 300000
+      max-jobs-per-acquisition: 5
+      wait-time-in-millis: 5000
+      max-wait: 60000
+      
+    # Deployment Configuration
+    deployment-resource-pattern:
+      - classpath:*.bpmn
+      - classpath:*.dmn
+      - classpath:processes/*.bpmn
+      - classpath:decisions/*.dmn
+    
+    # Authorization
+    authorization:
+      enabled: true
+      enable-default-permissions: true
+      
+    # Admin User
+    admin-user:
+      id: admin
+      password: ${CAMUNDA_ADMIN_PASSWORD:${VAULT_CAMUNDA_PASSWORD}}
+      first-name: Admin
+      last-name: User
+      email: admin@example.com
+      
+    # Filter
+    filter:
+      create: All tasks
+      
+    # Webapp Configuration
+    webapp:
+      application-path: /camunda
+      header-security:
+        xss-protection-disabled: false
+        content-security-policy-disabled: false
+        
+    # Metrics
+    metrics:
+      enabled: true
+      db-reporter-activate: true
+      
+    # CORS Configuration
+    rest:
+      cors:
+        enabled: true
+        allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
+        
+    # External Task Configuration
+    external-task:
+      max-tasks: 10
+      lock-duration: 300000
+      async-response-timeout: 10000
+      
+    # Spin Configuration (for JSON/XML processing)
+    spin:
+      data-format-configuration-enabled: true
+      default-serialization-format: application/json
+      
+# Spring Integration
+spring:
+  datasource:
+    # Camunda tables will use the same datasource as KYC service
+    hikari:
+      connection-test-query: SELECT 1
+      maximum-pool-size: 10
+      
+# Logging
+logging:
+  level:
+    org.camunda.bpm: INFO
+    org.camunda.bpm.engine.impl.persistence: DEBUG
+    org.camunda.bpm.engine.impl.history: DEBUG
+    org.camunda.bpm.engine.cmd: DEBUG
+    org.camunda.bpm.engine.jobexecutor: DEBUG
+    
+# Management Endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,camunda
+  endpoint:
+    camunda:
+      enabled: true

@@ -1,0 +1,284 @@
+{
+  "properties": [
+    {
+      "name": "keycloak.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Keycloak authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "keycloak.realm",
+      "type": "java.lang.String",
+      "description": "Keycloak realm name",
+      "defaultValue": "waqiti"
+    },
+    {
+      "name": "keycloak.auth-server-url",
+      "type": "java.lang.String",
+      "description": "Keycloak authentication server URL",
+      "defaultValue": "https://localhost:8080"
+    },
+    {
+      "name": "keycloak.ssl-required",
+      "type": "java.lang.String",
+      "description": "SSL requirement level for Keycloak",
+      "defaultValue": "external"
+    },
+    {
+      "name": "keycloak.resource",
+      "type": "java.lang.String",
+      "description": "Keycloak resource/client ID",
+      "defaultValue": "business-service"
+    },
+    {
+      "name": "keycloak.bearer-only",
+      "type": "java.lang.Boolean",
+      "description": "Configure Keycloak as bearer-only client",
+      "defaultValue": true
+    },
+    {
+      "name": "keycloak.use-resource-role-mappings",
+      "type": "java.lang.Boolean",
+      "description": "Use resource-level role mappings in Keycloak",
+      "defaultValue": true
+    },
+    {
+      "name": "keycloak.cors",
+      "type": "java.lang.Boolean",
+      "description": "Enable CORS for Keycloak",
+      "defaultValue": true
+    },
+    {
+      "name": "keycloak.cors-allowed-methods",
+      "type": "java.lang.String",
+      "description": "Allowed HTTP methods for CORS",
+      "defaultValue": "GET,POST,PUT,DELETE,OPTIONS"
+    },
+    {
+      "name": "keycloak.cors-allowed-headers",
+      "type": "java.lang.String",
+      "description": "Allowed headers for CORS",
+      "defaultValue": "Authorization,Content-Type,X-Requested-With,X-Business-Id"
+    },
+    {
+      "name": "keycloak.cors-max-age",
+      "type": "java.lang.Integer",
+      "description": "Max age for CORS preflight requests",
+      "defaultValue": 3600
+    },
+    {
+      "name": "keycloak.public-client",
+      "type": "java.lang.Boolean",
+      "description": "Configure Keycloak as public client",
+      "defaultValue": false
+    },
+    {
+      "name": "keycloak.credentials.secret",
+      "type": "java.lang.String",
+      "description": "Keycloak client secret"
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "Service authentication client ID",
+      "defaultValue": "business-service"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "Service authentication client secret"
+    },
+    {
+      "name": "feign.client.config.account-service.url",
+      "type": "java.lang.String",
+      "description": "URL for account service Feign client",
+      "defaultValue": "http://account-service/api/v1"
+    },
+    {
+      "name": "feign.client.config.payment-service.url",
+      "type": "java.lang.String",
+      "description": "URL for payment service Feign client",
+      "defaultValue": "http://payment-service/api/v1"
+    },
+    {
+      "name": "feign.client.config.tax-service.url",
+      "type": "java.lang.String",
+      "description": "URL for tax service Feign client",
+      "defaultValue": "http://tax-service/api/v1"
+    },
+    {
+      "name": "feign.client.config.billing-orchestrator-service.url",
+      "type": "java.lang.String",
+      "description": "URL for billing orchestrator service Feign client",
+      "defaultValue": "http://billing-orchestrator-service/api/v1"
+    },
+    {
+      "name": "feign.client.config.notification-service.url",
+      "type": "java.lang.String",
+      "description": "URL for notification service Feign client",
+      "defaultValue": "http://notification-service/api/v1"
+    },
+    {
+      "name": "kafka.topics.business-created",
+      "type": "java.lang.String",
+      "description": "Kafka topic for business created events",
+      "defaultValue": "business-created-events"
+    },
+    {
+      "name": "kafka.topics.business-updated",
+      "type": "java.lang.String",
+      "description": "Kafka topic for business updated events",
+      "defaultValue": "business-updated-events"
+    },
+    {
+      "name": "kafka.topics.business-verified",
+      "type": "java.lang.String",
+      "description": "Kafka topic for business verified events",
+      "defaultValue": "business-verified-events"
+    },
+    {
+      "name": "kafka.topics.expense-created",
+      "type": "java.lang.String",
+      "description": "Kafka topic for expense created events",
+      "defaultValue": "expense-created-events"
+    },
+    {
+      "name": "kafka.topics.invoice-created",
+      "type": "java.lang.String",
+      "description": "Kafka topic for invoice created events",
+      "defaultValue": "invoice-created-events"
+    },
+    {
+      "name": "kafka.topics.invoice-paid",
+      "type": "java.lang.String",
+      "description": "Kafka topic for invoice paid events",
+      "defaultValue": "invoice-paid-events"
+    },
+    {
+      "name": "kafka.topics.notification",
+      "type": "java.lang.String",
+      "description": "Kafka topic for notification events",
+      "defaultValue": "notification-events"
+    },
+    {
+      "name": "business.registration.require-verification",
+      "type": "java.lang.Boolean",
+      "description": "Require verification for business registration",
+      "defaultValue": true
+    },
+    {
+      "name": "business.registration.auto-approve-threshold",
+      "type": "java.math.BigDecimal",
+      "description": "Threshold for automatic business registration approval",
+      "defaultValue": 10000.00
+    },
+    {
+      "name": "business.registration.kyc-required",
+      "type": "java.lang.Boolean",
+      "description": "Require KYC for business registration",
+      "defaultValue": true
+    },
+    {
+      "name": "business.registration.documents-required",
+      "type": "java.lang.Boolean",
+      "description": "Require documents for business registration",
+      "defaultValue": true
+    },
+    {
+      "name": "business.account.types",
+      "type": "java.util.List<java.lang.String>",
+      "description": "Available business account types",
+      "defaultValue": ["SOLE_PROPRIETOR", "PARTNERSHIP", "LLC", "CORPORATION", "NON_PROFIT"]
+    },
+    {
+      "name": "business.account.max-accounts-per-user",
+      "type": "java.lang.Integer",
+      "description": "Maximum number of business accounts per user",
+      "defaultValue": 5
+    },
+    {
+      "name": "business.account.require-tax-id",
+      "type": "java.lang.Boolean",
+      "description": "Require tax ID for business accounts",
+      "defaultValue": true
+    },
+    {
+      "name": "business.expense.categories",
+      "type": "java.util.List<java.lang.String>",
+      "description": "Available expense categories",
+      "defaultValue": ["OFFICE_SUPPLIES", "TRAVEL", "MEALS_ENTERTAINMENT", "UTILITIES", "RENT", "PAYROLL", "MARKETING", "EQUIPMENT", "PROFESSIONAL_SERVICES", "OTHER"]
+    },
+    {
+      "name": "business.expense.require-receipt",
+      "type": "java.lang.Boolean",
+      "description": "Require receipt for expense entries",
+      "defaultValue": true
+    },
+    {
+      "name": "business.expense.auto-categorize",
+      "type": "java.lang.Boolean",
+      "description": "Enable automatic expense categorization",
+      "defaultValue": true
+    },
+    {
+      "name": "business.invoice.numbering-pattern",
+      "type": "java.lang.String",
+      "description": "Pattern for invoice numbering",
+      "defaultValue": "BIZ-{YEAR}-{MONTH}-{SEQUENCE}"
+    },
+    {
+      "name": "business.invoice.payment-terms-days",
+      "type": "java.lang.Integer",
+      "description": "Default payment terms for invoices in days",
+      "defaultValue": 30
+    },
+    {
+      "name": "business.invoice.late-fee-percentage",
+      "type": "java.math.BigDecimal",
+      "description": "Late fee percentage for overdue invoices",
+      "defaultValue": 2.0
+    },
+    {
+      "name": "business.invoice.auto-send-reminders",
+      "type": "java.lang.Boolean",
+      "description": "Enable automatic invoice payment reminders",
+      "defaultValue": true
+    },
+    {
+      "name": "business.invoice.reminder-intervals",
+      "type": "java.util.List<java.lang.Integer>",
+      "description": "Interval days for invoice reminders",
+      "defaultValue": [7, 14, 30]
+    },
+    {
+      "name": "business.reporting.profit-loss-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable profit and loss reporting",
+      "defaultValue": true
+    },
+    {
+      "name": "business.reporting.cash-flow-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable cash flow reporting",
+      "defaultValue": true
+    },
+    {
+      "name": "business.reporting.expense-report-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable expense reporting",
+      "defaultValue": true
+    },
+    {
+      "name": "business.reporting.tax-report-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable tax reporting",
+      "defaultValue": true
+    }
+  ]
+}

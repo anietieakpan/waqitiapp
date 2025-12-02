@@ -1,0 +1,141 @@
+# Spring Cloud Vault Bootstrap Configuration for Ledger Service
+
+spring:
+  application:
+    name: ledger-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:development}
+    
+  # Enhanced Vault configuration
+  cloud:
+    vault:
+      # Vault server configuration with HA support
+      uri: ${VAULT_URI:https://vault.example.internal:8200}
+      scheme: ${VAULT_SCHEME:https}
+      host: ${VAULT_HOST:vault.example.internal}
+      port: ${VAULT_PORT:8200}
+      
+      # Kubernetes authentication (preferred for production)
+      authentication: ${VAULT_AUTH_METHOD:KUBERNETES}
+      kubernetes:
+        role: ledger-service-role
+        kubernetes-path: ${VAULT_K8S_PATH:kubernetes}
+        service-account-token-file: ${VAULT_SA_TOKEN_FILE:/var/run/secrets/kubernetes.io/serviceaccount/token}
+      
+      # AppRole authentication (fallback)
+      app-role:
+        role-id: ${VAULT_ROLE_ID:}
+        secret-id: ${VAULT_SECRET_ID:}
+        role: ledger-service-role
+        app-role-path: ${VAULT_APPROLE_PATH:approle}
+      
+      # Token authentication (development only)
+      token: ${VAULT_TOKEN:}
+      
+      # Connection settings with retries
+      connection-timeout: ${VAULT_CONNECTION_TIMEOUT:10000}
+      read-timeout: ${VAULT_READ_TIMEOUT:30000}
+      fail-fast: ${VAULT_FAIL_FAST:false}
+      
+      # KV engine configuration
+      kv:
+        enabled: true
+        backend: ${VAULT_KV_BACKEND:secret}
+        backend-version: ${VAULT_KV_VERSION:2}
+        profile-separator: /
+        default-context: ledger-service
+        application-name: ledger-service
+        profiles: ${spring.profiles.active:development}
+        additional-contexts:
+          - common
+          - infrastructure
+      
+      # Database dynamic credentials
+      database:
+        enabled: ${VAULT_DATABASE_ENABLED:true}
+        role: ledger-service-db-role
+        backend: database
+        username-property: spring.datasource.username
+        password-property: spring.datasource.password
+        ttl: 24h
+        max-ttl: 168h
+      
+      # Generic secrets
+      generic:
+        enabled: true
+        backend: secret
+        default-context: ledger-service
+        application-name: ledger-service
+      
+      # SSL configuration
+      ssl:
+        trust-store: ${VAULT_TRUST_STORE:/etc/ssl/certs/vault-ca.jks}
+        trust-store-password: ${VAULT_TRUST_STORE_PASSWORD:changeit}
+        trust-store-type: ${VAULT_TRUST_STORE_TYPE:JKS}
+        verify-hostname: ${VAULT_VERIFY_HOSTNAME:true}
+      
+      # Session lifecycle management
+      session:
+        lifecycle:
+          enabled: true
+          expiry-threshold: 7200s
+          refresh-before-expiry: 600s
+          min-renewal: 300s
+          token-renewal:
+            enabled: true
+            grace-period: 60s
+      
+      # Configuration properties
+      config:
+        order: -10
+        lifecycle:
+          enabled: true
+          min-renewal: 300s
+          expiry-threshold: 10m
+          lease-endpoints: SysLeases
+        cache:
+          enabled: true
+          ttl: 300s
+        refresh:
+          enabled: true
+          period: 30m
+          
+# Logging configuration for Vault
+logging:
+  level:
+    org.springframework.vault: INFO
+    org.springframework.cloud.vault: INFO
+    com.waqiti.ledger.security: DEBUG
+    
+# Management endpoints with Vault health
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,vault,info
+  endpoint:
+    vault:
+      enabled: true
+      cache:
+        time-to-live: 30s
+    health:
+      show-details: when-authorized
+      
+# Ledger service specific Vault paths
+vault:
+  paths:
+    # Database credentials
+    database: database/ledger-service
+    database-read: database/ledger-service-read
+    
+    # JWT secrets
+    jwt: jwt/ledger-service
+    
+    # Redis credentials
+    redis: redis/ledger-service
+    
+    # Encryption keys for financial data
+    encryption: encryption/ledger-service
+    
+    # Application secrets
+    application: application/ledger-service

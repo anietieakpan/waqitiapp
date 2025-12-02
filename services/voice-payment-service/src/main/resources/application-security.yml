@@ -1,0 +1,281 @@
+# Security Configuration
+#
+# CRITICAL: TLS/SSL settings for all external connections
+#
+# This profile enables comprehensive security:
+# - PostgreSQL TLS
+# - Redis TLS
+# - Kafka SSL/SASL
+# - Vault TLS
+# - Data encryption at rest
+# - Row-level security
+#
+# Usage:
+# - Development: spring.profiles.active=dev,security
+# - Production: spring.profiles.active=production,security (enforced)
+
+---
+# PostgreSQL TLS Configuration
+spring:
+  datasource:
+    # Connection URL (SSL parameters can be in URL or as properties)
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/waqiti_voice_payments}
+    username: ${DB_USERNAME:voice_payment_user}
+    password: ${DB_PASSWORD:}  # Load from Vault in production
+
+    driver-class-name: org.postgresql.Driver
+
+    # SSL/TLS Configuration
+    ssl:
+      enabled: ${DB_SSL_ENABLED:true}
+      mode: ${DB_SSL_MODE:require}  # disable, allow, prefer, require, verify-ca, verify-full
+      factory: ${DB_SSL_FACTORY:org.postgresql.ssl.DefaultJavaSSLFactory}
+
+      # Client certificate (mTLS - optional)
+      cert: ${DB_SSL_CERT:}
+      key: ${DB_SSL_KEY:}
+      password: ${DB_SSL_PASSWORD:}
+
+      # CA certificate for server verification (verify-ca, verify-full)
+      root-cert: ${DB_SSL_ROOT_CERT:}
+
+    # HikariCP connection pool
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:20}
+      minimum-idle: ${DB_POOL_MIN_IDLE:5}
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      pool-name: VoicePaymentHikariPool
+      leak-detection-threshold: 60000
+
+  # JPA Configuration
+  jpa:
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          lob:
+            non_contextual_creation: true
+    show-sql: false
+    hibernate:
+      ddl-auto: validate  # Never auto-create in production
+
+---
+# Redis TLS Configuration
+spring:
+  redis:
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD:}  # Load from Vault in production
+    database: ${REDIS_DATABASE:0}
+    timeout: 2000
+
+    # SSL/TLS Configuration
+    ssl:
+      enabled: ${REDIS_SSL_ENABLED:false}
+      verify-peer: ${REDIS_SSL_VERIFY_PEER:true}
+
+      # Client certificate (mTLS - optional)
+      cert: ${REDIS_SSL_CERT:}
+      key: ${REDIS_SSL_KEY:}
+      key-password: ${REDIS_SSL_KEY_PASSWORD:}
+
+      # CA certificate for server verification
+      ca-cert: ${REDIS_SSL_CA_CERT:}
+
+      # Alternative: JKS trust store
+      trust-store: ${REDIS_SSL_TRUST_STORE:}
+      trust-store-password: ${REDIS_SSL_TRUST_STORE_PASSWORD:}
+
+    # Lettuce client (connection pooling)
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
+        max-wait: 2000
+
+---
+# Kafka SSL/SASL Configuration
+spring:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+    # Security Protocol
+    security:
+      protocol: ${KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
+      # Options: PLAINTEXT, SSL, SASL_PLAINTEXT, SASL_SSL
+
+    # SSL Configuration
+    ssl:
+      enabled: ${KAFKA_SSL_ENABLED:false}
+
+      # Trust store (server certificate verification)
+      trust-store-location: ${KAFKA_SSL_TRUST_STORE_LOCATION:}
+      trust-store-password: ${KAFKA_SSL_TRUST_STORE_PASSWORD:}
+      trust-store-type: ${KAFKA_SSL_TRUST_STORE_TYPE:JKS}
+
+      # Key store (client certificate for mTLS)
+      key-store-location: ${KAFKA_SSL_KEY_STORE_LOCATION:}
+      key-store-password: ${KAFKA_SSL_KEY_STORE_PASSWORD:}
+      key-store-type: ${KAFKA_SSL_KEY_STORE_TYPE:JKS}
+      key-password: ${KAFKA_SSL_KEY_PASSWORD:}
+
+      # Hostname verification
+      endpoint-identification-algorithm: ${KAFKA_SSL_ENDPOINT_VERIFICATION:https}
+      # Set to "" to disable (NOT recommended)
+
+    # SASL Authentication
+    sasl:
+      enabled: ${KAFKA_SASL_ENABLED:false}
+      mechanism: ${KAFKA_SASL_MECHANISM:SCRAM-SHA-256}
+      # Options: PLAIN, SCRAM-SHA-256, SCRAM-SHA-512, GSSAPI
+
+      # Credentials
+      username: ${KAFKA_SASL_USERNAME:}
+      password: ${KAFKA_SASL_PASSWORD:}  # Load from Vault in production
+
+      # Alternative: Direct JAAS configuration
+      jaas:
+        config: ${KAFKA_SASL_JAAS_CONFIG:}
+
+    # Consumer configuration
+    consumer:
+      group-id: voice-payment-service
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      max-poll-records: 100
+
+    # Producer configuration
+    producer:
+      acks: all
+      retries: 3
+      compression-type: snappy
+
+---
+# Voice Payment Service Security Configuration
+voice-payment:
+  # Encryption Configuration
+  encryption:
+    # Enable Vault for key management
+    vault-enabled: ${ENCRYPTION_VAULT_ENABLED:true}
+    vault-path: voice-payment-service/encryption
+
+    # Fallback: Direct key (NOT recommended for production)
+    key: ${ENCRYPTION_KEY:#{null}}
+
+  # Audio File Security
+  security:
+    # ClamAV virus scanning
+    clamav:
+      enabled: ${CLAMAV_ENABLED:true}
+      host: ${CLAMAV_HOST:localhost}
+      port: ${CLAMAV_PORT:3310}
+
+    # File size limits
+    max-file-size: ${MAX_FILE_SIZE:10485760}  # 10MB
+    min-file-size: ${MIN_FILE_SIZE:1000}      # 1KB
+
+  # Biometric Security
+  biometrics:
+    verification-threshold: ${BIOMETRIC_THRESHOLD:0.85}
+    liveness-detection: ${LIVENESS_DETECTION_ENABLED:true}
+    anti-spoofing: ${ANTI_SPOOFING_ENABLED:true}
+
+---
+# Production Profile (ENFORCES security)
+spring:
+  config:
+    activate:
+      on-profile: production
+
+  # PostgreSQL - MUST use TLS with verification
+  datasource:
+    ssl:
+      enabled: true
+      mode: verify-full  # REQUIRED: Full certificate + hostname verification
+
+  # Redis - MUST use TLS with verification
+  redis:
+    ssl:
+      enabled: true
+      verify-peer: true
+
+  # Kafka - MUST use SASL_SSL
+  kafka:
+    security:
+      protocol: SASL_SSL  # REQUIRED: Both encryption + authentication
+    ssl:
+      enabled: true
+    sasl:
+      enabled: true
+
+# Voice Payment - Production security
+voice-payment:
+  encryption:
+    vault-enabled: true  # REQUIRED: Must use Vault
+    key: null  # MUST NOT have fallback key
+
+  security:
+    clamav:
+      enabled: true  # REQUIRED: Virus scanning mandatory
+
+# Logging
+logging:
+  level:
+    com.waqiti.voice.config: INFO
+    com.waqiti.voice.security: INFO
+    org.springframework.security: INFO
+    org.postgresql: WARN
+    io.lettuce: WARN
+    org.apache.kafka: WARN
+
+---
+# Development Profile (Relaxed security for local development)
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+  # PostgreSQL - TLS optional for local dev
+  datasource:
+    url: jdbc:postgresql://localhost:5432/waqiti_voice_payments
+    username: voice_payment_user
+    password: ${VAULT_DB_PASSWORD:}
+    ssl:
+      enabled: false
+
+  # Redis - No TLS for local dev
+  redis:
+    host: localhost
+    port: 6379
+    password:
+    ssl:
+      enabled: false
+
+  # Kafka - No security for local dev
+  kafka:
+    bootstrap-servers: localhost:9092
+    security:
+      protocol: PLAINTEXT
+    ssl:
+      enabled: false
+    sasl:
+      enabled: false
+
+# Voice Payment - Dev security
+voice-payment:
+  encryption:
+    vault-enabled: false  # Use fallback key for dev
+    key: ${ENCRYPTION_KEY:}  # Generate on startup if not set
+
+  security:
+    clamav:
+      enabled: false  # Optional for dev
+
+# Logging - More verbose for development
+logging:
+  level:
+    com.waqiti.voice: DEBUG
+    org.springframework.security: DEBUG

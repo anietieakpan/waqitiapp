@@ -1,0 +1,112 @@
+{
+  "type": "record",
+  "name": "DisputeOpenedEvent",
+  "namespace": "com.waqiti.events.v1",
+  "doc": "Event published when a dispute is opened",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "Unique event identifier (UUID)"
+    },
+    {
+      "name": "eventType",
+      "type": "string",
+      "default": "dispute-opened",
+      "doc": "Type of event"
+    },
+    {
+      "name": "timestamp",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "Event timestamp in epoch milliseconds"
+    },
+    {
+      "name": "correlationId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Correlation ID for distributed tracing"
+    },
+    {
+      "name": "version",
+      "type": "string",
+      "default": "1.0",
+      "doc": "Schema version"
+    },
+    {
+      "name": "disputeId",
+      "type": "string",
+      "doc": "Unique dispute identifier (UUID)"
+    },
+    {
+      "name": "transactionId",
+      "type": "string",
+      "doc": "Transaction being disputed (UUID)"
+    },
+    {
+      "name": "userId",
+      "type": "string",
+      "doc": "User ID who opened dispute (UUID)"
+    },
+    {
+      "name": "disputeType",
+      "type": {
+        "type": "enum",
+        "name": "DisputeType",
+        "symbols": ["CHARGEBACK", "UNAUTHORIZED_TRANSACTION", "SERVICE_NOT_RECEIVED", "DUPLICATE_CHARGE", "INCORRECT_AMOUNT", "OTHER"]
+      },
+      "doc": "Type of dispute"
+    },
+    {
+      "name": "amount",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 19,
+        "scale": 4
+      },
+      "doc": "Disputed amount"
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "default": "USD",
+      "doc": "Currency code (ISO 4217)"
+    },
+    {
+      "name": "reason",
+      "type": "string",
+      "doc": "Detailed reason for dispute"
+    },
+    {
+      "name": "evidence",
+      "type": {
+        "type": "array",
+        "items": "string"
+      },
+      "default": [],
+      "doc": "List of evidence document IDs"
+    },
+    {
+      "name": "status",
+      "type": {
+        "type": "enum",
+        "name": "DisputeStatus",
+        "symbols": ["OPEN", "UNDER_REVIEW", "RESOLVED", "DECLINED", "ESCALATED"]
+      },
+      "default": "OPEN",
+      "doc": "Dispute status"
+    },
+    {
+      "name": "metadata",
+      "type": ["null", {
+        "type": "map",
+        "values": "string"
+      }],
+      "default": null,
+      "doc": "Additional metadata"
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "properties": [
+    {
+      "name": "config.repository.uri",
+      "type": "java.lang.String",
+      "description": "Configuration repository URI"
+    },
+    {
+      "name": "config.repository.search-paths",
+      "type": "java.util.List",
+      "description": "Configuration search paths"
+    },
+    {
+      "name": "config.repository.username",
+      "type": "java.lang.String",
+      "description": "Repository username"
+    },
+    {
+      "name": "config.repository.password",
+      "type": "java.lang.String",
+      "description": "Repository password"
+    },
+    {
+      "name": "config.security.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable configuration security",
+      "defaultValue": true
+    },
+    {
+      "name": "config.encryption.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable configuration encryption",
+      "defaultValue": true
+    },
+    {
+      "name": "config.refresh.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable configuration refresh",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "OAuth2 client ID for service",
+      "defaultValue": "config-service"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "OAuth2 client secret for service"
+    }
+  ]
+}

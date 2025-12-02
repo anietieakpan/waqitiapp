@@ -1,0 +1,412 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ml-service-network-policy
+  namespace: waqiti-system
+spec:
+  podSelector:
+    matchLabels:
+      app: ml-service
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: waqiti-system
+    - podSelector:
+        matchLabels:
+          component: backend
+    - podSelector:
+        matchLabels:
+          app: api-gateway
+    ports:
+    - protocol: TCP
+      port: 8095
+    - protocol: TCP
+      port: 8096
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: waqiti-system
+    - podSelector:
+        matchLabels:
+          app: postgresql
+    - podSelector:
+        matchLabels:
+          app: redis
+    - podSelector:
+        matchLabels:
+          app: kafka
+    - podSelector:
+        matchLabels:
+          app: influxdb
+    - podSelector:
+        matchLabels:
+          app: neo4j
+    - podSelector:
+        matchLabels:
+          app: discovery-service
+    ports:
+    - protocol: TCP
+      port: 5432
+    - protocol: TCP
+      port: 6379
+    - protocol: TCP
+      port: 9092
+    - protocol: TCP
+      port: 8086
+    - protocol: TCP
+      port: 7687
+    - protocol: TCP
+      port: 8761
+  # DNS egress (Kubernetes DNS only)
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: TCP
+      port: 53
+    - protocol: UDP
+      port: 53
+  # SECURITY: Restricted HTTPS egress to approved external services only
+  # Add explicit CIDR blocks or domain-based egress policies for required external APIs
+  - to:
+    # AWS S3 for ML model storage (restricted to specific region)
+    - ipBlock:
+        cidr: 52.92.0.0/14  # AWS S3 us-east-1 CIDR range
+    # InfluxDB Cloud (if using managed instance)
+    - ipBlock:
+        cidr: 54.183.0.0/16  # Example: InfluxDB Cloud IP range
+    ports:
+    - protocol: TCP
+      port: 443
+  # Block all other external egress (implicit deny-all)
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: event-sourcing-service-network-policy
+  namespace: waqiti-system
+spec:
+  podSelector:
+    matchLabels:
+      app: event-sourcing-service
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: waqiti-system
+    - podSelector:
+        matchLabels:
+          component: backend
+    - podSelector:
+        matchLabels:
+          app: api-gateway
+    - podSelector:
+        matchLabels:
+          app: saga-orchestration-service
+    ports:
+    - protocol: TCP
+      port: 8096
+    - protocol: TCP
+      port: 8097
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: waqiti-system
+    - podSelector:
+        matchLabels:
+          app: postgresql
+    - podSelector:
+        matchLabels:
+          app: redis
+    - podSelector:
+        matchLabels:
+          app: kafka
+    - podSelector:
+        matchLabels:
+          app: discovery-service
+    ports:
+    - protocol: TCP
+      port: 5432
+    - protocol: TCP
+      port: 6379
+    - protocol: TCP
+      port: 9092
+    - protocol: TCP
+      port: 8761
+  # DNS egress (Kubernetes DNS only)
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: TCP
+      port: 53
+    - protocol: UDP
+      port: 53
+  # SECURITY: Restricted HTTPS egress to approved external services only
+  # Add explicit CIDR blocks or domain-based egress policies for required external APIs
+  - to:
+    # AWS S3 for ML model storage (restricted to specific region)
+    - ipBlock:
+        cidr: 52.92.0.0/14  # AWS S3 us-east-1 CIDR range
+    # InfluxDB Cloud (if using managed instance)
+    - ipBlock:
+        cidr: 54.183.0.0/16  # Example: InfluxDB Cloud IP range
+    ports:
+    - protocol: TCP
+      port: 443
+  # Block all other external egress (implicit deny-all)
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: recurring-payment-service-network-policy
+  namespace: waqiti-system
+spec:
+  podSelector:
+    matchLabels:
+      app: recurring-payment-service
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: waqiti-system
+    - podSelector:
+        matchLabels:
+          component: backend
+    - podSelector:
+        matchLabels:
+          app: api-gateway
+    ports:
+    - protocol: TCP
+      port: 8099
+    - protocol: TCP
+      port: 8100
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: waqiti-system
+    - podSelector:
+        matchLabels:
+          app: postgresql
+    - podSelector:
+        matchLabels:
+          app: redis
+    - podSelector:
+        matchLabels:
+          app: kafka
+    - podSelector:
+        matchLabels:
+          app: discovery-service
+    - podSelector:
+        matchLabels:
+          app: payment-service
+    - podSelector:
+        matchLabels:
+          app: wallet-service
+    - podSelector:
+        matchLabels:
+          app: notification-service
+    - podSelector:
+        matchLabels:
+          app: fraud-detection-service
+    ports:
+    - protocol: TCP
+      port: 5432
+    - protocol: TCP
+      port: 6379
+    - protocol: TCP
+      port: 9092
+    - protocol: TCP
+      port: 8761
+    - protocol: TCP
+      port: 8092
+    - protocol: TCP
+      port: 8089
+    - protocol: TCP
+      port: 8093
+    - protocol: TCP
+      port: 8090
+  # DNS egress (Kubernetes DNS only)
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: TCP
+      port: 53
+    - protocol: UDP
+      port: 53
+  # SECURITY: Restricted HTTPS egress to approved external services only
+  # Add explicit CIDR blocks or domain-based egress policies for required external APIs
+  - to:
+    # AWS S3 for ML model storage (restricted to specific region)
+    - ipBlock:
+        cidr: 52.92.0.0/14  # AWS S3 us-east-1 CIDR range
+    # InfluxDB Cloud (if using managed instance)
+    - ipBlock:
+        cidr: 54.183.0.0/16  # Example: InfluxDB Cloud IP range
+    ports:
+    - protocol: TCP
+      port: 443
+  # Block all other external egress (implicit deny-all)
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: database-network-policy
+  namespace: waqiti-system
+spec:
+  podSelector:
+    matchLabels:
+      app: postgresql
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: waqiti-system
+    - podSelector:
+        matchLabels:
+          component: backend
+    ports:
+    - protocol: TCP
+      port: 5432
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: redis-network-policy
+  namespace: waqiti-system
+spec:
+  podSelector:
+    matchLabels:
+      app: redis
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: waqiti-system
+    - podSelector:
+        matchLabels:
+          component: backend
+    ports:
+    - protocol: TCP
+      port: 6379
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kafka-network-policy
+  namespace: waqiti-system
+spec:
+  podSelector:
+    matchLabels:
+      app: kafka
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: waqiti-system
+    - podSelector:
+        matchLabels:
+          component: backend
+    ports:
+    - protocol: TCP
+      port: 9092
+    - protocol: TCP
+      port: 9093
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: monitoring-network-policy
+  namespace: example-monitoring
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: waqiti-system
+    - namespaceSelector:
+        matchLabels:
+          name: example-monitoring
+    ports:
+    - protocol: TCP
+      port: 9090
+    - protocol: TCP
+      port: 3000
+    - protocol: TCP
+      port: 9093
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: waqiti-system
+    - namespaceSelector:
+        matchLabels:
+          name: example-monitoring
+  # DNS egress (Kubernetes DNS only)
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: TCP
+      port: 53
+    - protocol: UDP
+      port: 53
+  # SECURITY: Restricted HTTPS egress to approved external services only
+  # Add explicit CIDR blocks or domain-based egress policies for required external APIs
+  - to:
+    # AWS S3 for ML model storage (restricted to specific region)
+    - ipBlock:
+        cidr: 52.92.0.0/14  # AWS S3 us-east-1 CIDR range
+    # InfluxDB Cloud (if using managed instance)
+    - ipBlock:
+        cidr: 54.183.0.0/16  # Example: InfluxDB Cloud IP range
+    ports:
+    - protocol: TCP
+      port: 443
+  # Block all other external egress (implicit deny-all)

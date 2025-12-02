@@ -1,0 +1,620 @@
+---
+# ============================================================================
+# PROMETHEUS NETWORK POLICY
+# ============================================================================
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: prometheus-policy
+  namespace: example-production
+  labels:
+    app.kubernetes.io/name: network-policy
+    app.kubernetes.io/component: prometheus
+    security.example.com/tier: monitoring
+  annotations:
+    description: "Prometheus - metrics collection and monitoring"
+    security.example.com/last-reviewed: "2025-10-25"
+spec:
+  podSelector:
+    matchLabels:
+      app: prometheus
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress:
+    # Allow ingress from Grafana
+    - from:
+        - podSelector:
+            matchLabels:
+              app: grafana
+      ports:
+        - protocol: TCP
+          port: 9090
+
+    # Allow ingress from API Gateway (for prometheus query API)
+    - from:
+        - podSelector:
+            matchLabels:
+              app: api-gateway
+      ports:
+        - protocol: TCP
+          port: 9090
+
+    # Allow ingress from AlertManager
+    - from:
+        - podSelector:
+            matchLabels:
+              app: alertmanager
+      ports:
+        - protocol: TCP
+          port: 9090
+
+  egress:
+    # DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+    # Scrape metrics from all services (wildcard egress for metrics endpoints)
+    - to:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 9090  # Generic metrics port
+        - protocol: TCP
+          port: 8080  # Application metrics
+        - protocol: TCP
+          port: 8081
+        - protocol: TCP
+          port: 8082
+        - protocol: TCP
+          port: 8083
+        - protocol: TCP
+          port: 8084
+        - protocol: TCP
+          port: 8085
+        - protocol: TCP
+          port: 8086
+        - protocol: TCP
+          port: 8087
+        - protocol: TCP
+          port: 8088
+        - protocol: TCP
+          port: 8089
+        - protocol: TCP
+          port: 9121  # Redis exporter
+        - protocol: TCP
+          port: 9187  # PostgreSQL exporter
+        - protocol: TCP
+          port: 7071  # Kafka JMX exporter
+        - protocol: TCP
+          port: 7070  # Zookeeper JMX exporter
+        - protocol: TCP
+          port: 9363  # ClickHouse exporter
+        - protocol: TCP
+          port: 2004  # Neo4j metrics
+
+    # AlertManager for sending alerts
+    - to:
+        - podSelector:
+            matchLabels:
+              app: alertmanager
+      ports:
+        - protocol: TCP
+          port: 9093
+
+---
+# ============================================================================
+# GRAFANA NETWORK POLICY
+# ============================================================================
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grafana-policy
+  namespace: example-production
+  labels:
+    app.kubernetes.io/name: network-policy
+    app.kubernetes.io/component: grafana
+    security.example.com/tier: monitoring
+  annotations:
+    description: "Grafana - visualization and dashboards"
+    security.example.com/last-reviewed: "2025-10-25"
+spec:
+  podSelector:
+    matchLabels:
+      app: grafana
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress:
+    # Allow ingress from Load Balancer (for web UI access)
+    - from:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 3000
+
+  egress:
+    # DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+    # Prometheus for data queries
+    - to:
+        - podSelector:
+            matchLabels:
+              app: prometheus
+      ports:
+        - protocol: TCP
+          port: 9090
+
+    # PostgreSQL (for dashboard persistence)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+
+    # External SMTP for alerting (if configured)
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 587  # SMTP TLS
+        - protocol: TCP
+          port: 465  # SMTP SSL
+
+---
+# ============================================================================
+# ZIPKIN NETWORK POLICY (Distributed Tracing)
+# ============================================================================
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: zipkin-policy
+  namespace: example-production
+  labels:
+    app.kubernetes.io/name: network-policy
+    app.kubernetes.io/component: zipkin
+    security.example.com/tier: monitoring
+  annotations:
+    description: "Zipkin - distributed tracing"
+    security.example.com/last-reviewed: "2025-10-25"
+spec:
+  podSelector:
+    matchLabels:
+      app: zipkin
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress:
+    # Allow ingress from all application services (for sending traces)
+    - from:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 9411
+
+    # Allow ingress from Load Balancer (for web UI)
+    - from:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 9411
+
+  egress:
+    # DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+    # Kafka (for trace storage)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: kafka
+      ports:
+        - protocol: TCP
+          port: 9092
+
+    # ClickHouse (for trace analytics)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: clickhouse
+      ports:
+        - protocol: TCP
+          port: 9000
+        - protocol: TCP
+          port: 8123
+
+---
+# ============================================================================
+# JAEGER NETWORK POLICY (Alternative Distributed Tracing)
+# ============================================================================
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: jaeger-policy
+  namespace: example-production
+  labels:
+    app.kubernetes.io/name: network-policy
+    app.kubernetes.io/component: jaeger
+    security.example.com/tier: monitoring
+  annotations:
+    description: "Jaeger - distributed tracing and monitoring"
+    security.example.com/last-reviewed: "2025-10-25"
+spec:
+  podSelector:
+    matchLabels:
+      app: jaeger
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress:
+    # Allow ingress from all application services (for sending traces)
+    - from:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 6831  # Jaeger agent (compact thrift)
+        - protocol: UDP
+          port: 6831
+        - protocol: TCP
+          port: 14268  # Jaeger collector HTTP
+
+    # Allow ingress from Load Balancer (for web UI)
+    - from:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 16686  # Jaeger UI
+
+  egress:
+    # DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+    # Kafka (for span storage)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: kafka
+      ports:
+        - protocol: TCP
+          port: 9092
+
+    # ClickHouse (for trace storage)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: clickhouse
+      ports:
+        - protocol: TCP
+          port: 9000
+
+---
+# ============================================================================
+# ALERTMANAGER NETWORK POLICY
+# ============================================================================
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: alertmanager-policy
+  namespace: example-production
+  labels:
+    app.kubernetes.io/name: network-policy
+    app.kubernetes.io/component: alertmanager
+    security.example.com/tier: monitoring
+  annotations:
+    description: "AlertManager - alert routing and notification"
+    security.example.com/last-reviewed: "2025-10-25"
+spec:
+  podSelector:
+    matchLabels:
+      app: alertmanager
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress:
+    # Allow ingress from Prometheus
+    - from:
+        - podSelector:
+            matchLabels:
+              app: prometheus
+      ports:
+        - protocol: TCP
+          port: 9093
+
+    # Allow ingress from Grafana
+    - from:
+        - podSelector:
+            matchLabels:
+              app: grafana
+      ports:
+        - protocol: TCP
+          port: 9093
+
+    # Allow ingress from Load Balancer (for web UI)
+    - from:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 9093
+
+  egress:
+    # DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+    # Notification Service (for internal notifications)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: notification-service
+      ports:
+        - protocol: TCP
+          port: 8084
+
+    # External SMTP for email alerts
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 587  # SMTP TLS
+        - protocol: TCP
+          port: 465  # SMTP SSL
+
+    # External webhook endpoints (HTTPS)
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443
+
+    # Slack, PagerDuty, etc. (HTTPS)
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443
+
+---
+# ============================================================================
+# ELASTICSEARCH NETWORK POLICY (ELK Stack)
+# ============================================================================
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: elasticsearch-policy
+  namespace: example-production
+  labels:
+    app.kubernetes.io/name: network-policy
+    app.kubernetes.io/component: elasticsearch
+    security.example.com/tier: monitoring
+  annotations:
+    description: "Elasticsearch - log storage and search"
+    security.example.com/last-reviewed: "2025-10-25"
+spec:
+  podSelector:
+    matchLabels:
+      app: elasticsearch
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress:
+    # Allow ingress from Logstash
+    - from:
+        - podSelector:
+            matchLabels:
+              app: logstash
+      ports:
+        - protocol: TCP
+          port: 9200
+        - protocol: TCP
+          port: 9300
+
+    # Allow ingress from Kibana
+    - from:
+        - podSelector:
+            matchLabels:
+              app: kibana
+      ports:
+        - protocol: TCP
+          port: 9200
+
+    # Allow ingress from monitoring
+    - from:
+        - podSelector:
+            matchLabels:
+              app: prometheus
+      ports:
+        - protocol: TCP
+          port: 9114  # Elasticsearch exporter
+
+  egress:
+    # DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+    # Elasticsearch cluster communication
+    - to:
+        - podSelector:
+            matchLabels:
+              app: elasticsearch
+      ports:
+        - protocol: TCP
+          port: 9300  # Transport protocol
+
+---
+# ============================================================================
+# KIBANA NETWORK POLICY
+# ============================================================================
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kibana-policy
+  namespace: example-production
+  labels:
+    app.kubernetes.io/name: network-policy
+    app.kubernetes.io/component: kibana
+    security.example.com/tier: monitoring
+  annotations:
+    description: "Kibana - log visualization and analysis"
+    security.example.com/last-reviewed: "2025-10-25"
+spec:
+  podSelector:
+    matchLabels:
+      app: kibana
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress:
+    # Allow ingress from Load Balancer (for web UI)
+    - from:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 5601
+
+  egress:
+    # DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+    # Elasticsearch
+    - to:
+        - podSelector:
+            matchLabels:
+              app: elasticsearch
+      ports:
+        - protocol: TCP
+          port: 9200
+
+---
+# ============================================================================
+# LOGSTASH NETWORK POLICY
+# ============================================================================
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: logstash-policy
+  namespace: example-production
+  labels:
+    app.kubernetes.io/name: network-policy
+    app.kubernetes.io/component: logstash
+    security.example.com/tier: monitoring
+  annotations:
+    description: "Logstash - log aggregation and processing"
+    security.example.com/last-reviewed: "2025-10-25"
+spec:
+  podSelector:
+    matchLabels:
+      app: logstash
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress:
+    # Allow ingress from all application services (for log shipping)
+    - from:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 5044  # Beats input
+        - protocol: TCP
+          port: 5000  # TCP input
+
+  egress:
+    # DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+    # Elasticsearch
+    - to:
+        - podSelector:
+            matchLabels:
+              app: elasticsearch
+      ports:
+        - protocol: TCP
+          port: 9200
+
+    # Kafka (for log buffering)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: kafka
+      ports:
+        - protocol: TCP
+          port: 9092

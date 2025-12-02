@@ -1,0 +1,65 @@
+{
+  "type": "record",
+  "name": "TransferInitiated",
+  "namespace": "com.waqiti.events.transfer",
+  "doc": "Event published when a money transfer is initiated",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string"
+    },
+    {
+      "name": "eventTimestamp",
+      "type": "long",
+      "logicalType": "timestamp-millis"
+    },
+    {
+      "name": "transferId",
+      "type": "string",
+      "doc": "Transfer identifier"
+    },
+    {
+      "name": "userId",
+      "type": "string",
+      "doc": "User initiating transfer"
+    },
+    {
+      "name": "sourceWalletId",
+      "type": "string"
+    },
+    {
+      "name": "destinationWalletId",
+      "type": "string"
+    },
+    {
+      "name": "amount",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 19,
+        "scale": 4
+      }
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "default": "USD"
+    },
+    {
+      "name": "transferType",
+      "type": {
+        "type": "enum",
+        "name": "TransferType",
+        "symbols": ["DOMESTIC", "INTERNATIONAL", "WIRE", "ACH", "P2P", "INSTANT"]
+      }
+    },
+    {
+      "name": "status",
+      "type": {
+        "type": "enum",
+        "name": "TransferStatus",
+        "symbols": ["INITIATED", "PENDING_APPROVAL", "APPROVED", "PROCESSING", "COMPLETED", "FAILED", "CANCELLED"]
+      }
+    }
+  ]
+}

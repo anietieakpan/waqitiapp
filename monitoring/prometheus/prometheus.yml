@@ -1,0 +1,49 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # Infrastructure metrics
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  # Service discovery for all Spring Boot services
+  - job_name: 'spring-boot-services'
+    metrics_path: '/actuator/prometheus'
+    eureka_sd_configs:
+      - server: 'http://discovery-service:8761/eureka'
+    relabel_configs:
+      - source_labels: [__meta_eureka_app_name]
+        target_label: application
+      - source_labels: [__meta_eureka_app_instance_id]
+        target_label: instance
+
+  # Kafka metrics
+  - job_name: 'kafka'
+    static_configs:
+      - targets: ['kafka:9101']
+
+  # Redis metrics
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+
+  # PostgreSQL metrics
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+
+  # MongoDB metrics
+  - job_name: 'mongodb'
+    static_configs:
+      - targets: ['mongodb-exporter:9216']
+
+  # Elasticsearch metrics
+  - job_name: 'elasticsearch'
+    static_configs:
+      - targets: ['elasticsearch-exporter:9114']

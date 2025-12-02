@@ -1,0 +1,254 @@
+# Production Configuration for Waqiti Platform
+# All sensitive values are loaded from HashiCorp Vault or environment variables
+# NO HARDCODED SECRETS OR LOCALHOST URLS
+
+spring:
+  profiles:
+    active: production
+  
+  # Database Configuration
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://db-prod.example.amazonaws.com:5432/waqiti}
+    username: ${DATABASE_USERNAME:waqiti_app}
+    password: ${vault.database.password}
+    hikari:
+      maximum-pool-size: ${DATABASE_POOL_MAX:30}
+      minimum-idle: ${DATABASE_POOL_MIN:10}
+      connection-timeout: ${DATABASE_CONNECTION_TIMEOUT:30000}
+      max-lifetime: ${DATABASE_MAX_LIFETIME:1800000}
+      leak-detection-threshold: ${DATABASE_LEAK_DETECTION:60000}
+  
+  # Redis Configuration
+  redis:
+    host: ${REDIS_HOST:waqiti-redis-prod.cluster.aws.elasticache.com}
+    port: ${REDIS_PORT:6379}
+    password: ${vault.redis.password}
+    ssl: true
+    timeout: 2000
+    lettuce:
+      pool:
+        max-active: 20
+        max-idle: 10
+        min-idle: 5
+  
+  # Kafka Configuration
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka-prod-1.example.internal:9093,kafka-prod-2.example.internal:9093,kafka-prod-3.example.internal:9093}
+    security:
+      protocol: SSL
+    ssl:
+      truststore-location: ${KAFKA_SSL_TRUSTSTORE_LOCATION:/etc/kafka/secrets/kafka.client.truststore.jks}
+      truststore-password: ${vault.kafka.truststore.password}
+      keystore-location: ${KAFKA_SSL_KEYSTORE_LOCATION:/etc/kafka/secrets/kafka.client.keystore.jks}
+      keystore-password: ${vault.kafka.keystore.password}
+      key-password: ${vault.kafka.key.password}
+    producer:
+      acks: all
+      retries: 3
+      batch-size: 16384
+      buffer-memory: 33554432
+    consumer:
+      group-id: ${spring.application.name}
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+
+  # Security Configuration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${OAUTH2_ISSUER_URI:https://auth.example.com/realms/waqiti}
+          jwk-set-uri: ${OAUTH2_JWK_SET_URI:https://auth.example.com/realms/waqiti/protocol/openid-connect/certs}
+
+# Waqiti Application Configuration
+waqiti:
+  # Security Settings
+  security:
+    fail-fast: true
+    vault:
+      enabled: true
+      address: ${VAULT_ADDR:https://vault.example.com}
+      token: ${VAULT_TOKEN}
+      ssl:
+        enabled: true
+        trust-store: ${VAULT_SSL_TRUSTSTORE:/etc/vault/ca.jks}
+        trust-store-password: ${vault.truststore.password}
+    
+    jwt:
+      secret: ${vault.jwt.secret}
+      expiration: ${JWT_EXPIRATION:86400000}
+      refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
+    
+    encryption:
+      master-key: ${vault.encryption.master.key}
+      algorithm: AES/GCM/NoPadding
+      key-rotation-days: 90
+    
+    cors:
+      allowed-origins: ${CORS_ALLOWED_ORIGINS:https://app.example.com,https://admin.example.com,https://mobile.example.com}
+      allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+      allowed-headers: "*"
+      allow-credentials: true
+      max-age: 3600
+  
+  # Service Endpoints
+  services:
+    keycloak:
+      url: ${KEYCLOAK_URL:https://auth.example.com}
+      realm: ${KEYCLOAK_REALM:waqiti}
+      client-id: ${KEYCLOAK_CLIENT_ID:waqiti-backend}
+      client-secret: ${vault.keycloak.client.secret}
+    
+    api-gateway:
+      url: ${API_GATEWAY_URL:https://api.example.com}
+    
+    payment:
+      url: ${PAYMENT_SERVICE_URL:https://payment.example.com}
+      internal-url: ${PAYMENT_SERVICE_INTERNAL_URL:http://payment-service.example.svc.cluster.local:8080}
+    
+    notification:
+      url: ${NOTIFICATION_SERVICE_URL:https://notification.example.com}
+      internal-url: ${NOTIFICATION_SERVICE_INTERNAL_URL:http://notification-service.example.svc.cluster.local:8080}
+    
+    user:
+      url: ${USER_SERVICE_URL:https://user.example.com}
+      internal-url: ${USER_SERVICE_INTERNAL_URL:http://user-service.example.svc.cluster.local:8080}
+    
+    wallet:
+      url: ${WALLET_SERVICE_URL:https://wallet.example.com}
+      internal-url: ${WALLET_SERVICE_INTERNAL_URL:http://wallet-service.example.svc.cluster.local:8080}
+  
+  # External Service Integrations
+  integrations:
+    stripe:
+      api-key: ${vault.stripe.api.key}
+      secret-key: ${vault.stripe.secret.key}
+      webhook-secret: ${vault.stripe.webhook.secret}
+      api-version: "2023-10-16"
+    
+    plaid:
+      client-id: ${vault.plaid.client.id}
+      secret: ${vault.plaid.secret}
+      environment: ${PLAID_ENVIRONMENT:production}
+    
+    twilio:
+      account-sid: ${vault.twilio.account.sid}
+      auth-token: ${vault.twilio.auth.token}
+      from-number: ${TWILIO_FROM_NUMBER:+1234567890}
+    
+    sendgrid:
+      api-key: ${vault.sendgrid.api.key}
+      from-email: ${SENDGRID_FROM_EMAIL:noreply@example.com}
+    
+    aws:
+      access-key-id: ${vault.aws.access.key.id}
+      secret-access-key: ${vault.aws.secret.access.key}
+      region: ${AWS_REGION:us-east-1}
+      s3:
+        bucket: ${AWS_S3_BUCKET:waqiti-prod-storage}
+      kms:
+        key-id: ${vault.aws.kms.key.id}
+  
+  # Monitoring Configuration
+  monitoring:
+    prometheus:
+      endpoint: ${PROMETHEUS_ENDPOINT:https://prometheus.example.com}
+      pushgateway: ${PROMETHEUS_PUSHGATEWAY:https://pushgateway.example.com}
+    
+    grafana:
+      url: ${GRAFANA_URL:https://grafana.example.com}
+      api-key: ${vault.grafana.api.key}
+    
+    jaeger:
+      endpoint: ${JAEGER_ENDPOINT:https://jaeger.example.com}
+      sampler:
+        type: const
+        param: 1
+    
+    elasticsearch:
+      hosts: ${ELASTICSEARCH_HOSTS:https://es-prod-1.example.com:9200,https://es-prod-2.example.com:9200}
+      username: ${ELASTICSEARCH_USERNAME:elastic}
+      password: ${vault.elasticsearch.password}
+
+# Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: ${spring.application.name}
+      environment: production
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    com.waqiti: INFO
+    org.springframework.security: WARN
+    org.hibernate.SQL: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: /var/log/waqiti/${spring.application.name}.log
+    max-size: 100MB
+    max-history: 30
+
+# Server Configuration
+server:
+  port: ${SERVER_PORT:8080}
+  ssl:
+    enabled: true
+    key-store: ${SSL_KEYSTORE_PATH:/etc/ssl/waqiti.p12}
+    key-store-password: ${vault.ssl.keystore.password}
+    key-store-type: PKCS12
+    key-alias: waqiti
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/xml,text/plain
+  http2:
+    enabled: true
+  forward-headers-strategy: native
+
+# Circuit Breaker Configuration
+resilience4j:
+  circuitbreaker:
+    instances:
+      default:
+        sliding-window-size: 100
+        minimum-number-of-calls: 20
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 10
+  retry:
+    instances:
+      default:
+        max-attempts: 3
+        wait-duration: 1s
+        retry-exceptions:
+          - java.io.IOException
+          - java.net.SocketTimeoutException
+  ratelimiter:
+    instances:
+      default:
+        limit-for-period: 1000
+        limit-refresh-period: 1s
+        timeout-duration: 0s
+
+# Feature Flags
+feature:
+  flags:
+    crypto-payments: ${FEATURE_CRYPTO_PAYMENTS:true}
+    biometric-auth: ${FEATURE_BIOMETRIC_AUTH:true}
+    virtual-cards: ${FEATURE_VIRTUAL_CARDS:true}
+    international-transfers: ${FEATURE_INTERNATIONAL_TRANSFERS:true}
+    ai-fraud-detection: ${FEATURE_AI_FRAUD_DETECTION:true}

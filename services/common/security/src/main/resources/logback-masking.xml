@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- Define the masking converter -->
+    <conversionRule conversionWord="mask" 
+                    converterClass="com.waqiti.common.security.masking.LogMaskingConverter" />
+
+    <!-- Console appender with masking -->
+    <appender name="CONSOLE_MASKED" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %mask%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- File appender with masking -->
+    <appender name="FILE_MASKED" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>/var/log/waqiti/app-masked.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>/var/log/waqiti/app-masked.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %mask%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Async appender for better performance -->
+    <appender name="ASYNC_FILE_MASKED" class="ch.qos.logback.classic.AsyncAppender">
+        <queueSize>512</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+        <appender-ref ref="FILE_MASKED" />
+    </appender>
+
+    <!-- Root logger configuration -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE_MASKED" />
+        <appender-ref ref="ASYNC_FILE_MASKED" />
+    </root>
+
+    <!-- Package-specific logging levels -->
+    <logger name="com.waqiti" level="DEBUG" />
+    <logger name="org.springframework.security" level="DEBUG" />
+    <logger name="org.springframework.web" level="INFO" />
+</configuration>

@@ -1,0 +1,50 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: waqiti-system
+  labels:
+    name: waqiti-system
+    environment: production
+    app.kubernetes.io/name: waqiti
+    app.kubernetes.io/component: system
+    istio-injection: enabled
+    network-policy: enabled
+  annotations:
+    description: "Main namespace for Waqiti P2P payment system"
+    owner: "platform-team"
+    security.policy: "strict"
+    monitoring.enabled: "true"
+    
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: example-monitoring
+  labels:
+    name: example-monitoring
+    environment: production
+    app.kubernetes.io/name: waqiti
+    app.kubernetes.io/component: monitoring
+    istio-injection: enabled
+    network-policy: enabled
+  annotations:
+    description: "Monitoring namespace for Waqiti system"
+    owner: "platform-team"
+    security.policy: "monitoring"
+    
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: waqiti-security
+  labels:
+    name: waqiti-security
+    environment: production
+    app.kubernetes.io/name: waqiti
+    app.kubernetes.io/component: security
+    istio-injection: enabled
+    network-policy: enabled
+  annotations:
+    description: "Security services namespace for Waqiti system"
+    owner: "security-team"
+    security.policy: "restricted"

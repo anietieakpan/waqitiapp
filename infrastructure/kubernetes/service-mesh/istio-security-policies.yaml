@@ -1,0 +1,375 @@
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default-strict-mtls
+  namespace: waqiti
+  labels:
+    security.example.com/policy: mtls-enforcement
+spec:
+  mtls:
+    mode: STRICT
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: monitoring-strict-mtls
+  namespace: example-monitoring
+  labels:
+    security.example.com/policy: mtls-enforcement
+spec:
+  mtls:
+    mode: STRICT
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: keycloak-strict-mtls
+  namespace: keycloak
+  labels:
+    security.example.com/policy: mtls-enforcement
+spec:
+  mtls:
+    mode: STRICT
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: waqiti-services-tls
+  namespace: waqiti
+  labels:
+    security.example.com/policy: tls-enforcement
+spec:
+  host: "*.example.svc.cluster.local"
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+    connectionPool:
+      tcp:
+        maxConnections: 100
+        connectTimeout: 30s
+        keepAlive:
+          time: 7200s
+          interval: 75s
+      http:
+        http1MaxPendingRequests: 64
+        http2MaxRequests: 100
+        maxRequestsPerConnection: 2
+        maxRetries: 3
+        consecutiveGatewayErrors: 5
+        interval: 30s
+        baseEjectionTime: 30s
+        maxEjectionPercent: 50
+        minHealthPercent: 50
+    outlierDetection:
+      consecutiveGatewayErrors: 5
+      interval: 30s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+      minHealthPercent: 50
+  exportTo:
+  - "."
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: monitoring-services-tls
+  namespace: example-monitoring
+  labels:
+    security.example.com/policy: tls-enforcement
+spec:
+  host: "*.example-monitoring.svc.cluster.local"
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+    connectionPool:
+      tcp:
+        maxConnections: 50
+        connectTimeout: 30s
+      http:
+        http1MaxPendingRequests: 32
+        http2MaxRequests: 50
+        maxRequestsPerConnection: 2
+        maxRetries: 2
+  exportTo:
+  - "."
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: api-gateway-access
+  namespace: waqiti
+  labels:
+    security.example.com/policy: access-control
+spec:
+  selector:
+    matchLabels:
+      app: api-gateway
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/istio-system/sa/istio-ingressgateway-service-account"]
+  - to:
+    - operation:
+        methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+        paths: ["/api/*", "/health", "/actuator/health"]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: internal-services-access
+  namespace: waqiti
+  labels:
+    security.example.com/policy: access-control
+spec:
+  selector:
+    matchLabels:
+      component: internal-service
+  rules:
+  - from:
+    - source:
+        namespaces: ["waqiti"]
+  - to:
+    - operation:
+        methods: ["GET", "POST", "PUT", "DELETE"]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: payment-service-strict-access
+  namespace: waqiti
+  labels:
+    security.example.com/policy: access-control
+spec:
+  selector:
+    matchLabels:
+      app: payment-service
+  rules:
+  - from:
+    - source:
+        principals: 
+        - "cluster.local/ns/waqiti/sa/api-gateway"
+        - "cluster.local/ns/waqiti/sa/wallet-service"
+        - "cluster.local/ns/waqiti/sa/compliance-service"
+  - to:
+    - operation:
+        methods: ["POST", "GET", "PUT"]
+        paths: ["/api/v1/payments/*"]
+  - when:
+    - key: request.headers[x-user-id]
+      values: ["*"]
+    - key: request.headers[authorization]
+      values: ["Bearer *"]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: compliance-service-access
+  namespace: waqiti
+  labels:
+    security.example.com/policy: access-control
+spec:
+  selector:
+    matchLabels:
+      app: compliance-service
+  rules:
+  - from:
+    - source:
+        principals: 
+        - "cluster.local/ns/waqiti/sa/payment-service"
+        - "cluster.local/ns/waqiti/sa/kyc-service"
+        - "cluster.local/ns/waqiti/sa/api-gateway"
+        - "cluster.local/ns/waqiti/sa/international-service"
+  - to:
+    - operation:
+        methods: ["POST", "GET"]
+        paths: ["/api/v1/compliance/*", "/api/v1/screening/*"]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: kyc-service-access
+  namespace: waqiti
+  labels:
+    security.example.com/policy: access-control
+spec:
+  selector:
+    matchLabels:
+      app: kyc-service
+  rules:
+  - from:
+    - source:
+        principals: 
+        - "cluster.local/ns/waqiti/sa/user-service"
+        - "cluster.local/ns/waqiti/sa/compliance-service"
+        - "cluster.local/ns/waqiti/sa/api-gateway"
+  - to:
+    - operation:
+        methods: ["POST", "GET", "PUT"]
+        paths: ["/api/v1/kyc/*", "/api/v1/verification/*"]
+  - when:
+    - key: request.headers[x-user-id]
+      values: ["*"]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: user-service-auth-access
+  namespace: waqiti
+  labels:
+    security.example.com/policy: access-control
+spec:
+  selector:
+    matchLabels:
+      app: user-service
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/istio-system/sa/istio-ingressgateway-service-account"]
+  - to:
+    - operation:
+        methods: ["POST", "GET", "PUT"]
+        paths: ["/api/v1/auth/*", "/api/v1/users/*", "/api/v1/profile/*"]
+  - from:
+    - source:
+        namespaces: ["waqiti"]
+  - to:
+    - operation:
+        methods: ["GET", "POST"]
+        paths: ["/api/v1/users/validate", "/api/v1/users/info"]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: monitoring-access
+  namespace: example-monitoring
+  labels:
+    security.example.com/policy: access-control
+spec:
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/istio-system/sa/istio-ingressgateway-service-account"]
+  - to:
+    - operation:
+        methods: ["GET", "POST"]
+        paths: ["/*"]
+  - from:
+    - source:
+        namespaces: ["waqiti", "example-monitoring"]
+  - to:
+    - operation:
+        methods: ["GET", "POST"]
+        paths: ["/api/*", "/_search", "/_bulk"]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: keycloak-access
+  namespace: keycloak
+  labels:
+    security.example.com/policy: access-control
+spec:
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/istio-system/sa/istio-ingressgateway-service-account"]
+  - to:
+    - operation:
+        methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+        paths: ["/*"]
+  - from:
+    - source:
+        namespaces: ["waqiti"]
+  - to:
+    - operation:
+        methods: ["GET", "POST"]
+        paths: ["/realms/*", "/auth/*"]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: deny-all-default
+  namespace: waqiti
+  labels:
+    security.example.com/policy: default-deny
+spec:
+  action: DENY
+  rules:
+  - when:
+    - key: source.namespace
+      notValues: ["waqiti", "istio-system"]
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: external-payment-providers
+  namespace: waqiti
+  labels:
+    security.example.com/policy: external-access
+spec:
+  hosts:
+  - api.stripe.com
+  - api.paypal.com
+  - api.wise.com
+  - api.onfido.com
+  ports:
+  - number: 443
+    name: https
+    protocol: HTTPS
+  location: MESH_EXTERNAL
+  resolution: DNS
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: external-compliance-services
+  namespace: waqiti
+  labels:
+    security.example.com/policy: external-access
+spec:
+  hosts:
+  - api.sanctions.io
+  - api.worldcheck.refinitiv.com
+  - api.dowjones.com
+  ports:
+  - number: 443
+    name: https
+    protocol: HTTPS
+  location: MESH_EXTERNAL
+  resolution: DNS
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: external-payment-timeout
+  namespace: waqiti
+  labels:
+    security.example.com/policy: external-timeouts
+spec:
+  hosts:
+  - api.stripe.com
+  - api.paypal.com
+  http:
+  - timeout: 30s
+    retries:
+      attempts: 3
+      perTryTimeout: 10s
+      retryOn: 5xx,gateway-error,connect-failure,refused-stream
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: external-compliance-timeout
+  namespace: waqiti
+  labels:
+    security.example.com/policy: external-timeouts
+spec:
+  hosts:
+  - api.onfido.com
+  - api.sanctions.io
+  http:
+  - timeout: 60s
+    retries:
+      attempts: 2
+      perTryTimeout: 30s
+      retryOn: 5xx,gateway-error,connect-failure,refused-stream

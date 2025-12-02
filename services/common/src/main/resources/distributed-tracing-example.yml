@@ -1,0 +1,230 @@
+# Distributed Tracing Configuration Example
+# Add this to your application.yml files
+
+# OpenTelemetry and Jaeger Configuration
+tracing:
+  enabled: true
+  jaeger:
+    endpoint: ${JAEGER_ENDPOINT:http://localhost:14250}
+  otlp:
+    enabled: ${OTLP_ENABLED:false}
+    endpoint: ${OTLP_ENDPOINT:http://localhost:4317}
+  sampling:
+    rate: ${TRACING_SAMPLING_RATE:1.0} # Sample 100% in development, reduce in production
+  export:
+    timeout: 30
+  batch:
+    max-queue-size: 2048
+    max-export-batch-size: 512
+    export-delay: 1
+  custom:
+    attributes:
+      enabled: true
+
+# Spring Boot Actuator for tracing health checks
+management:
+  endpoints:
+    web:
+      exposure:
+        include:
+          - health
+          - info
+          - metrics
+          - prometheus
+          - trace
+  endpoint:
+    health:
+      show-details: when-authorized
+      show-components: always
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING_RATE:1.0}
+  zipkin:
+    tracing:
+      endpoint: ${ZIPKIN_ENDPOINT:http://localhost:9411/api/v2/spans}
+  
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+      # Export tracing metrics to Prometheus
+    tags:
+      service: ${spring.application.name}
+      environment: ${ENVIRONMENT:development}
+      version: ${SERVICE_VERSION:1.0.0}
+
+# Application-specific tracing configuration
+spring:
+  application:
+    name: ${SERVICE_NAME:waqiti-service}
+  sleuth:
+    enabled: false # Disable Spring Sleuth in favor of OpenTelemetry
+
+# Logging configuration for tracing
+logging:
+  pattern:
+    level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]"
+  level:
+    io.opentelemetry: INFO
+    io.jaegertracing: INFO
+    com.example.common.tracing: DEBUG
+
+# Database tracing configuration
+spring:
+  datasource:
+    hikari:
+      # Enable statement logging for tracing
+      leak-detection-threshold: 60000
+  jpa:
+    show-sql: false
+    properties:
+      hibernate:
+        # Enable SQL statistics for tracing
+        generate_statistics: true
+        session:
+          events:
+            log:
+              LOG_QUERIES_SLOWER_THAN_MS: 100
+
+# Redis tracing configuration
+spring:
+  data:
+    redis:
+      repositories:
+        enabled: true
+      timeout: 10s
+
+# Kafka tracing configuration (if applicable)
+spring:
+  kafka:
+    consumer:
+      properties:
+        # Enable Kafka consumer tracing
+        interceptor.classes: io.opentelemetry.instrumentation.kafkaclients.v2_6.TracingConsumerInterceptor
+    producer:
+      properties:
+        # Enable Kafka producer tracing
+        interceptor.classes: io.opentelemetry.instrumentation.kafkaclients.v2_6.TracingProducerInterceptor
+
+# HTTP client tracing configuration
+http:
+  client:
+    connect-timeout: 10000
+    read-timeout: 30000
+    # Enable HTTP client tracing
+    trace-requests: true
+
+# Custom business tracing configuration
+waqiti:
+  tracing:
+    business-events:
+      enabled: true
+    fraud-detection:
+      enabled: true
+      detailed-tracing: true
+    payment-processing:
+      enabled: true
+      include-sensitive-data: false # Never trace sensitive payment data
+    kyc-verification:
+      enabled: true
+    performance-monitoring:
+      enabled: true
+      slow-query-threshold: 100ms
+
+# Environment-specific overrides
+---
+spring:
+  config:
+    activate:
+      on-profile: development
+tracing:
+  sampling:
+    rate: 1.0 # Sample all traces in development
+logging:
+  level:
+    com.waqiti: DEBUG
+
+---
+spring:
+  config:
+    activate:
+      on-profile: staging
+tracing:
+  sampling:
+    rate: 0.5 # Sample 50% of traces in staging
+logging:
+  level:
+    com.waqiti: INFO
+
+---
+spring:
+  config:
+    activate:
+      on-profile: production
+tracing:
+  sampling:
+    rate: 0.1 # Sample 10% of traces in production
+  export:
+    timeout: 10 # Shorter timeout in production
+logging:
+  level:
+    com.waqiti: WARN
+    io.opentelemetry: WARN
+
+# Service-specific tracing configurations
+---
+# Payment Service Specific
+spring:
+  config:
+    activate:
+      on-profile: payment-service
+waqiti:
+  tracing:
+    payment-processing:
+      enabled: true
+      include-card-details: false # Never trace card details
+      include-authentication-codes: false
+    fraud-detection:
+      detailed-tracing: true
+
+---
+# Currency Service Specific
+spring:
+  config:
+    activate:
+      on-profile: currency-service
+waqiti:
+  tracing:
+    exchange-rate-updates:
+      enabled: true
+    currency-conversion:
+      enabled: true
+
+---
+# Expense Service Specific  
+spring:
+  config:
+    activate:
+      on-profile: expense-service
+waqiti:
+  tracing:
+    receipt-processing:
+      enabled: true
+    expense-categorization:
+      enabled: true
+    ml-categorization:
+      detailed-tracing: true
+
+---
+# KYC Service Specific
+spring:
+  config:
+    activate:
+      on-profile: kyc-service
+waqiti:
+  tracing:
+    kyc-verification:
+      enabled: true
+      include-document-details: false # Privacy protection
+    sanctions-checking:
+      enabled: true

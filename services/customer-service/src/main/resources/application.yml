@@ -1,0 +1,348 @@
+spring:
+  application:
+    name: customer-service
+
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+
+  # Database Configuration
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:waqiti_customer}
+    username: ${DB_USERNAME:waqiti_user}
+    password: ${DB_PASSWORD:}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      connection-timeout: 30000
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      connection-test-query: SELECT 1
+      pool-name: CustomerServiceHikariCP
+
+  # JPA/Hibernate Configuration
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: true
+        use_sql_comments: true
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+        query:
+          in_clause_parameter_padding: true
+    show-sql: false
+    open-in-view: false
+
+  # Liquibase Migration
+  liquibase:
+    enabled: true
+    change-log: classpath:db/migration/db.changelog-master.xml
+    default-schema: public
+
+  # Kafka Configuration
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: customer-service-group
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.waqiti.*"
+        max.poll.records: 100
+        max.poll.interval.ms: 300000
+        session.timeout.ms: 30000
+        heartbeat.interval.ms: 10000
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      properties:
+        max.in.flight.requests.per.connection: 5
+        enable.idempotence: true
+        compression.type: snappy
+    listener:
+      ack-mode: manual
+      concurrency: 3
+      type: batch
+
+  # Redis Cache Configuration
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: 0
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 20
+          max-idle: 10
+          min-idle: 5
+          max-wait: -1ms
+
+  # Cache Configuration
+  cache:
+    type: redis
+    redis:
+      time-to-live: 600000 # 10 minutes
+      cache-null-values: false
+      use-key-prefix: true
+      key-prefix: "customer:"
+
+  # Security Configuration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8080/realms/waqiti}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8080/realms/waqiti/protocol/openid-connect/certs}
+
+# Server Configuration
+server:
+  port: ${SERVER_PORT:8086}
+  servlet:
+    context-path: /api
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/xml,text/plain
+  error:
+    include-message: always
+    include-binding-errors: always
+    include-stacktrace: on_param
+    include-exception: false
+
+# Eureka Service Discovery
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
+    register-with-eureka: true
+    fetch-registry: true
+    registry-fetch-interval-seconds: 30
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+    instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}
+    metadata-map:
+      version: ${project.version:1.0-SNAPSHOT}
+      zone: ${EUREKA_ZONE:zone1}
+
+# Feign Client Configuration
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 5000
+        readTimeout: 10000
+        loggerLevel: basic
+      account-service:
+        connectTimeout: 3000
+        readTimeout: 5000
+      wallet-service:
+        connectTimeout: 3000
+        readTimeout: 5000
+      user-service:
+        connectTimeout: 3000
+        readTimeout: 5000
+      ledger-service:
+        connectTimeout: 5000
+        readTimeout: 10000
+      legal-service:
+        connectTimeout: 5000
+        readTimeout: 10000
+      dispute-service:
+        connectTimeout: 5000
+        readTimeout: 10000
+      notification-service:
+        connectTimeout: 3000
+        readTimeout: 5000
+  circuitbreaker:
+    enabled: true
+    alphanumeric-ids:
+      enabled: true
+
+# Resilience4j Circuit Breaker Configuration
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 10s
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10
+        recordExceptions:
+          - org.springframework.web.client.HttpServerErrorException
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+    instances:
+      accountService:
+        baseConfig: default
+      walletService:
+        baseConfig: default
+      userService:
+        baseConfig: default
+      ledgerService:
+        baseConfig: default
+        waitDurationInOpenState: 20s
+      legalService:
+        baseConfig: default
+      disputeService:
+        baseConfig: default
+      notificationService:
+        baseConfig: default
+        failureRateThreshold: 60
+
+  # Retry Configuration
+  retry:
+    configs:
+      default:
+        maxAttempts: 3
+        waitDuration: 1000ms
+        retryExceptions:
+          - org.springframework.web.client.HttpServerErrorException
+          - java.io.IOException
+        ignoreExceptions:
+          - com.waqiti.customer.exception.AccountClosureException
+
+  # Time Limiter Configuration
+  timelimiter:
+    configs:
+      default:
+        timeoutDuration: 5s
+        cancelRunningFuture: true
+
+# Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics,liquibase,caches
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  health:
+    circuitbreakers:
+      enabled: true
+    ratelimiters:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+    tags:
+      application: ${spring.application.name}
+      environment: ${spring.profiles.active}
+  tracing:
+    sampling:
+      probability: 1.0
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    com.waqiti.customer: DEBUG
+    com.example.common: DEBUG
+    org.springframework.web: INFO
+    org.springframework.kafka: INFO
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    io.github.resilience4j: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/customer-service.log
+    max-size: 10MB
+    max-history: 30
+
+# SpringDoc OpenAPI Configuration
+springdoc:
+  api-docs:
+    enabled: true
+    path: /api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+    disable-swagger-default-url: true
+  show-actuator: true
+  packages-to-scan: com.waqiti.customer.controller
+  paths-to-match: /v1/**
+
+# Application-Specific Configuration
+customer-service:
+  # Account Closure Configuration
+  account-closure:
+    default-delay-days: 30
+    max-delay-days: 90
+    business-days-for-disbursement: 10
+    cfpb-retention-years: 7
+    enable-automated-closure: true
+    require-manager-approval: true
+    minimum-account-age-days: 30
+
+  # Complaint Management Configuration
+  complaint:
+    auto-route-critical: true
+    cfpb-submission-enabled: true
+    sla-hours-high-priority: 24
+    sla-hours-medium-priority: 72
+    sla-hours-low-priority: 168
+    enable-sentiment-analysis: true
+
+  # Customer Lifecycle Configuration
+  lifecycle:
+    enable-churn-prediction: true
+    retention-window-days: 90
+    winback-campaign-enabled: true
+    enable-lifecycle-scoring: true
+
+  # Event Publishing Configuration
+  events:
+    high-priority-timeout-seconds: 5
+    circuit-breaker-failure-threshold: 5
+    circuit-breaker-reset-timeout-seconds: 60
+    enable-event-store: true
+    enable-dlq: true
+    max-retry-attempts: 3
+    retry-backoff-multiplier: 2
+
+  # PII Encryption Configuration
+  encryption:
+    algorithm: AES/GCM/NoPadding
+    key-size: 256
+    enable-field-level-encryption: true
+
+  # Analytics Configuration
+  analytics:
+    enable-real-time-analytics: true
+    batch-processing-enabled: true
+    aggregation-interval-minutes: 15
+
+  # Notification Configuration
+  notifications:
+    enable-email: true
+    enable-sms: true
+    enable-push: true
+    batch-notifications: true

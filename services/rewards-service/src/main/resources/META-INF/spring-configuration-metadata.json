@@ -1,0 +1,287 @@
+{
+  "properties": [
+    {
+      "name": "rewards.default-cashback-rate",
+      "type": "java.lang.Double",
+      "description": "Default cashback rate for transactions",
+      "defaultValue": 0.01
+    },
+    {
+      "name": "rewards.points-per-dollar",
+      "type": "java.lang.Integer",
+      "description": "Number of points earned per dollar spent",
+      "defaultValue": 100
+    },
+    {
+      "name": "rewards.max-daily-cashback",
+      "type": "java.math.BigDecimal",
+      "description": "Maximum daily cashback amount in dollars",
+      "defaultValue": 50.00
+    },
+    {
+      "name": "rewards.tier-refresh-days",
+      "type": "java.lang.Integer",
+      "description": "Number of days for tier calculation period",
+      "defaultValue": 90
+    },
+    {
+      "name": "rewards.cashback.default-rate",
+      "type": "java.lang.Double",
+      "description": "Default cashback rate",
+      "defaultValue": 0.01
+    },
+    {
+      "name": "rewards.cashback.max-rate",
+      "type": "java.lang.Double",
+      "description": "Maximum cashback rate",
+      "defaultValue": 0.05
+    },
+    {
+      "name": "rewards.cashback.min-transaction-amount",
+      "type": "java.math.BigDecimal",
+      "description": "Minimum transaction amount for cashback",
+      "defaultValue": 1.00
+    },
+    {
+      "name": "rewards.cashback.min-redemption-amount",
+      "type": "java.math.BigDecimal",
+      "description": "Minimum amount for cashback redemption",
+      "defaultValue": 5.00
+    },
+    {
+      "name": "rewards.cashback.processing-delay-minutes",
+      "type": "java.lang.Integer",
+      "description": "Processing delay for cashback in minutes",
+      "defaultValue": 5
+    },
+    {
+      "name": "rewards.cashback.batch-size",
+      "type": "java.lang.Integer",
+      "description": "Batch size for cashback processing",
+      "defaultValue": 100
+    },
+    {
+      "name": "rewards.cashback.welcome-bonus-amount",
+      "type": "java.math.BigDecimal",
+      "description": "Welcome bonus cashback amount",
+      "defaultValue": 10.00
+    },
+    {
+      "name": "rewards.points.dollar-to-points-ratio",
+      "type": "java.lang.Integer",
+      "description": "Conversion ratio from dollars to points",
+      "defaultValue": 100
+    },
+    {
+      "name": "rewards.points.points-to-dollar-ratio",
+      "type": "java.lang.Double",
+      "description": "Conversion ratio from points to dollars",
+      "defaultValue": 0.01
+    },
+    {
+      "name": "rewards.points.min-redemption-points",
+      "type": "java.lang.Integer",
+      "description": "Minimum points required for redemption",
+      "defaultValue": 500
+    },
+    {
+      "name": "rewards.points.expiration-months",
+      "type": "java.lang.Integer",
+      "description": "Number of months before points expire",
+      "defaultValue": 12
+    },
+    {
+      "name": "rewards.points.batch-size",
+      "type": "java.lang.Integer",
+      "description": "Batch size for points processing",
+      "defaultValue": 100
+    },
+    {
+      "name": "rewards.points.welcome-bonus-points",
+      "type": "java.lang.Integer",
+      "description": "Welcome bonus points for new users",
+      "defaultValue": 1000
+    },
+    {
+      "name": "rewards.tiers.bronze.min-points",
+      "type": "java.lang.Integer",
+      "description": "Minimum points for Bronze tier",
+      "defaultValue": 0
+    },
+    {
+      "name": "rewards.tiers.bronze.max-points",
+      "type": "java.lang.Integer",
+      "description": "Maximum points for Bronze tier",
+      "defaultValue": 999
+    },
+    {
+      "name": "rewards.tiers.bronze.cashback-multiplier",
+      "type": "java.lang.Double",
+      "description": "Cashback multiplier for Bronze tier",
+      "defaultValue": 1.0
+    },
+    {
+      "name": "rewards.tiers.bronze.points-multiplier",
+      "type": "java.lang.Double",
+      "description": "Points multiplier for Bronze tier",
+      "defaultValue": 1.0
+    },
+    {
+      "name": "rewards.tiers.silver.min-points",
+      "type": "java.lang.Integer",
+      "description": "Minimum points for Silver tier",
+      "defaultValue": 1000
+    },
+    {
+      "name": "rewards.tiers.silver.max-points",
+      "type": "java.lang.Integer",
+      "description": "Maximum points for Silver tier",
+      "defaultValue": 4999
+    },
+    {
+      "name": "rewards.tiers.silver.cashback-multiplier",
+      "type": "java.lang.Double",
+      "description": "Cashback multiplier for Silver tier",
+      "defaultValue": 1.25
+    },
+    {
+      "name": "rewards.tiers.silver.points-multiplier",
+      "type": "java.lang.Double",
+      "description": "Points multiplier for Silver tier",
+      "defaultValue": 1.25
+    },
+    {
+      "name": "rewards.tiers.gold.min-points",
+      "type": "java.lang.Integer",
+      "description": "Minimum points for Gold tier",
+      "defaultValue": 5000
+    },
+    {
+      "name": "rewards.tiers.gold.max-points",
+      "type": "java.lang.Integer",
+      "description": "Maximum points for Gold tier",
+      "defaultValue": 9999
+    },
+    {
+      "name": "rewards.tiers.gold.cashback-multiplier",
+      "type": "java.lang.Double",
+      "description": "Cashback multiplier for Gold tier",
+      "defaultValue": 1.5
+    },
+    {
+      "name": "rewards.tiers.gold.points-multiplier",
+      "type": "java.lang.Double",
+      "description": "Points multiplier for Gold tier",
+      "defaultValue": 1.5
+    },
+    {
+      "name": "rewards.tiers.platinum.min-points",
+      "type": "java.lang.Integer",
+      "description": "Minimum points for Platinum tier",
+      "defaultValue": 10000
+    },
+    {
+      "name": "rewards.tiers.platinum.max-points",
+      "type": "java.lang.Integer",
+      "description": "Maximum points for Platinum tier",
+      "defaultValue": 999999999
+    },
+    {
+      "name": "rewards.tiers.platinum.cashback-multiplier",
+      "type": "java.lang.Double",
+      "description": "Cashback multiplier for Platinum tier",
+      "defaultValue": 2.0
+    },
+    {
+      "name": "rewards.tiers.platinum.points-multiplier",
+      "type": "java.lang.Double",
+      "description": "Points multiplier for Platinum tier",
+      "defaultValue": 2.0
+    },
+    {
+      "name": "rewards.campaigns.max-active-per-user",
+      "type": "java.lang.Integer",
+      "description": "Maximum active campaigns per user",
+      "defaultValue": 5
+    },
+    {
+      "name": "rewards.campaigns.cache-ttl-minutes",
+      "type": "java.lang.Integer",
+      "description": "Cache TTL for campaigns in minutes",
+      "defaultValue": 15
+    },
+    {
+      "name": "rewards.fraud.max-daily-redemptions",
+      "type": "java.lang.Integer",
+      "description": "Maximum daily redemptions allowed",
+      "defaultValue": 10
+    },
+    {
+      "name": "rewards.fraud.max-daily-redemption-amount",
+      "type": "java.math.BigDecimal",
+      "description": "Maximum daily redemption amount",
+      "defaultValue": 1000.00
+    },
+    {
+      "name": "rewards.fraud.suspicious-activity-threshold",
+      "type": "java.lang.Integer",
+      "description": "Threshold for suspicious activity detection",
+      "defaultValue": 5
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "Client ID for service authentication",
+      "defaultValue": "rewards-service"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "Client secret for service authentication"
+    },
+    {
+      "name": "services.payment.url",
+      "type": "java.lang.String",
+      "description": "Payment service URL"
+    },
+    {
+      "name": "services.wallet.url",
+      "type": "java.lang.String",
+      "description": "Wallet service URL"
+    },
+    {
+      "name": "services.user.url",
+      "type": "java.lang.String",
+      "description": "User service URL"
+    },
+    {
+      "name": "services.notification.url",
+      "type": "java.lang.String",
+      "description": "Notification service URL"
+    }
+  ],
+  "hints": [
+    {
+      "name": "rewards.tiers",
+      "providers": [
+        {
+          "name": "any",
+          "parameters": {
+            "value": {
+              "min-points": 0,
+              "max-points": 999999999,
+              "cashback-multiplier": 1.0,
+              "points-multiplier": 1.0
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

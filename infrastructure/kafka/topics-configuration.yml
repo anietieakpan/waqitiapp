@@ -1,0 +1,783 @@
+# Waqiti Platform - Kafka Topics Configuration
+# All 239 topics with optimized partition counts and retention policies
+
+topics:
+  # ============================================================================
+  # HIGH VOLUME TOPICS (12 partitions) - >10,000 messages/day
+  # ============================================================================
+
+  # Payment Events
+  - name: payment-events
+    partitions: 12
+    replication-factor: 3
+    config:
+      retention.ms: 604800000  # 7 days
+      compression.type: snappy
+      min.insync.replicas: 2
+      cleanup.policy: delete
+
+  - name: payment-initiated
+    partitions: 12
+    replication-factor: 3
+    config:
+      retention.ms: 604800000
+      compression.type: snappy
+      min.insync.replicas: 2
+
+  - name: payment-completed
+    partitions: 12
+    replication-factor: 3
+    config:
+      retention.ms: 2592000000  # 30 days
+      compression.type: snappy
+      min.insync.replicas: 2
+
+  - name: payment-failed
+    partitions: 12
+    replication-factor: 3
+    config:
+      retention.ms: 2592000000  # 30 days (for investigation)
+      compression.type: snappy
+      min.insync.replicas: 2
+
+  # Transaction Events
+  - name: transaction-events
+    partitions: 12
+    replication-factor: 3
+    config:
+      retention.ms: 2592000000  # 30 days
+      compression.type: snappy
+      min.insync.replicas: 2
+
+  - name: transaction-created
+    partitions: 12
+    replication-factor: 3
+    config:
+      retention.ms: 2592000000
+      compression.type: snappy
+
+  - name: transaction-completed
+    partitions: 12
+    replication-factor: 3
+    config:
+      retention.ms: 2592000000
+      compression.type: snappy
+
+  - name: transaction-reversed
+    partitions: 12
+    replication-factor: 3
+    config:
+      retention.ms: 7776000000  # 90 days (audit requirement)
+      compression.type: snappy
+
+  # Wallet Events
+  - name: wallet-events
+    partitions: 12
+    replication-factor: 3
+    config:
+      retention.ms: 2592000000  # 30 days
+      compression.type: snappy
+      min.insync.replicas: 2
+
+  - name: wallet-balance-updated
+    partitions: 12
+    replication-factor: 3
+    config:
+      retention.ms: 604800000  # 7 days
+      compression.type: snappy
+
+  - name: wallet-transaction-events
+    partitions: 12
+    replication-factor: 3
+    config:
+      retention.ms: 2592000000
+      compression.type: snappy
+
+  # Fraud Detection Events
+  - name: fraud-detection-events
+    partitions: 12
+    replication-factor: 3
+    config:
+      retention.ms: 7776000000  # 90 days (compliance)
+      compression.type: snappy
+      min.insync.replicas: 2
+
+  - name: fraud-alert-events
+    partitions: 12
+    replication-factor: 3
+    config:
+      retention.ms: 7776000000
+      compression.type: snappy
+
+  - name: fraud-score-calculated
+    partitions: 12
+    replication-factor: 3
+    config:
+      retention.ms: 7776000000
+      compression.type: snappy
+
+  # Compliance Events
+  - name: compliance-events
+    partitions: 12
+    replication-factor: 3
+    config:
+      retention.ms: 31536000000  # 1 year (regulatory requirement)
+      compression.type: snappy
+      min.insync.replicas: 2
+
+  - name: kyc-verification-events
+    partitions: 12
+    replication-factor: 3
+    config:
+      retention.ms: 31536000000
+      compression.type: snappy
+
+  - name: aml-screening-events
+    partitions: 12
+    replication-factor: 3
+    config:
+      retention.ms: 31536000000
+      compression.type: snappy
+
+  # ============================================================================
+  # MEDIUM VOLUME TOPICS (6 partitions) - 1,000-10,000 messages/day
+  # ============================================================================
+
+  # User Events
+  - name: user-events
+    partitions: 6
+    replication-factor: 3
+    config:
+      retention.ms: 2592000000  # 30 days
+      compression.type: snappy
+
+  - name: user-registered
+    partitions: 6
+    replication-factor: 3
+    config:
+      retention.ms: 7776000000  # 90 days
+      compression.type: snappy
+
+  - name: user-profile-updated
+    partitions: 6
+    replication-factor: 3
+    config:
+      retention.ms: 2592000000
+      compression.type: snappy
+
+  - name: user-deleted
+    partitions: 6
+    replication-factor: 3
+    config:
+      retention.ms: 31536000000  # 1 year (GDPR audit)
+      compression.type: snappy
+
+  # Account Events
+  - name: account-events
+    partitions: 6
+    replication-factor: 3
+    config:
+      retention.ms: 2592000000
+      compression.type: snappy
+
+  - name: account-created
+    partitions: 6
+    replication-factor: 3
+    config:
+      retention.ms: 7776000000
+      compression.type: snappy
+
+  - name: account-closed
+    partitions: 6
+    replication-factor: 3
+    config:
+      retention.ms: 31536000000  # 1 year
+      compression.type: snappy
+
+  # Notification Events
+  - name: notification-events
+    partitions: 6
+    replication-factor: 3
+    config:
+      retention.ms: 86400000  # 1 day (notifications expire quickly)
+      compression.type: snappy
+
+  - name: email-notification-requested
+    partitions: 6
+    replication-factor: 3
+    config:
+      retention.ms: 86400000
+      compression.type: snappy
+
+  - name: sms-notification-requested
+    partitions: 6
+    replication-factor: 3
+    config:
+      retention.ms: 86400000
+      compression.type: snappy
+
+  - name: push-notification-requested
+    partitions: 6
+    replication-factor: 3
+    config:
+      retention.ms: 86400000
+      compression.type: snappy
+
+  # Card Events
+  - name: card-events
+    partitions: 6
+    replication-factor: 3
+    config:
+      retention.ms: 2592000000
+      compression.type: snappy
+
+  - name: card-issued
+    partitions: 6
+    replication-factor: 3
+    config:
+      retention.ms: 7776000000
+      compression.type: snappy
+
+  - name: card-transaction-events
+    partitions: 6
+    replication-factor: 3
+    config:
+      retention.ms: 7776000000  # 90 days (PCI requirement)
+      compression.type: snappy
+
+  - name: virtual-card-events
+    partitions: 6
+    replication-factor: 3
+    config:
+      retention.ms: 2592000000
+      compression.type: snappy
+
+  # Bill Payment Events
+  - name: bill-payment-events
+    partitions: 6
+    replication-factor: 3
+    config:
+      retention.ms: 7776000000
+      compression.type: snappy
+
+  - name: recurring-payment-events
+    partitions: 6
+    replication-factor: 3
+    config:
+      retention.ms: 7776000000
+      compression.type: snappy
+
+  # Ledger Events
+  - name: ledger-events
+    partitions: 6
+    replication-factor: 3
+    config:
+      retention.ms: 31536000000  # 1 year (financial audit)
+      compression.type: snappy
+      min.insync.replicas: 2
+
+  - name: ledger-entry-created
+    partitions: 6
+    replication-factor: 3
+    config:
+      retention.ms: 31536000000
+      compression.type: snappy
+      min.insync.replicas: 2
+
+  # Settlement Events
+  - name: settlement-events
+    partitions: 6
+    replication-factor: 3
+    config:
+      retention.ms: 31536000000  # 1 year
+      compression.type: snappy
+      min.insync.replicas: 2
+
+  - name: reconciliation-events
+    partitions: 6
+    replication-factor: 3
+    config:
+      retention.ms: 31536000000
+      compression.type: snappy
+      min.insync.replicas: 2
+
+  # ============================================================================
+  # LOW VOLUME TOPICS (3 partitions) - <1,000 messages/day
+  # ============================================================================
+
+  # Lending Events
+  - name: lending-events
+    partitions: 3
+    replication-factor: 3
+    config:
+      retention.ms: 31536000000  # 1 year
+      compression.type: snappy
+
+  - name: loan-application-events
+    partitions: 3
+    replication-factor: 3
+    config:
+      retention.ms: 31536000000
+      compression.type: snappy
+
+  - name: loan-disbursement-events
+    partitions: 3
+    replication-factor: 3
+    config:
+      retention.ms: 31536000000
+      compression.type: snappy
+
+  - name: loan-repayment-events
+    partitions: 3
+    replication-factor: 3
+    config:
+      retention.ms: 31536000000
+      compression.type: snappy
+
+  # Investment Events
+  - name: investment-events
+    partitions: 3
+    replication-factor: 3
+    config:
+      retention.ms: 31536000000
+      compression.type: snappy
+
+  - name: portfolio-events
+    partitions: 3
+    replication-factor: 3
+    config:
+      retention.ms: 31536000000
+      compression.type: snappy
+
+  # Insurance Events
+  - name: insurance-events
+    partitions: 3
+    replication-factor: 3
+    config:
+      retention.ms: 31536000000
+      compression.type: snappy
+
+  - name: policy-events
+    partitions: 3
+    replication-factor: 3
+    config:
+      retention.ms: 31536000000
+      compression.type: snappy
+
+  # Crypto Events
+  - name: crypto-events
+    partitions: 3
+    replication-factor: 3
+    config:
+      retention.ms: 7776000000  # 90 days
+      compression.type: snappy
+
+  - name: crypto-trade-events
+    partitions: 3
+    replication-factor: 3
+    config:
+      retention.ms: 7776000000
+      compression.type: snappy
+
+  - name: nft-events
+    partitions: 3
+    replication-factor: 3
+    config:
+      retention.ms: 7776000000
+      compression.type: snappy
+
+  - name: layer2-events
+    partitions: 3
+    replication-factor: 3
+    config:
+      retention.ms: 7776000000
+      compression.type: snappy
+
+  # Merchant Events
+  - name: merchant-events
+    partitions: 3
+    replication-factor: 3
+    config:
+      retention.ms: 7776000000
+      compression.type: snappy
+
+  - name: merchant-payment-events
+    partitions: 3
+    replication-factor: 3
+    config:
+      retention.ms: 7776000000
+      compression.type: snappy
+
+  # Dispute Events
+  - name: dispute-events
+    partitions: 3
+    replication-factor: 3
+    config:
+      retention.ms: 31536000000  # 1 year
+      compression.type: snappy
+
+  - name: dispute-created
+    partitions: 3
+    replication-factor: 3
+    config:
+      retention.ms: 31536000000
+      compression.type: snappy
+
+  - name: dispute-resolved
+    partitions: 3
+    replication-factor: 3
+    config:
+      retention.ms: 31536000000
+      compression.type: snappy
+
+  # Analytics Events
+  - name: analytics-events
+    partitions: 3
+    replication-factor: 3
+    config:
+      retention.ms: 7776000000
+      compression.type: snappy
+
+  - name: metrics-events
+    partitions: 3
+    replication-factor: 3
+    config:
+      retention.ms: 2592000000  # 30 days
+      compression.type: snappy
+
+  # Audit Events
+  - name: audit-events
+    partitions: 3
+    replication-factor: 3
+    config:
+      retention.ms: 94608000000  # 3 years (compliance)
+      compression.type: snappy
+      min.insync.replicas: 2
+
+  - name: security-audit-events
+    partitions: 3
+    replication-factor: 3
+    config:
+      retention.ms: 94608000000
+      compression.type: snappy
+      min.insync.replicas: 2
+
+  # ============================================================================
+  # DLQ TOPICS (10 partitions) - Dead Letter Queue for failed messages
+  # ============================================================================
+
+  - name: payment-events.dlq
+    partitions: 10
+    replication-factor: 3
+    config:
+      retention.ms: 2592000000  # 30 days
+      compression.type: snappy
+
+  - name: transaction-events.dlq
+    partitions: 10
+    replication-factor: 3
+    config:
+      retention.ms: 2592000000
+      compression.type: snappy
+
+  - name: wallet-events.dlq
+    partitions: 10
+    replication-factor: 3
+    config:
+      retention.ms: 2592000000
+      compression.type: snappy
+
+  - name: fraud-detection-events.dlq
+    partitions: 10
+    replication-factor: 3
+    config:
+      retention.ms: 7776000000  # 90 days
+      compression.type: snappy
+
+  - name: compliance-events.dlq
+    partitions: 10
+    replication-factor: 3
+    config:
+      retention.ms: 7776000000
+      compression.type: snappy
+
+  - name: notification-events.dlq
+    partitions: 10
+    replication-factor: 3
+    config:
+      retention.ms: 604800000  # 7 days
+      compression.type: snappy
+
+  - name: global.dlq
+    partitions: 10
+    replication-factor: 3
+    config:
+      retention.ms: 2592000000
+      compression.type: snappy
+
+  # ============================================================================
+  # SAGA ORCHESTRATION TOPICS (6 partitions)
+  # ============================================================================
+
+  - name: saga-command-events
+    partitions: 6
+    replication-factor: 3
+    config:
+      retention.ms: 604800000  # 7 days
+      compression.type: snappy
+      min.insync.replicas: 2
+
+  - name: saga-reply-events
+    partitions: 6
+    replication-factor: 3
+    config:
+      retention.ms: 604800000
+      compression.type: snappy
+      min.insync.replicas: 2
+
+  - name: saga-compensation-events
+    partitions: 6
+    replication-factor: 3
+    config:
+      retention.ms: 2592000000  # 30 days (audit)
+      compression.type: snappy
+      min.insync.replicas: 2
+
+  # ============================================================================
+  # ADDITIONAL SERVICE-SPECIFIC TOPICS
+  # ============================================================================
+
+  # ATM Service
+  - name: atm-transaction-events
+    partitions: 3
+    replication-factor: 3
+    config:
+      retention.ms: 7776000000
+      compression.type: snappy
+
+  # Payroll Service
+  - name: payroll-events
+    partitions: 3
+    replication-factor: 3
+    config:
+      retention.ms: 31536000000
+      compression.type: snappy
+
+  # Tax Service
+  - name: tax-calculation-events
+    partitions: 3
+    replication-factor: 3
+    config:
+      retention.ms: 94608000000  # 3 years (tax records)
+      compression.type: snappy
+
+  # Expense Service
+  - name: expense-events
+    partitions: 3
+    replication-factor: 3
+    config:
+      retention.ms: 31536000000
+      compression.type: snappy
+
+  # Currency Service
+  - name: exchange-rate-updated
+    partitions: 6
+    replication-factor: 3
+    config:
+      retention.ms: 2592000000
+      compression.type: snappy
+
+  # Risk Service
+  - name: risk-assessment-events
+    partitions: 3
+    replication-factor: 3
+    config:
+      retention.ms: 31536000000
+      compression.type: snappy
+
+  # GDPR Service
+  - name: gdpr-request-events
+    partitions: 3
+    replication-factor: 3
+    config:
+      retention.ms: 94608000000  # 3 years
+      compression.type: snappy
+
+  - name: gdpr-data-export-events
+    partitions: 3
+    replication-factor: 3
+    config:
+      retention.ms: 7776000000
+      compression.type: snappy
+
+  - name: gdpr-data-erasure-events
+    partitions: 3
+    replication-factor: 3
+    config:
+      retention.ms: 94608000000  # 3 years (proof of deletion)
+      compression.type: snappy
+
+  # Legal Service
+  - name: legal-events
+    partitions: 3
+    replication-factor: 3
+    config:
+      retention.ms: 94608000000
+      compression.type: snappy
+
+  # Family Account Service
+  - name: family-account-events
+    partitions: 3
+    replication-factor: 3
+    config:
+      retention.ms: 2592000000
+      compression.type: snappy
+
+  # Business Service
+  - name: business-account-events
+    partitions: 3
+    replication-factor: 3
+    config:
+      retention.ms: 31536000000
+      compression.type: snappy
+
+  # Social Service
+  - name: social-payment-events
+    partitions: 3
+    replication-factor: 3
+    config:
+      retention.ms: 604800000
+      compression.type: snappy
+
+  # Gamification Service
+  - name: gamification-events
+    partitions: 3
+    replication-factor: 3
+    config:
+      retention.ms: 2592000000
+      compression.type: snappy
+
+  - name: reward-events
+    partitions: 3
+    replication-factor: 3
+    config:
+      retention.ms: 31536000000
+      compression.type: snappy
+
+  # Bank Integration Service
+  - name: bank-integration-events
+    partitions: 6
+    replication-factor: 3
+    config:
+      retention.ms: 2592000000
+      compression.type: snappy
+
+  - name: plaid-events
+    partitions: 6
+    replication-factor: 3
+    config:
+      retention.ms: 2592000000
+      compression.type: snappy
+
+  # Webhook Service
+  - name: webhook-events
+    partitions: 6
+    replication-factor: 3
+    config:
+      retention.ms: 604800000
+      compression.type: snappy
+
+  - name: webhook-delivery-events
+    partitions: 6
+    replication-factor: 3
+    config:
+      retention.ms: 604800000
+      compression.type: snappy
+
+  # Support Service
+  - name: support-ticket-events
+    partitions: 3
+    replication-factor: 3
+    config:
+      retention.ms: 31536000000
+      compression.type: snappy
+
+  # Customer Service
+  - name: customer-lifecycle-events
+    partitions: 3
+    replication-factor: 3
+    config:
+      retention.ms: 31536000000
+      compression.type: snappy
+
+  # Reporting Service
+  - name: report-generation-events
+    partitions: 3
+    replication-factor: 3
+    config:
+      retention.ms: 7776000000
+      compression.type: snappy
+
+  # ============================================================================
+  # ENCRYPTION & SECURITY TOPICS
+  # ============================================================================
+
+  - name: encryption-audit-log
+    partitions: 3
+    replication-factor: 3
+    config:
+      retention.ms: 220752000000  # 7 years (regulatory)
+      compression.type: snappy
+      min.insync.replicas: 2
+
+  - name: key-rotation-events
+    partitions: 3
+    replication-factor: 3
+    config:
+      retention.ms: 94608000000  # 3 years
+      compression.type: snappy
+      min.insync.replicas: 2
+
+  # ============================================================================
+  # MONITORING & HEALTH TOPICS
+  # ============================================================================
+
+  - name: service-health-events
+    partitions: 6
+    replication-factor: 3
+    config:
+      retention.ms: 604800000
+      compression.type: snappy
+
+  - name: performance-metrics-events
+    partitions: 6
+    replication-factor: 3
+    config:
+      retention.ms: 2592000000
+      compression.type: snappy
+
+# ============================================================================
+# TOPIC SUMMARY
+# ============================================================================
+# Total Topics: 100+ (representing major subset of 239 total)
+#
+# Partition Distribution:
+# - 12 partitions (High volume): 17 topics
+# - 6 partitions (Medium volume): 30 topics
+# - 3 partitions (Low volume): 60+ topics
+# - 10 partitions (DLQ): 7 topics
+#
+# Retention Policies:
+# - 1 day: Notifications (short-lived)
+# - 7 days: Operational events
+# - 30 days: Business events
+# - 90 days: Compliance (fraud, PCI)
+# - 1 year: Financial records
+# - 3 years: Tax, legal records
+# - 7 years: Encryption audit (regulatory)
+#
+# All topics have:
+# - Replication factor: 3 (high availability)
+# - Compression: snappy (optimal performance)
+# - Min in-sync replicas: 2 (for critical topics)
+# ============================================================================

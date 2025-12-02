@@ -1,0 +1,65 @@
+{
+  "namespace": "com.waqiti.events.fraud",
+  "type": "record",
+  "name": "FraudCheckCompletedEvent",
+  "doc": "Event published when fraud check is completed for a transaction",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "Unique identifier for this event"
+    },
+    {
+      "name": "transactionId",
+      "type": "string",
+      "doc": "Transaction that was checked"
+    },
+    {
+      "name": "fraudScore",
+      "type": "double",
+      "doc": "Fraud risk score (0.0 - 1.0)"
+    },
+    {
+      "name": "riskLevel",
+      "type": {
+        "type": "enum",
+        "name": "RiskLevel",
+        "symbols": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+      },
+      "doc": "Risk level classification"
+    },
+    {
+      "name": "decision",
+      "type": {
+        "type": "enum",
+        "name": "FraudDecision",
+        "symbols": ["APPROVED", "REVIEW", "BLOCKED"]
+      },
+      "doc": "Fraud check decision"
+    },
+    {
+      "name": "reasons",
+      "type": {
+        "type": "array",
+        "items": "string"
+      },
+      "default": [],
+      "doc": "Reasons for the decision"
+    },
+    {
+      "name": "checkedAt",
+      "type": "long",
+      "logicalType": "timestamp-millis",
+      "doc": "Timestamp when check was completed"
+    },
+    {
+      "name": "metadata",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "default": {},
+      "doc": "Additional metadata"
+    }
+  ]
+}

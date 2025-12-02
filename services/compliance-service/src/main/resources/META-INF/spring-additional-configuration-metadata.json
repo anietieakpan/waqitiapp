@@ -1,0 +1,232 @@
+{
+  "properties": [
+    {
+      "name": "keycloak.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Keycloak authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "keycloak.realm",
+      "type": "java.lang.String",
+      "description": "Keycloak realm name",
+      "defaultValue": "waqiti"
+    },
+    {
+      "name": "keycloak.auth-server-url",
+      "type": "java.lang.String",
+      "description": "Keycloak authentication server URL",
+      "defaultValue": "https://localhost:8080"
+    },
+    {
+      "name": "keycloak.ssl-required",
+      "type": "java.lang.String",
+      "description": "SSL requirement level for Keycloak",
+      "defaultValue": "external"
+    },
+    {
+      "name": "keycloak.resource",
+      "type": "java.lang.String",
+      "description": "Keycloak resource/client ID",
+      "defaultValue": "compliance-service"
+    },
+    {
+      "name": "keycloak.bearer-only",
+      "type": "java.lang.Boolean",
+      "description": "Configure Keycloak as bearer-only client",
+      "defaultValue": true
+    },
+    {
+      "name": "keycloak.use-resource-role-mappings",
+      "type": "java.lang.Boolean",
+      "description": "Use resource-level role mappings in Keycloak",
+      "defaultValue": true
+    },
+    {
+      "name": "keycloak.cors",
+      "type": "java.lang.Boolean",
+      "description": "Enable CORS for Keycloak",
+      "defaultValue": true
+    },
+    {
+      "name": "keycloak.cors-allowed-methods",
+      "type": "java.lang.String",
+      "description": "Allowed HTTP methods for CORS",
+      "defaultValue": "GET,POST,PUT,DELETE,OPTIONS"
+    },
+    {
+      "name": "keycloak.cors-allowed-headers",
+      "type": "java.lang.String",
+      "description": "Allowed headers for CORS",
+      "defaultValue": "Authorization,Content-Type,X-Requested-With"
+    },
+    {
+      "name": "keycloak.cors-max-age",
+      "type": "java.lang.Integer",
+      "description": "Max age for CORS preflight requests",
+      "defaultValue": 3600
+    },
+    {
+      "name": "keycloak.public-client",
+      "type": "java.lang.Boolean",
+      "description": "Configure Keycloak as public client",
+      "defaultValue": false
+    },
+    {
+      "name": "keycloak.credentials.secret",
+      "type": "java.lang.String",
+      "description": "Keycloak client secret"
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "Service authentication client ID",
+      "defaultValue": "compliance-service"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "Service authentication client secret"
+    },
+    {
+      "name": "compliance.aml.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Anti-Money Laundering (AML) features",
+      "defaultValue": true
+    },
+    {
+      "name": "compliance.aml.screening-threshold",
+      "type": "java.math.BigDecimal",
+      "description": "Threshold for AML screening",
+      "defaultValue": 0.75
+    },
+    {
+      "name": "compliance.aml.high-risk-countries",
+      "type": "java.lang.String",
+      "description": "Comma-separated list of high-risk country codes for AML"
+    },
+    {
+      "name": "compliance.aml.sanctions-list-url",
+      "type": "java.lang.String",
+      "description": "URL for sanctions list updates"
+    },
+    {
+      "name": "compliance.aml.update-frequency",
+      "type": "java.time.Duration",
+      "description": "Frequency for updating AML data",
+      "defaultValue": "24h"
+    },
+    {
+      "name": "compliance.kyc.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Know Your Customer (KYC) features",
+      "defaultValue": true
+    },
+    {
+      "name": "compliance.kyc.verification-levels",
+      "type": "java.lang.String",
+      "description": "Available KYC verification levels",
+      "defaultValue": "BASIC,ENHANCED,FULL"
+    },
+    {
+      "name": "compliance.kyc.document-types",
+      "type": "java.lang.String",
+      "description": "Accepted document types for KYC",
+      "defaultValue": "PASSPORT,DRIVERS_LICENSE,NATIONAL_ID"
+    },
+    {
+      "name": "compliance.kyc.expiry-check",
+      "type": "java.lang.Boolean",
+      "description": "Enable document expiry checking for KYC",
+      "defaultValue": true
+    },
+    {
+      "name": "compliance.kyc.biometric-verification",
+      "type": "java.lang.Boolean",
+      "description": "Enable biometric verification for KYC",
+      "defaultValue": false
+    },
+    {
+      "name": "compliance.pep.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Politically Exposed Person (PEP) screening",
+      "defaultValue": true
+    },
+    {
+      "name": "compliance.pep.screening-api",
+      "type": "java.lang.String",
+      "description": "API endpoint for PEP screening"
+    },
+    {
+      "name": "compliance.pep.auto-flag",
+      "type": "java.lang.Boolean",
+      "description": "Automatically flag PEP matches",
+      "defaultValue": true
+    },
+    {
+      "name": "compliance.transaction-monitoring.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable transaction monitoring",
+      "defaultValue": true
+    },
+    {
+      "name": "compliance.transaction-monitoring.suspicious-amount-threshold",
+      "type": "java.math.BigDecimal",
+      "description": "Threshold for flagging suspicious transaction amounts",
+      "defaultValue": 10000
+    },
+    {
+      "name": "compliance.transaction-monitoring.velocity-check-period",
+      "type": "java.time.Duration",
+      "description": "Period for velocity checking",
+      "defaultValue": "24h"
+    },
+    {
+      "name": "compliance.transaction-monitoring.pattern-detection",
+      "type": "java.lang.Boolean",
+      "description": "Enable pattern detection for transaction monitoring",
+      "defaultValue": true
+    },
+    {
+      "name": "compliance.reporting.ctr-threshold",
+      "type": "java.math.BigDecimal",
+      "description": "Threshold for Currency Transaction Reports (CTR)",
+      "defaultValue": 10000
+    },
+    {
+      "name": "compliance.reporting.sar-auto-file",
+      "type": "java.lang.Boolean",
+      "description": "Automatically file Suspicious Activity Reports (SAR)",
+      "defaultValue": false
+    },
+    {
+      "name": "compliance.reporting.regulatory-api",
+      "type": "java.lang.String",
+      "description": "API endpoint for regulatory reporting"
+    },
+    {
+      "name": "compliance.data-retention.kyc-documents",
+      "type": "java.time.Period",
+      "description": "Data retention period for KYC documents",
+      "defaultValue": "7y"
+    },
+    {
+      "name": "compliance.data-retention.transaction-records",
+      "type": "java.time.Period",
+      "description": "Data retention period for transaction records",
+      "defaultValue": "5y"
+    },
+    {
+      "name": "compliance.data-retention.audit-logs",
+      "type": "java.time.Period",
+      "description": "Data retention period for audit logs",
+      "defaultValue": "10y"
+    }
+  ]
+}

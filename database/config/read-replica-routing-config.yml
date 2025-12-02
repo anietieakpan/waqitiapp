@@ -1,0 +1,366 @@
+# =====================================================================
+# Read Replica Routing Configuration
+# =====================================================================
+# Configuration for intelligent read replica routing with automatic
+# failover, load balancing, and health monitoring
+
+# =====================================================================
+# PRODUCTION ENVIRONMENT
+# =====================================================================
+production:
+  database:
+    routing:
+      # Primary Database Configuration
+      primary:
+        url: jdbc:postgresql://${DB_PRIMARY_HOST:db-primary.internal}:${DB_PRIMARY_PORT:5432}/${DB_NAME:waqiti_core}
+        username: ${DB_USERNAME:waqiti_user}
+        password: ${DB_PASSWORD:${VAULT_DATABASE_PASSWORD}}
+        driver-class-name: org.postgresql.Driver
+        
+        hikari:
+          maximum-pool-size: 50
+          minimum-idle: 10
+          connection-timeout: 30000
+          idle-timeout: 600000
+          max-lifetime: 1800000
+          leak-detection-threshold: 60000
+          pool-name: primary-pool
+          
+          data-source-properties:
+            ApplicationName: ${spring.application.name:waqiti-service}-primary
+            stringtype: unspecified
+            loginTimeout: 10
+            socketTimeout: 30
+            tcpKeepAlive: true
+
+      # Read Replica Configuration
+      read-replicas:
+        # Analytics Read Replica (Optimized for long-running queries)
+        - name: analytics-replica
+          url: jdbc:postgresql://${DB_ANALYTICS_HOST:db-analytics.internal}:${DB_ANALYTICS_PORT:5432}/${DB_NAME:waqiti_core}
+          username: ${DB_USERNAME:waqiti_user}
+          password: ${DB_PASSWORD:${VAULT_DATABASE_PASSWORD}}
+          driver-class-name: org.postgresql.Driver
+          priority: 1
+          tags: ["analytics", "reporting"]
+          
+          hikari:
+            maximum-pool-size: 30
+            minimum-idle: 5
+            connection-timeout: 45000    # Longer timeout for analytics
+            idle-timeout: 1800000       # 30 minutes for long-running queries
+            max-lifetime: 3600000       # 1 hour
+            leak-detection-threshold: 120000
+            pool-name: analytics-replica-pool
+            
+            data-source-properties:
+              ApplicationName: ${spring.application.name:waqiti-service}-analytics
+              defaultRowFetchSize: 1000  # Optimize for large result sets
+              readOnly: true
+              loginTimeout: 15
+              socketTimeout: 60          # Longer socket timeout
+              tcpKeepAlive: true
+
+        # General Read Replica (Optimized for frequent small queries)
+        - name: read-replica-1
+          url: jdbc:postgresql://${DB_REPLICA1_HOST:db-replica1.internal}:${DB_REPLICA1_PORT:5432}/${DB_NAME:waqiti_core}
+          username: ${DB_USERNAME:waqiti_user}
+          password: ${DB_PASSWORD:${VAULT_DATABASE_PASSWORD}}
+          driver-class-name: org.postgresql.Driver
+          priority: 2
+          tags: ["general", "transactions"]
+          
+          hikari:
+            maximum-pool-size: 40
+            minimum-idle: 8
+            connection-timeout: 30000
+            idle-timeout: 600000        # 10 minutes
+            max-lifetime: 1800000       # 30 minutes
+            leak-detection-threshold: 60000
+            pool-name: read-replica-1-pool
+            
+            data-source-properties:
+              ApplicationName: ${spring.application.name:waqiti-service}-replica1
+              readOnly: true
+              loginTimeout: 10
+              socketTimeout: 30
+              tcpKeepAlive: true
+
+        # High-Availability Read Replica (Secondary failover)
+        - name: read-replica-2
+          url: jdbc:postgresql://${DB_REPLICA2_HOST:db-replica2.internal}:${DB_REPLICA2_PORT:5432}/${DB_NAME:waqiti_core}
+          username: ${DB_USERNAME:waqiti_user}
+          password: ${DB_PASSWORD:${VAULT_DATABASE_PASSWORD}}
+          driver-class-name: org.postgresql.Driver
+          priority: 3
+          tags: ["general", "failover"]
+          
+          hikari:
+            maximum-pool-size: 35
+            minimum-idle: 7
+            connection-timeout: 30000
+            idle-timeout: 600000
+            max-lifetime: 1800000
+            leak-detection-threshold: 60000
+            pool-name: read-replica-2-pool
+            
+            data-source-properties:
+              ApplicationName: ${spring.application.name:waqiti-service}-replica2
+              readOnly: true
+              loginTimeout: 10
+              socketTimeout: 30
+              tcpKeepAlive: true
+
+      # Routing Strategy Configuration
+      routing-strategy:
+        # Load balancing algorithm: round-robin, least-connections, weighted, random
+        load-balancing: "least-connections"
+        
+        # Automatic failover settings
+        failover:
+          enabled: true
+          max-retries: 3
+          retry-delay-ms: 500
+          circuit-breaker:
+            failure-threshold: 5
+            recovery-timeout-ms: 30000
+            half-open-max-calls: 3
+        
+        # Health monitoring settings
+        health-monitoring:
+          enabled: true
+          check-interval-ms: 30000
+          connection-timeout-ms: 5000
+          query-timeout-ms: 10000
+          max-lag-seconds: 30
+          consecutive-failure-threshold: 3
+          
+        # Query routing rules
+        query-routing:
+          # Route analytics queries to analytics replica
+          analytics-queries:
+            patterns:
+              - ".*aggregate.*"
+              - ".*sum\\(.*\\).*"
+              - ".*count\\(.*\\).*"
+              - ".*group by.*"
+              - ".*order by.*limit [5-9][0-9]{2,}.*"  # Large LIMIT clauses
+            target-replica-tags: ["analytics"]
+            
+          # Route transaction history to general replicas
+          transaction-queries:
+            patterns:
+              - ".*transactions_partitioned.*"
+              - ".*transaction_history.*"
+            target-replica-tags: ["general", "transactions"]
+            
+          # Route compliance queries to analytics replica
+          compliance-queries:
+            patterns:
+              - ".*audit_events.*"
+              - ".*compliance.*"
+              - ".*suspicious.*"
+            target-replica-tags: ["analytics", "reporting"]
+
+      # Cache Configuration for Read Routing
+      cache:
+        enabled: true
+        replica-selection-cache:
+          ttl-seconds: 60
+          max-size: 1000
+        health-status-cache:
+          ttl-seconds: 30
+          max-size: 100
+
+# =====================================================================
+# DEVELOPMENT ENVIRONMENT
+# =====================================================================
+development:
+  database:
+    routing:
+      primary:
+        url: jdbc:postgresql://localhost:5432/waqiti_dev
+        username: ${DB_USERNAME:${VAULT_DB_DEV_USERNAME}}
+        password: ${DB_PASSWORD:${VAULT_DB_DEV_PASSWORD}}
+        driver-class-name: org.postgresql.Driver
+        
+        hikari:
+          maximum-pool-size: 10
+          minimum-idle: 2
+          connection-timeout: 20000
+          idle-timeout: 300000
+          max-lifetime: 900000
+          pool-name: dev-primary-pool
+
+      # Optional single read replica for development
+      read-replicas:
+        - name: dev-read-replica
+          url: jdbc:postgresql://localhost:5433/waqiti_dev
+          username: ${DB_USERNAME:${VAULT_DB_DEV_USERNAME}}
+          password: ${DB_PASSWORD:${VAULT_DB_DEV_PASSWORD}}
+          driver-class-name: org.postgresql.Driver
+          priority: 1
+          tags: ["general"]
+          
+          hikari:
+            maximum-pool-size: 5
+            minimum-idle: 1
+            connection-timeout: 20000
+            idle-timeout: 300000
+            max-lifetime: 900000
+            pool-name: dev-replica-pool
+
+      routing-strategy:
+        load-balancing: "round-robin"
+        failover:
+          enabled: true
+          max-retries: 2
+        health-monitoring:
+          enabled: true
+          check-interval-ms: 60000  # Less frequent in dev
+          max-lag-seconds: 60       # More tolerant in dev
+
+# =====================================================================
+# TEST ENVIRONMENT
+# =====================================================================
+test:
+  database:
+    routing:
+      primary:
+        url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+        username: sa
+        password: 
+        driver-class-name: org.h2.Driver
+        
+        hikari:
+          maximum-pool-size: 5
+          minimum-idle: 1
+          pool-name: test-pool
+
+      # No read replicas in test environment
+      read-replicas: []
+      
+      routing-strategy:
+        load-balancing: "round-robin"
+        failover:
+          enabled: false  # Simplified for tests
+        health-monitoring:
+          enabled: false  # Disabled for tests
+
+# =====================================================================
+# SERVICE-SPECIFIC CONFIGURATIONS
+# =====================================================================
+
+# Analytics Service - Prefers analytics replica
+analytics-service:
+  database:
+    routing:
+      preferred-replica-tags: ["analytics", "reporting"]
+      query-timeout-ms: 300000  # 5 minutes for complex analytics
+      
+# Reporting Service - Uses analytics replica exclusively
+reporting-service:
+  database:
+    routing:
+      preferred-replica-tags: ["analytics"]
+      force-replica-routing: true  # Never use primary for reads
+      query-timeout-ms: 600000     # 10 minutes for reports
+
+# Real-time Services - Prefer low-latency replicas
+transaction-service:
+  database:
+    routing:
+      preferred-replica-tags: ["general"]
+      max-lag-tolerance-ms: 5000   # Very low lag tolerance
+      
+payment-service:
+  database:
+    routing:
+      preferred-replica-tags: ["general"]
+      max-lag-tolerance-ms: 3000   # Even lower lag tolerance
+
+# =====================================================================
+# MONITORING AND ALERTING
+# =====================================================================
+monitoring:
+  read-replica-routing:
+    metrics:
+      enabled: true
+      include-query-patterns: true
+      include-performance-stats: true
+      
+    alerts:
+      replica-lag-threshold-seconds: 30
+      replica-failure-rate-threshold: 0.05  # 5%
+      failover-count-threshold: 10          # per hour
+      
+      # Alert destinations
+      slack:
+        enabled: ${SLACK_ALERTS_ENABLED:false}
+        webhook-url: ${SLACK_WEBHOOK_URL:}
+        channel: "#database-alerts"
+        
+      email:
+        enabled: ${EMAIL_ALERTS_ENABLED:false}
+        recipients:
+          - "dba@example.com"
+          - "devops@example.com"
+
+# =====================================================================
+# DISASTER RECOVERY
+# =====================================================================
+disaster-recovery:
+  read-replica-routing:
+    # Automatic promotion of read replica to primary
+    auto-promotion:
+      enabled: ${DR_AUTO_PROMOTION_ENABLED:false}
+      primary-failure-threshold: 3
+      promotion-timeout-seconds: 300
+      
+    # Cross-region replica configuration
+    cross-region:
+      enabled: ${CROSS_REGION_REPLICAS_ENABLED:false}
+      regions:
+        - name: "us-east-1"
+          replicas: ["replica-us-east-1"]
+          priority: 10
+        - name: "eu-west-1"
+          replicas: ["replica-eu-west-1"]
+          priority: 20
+          
+    # Backup read sources
+    backup-sources:
+      enabled: true
+      read-only-standby: ${STANDBY_DATABASE_URL:}
+      archive-database: ${ARCHIVE_DATABASE_URL:}
+
+# =====================================================================
+# PERFORMANCE TUNING
+# =====================================================================
+performance:
+  read-replica-routing:
+    # Connection pooling optimization
+    connection-pools:
+      adaptive-sizing: true
+      scale-up-threshold: 0.8
+      scale-down-threshold: 0.3
+      min-scale-interval-seconds: 300
+      
+    # Query optimization
+    query-optimization:
+      statement-cache-size: 256
+      prepared-statement-cache-size: 256
+      result-set-cache-ttl-seconds: 300
+      
+    # Replica selection optimization
+    replica-selection:
+      cache-selection-decisions: true
+      selection-cache-ttl-seconds: 60
+      health-check-parallelization: true
+      
+    # Network optimization
+    network:
+      tcp-keep-alive: true
+      tcp-no-delay: true
+      connect-timeout-ms: 30000
+      socket-timeout-ms: 60000

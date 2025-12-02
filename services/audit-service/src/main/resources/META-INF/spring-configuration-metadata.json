@@ -1,0 +1,379 @@
+{
+  "groups": [
+    {
+      "name": "audit",
+      "type": "com.waqiti.audit.config.AuditProperties",
+      "sourceType": "com.waqiti.audit.config.AuditProperties"
+    },
+    {
+      "name": "audit.retention",
+      "type": "com.waqiti.audit.config.AuditProperties$RetentionProperties",
+      "sourceType": "com.waqiti.audit.config.AuditProperties"
+    },
+    {
+      "name": "audit.integrity",
+      "type": "com.waqiti.audit.config.AuditProperties$IntegrityProperties",
+      "sourceType": "com.waqiti.audit.config.AuditProperties"
+    },
+    {
+      "name": "audit.compliance",
+      "type": "com.waqiti.audit.config.AuditProperties$ComplianceProperties",
+      "sourceType": "com.waqiti.audit.config.AuditProperties"
+    },
+    {
+      "name": "audit.archive",
+      "type": "com.waqiti.audit.config.AuditProperties$ArchiveProperties",
+      "sourceType": "com.waqiti.audit.config.AuditProperties"
+    },
+    {
+      "name": "audit.export",
+      "type": "com.waqiti.audit.config.AuditProperties$ExportProperties",
+      "sourceType": "com.waqiti.audit.config.AuditProperties"
+    },
+    {
+      "name": "audit.search",
+      "type": "com.waqiti.audit.config.AuditProperties$SearchProperties",
+      "sourceType": "com.waqiti.audit.config.AuditProperties"
+    }
+  ],
+  "properties": [
+    {
+      "name": "audit.retention.default-days",
+      "type": "java.lang.Integer",
+      "description": "Default retention period for audit logs in days",
+      "sourceType": "com.waqiti.audit.config.AuditProperties$RetentionProperties",
+      "defaultValue": 2555
+    },
+    {
+      "name": "audit.retention.archive-after-days",
+      "type": "java.lang.Integer",
+      "description": "Number of days after which audit logs are archived",
+      "sourceType": "com.waqiti.audit.config.AuditProperties$RetentionProperties",
+      "defaultValue": 365
+    },
+    {
+      "name": "audit.retention.delete-after-archive",
+      "type": "java.lang.Boolean",
+      "description": "Whether to delete audit logs after archiving",
+      "sourceType": "com.waqiti.audit.config.AuditProperties$RetentionProperties",
+      "defaultValue": false
+    },
+    {
+      "name": "audit.integrity.hash-algorithm",
+      "type": "java.lang.String",
+      "description": "Hash algorithm for audit log integrity",
+      "sourceType": "com.waqiti.audit.config.AuditProperties$IntegrityProperties",
+      "defaultValue": "SHA-256"
+    },
+    {
+      "name": "audit.integrity.chain-verification",
+      "type": "java.lang.Boolean",
+      "description": "Enable chain verification for audit logs",
+      "sourceType": "com.waqiti.audit.config.AuditProperties$IntegrityProperties",
+      "defaultValue": true
+    },
+    {
+      "name": "audit.integrity.periodic-verification",
+      "type": "java.lang.Boolean",
+      "description": "Enable periodic verification of audit log integrity",
+      "sourceType": "com.waqiti.audit.config.AuditProperties$IntegrityProperties",
+      "defaultValue": true
+    },
+    {
+      "name": "audit.integrity.verification-interval",
+      "type": "java.lang.String",
+      "description": "Interval for periodic verification",
+      "sourceType": "com.waqiti.audit.config.AuditProperties$IntegrityProperties",
+      "defaultValue": "24h"
+    },
+    {
+      "name": "audit.compliance.auto-generate-reports",
+      "type": "java.lang.Boolean",
+      "description": "Automatically generate compliance reports",
+      "sourceType": "com.waqiti.audit.config.AuditProperties$ComplianceProperties",
+      "defaultValue": true
+    },
+    {
+      "name": "audit.compliance.report-schedule",
+      "type": "java.lang.String",
+      "description": "Cron schedule for compliance report generation",
+      "sourceType": "com.waqiti.audit.config.AuditProperties$ComplianceProperties",
+      "defaultValue": "0 0 1 * * ?"
+    },
+    {
+      "name": "audit.compliance.sar-threshold-amount",
+      "type": "java.math.BigDecimal",
+      "description": "Suspicious Activity Report threshold amount",
+      "sourceType": "com.waqiti.audit.config.AuditProperties$ComplianceProperties",
+      "defaultValue": 10000
+    },
+    {
+      "name": "audit.compliance.suspicious-patterns",
+      "type": "java.util.List",
+      "description": "List of suspicious transaction patterns to detect",
+      "sourceType": "com.waqiti.audit.config.AuditProperties$ComplianceProperties"
+    },
+    {
+      "name": "audit.archive.storage-type",
+      "type": "java.lang.String",
+      "description": "Storage type for audit archives (s3, local, azure)",
+      "sourceType": "com.waqiti.audit.config.AuditProperties$ArchiveProperties",
+      "defaultValue": "s3"
+    },
+    {
+      "name": "audit.archive.bucket-name",
+      "type": "java.lang.String",
+      "description": "S3 bucket name for audit archives",
+      "sourceType": "com.waqiti.audit.config.AuditProperties$ArchiveProperties"
+    },
+    {
+      "name": "audit.archive.compression",
+      "type": "java.lang.String",
+      "description": "Compression algorithm for archives",
+      "sourceType": "com.waqiti.audit.config.AuditProperties$ArchiveProperties",
+      "defaultValue": "gzip"
+    },
+    {
+      "name": "audit.archive.encryption",
+      "type": "java.lang.String",
+      "description": "Encryption algorithm for archives",
+      "sourceType": "com.waqiti.audit.config.AuditProperties$ArchiveProperties",
+      "defaultValue": "aes-256"
+    },
+    {
+      "name": "audit.export.max-records",
+      "type": "java.lang.Integer",
+      "description": "Maximum number of records for export",
+      "sourceType": "com.waqiti.audit.config.AuditProperties$ExportProperties",
+      "defaultValue": 50000
+    },
+    {
+      "name": "audit.export.supported-formats",
+      "type": "java.lang.String",
+      "description": "Comma-separated list of supported export formats",
+      "sourceType": "com.waqiti.audit.config.AuditProperties$ExportProperties",
+      "defaultValue": "csv,json,pdf"
+    },
+    {
+      "name": "audit.search.index-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable search indexing for audit logs",
+      "sourceType": "com.waqiti.audit.config.AuditProperties$SearchProperties",
+      "defaultValue": true
+    },
+    {
+      "name": "audit.search.index-refresh-interval",
+      "type": "java.lang.String",
+      "description": "Refresh interval for search index",
+      "sourceType": "com.waqiti.audit.config.AuditProperties$SearchProperties",
+      "defaultValue": "5s"
+    },
+    {
+      "name": "services.security-service.url",
+      "type": "java.lang.String",
+      "description": "Security service URL"
+    },
+    {
+      "name": "services.security-service.timeout",
+      "type": "java.lang.String",
+      "description": "Security service timeout",
+      "defaultValue": "30s"
+    },
+    {
+      "name": "services.notification-service.url",
+      "type": "java.lang.String",
+      "description": "Notification service URL"
+    },
+    {
+      "name": "services.notification-service.timeout",
+      "type": "java.lang.String",
+      "description": "Notification service timeout",
+      "defaultValue": "30s"
+    },
+    {
+      "name": "aws.region",
+      "type": "java.lang.String",
+      "description": "AWS region for services",
+      "defaultValue": "us-east-1"
+    },
+    {
+      "name": "aws.access-key-id",
+      "type": "java.lang.String",
+      "description": "AWS access key ID"
+    },
+    {
+      "name": "aws.secret-access-key",
+      "type": "java.lang.String",
+      "description": "AWS secret access key"
+    },
+    {
+      "name": "aws.s3.bucket",
+      "type": "java.lang.String",
+      "description": "S3 bucket for audit archives"
+    },
+    {
+      "name": "security.jwt.secret",
+      "type": "java.lang.String",
+      "description": "JWT secret key"
+    },
+    {
+      "name": "security.jwt.expiration",
+      "type": "java.lang.Long",
+      "description": "JWT token expiration time in milliseconds",
+      "defaultValue": 86400000
+    },
+    {
+      "name": "authentication.mode",
+      "type": "java.lang.String",
+      "description": "Authentication mode (KEYCLOAK or LEGACY_JWT)",
+      "defaultValue": "KEYCLOAK"
+    },
+    {
+      "name": "authentication.legacy-jwt-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable legacy JWT authentication",
+      "defaultValue": false
+    },
+    {
+      "name": "authentication.keycloak-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Keycloak authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "authentication.circuit-breaker.failure-threshold",
+      "type": "java.lang.Integer",
+      "description": "Circuit breaker failure threshold",
+      "defaultValue": 5
+    },
+    {
+      "name": "authentication.circuit-breaker.timeout-duration",
+      "type": "java.lang.Long",
+      "description": "Circuit breaker timeout duration in milliseconds",
+      "defaultValue": 10000
+    },
+    {
+      "name": "authentication.circuit-breaker.half-open-requests",
+      "type": "java.lang.Integer",
+      "description": "Number of requests allowed in half-open state",
+      "defaultValue": 3
+    },
+    {
+      "name": "features.auth.mode",
+      "type": "java.lang.String",
+      "description": "Authentication mode feature flag",
+      "defaultValue": "KEYCLOAK"
+    },
+    {
+      "name": "features.auth.keycloak.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Keycloak authentication feature flag",
+      "defaultValue": true
+    },
+    {
+      "name": "features.auth.legacy.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Legacy authentication feature flag",
+      "defaultValue": false
+    },
+    {
+      "name": "keycloak.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Keycloak integration",
+      "defaultValue": false
+    },
+    {
+      "name": "keycloak.auth-server-url",
+      "type": "java.lang.String",
+      "description": "Keycloak authentication server URL"
+    },
+    {
+      "name": "keycloak.realm",
+      "type": "java.lang.String",
+      "description": "Keycloak realm name",
+      "defaultValue": "waqiti-fintech"
+    },
+    {
+      "name": "keycloak.resource",
+      "type": "java.lang.String",
+      "description": "Keycloak client resource ID",
+      "defaultValue": "audit-service"
+    },
+    {
+      "name": "keycloak.bearer-only",
+      "type": "java.lang.Boolean",
+      "description": "Bearer-only authentication mode",
+      "defaultValue": true
+    },
+    {
+      "name": "keycloak.ssl-required",
+      "type": "java.lang.String",
+      "description": "SSL requirement for Keycloak",
+      "defaultValue": "external"
+    },
+    {
+      "name": "keycloak.verify-token-audience",
+      "type": "java.lang.Boolean",
+      "description": "Verify token audience in Keycloak",
+      "defaultValue": true
+    },
+    {
+      "name": "keycloak.use-resource-role-mappings",
+      "type": "java.lang.Boolean",
+      "description": "Use resource role mappings in Keycloak",
+      "defaultValue": true
+    },
+    {
+      "name": "keycloak.principal-attribute",
+      "type": "java.lang.String",
+      "description": "Principal attribute for Keycloak",
+      "defaultValue": "preferred_username"
+    },
+    {
+      "name": "keycloak.credentials.secret",
+      "type": "java.lang.String",
+      "description": "Keycloak client secret"
+    },
+    {
+      "name": "keycloak.public-client",
+      "type": "java.lang.Boolean",
+      "description": "Whether this is a public client",
+      "defaultValue": false
+    }
+  ],
+  "hints": [
+    {
+      "name": "audit.archive.storage-type",
+      "values": [
+        {"value": "s3", "description": "Amazon S3 storage"},
+        {"value": "local", "description": "Local filesystem storage"},
+        {"value": "azure", "description": "Azure Blob storage"},
+        {"value": "gcs", "description": "Google Cloud Storage"}
+      ]
+    },
+    {
+      "name": "audit.archive.compression",
+      "values": [
+        {"value": "gzip", "description": "GZIP compression"},
+        {"value": "zip", "description": "ZIP compression"},
+        {"value": "bzip2", "description": "BZIP2 compression"},
+        {"value": "none", "description": "No compression"}
+      ]
+    },
+    {
+      "name": "audit.archive.encryption",
+      "values": [
+        {"value": "aes-256", "description": "AES-256 encryption"},
+        {"value": "aes-128", "description": "AES-128 encryption"},
+        {"value": "none", "description": "No encryption"}
+      ]
+    },
+    {
+      "name": "authentication.mode",
+      "values": [
+        {"value": "KEYCLOAK", "description": "Use Keycloak for authentication"},
+        {"value": "LEGACY_JWT", "description": "Use legacy JWT authentication (deprecated)"}
+      ]
+    }
+  ]
+}

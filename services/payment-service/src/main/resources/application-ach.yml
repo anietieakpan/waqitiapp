@@ -1,0 +1,73 @@
+# ACH Batch Processing Configuration
+# NACHA-compliant ACH processing settings
+
+ach:
+  # Batch configuration
+  batch:
+    max-transactions: 2500          # NACHA limit per batch
+    max-amount: 25000000.00         # $25M max batch amount
+    auto-submit: true               # Auto-submit batches when ready
+    processing-cutoff-hour: 14      # 2 PM cutoff for same-day processing
+
+  # Settlement configuration
+  settlement:
+    standard-days: 1                # Standard ACH settlement (T+1)
+    next-day-enabled: true          # Enable next-day ACH
+    same-day-enabled: false         # Same-day ACH (requires special agreement)
+
+  # Validation configuration
+  validation:
+    strict-mode: true               # Enforce strict NACHA validation
+    routing-number-check: true     # Validate routing numbers
+    account-number-check: true     # Validate account numbers
+    amount-validation: true        # Validate transaction amounts
+
+  # Security configuration
+  duplicate-detection: true         # Enable duplicate transaction detection
+  fraud-monitoring: true            # Enable fraud monitoring
+  velocity-checks: true             # Enable velocity checks
+
+  # File generation
+  file:
+    format: NACHA                   # File format (NACHA, XML, JSON)
+    line-length: 94                 # NACHA standard line length
+    blocking-factor: 10             # NACHA blocking factor
+    immediate-destination: "123456789"  # Immediate destination routing
+    immediate-origin: "987654321"       # Immediate origin routing
+
+  # Retry configuration
+  retry:
+    max-attempts: 3                 # Max retry attempts
+    initial-delay: 1000             # Initial delay in ms
+    max-delay: 30000                # Max delay in ms
+    multiplier: 2.0                 # Backoff multiplier
+
+  # Monitoring
+  monitoring:
+    alert-on-failure: true          # Alert on batch failure
+    alert-threshold: 5              # Alert after N failures
+    metrics-enabled: true           # Enable metrics collection
+
+  # Processing windows
+  processing:
+    window-start: "06:00"           # Processing window start
+    window-end: "18:00"             # Processing window end
+    weekend-processing: false       # Process on weekends
+    holiday-processing: false       # Process on holidays
+
+# Kafka topics for ACH events
+spring:
+  kafka:
+    topics:
+      ach:
+        batch-created: "ach.batch.created"
+        batch-submitted: "ach.batch.submitted"
+        batch-processed: "ach.batch.processed"
+        batch-failed: "ach.batch.failed"
+        transaction-processed: "ach.transaction.processed"
+
+# Logging configuration
+logging:
+  level:
+    com.waqiti.payment.service.ACHBatchProcessorService: DEBUG
+    com.waqiti.payment.repository.ACHBatchRepository: DEBUG

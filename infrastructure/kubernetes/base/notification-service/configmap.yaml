@@ -1,0 +1,151 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: notification-service-config
+  namespace: waqiti
+  labels:
+    app: notification-service
+    component: backend
+data:
+  application.yaml: |
+    spring:
+      application:
+        name: notification-service
+      kafka:
+        consumer:
+          group-id: notification-service
+          auto-offset-reset: earliest
+          key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+          value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+          properties:
+            spring.json.trusted.packages: "*"
+        producer:
+          key-serializer: org.apache.kafka.common.serialization.StringSerializer
+          value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+          properties:
+            spring.json.type.mapping: notification:com.waqiti.notification.event.NotificationEvent
+    
+    notification:
+      channels:
+        email:
+          enabled: true
+          provider: sendgrid
+          from-address: noreply@example.com
+          from-name: Waqiti
+          rate-limit: 100
+          rate-limit-window: 3600
+        sms:
+          enabled: true
+          provider: twilio
+          from-number: "+1234567890"
+          rate-limit: 50
+          rate-limit-window: 3600
+        push:
+          enabled: true
+          fcm:
+            enabled: true
+          apns:
+            enabled: true
+            production: true
+          rate-limit: 200
+          rate-limit-window: 3600
+        in-app:
+          enabled: true
+          retention-days: 30
+      
+      templates:
+        welcome:
+          email:
+            subject: "Welcome to Waqiti!"
+            template-id: "d-welcome-email"
+          sms:
+            message: "Welcome to Waqiti! Your digital wallet is ready. Download our app to get started."
+          push:
+            title: "Welcome to Waqiti!"
+            body: "Your digital wallet is ready to use"
+        
+        transaction-success:
+          email:
+            subject: "Payment Successful"
+            template-id: "d-transaction-success"
+          sms:
+            message: "Your payment of ${amount} to ${recipient} was successful. Reference: ${reference}"
+          push:
+            title: "Payment Sent"
+            body: "${amount} sent to ${recipient}"
+        
+        payment-received:
+          email:
+            subject: "You've Received Money!"
+            template-id: "d-payment-received"
+          sms:
+            message: "You received ${amount} from ${sender}. It's now in your Waqiti wallet."
+          push:
+            title: "Money Received"
+            body: "${sender} sent you ${amount}"
+        
+        security-alert:
+          email:
+            subject: "Security Alert"
+            template-id: "d-security-alert"
+          sms:
+            message: "Security alert: ${activity} on your Waqiti account. If this wasn't you, secure your account immediately."
+          push:
+            title: "Security Alert"
+            body: "${activity} detected on your account"
+      
+      retry:
+        max-attempts: 3
+        backoff-multiplier: 2
+        initial-interval: 1000
+        max-interval: 10000
+      
+      queue:
+        batch-size: 100
+        batch-timeout: 5000
+        max-queue-size: 10000
+    
+    management:
+      endpoints:
+        web:
+          exposure:
+            include: health,info,metrics,prometheus
+      endpoint:
+        health:
+          show-details: always
+          probes:
+            enabled: true
+      metrics:
+        export:
+          prometheus:
+            enabled: true
+        tags:
+          application: ${spring.application.name}
+    
+    logging:
+      level:
+        com.waqiti.notification: DEBUG
+        org.springframework.web: INFO
+      pattern:
+        console: "%d{yyyy-MM-dd HH:mm:ss} - %logger{36} - %msg%n"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: notification-templates
+  namespace: waqiti
+  labels:
+    app: notification-service
+    component: backend
+data:
+  email-footer.html: |
+    <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0; text-align: center; color: #666;">
+      <p style="margin: 5px 0;">© 2024 Waqiti. All rights reserved.</p>
+      <p style="margin: 5px 0;">
+        <a href="https://example.com/privacy" style="color: #666; text-decoration: none;">Privacy Policy</a> | 
+        <a href="https://example.com/terms" style="color: #666; text-decoration: none;">Terms of Service</a>
+      </p>
+      <p style="margin: 5px 0; font-size: 12px;">
+        This email was sent by Waqiti. Please do not reply to this email.
+      </p>
+    </div>

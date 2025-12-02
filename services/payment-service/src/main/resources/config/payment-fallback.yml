@@ -1,0 +1,213 @@
+# Payment Provider Fallback Configuration
+payment:
+  fallback:
+    enabled: true
+    max-attempts: 3
+    retry-delay-ms: 1000
+    circuit-breaker-threshold: 50.0
+    timeout-seconds: 30
+    
+    # Provider priority configuration (higher = more preferred)
+    provider-priority:
+      stripe: 100      # Highest priority - most reliable
+      adyen: 90        # Enterprise grade
+      paypal: 80       # Wide acceptance  
+      square: 70       # Good for small businesses
+      braintree: 60    # PayPal owned
+      dwolla: 50       # ACH focused
+    
+    # Provider-specific configurations
+    providers:
+      stripe:
+        enabled: true
+        priority: 100
+        circuit-breaker:
+          failure-rate-threshold: 50
+          slow-call-rate-threshold: 100
+          slow-call-duration-threshold: 2s
+          permitted-number-of-calls-in-half-open-state: 3
+          sliding-window-size: 10
+          minimum-number-of-calls: 5
+        retry:
+          max-attempts: 3
+          wait-duration: 1s
+          exponential-backoff-multiplier: 2
+        health-check:
+          interval-seconds: 30
+          timeout-seconds: 5
+        capabilities:
+          supports-refunds: true
+          supports-recurring: true
+          supports-instant-settlement: true
+          min-amount: 0.50
+          max-amount: 999999.99
+          supported-currencies: 
+            - USD
+            - EUR
+            - GBP
+            - CAD
+            - AUD
+          
+      adyen:
+        enabled: true
+        priority: 90
+        circuit-breaker:
+          failure-rate-threshold: 45
+          slow-call-rate-threshold: 100
+          slow-call-duration-threshold: 3s
+          permitted-number-of-calls-in-half-open-state: 3
+          sliding-window-size: 10
+          minimum-number-of-calls: 5
+        retry:
+          max-attempts: 3
+          wait-duration: 1s
+          exponential-backoff-multiplier: 2
+        health-check:
+          interval-seconds: 30
+          timeout-seconds: 5
+        capabilities:
+          supports-refunds: true
+          supports-recurring: true
+          supports-instant-settlement: true
+          min-amount: 0.01
+          max-amount: 999999.99
+          supported-currencies:
+            - USD
+            - EUR
+            - GBP
+            
+      paypal:
+        enabled: true
+        priority: 80
+        circuit-breaker:
+          failure-rate-threshold: 55
+          slow-call-rate-threshold: 100
+          slow-call-duration-threshold: 5s
+          permitted-number-of-calls-in-half-open-state: 3
+          sliding-window-size: 10
+          minimum-number-of-calls: 5
+        retry:
+          max-attempts: 2
+          wait-duration: 2s
+          exponential-backoff-multiplier: 2
+        health-check:
+          interval-seconds: 45
+          timeout-seconds: 8
+        capabilities:
+          supports-refunds: true
+          supports-recurring: true
+          supports-instant-settlement: false
+          min-amount: 0.01
+          max-amount: 10000.00
+          supported-currencies:
+            - USD
+            - EUR
+            - GBP
+            - CAD
+            - AUD
+            
+      square:
+        enabled: true
+        priority: 70
+        circuit-breaker:
+          failure-rate-threshold: 60
+          slow-call-rate-threshold: 100
+          slow-call-duration-threshold: 4s
+          permitted-number-of-calls-in-half-open-state: 2
+          sliding-window-size: 10
+          minimum-number-of-calls: 5
+        retry:
+          max-attempts: 2
+          wait-duration: 1.5s
+          exponential-backoff-multiplier: 2
+        health-check:
+          interval-seconds: 30
+          timeout-seconds: 6
+        capabilities:
+          supports-refunds: true
+          supports-recurring: false
+          supports-instant-settlement: true
+          min-amount: 1.00
+          max-amount: 50000.00
+          supported-currencies:
+            - USD
+            - CAD
+            
+      braintree:
+        enabled: true
+        priority: 60
+        circuit-breaker:
+          failure-rate-threshold: 55
+          slow-call-rate-threshold: 100
+          slow-call-duration-threshold: 4s
+          permitted-number-of-calls-in-half-open-state: 2
+          sliding-window-size: 10
+          minimum-number-of-calls: 5
+        retry:
+          max-attempts: 2
+          wait-duration: 1s
+          exponential-backoff-multiplier: 2
+        health-check:
+          interval-seconds: 30
+          timeout-seconds: 6
+        capabilities:
+          supports-refunds: true
+          supports-recurring: true
+          supports-instant-settlement: false
+          min-amount: 1.00
+          max-amount: 99999.99
+          supported-currencies:
+            - USD
+            - EUR
+            - GBP
+            
+      dwolla:
+        enabled: true
+        priority: 50
+        circuit-breaker:
+          failure-rate-threshold: 40
+          slow-call-rate-threshold: 100
+          slow-call-duration-threshold: 10s
+          permitted-number-of-calls-in-half-open-state: 2
+          sliding-window-size: 10
+          minimum-number-of-calls: 3
+        retry:
+          max-attempts: 2
+          wait-duration: 3s
+          exponential-backoff-multiplier: 2
+        health-check:
+          interval-seconds: 60
+          timeout-seconds: 10
+        capabilities:
+          supports-refunds: true
+          supports-recurring: false
+          supports-instant-settlement: false
+          min-amount: 0.01
+          max-amount: 5000.00
+          supported-currencies:
+            - USD
+
+# Monitoring and alerting configuration
+monitoring:
+  fallback:
+    alerts:
+      enabled: true
+      webhooks:
+        - url: "${ALERT_WEBHOOK_URL:http://localhost:8080/alerts}"
+          events: 
+            - ALL_PROVIDERS_FAILED
+            - SINGLE_PROVIDER_REMAINING
+            - FALLBACK_SUCCESS_RATE_LOW
+      thresholds:
+        min-healthy-providers: 2
+        max-failure-rate: 0.10  # 10%
+        max-response-time-ms: 5000
+        
+# Kafka event publishing
+events:
+  fallback:
+    enabled: true
+    topic: "payment-fallback-events"
+    publish-success: true
+    publish-failures: true
+    publish-health-changes: true

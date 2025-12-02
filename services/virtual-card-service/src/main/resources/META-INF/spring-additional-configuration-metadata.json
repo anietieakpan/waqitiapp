@@ -1,0 +1,253 @@
+{
+  "properties": [
+    {
+      "name": "virtual-cards.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable virtual cards functionality",
+      "defaultValue": true
+    },
+    {
+      "name": "virtual-cards.max-cards-per-user",
+      "type": "java.lang.Integer",
+      "description": "Maximum virtual cards per user",
+      "defaultValue": 10
+    },
+    {
+      "name": "virtual-cards.card-issuer",
+      "type": "java.lang.String",
+      "description": "Card issuer name",
+      "defaultValue": "WAQITI"
+    },
+    {
+      "name": "virtual-cards.limits.default-daily-limit",
+      "type": "java.math.BigDecimal",
+      "description": "Default daily spending limit",
+      "defaultValue": "1000.00"
+    },
+    {
+      "name": "virtual-cards.limits.default-monthly-limit",
+      "type": "java.math.BigDecimal",
+      "description": "Default monthly spending limit",
+      "defaultValue": "5000.00"
+    },
+    {
+      "name": "virtual-cards.limits.max-single-transaction",
+      "type": "java.math.BigDecimal",
+      "description": "Maximum single transaction amount",
+      "defaultValue": "2500.00"
+    },
+    {
+      "name": "mastercard.api.endpoint",
+      "type": "java.lang.String",
+      "description": "Mastercard API endpoint URL"
+    },
+    {
+      "name": "mastercard.api.consumer-key",
+      "type": "java.lang.String",
+      "description": "Mastercard API consumer key"
+    },
+    {
+      "name": "mastercard.api.private-key-path",
+      "type": "java.lang.String",
+      "description": "Path to Mastercard private key"
+    },
+    {
+      "name": "mastercard.api.keystore-alias",
+      "type": "java.lang.String",
+      "description": "Mastercard keystore alias"
+    },
+    {
+      "name": "mastercard.api.keystore-password",
+      "type": "java.lang.String",
+      "description": "Mastercard keystore password"
+    },
+    {
+      "name": "visa.api.endpoint",
+      "type": "java.lang.String",
+      "description": "Visa API endpoint URL"
+    },
+    {
+      "name": "visa.api.user-id",
+      "type": "java.lang.String",
+      "description": "Visa API user ID"
+    },
+    {
+      "name": "visa.api.password",
+      "type": "java.lang.String",
+      "description": "Visa API password"
+    },
+    {
+      "name": "visa.api.certificate-path",
+      "type": "java.lang.String",
+      "description": "Path to Visa certificate"
+    },
+    {
+      "name": "visa.api.private-key-path",
+      "type": "java.lang.String",
+      "description": "Path to Visa private key"
+    },
+    {
+      "name": "marqeta.api.base-url",
+      "type": "java.lang.String",
+      "description": "Marqeta API base URL",
+      "defaultValue": "https://sandbox-api.marqeta.com"
+    },
+    {
+      "name": "marqeta.api.application-token",
+      "type": "java.lang.String",
+      "description": "Marqeta application token"
+    },
+    {
+      "name": "marqeta.api.access-token",
+      "type": "java.lang.String",
+      "description": "Marqeta access token"
+    },
+    {
+      "name": "marqeta.api.webhook-username",
+      "type": "java.lang.String",
+      "description": "Marqeta webhook username"
+    },
+    {
+      "name": "marqeta.api.webhook-password",
+      "type": "java.lang.String",
+      "description": "Marqeta webhook password"
+    },
+    {
+      "name": "apple-pay.merchant-id",
+      "type": "java.lang.String",
+      "description": "Apple Pay merchant ID"
+    },
+    {
+      "name": "apple-pay.certificate-path",
+      "type": "java.lang.String",
+      "description": "Path to Apple Pay certificate"
+    },
+    {
+      "name": "google-pay.merchant-id",
+      "type": "java.lang.String",
+      "description": "Google Pay merchant ID"
+    },
+    {
+      "name": "google-pay.api-key",
+      "type": "java.lang.String",
+      "description": "Google Pay API key"
+    },
+    {
+      "name": "security.pci-compliance",
+      "type": "java.lang.Boolean",
+      "description": "Enable PCI compliance features",
+      "defaultValue": true
+    },
+    {
+      "name": "security.tokenization.provider",
+      "type": "java.lang.String",
+      "description": "Tokenization provider",
+      "defaultValue": "vault"
+    },
+    {
+      "name": "security.tokenization.encryption-key",
+      "type": "java.lang.String",
+      "description": "Tokenization encryption key"
+    },
+    {
+      "name": "fraud-detection.real-time-monitoring",
+      "type": "java.lang.Boolean",
+      "description": "Enable real-time fraud monitoring",
+      "defaultValue": true
+    },
+    {
+      "name": "fraud-detection.velocity-checks",
+      "type": "java.lang.Boolean",
+      "description": "Enable velocity checks",
+      "defaultValue": true
+    },
+    {
+      "name": "fraud-detection.geo-blocking",
+      "type": "java.lang.Boolean",
+      "description": "Enable geographical blocking",
+      "defaultValue": false
+    },
+    {
+      "name": "fraud-detection.merchant-category-blocking",
+      "type": "java.lang.Boolean",
+      "description": "Enable merchant category blocking",
+      "defaultValue": false
+    },
+    {
+      "name": "card-controls.location-based",
+      "type": "java.lang.Boolean",
+      "description": "Enable location-based controls",
+      "defaultValue": true
+    },
+    {
+      "name": "card-controls.time-based",
+      "type": "java.lang.Boolean",
+      "description": "Enable time-based controls",
+      "defaultValue": true
+    },
+    {
+      "name": "card-controls.merchant-category",
+      "type": "java.lang.Boolean",
+      "description": "Enable merchant category controls",
+      "defaultValue": true
+    },
+    {
+      "name": "card-controls.spending-categories",
+      "type": "java.util.List",
+      "description": "Allowed spending categories"
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "OAuth2 client ID for service",
+      "defaultValue": "virtual-card-service"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "OAuth2 client secret for service"
+    },
+    {
+      "name": "kafka.topics.card-created",
+      "type": "java.lang.String",
+      "description": "Kafka topic for card created events",
+      "defaultValue": "virtual-card-created"
+    },
+    {
+      "name": "kafka.topics.card-activated",
+      "type": "java.lang.String",
+      "description": "Kafka topic for card activated events",
+      "defaultValue": "virtual-card-activated"
+    },
+    {
+      "name": "kafka.topics.card-blocked",
+      "type": "java.lang.String",
+      "description": "Kafka topic for card blocked events",
+      "defaultValue": "virtual-card-blocked"
+    },
+    {
+      "name": "kafka.topics.card-transaction",
+      "type": "java.lang.String",
+      "description": "Kafka topic for card transaction events",
+      "defaultValue": "virtual-card-transaction"
+    },
+    {
+      "name": "kafka.topics.fraud-alert",
+      "type": "java.lang.String",
+      "description": "Kafka topic for fraud alert events",
+      "defaultValue": "fraud-alert-events"
+    },
+    {
+      "name": "kafka.topics.notification",
+      "type": "java.lang.String",
+      "description": "Kafka topic for notification events",
+      "defaultValue": "notification-events"
+    }
+  ]
+}

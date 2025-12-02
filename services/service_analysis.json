@@ -1,0 +1,1675 @@
+{
+  "services_analyzed": 104,
+  "services": [
+    {
+      "name": "account-service",
+      "path": "services/account-service",
+      "status": "PARTIAL",
+      "completion_percentage": 60,
+      "components": {
+        "controllers": 2,
+        "services": 13,
+        "repositories": 3,
+        "entities": 15,
+        "kafka_listeners": 41,
+        "feign_clients": 2
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "accounting-service",
+      "path": "services/accounting-service",
+      "status": "EMPTY",
+      "completion_percentage": 0,
+      "components": {
+        "controllers": 0,
+        "services": 1,
+        "repositories": 2,
+        "entities": 4,
+        "kafka_listeners": 6,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "analytics-service",
+      "path": "services/analytics-service",
+      "status": "COMPLETE",
+      "completion_percentage": 90,
+      "components": {
+        "controllers": 5,
+        "services": 65,
+        "repositories": 26,
+        "entities": 79,
+        "kafka_listeners": 39,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "api-gateway",
+      "path": "services/api-gateway",
+      "status": "PARTIAL",
+      "completion_percentage": 60,
+      "components": {
+        "controllers": 2,
+        "services": 2,
+        "repositories": 0,
+        "entities": 0,
+        "kafka_listeners": 3,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "ar-payment-service",
+      "path": "services/ar-payment-service",
+      "status": "PARTIAL",
+      "completion_percentage": 60,
+      "components": {
+        "controllers": 1,
+        "services": 5,
+        "repositories": 2,
+        "entities": 23,
+        "kafka_listeners": 0,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "atm-service",
+      "path": "services/atm-service",
+      "status": "PARTIAL",
+      "completion_percentage": 60,
+      "components": {
+        "controllers": 1,
+        "services": 4,
+        "repositories": 2,
+        "entities": 5,
+        "kafka_listeners": 3,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "audit-service",
+      "path": "services/audit-service",
+      "status": "COMPLETE",
+      "completion_percentage": 90,
+      "components": {
+        "controllers": 1,
+        "services": 29,
+        "repositories": 11,
+        "entities": 33,
+        "kafka_listeners": 19,
+        "feign_clients": 2
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "auth-service",
+      "path": "services/auth-service",
+      "status": "PARTIAL",
+      "completion_percentage": 60,
+      "components": {
+        "controllers": 1,
+        "services": 1,
+        "repositories": 0,
+        "entities": 0,
+        "kafka_listeners": 4,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": false
+    },
+    {
+      "name": "bank-integration-service",
+      "path": "services/bank-integration-service",
+      "status": "PARTIAL",
+      "completion_percentage": 60,
+      "components": {
+        "controllers": 2,
+        "services": 2,
+        "repositories": 2,
+        "entities": 3,
+        "kafka_listeners": 3,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "banking-service",
+      "path": "services/banking-service",
+      "status": "STUB",
+      "completion_percentage": 10,
+      "components": {
+        "controllers": 0,
+        "services": 1,
+        "repositories": 0,
+        "entities": 3,
+        "kafka_listeners": 1,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": false
+    },
+    {
+      "name": "batch-service",
+      "path": "services/batch-service",
+      "status": "STUB",
+      "completion_percentage": 10,
+      "components": {
+        "controllers": 0,
+        "services": 1,
+        "repositories": 0,
+        "entities": 0,
+        "kafka_listeners": 4,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": false
+    },
+    {
+      "name": "bill-pay-service",
+      "path": "services/bill-pay-service",
+      "status": "STUB",
+      "completion_percentage": 10,
+      "components": {
+        "controllers": 0,
+        "services": 0,
+        "repositories": 0,
+        "entities": 2,
+        "kafka_listeners": 6,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": false
+    },
+    {
+      "name": "bill-payment-service",
+      "path": "services/bill-payment-service",
+      "status": "PARTIAL",
+      "completion_percentage": 60,
+      "components": {
+        "controllers": 1,
+        "services": 1,
+        "repositories": 1,
+        "entities": 0,
+        "kafka_listeners": 0,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "billing-orchestrator-service",
+      "path": "services/billing-orchestrator-service",
+      "status": "PARTIAL",
+      "completion_percentage": 60,
+      "components": {
+        "controllers": 1,
+        "services": 1,
+        "repositories": 3,
+        "entities": 5,
+        "kafka_listeners": 0,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "billing-service",
+      "path": "services/billing-service",
+      "status": "STUB",
+      "completion_percentage": 10,
+      "components": {
+        "controllers": 0,
+        "services": 0,
+        "repositories": 0,
+        "entities": 0,
+        "kafka_listeners": 3,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": false
+    },
+    {
+      "name": "biometric-service",
+      "path": "services/biometric-service",
+      "status": "STUB",
+      "completion_percentage": 10,
+      "components": {
+        "controllers": 0,
+        "services": 0,
+        "repositories": 0,
+        "entities": 0,
+        "kafka_listeners": 1,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": false
+    },
+    {
+      "name": "bnpl-service",
+      "path": "services/bnpl-service",
+      "status": "COMPLETE",
+      "completion_percentage": 90,
+      "components": {
+        "controllers": 5,
+        "services": 10,
+        "repositories": 8,
+        "entities": 18,
+        "kafka_listeners": 1,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "branch-service",
+      "path": "services/branch-service",
+      "status": "STUB",
+      "completion_percentage": 10,
+      "components": {
+        "controllers": 0,
+        "services": 0,
+        "repositories": 0,
+        "entities": 2,
+        "kafka_listeners": 2,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": false
+    },
+    {
+      "name": "business-service",
+      "path": "services/business-service",
+      "status": "COMPLETE",
+      "completion_percentage": 90,
+      "components": {
+        "controllers": 2,
+        "services": 11,
+        "repositories": 6,
+        "entities": 11,
+        "kafka_listeners": 7,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "card-processing-service",
+      "path": "services/card-processing-service",
+      "status": "STUB",
+      "completion_percentage": 10,
+      "components": {
+        "controllers": 0,
+        "services": 0,
+        "repositories": 0,
+        "entities": 0,
+        "kafka_listeners": 1,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": false
+    },
+    {
+      "name": "card-service",
+      "path": "services/card-service",
+      "status": "STUB",
+      "completion_percentage": 10,
+      "components": {
+        "controllers": 0,
+        "services": 0,
+        "repositories": 0,
+        "entities": 2,
+        "kafka_listeners": 15,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": false
+    },
+    {
+      "name": "chargeback-service",
+      "path": "services/chargeback-service",
+      "status": "STUB",
+      "completion_percentage": 10,
+      "components": {
+        "controllers": 0,
+        "services": 0,
+        "repositories": 0,
+        "entities": 0,
+        "kafka_listeners": 1,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": false
+    },
+    {
+      "name": "communication-service",
+      "path": "services/communication-service",
+      "status": "EMPTY",
+      "completion_percentage": 0,
+      "components": {
+        "controllers": 0,
+        "services": 25,
+        "repositories": 1,
+        "entities": 10,
+        "kafka_listeners": 13,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": false
+    },
+    {
+      "name": "compliance-service",
+      "path": "services/compliance-service",
+      "status": "COMPLETE",
+      "completion_percentage": 90,
+      "components": {
+        "controllers": 4,
+        "services": 76,
+        "repositories": 16,
+        "entities": 38,
+        "kafka_listeners": 120,
+        "feign_clients": 2
+      },
+      "todos_count": 1,
+      "has_application_class": true
+    },
+    {
+      "name": "config-service",
+      "path": "services/config-service",
+      "status": "COMPLETE",
+      "completion_percentage": 90,
+      "components": {
+        "controllers": 2,
+        "services": 7,
+        "repositories": 4,
+        "entities": 4,
+        "kafka_listeners": 0,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "core-banking-service",
+      "path": "services/core-banking-service",
+      "status": "COMPLETE",
+      "completion_percentage": 90,
+      "components": {
+        "controllers": 6,
+        "services": 24,
+        "repositories": 10,
+        "entities": 10,
+        "kafka_listeners": 3,
+        "feign_clients": 2
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "credit-service",
+      "path": "services/credit-service",
+      "status": "STUB",
+      "completion_percentage": 10,
+      "components": {
+        "controllers": 0,
+        "services": 0,
+        "repositories": 0,
+        "entities": 0,
+        "kafka_listeners": 4,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": false
+    },
+    {
+      "name": "crypto-service",
+      "path": "services/crypto-service",
+      "status": "COMPLETE",
+      "completion_percentage": 90,
+      "components": {
+        "controllers": 8,
+        "services": 40,
+        "repositories": 21,
+        "entities": 43,
+        "kafka_listeners": 21,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "currency-service",
+      "path": "services/currency-service",
+      "status": "PARTIAL",
+      "completion_percentage": 60,
+      "components": {
+        "controllers": 1,
+        "services": 22,
+        "repositories": 3,
+        "entities": 15,
+        "kafka_listeners": 4,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "customer-service",
+      "path": "services/customer-service",
+      "status": "EMPTY",
+      "completion_percentage": 0,
+      "components": {
+        "controllers": 0,
+        "services": 3,
+        "repositories": 0,
+        "entities": 2,
+        "kafka_listeners": 30,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": false
+    },
+    {
+      "name": "device-service",
+      "path": "services/device-service",
+      "status": "STUB",
+      "completion_percentage": 10,
+      "components": {
+        "controllers": 0,
+        "services": 0,
+        "repositories": 0,
+        "entities": 0,
+        "kafka_listeners": 2,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": false
+    },
+    {
+      "name": "digital-banking-service",
+      "path": "services/digital-banking-service",
+      "status": "STUB",
+      "completion_percentage": 10,
+      "components": {
+        "controllers": 0,
+        "services": 0,
+        "repositories": 0,
+        "entities": 0,
+        "kafka_listeners": 1,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": false
+    },
+    {
+      "name": "discovery-service",
+      "path": "services/discovery-service",
+      "status": "PARTIAL",
+      "completion_percentage": 60,
+      "components": {
+        "controllers": 1,
+        "services": 3,
+        "repositories": 0,
+        "entities": 0,
+        "kafka_listeners": 0,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "dispute-resolution-service",
+      "path": "services/dispute-resolution-service",
+      "status": "PARTIAL",
+      "completion_percentage": 60,
+      "components": {
+        "controllers": 1,
+        "services": 8,
+        "repositories": 1,
+        "entities": 5,
+        "kafka_listeners": 1,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "dispute-service",
+      "path": "services/dispute-service",
+      "status": "PARTIAL",
+      "completion_percentage": 60,
+      "components": {
+        "controllers": 1,
+        "services": 1,
+        "repositories": 0,
+        "entities": 8,
+        "kafka_listeners": 20,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "dlq-service",
+      "path": "services/dlq-service",
+      "status": "STUB",
+      "completion_percentage": 10,
+      "components": {
+        "controllers": 0,
+        "services": 0,
+        "repositories": 0,
+        "entities": 0,
+        "kafka_listeners": 4,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": false
+    },
+    {
+      "name": "event-sourcing-service",
+      "path": "services/event-sourcing-service",
+      "status": "PARTIAL",
+      "completion_percentage": 60,
+      "components": {
+        "controllers": 2,
+        "services": 7,
+        "repositories": 3,
+        "entities": 22,
+        "kafka_listeners": 0,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "expense-service",
+      "path": "services/expense-service",
+      "status": "PARTIAL",
+      "completion_percentage": 60,
+      "components": {
+        "controllers": 1,
+        "services": 3,
+        "repositories": 1,
+        "entities": 10,
+        "kafka_listeners": 0,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "family-account-service",
+      "path": "services/family-account-service",
+      "status": "PARTIAL",
+      "completion_percentage": 60,
+      "components": {
+        "controllers": 1,
+        "services": 1,
+        "repositories": 0,
+        "entities": 3,
+        "kafka_listeners": 0,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "feature-service",
+      "path": "services/feature-service",
+      "status": "EMPTY",
+      "completion_percentage": 0,
+      "components": {
+        "controllers": 0,
+        "services": 5,
+        "repositories": 2,
+        "entities": 3,
+        "kafka_listeners": 2,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": false
+    },
+    {
+      "name": "financial-wellness-service",
+      "path": "services/financial-wellness-service",
+      "status": "PARTIAL",
+      "completion_percentage": 60,
+      "components": {
+        "controllers": 1,
+        "services": 1,
+        "repositories": 2,
+        "entities": 2,
+        "kafka_listeners": 0,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "fraud-detection-service",
+      "path": "services/fraud-detection-service",
+      "status": "COMPLETE",
+      "completion_percentage": 90,
+      "components": {
+        "controllers": 3,
+        "services": 36,
+        "repositories": 11,
+        "entities": 12,
+        "kafka_listeners": 7,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "fraud-service",
+      "path": "services/fraud-service",
+      "status": "STUB",
+      "completion_percentage": 10,
+      "components": {
+        "controllers": 0,
+        "services": 1,
+        "repositories": 0,
+        "entities": 0,
+        "kafka_listeners": 60,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": false
+    },
+    {
+      "name": "gamification-service",
+      "path": "services/gamification-service",
+      "status": "PARTIAL",
+      "completion_percentage": 60,
+      "components": {
+        "controllers": 1,
+        "services": 4,
+        "repositories": 4,
+        "entities": 9,
+        "kafka_listeners": 0,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "gdpr-service",
+      "path": "services/gdpr-service",
+      "status": "PARTIAL",
+      "completion_percentage": 60,
+      "components": {
+        "controllers": 2,
+        "services": 24,
+        "repositories": 2,
+        "entities": 11,
+        "kafka_listeners": 3,
+        "feign_clients": 6
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "group-payment-service",
+      "path": "services/group-payment-service",
+      "status": "PARTIAL",
+      "completion_percentage": 60,
+      "components": {
+        "controllers": 2,
+        "services": 5,
+        "repositories": 2,
+        "entities": 7,
+        "kafka_listeners": 0,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "infrastructure-service",
+      "path": "services/infrastructure-service",
+      "status": "PARTIAL",
+      "completion_percentage": 60,
+      "components": {
+        "controllers": 1,
+        "services": 1,
+        "repositories": 5,
+        "entities": 9,
+        "kafka_listeners": 12,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "insurance-service",
+      "path": "services/insurance-service",
+      "status": "EMPTY",
+      "completion_percentage": 0,
+      "components": {
+        "controllers": 0,
+        "services": 8,
+        "repositories": 0,
+        "entities": 6,
+        "kafka_listeners": 19,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": false
+    },
+    {
+      "name": "integration-service",
+      "path": "services/integration-service",
+      "status": "PARTIAL",
+      "completion_percentage": 60,
+      "components": {
+        "controllers": 1,
+        "services": 6,
+        "repositories": 0,
+        "entities": 0,
+        "kafka_listeners": 2,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "international-service",
+      "path": "services/international-service",
+      "status": "COMPLETE",
+      "completion_percentage": 90,
+      "components": {
+        "controllers": 2,
+        "services": 9,
+        "repositories": 8,
+        "entities": 14,
+        "kafka_listeners": 15,
+        "feign_clients": 2
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "international-transfer-service",
+      "path": "services/international-transfer-service",
+      "status": "PARTIAL",
+      "completion_percentage": 60,
+      "components": {
+        "controllers": 1,
+        "services": 13,
+        "repositories": 2,
+        "entities": 14,
+        "kafka_listeners": 0,
+        "feign_clients": 1
+      },
+      "todos_count": 3,
+      "has_application_class": true
+    },
+    {
+      "name": "investment-service",
+      "path": "services/investment-service",
+      "status": "COMPLETE",
+      "completion_percentage": 90,
+      "components": {
+        "controllers": 8,
+        "services": 30,
+        "repositories": 8,
+        "entities": 28,
+        "kafka_listeners": 21,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "kyc-service",
+      "path": "services/kyc-service",
+      "status": "COMPLETE",
+      "completion_percentage": 90,
+      "components": {
+        "controllers": 9,
+        "services": 40,
+        "repositories": 11,
+        "entities": 11,
+        "kafka_listeners": 11,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "layer2-service",
+      "path": "services/layer2-service",
+      "status": "EMPTY",
+      "completion_percentage": 0,
+      "components": {
+        "controllers": 0,
+        "services": 5,
+        "repositories": 0,
+        "entities": 2,
+        "kafka_listeners": 1,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": false
+    },
+    {
+      "name": "ledger-service",
+      "path": "services/ledger-service",
+      "status": "COMPLETE",
+      "completion_percentage": 90,
+      "components": {
+        "controllers": 9,
+        "services": 45,
+        "repositories": 15,
+        "entities": 20,
+        "kafka_listeners": 28,
+        "feign_clients": 3
+      },
+      "todos_count": 2,
+      "has_application_class": true
+    },
+    {
+      "name": "legal-service",
+      "path": "services/legal-service",
+      "status": "STUB",
+      "completion_percentage": 10,
+      "components": {
+        "controllers": 0,
+        "services": 0,
+        "repositories": 0,
+        "entities": 0,
+        "kafka_listeners": 2,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": false
+    },
+    {
+      "name": "lending-service",
+      "path": "services/lending-service",
+      "status": "STUB",
+      "completion_percentage": 10,
+      "components": {
+        "controllers": 0,
+        "services": 0,
+        "repositories": 0,
+        "entities": 2,
+        "kafka_listeners": 27,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": false
+    },
+    {
+      "name": "loan-service",
+      "path": "services/loan-service",
+      "status": "STUB",
+      "completion_percentage": 10,
+      "components": {
+        "controllers": 0,
+        "services": 0,
+        "repositories": 0,
+        "entities": 0,
+        "kafka_listeners": 15,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": false
+    },
+    {
+      "name": "market-data-service",
+      "path": "services/market-data-service",
+      "status": "STUB",
+      "completion_percentage": 10,
+      "components": {
+        "controllers": 0,
+        "services": 0,
+        "repositories": 0,
+        "entities": 0,
+        "kafka_listeners": 1,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": false
+    },
+    {
+      "name": "merchant-payment-service",
+      "path": "services/merchant-payment-service",
+      "status": "PARTIAL",
+      "completion_percentage": 60,
+      "components": {
+        "controllers": 1,
+        "services": 1,
+        "repositories": 1,
+        "entities": 4,
+        "kafka_listeners": 0,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "merchant-service",
+      "path": "services/merchant-service",
+      "status": "PARTIAL",
+      "completion_percentage": 60,
+      "components": {
+        "controllers": 1,
+        "services": 9,
+        "repositories": 2,
+        "entities": 6,
+        "kafka_listeners": 24,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "messaging-service",
+      "path": "services/messaging-service",
+      "status": "COMPLETE",
+      "completion_percentage": 90,
+      "components": {
+        "controllers": 1,
+        "services": 8,
+        "repositories": 5,
+        "entities": 8,
+        "kafka_listeners": 0,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "ml-service",
+      "path": "services/ml-service",
+      "status": "COMPLETE",
+      "completion_percentage": 90,
+      "components": {
+        "controllers": 5,
+        "services": 26,
+        "repositories": 6,
+        "entities": 29,
+        "kafka_listeners": 5,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "monitoring-service",
+      "path": "services/monitoring-service",
+      "status": "PARTIAL",
+      "completion_percentage": 60,
+      "components": {
+        "controllers": 1,
+        "services": 6,
+        "repositories": 0,
+        "entities": 6,
+        "kafka_listeners": 48,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": false
+    },
+    {
+      "name": "nft-service",
+      "path": "services/nft-service",
+      "status": "STUB",
+      "completion_percentage": 10,
+      "components": {
+        "controllers": 0,
+        "services": 1,
+        "repositories": 0,
+        "entities": 0,
+        "kafka_listeners": 0,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "notification-service",
+      "path": "services/notification-service",
+      "status": "COMPLETE",
+      "completion_percentage": 90,
+      "components": {
+        "controllers": 8,
+        "services": 50,
+        "repositories": 11,
+        "entities": 29,
+        "kafka_listeners": 45,
+        "feign_clients": 4
+      },
+      "todos_count": 6,
+      "has_application_class": true
+    },
+    {
+      "name": "onboarding-service",
+      "path": "services/onboarding-service",
+      "status": "STUB",
+      "completion_percentage": 10,
+      "components": {
+        "controllers": 0,
+        "services": 0,
+        "repositories": 0,
+        "entities": 0,
+        "kafka_listeners": 4,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": false
+    },
+    {
+      "name": "operations-service",
+      "path": "services/operations-service",
+      "status": "STUB",
+      "completion_percentage": 10,
+      "components": {
+        "controllers": 0,
+        "services": 0,
+        "repositories": 0,
+        "entities": 0,
+        "kafka_listeners": 7,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": false
+    },
+    {
+      "name": "orchestration-service",
+      "path": "services/orchestration-service",
+      "status": "STUB",
+      "completion_percentage": 10,
+      "components": {
+        "controllers": 0,
+        "services": 1,
+        "repositories": 0,
+        "entities": 0,
+        "kafka_listeners": 1,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": false
+    },
+    {
+      "name": "payment-service",
+      "path": "services/payment-service",
+      "status": "COMPLETE",
+      "completion_percentage": 90,
+      "components": {
+        "controllers": 31,
+        "services": 230,
+        "repositories": 67,
+        "entities": 146,
+        "kafka_listeners": 155,
+        "feign_clients": 14
+      },
+      "todos_count": 7,
+      "has_application_class": true
+    },
+    {
+      "name": "predictive-scaling-service",
+      "path": "services/predictive-scaling-service",
+      "status": "PARTIAL",
+      "completion_percentage": 60,
+      "components": {
+        "controllers": 1,
+        "services": 2,
+        "repositories": 0,
+        "entities": 4,
+        "kafka_listeners": 0,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "privacy-service",
+      "path": "services/privacy-service",
+      "status": "STUB",
+      "completion_percentage": 10,
+      "components": {
+        "controllers": 0,
+        "services": 1,
+        "repositories": 0,
+        "entities": 1,
+        "kafka_listeners": 2,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": false
+    },
+    {
+      "name": "purchase-protection-service",
+      "path": "services/purchase-protection-service",
+      "status": "PARTIAL",
+      "completion_percentage": 60,
+      "components": {
+        "controllers": 1,
+        "services": 1,
+        "repositories": 3,
+        "entities": 3,
+        "kafka_listeners": 0,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "real-time-analytics-service",
+      "path": "services/real-time-analytics-service",
+      "status": "PARTIAL",
+      "completion_percentage": 60,
+      "components": {
+        "controllers": 1,
+        "services": 5,
+        "repositories": 4,
+        "entities": 16,
+        "kafka_listeners": 1,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "reconciliation-service",
+      "path": "services/reconciliation-service",
+      "status": "COMPLETE",
+      "completion_percentage": 90,
+      "components": {
+        "controllers": 1,
+        "services": 42,
+        "repositories": 9,
+        "entities": 26,
+        "kafka_listeners": 15,
+        "feign_clients": 5
+      },
+      "todos_count": 5,
+      "has_application_class": true
+    },
+    {
+      "name": "recurring-payment-service",
+      "path": "services/recurring-payment-service",
+      "status": "COMPLETE",
+      "completion_percentage": 90,
+      "components": {
+        "controllers": 1,
+        "services": 13,
+        "repositories": 4,
+        "entities": 10,
+        "kafka_listeners": 2,
+        "feign_clients": 5
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "referral-service",
+      "path": "services/referral-service",
+      "status": "STUB",
+      "completion_percentage": 10,
+      "components": {
+        "controllers": 0,
+        "services": 0,
+        "repositories": 0,
+        "entities": 0,
+        "kafka_listeners": 1,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": false
+    },
+    {
+      "name": "regulatory-reporting-service",
+      "path": "services/regulatory-reporting-service",
+      "status": "STUB",
+      "completion_percentage": 10,
+      "components": {
+        "controllers": 0,
+        "services": 0,
+        "repositories": 0,
+        "entities": 0,
+        "kafka_listeners": 1,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": false
+    },
+    {
+      "name": "regulatory-service",
+      "path": "services/regulatory-service",
+      "status": "STUB",
+      "completion_percentage": 10,
+      "components": {
+        "controllers": 0,
+        "services": 0,
+        "repositories": 0,
+        "entities": 0,
+        "kafka_listeners": 2,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": false
+    },
+    {
+      "name": "reporting-service",
+      "path": "services/reporting-service",
+      "status": "COMPLETE",
+      "completion_percentage": 90,
+      "components": {
+        "controllers": 2,
+        "services": 14,
+        "repositories": 5,
+        "entities": 4,
+        "kafka_listeners": 9,
+        "feign_clients": 5
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "rewards-service",
+      "path": "services/rewards-service",
+      "status": "COMPLETE",
+      "completion_percentage": 90,
+      "components": {
+        "controllers": 1,
+        "services": 15,
+        "repositories": 10,
+        "entities": 10,
+        "kafka_listeners": 15,
+        "feign_clients": 3
+      },
+      "todos_count": 2,
+      "has_application_class": true
+    },
+    {
+      "name": "risk-management-service",
+      "path": "services/risk-management-service",
+      "status": "STUB",
+      "completion_percentage": 10,
+      "components": {
+        "controllers": 0,
+        "services": 0,
+        "repositories": 0,
+        "entities": 0,
+        "kafka_listeners": 1,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": false
+    },
+    {
+      "name": "risk-service",
+      "path": "services/risk-service",
+      "status": "EMPTY",
+      "completion_percentage": 0,
+      "components": {
+        "controllers": 0,
+        "services": 2,
+        "repositories": 1,
+        "entities": 3,
+        "kafka_listeners": 25,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": false
+    },
+    {
+      "name": "saga-orchestration-service",
+      "path": "services/saga-orchestration-service",
+      "status": "PARTIAL",
+      "completion_percentage": 60,
+      "components": {
+        "controllers": 1,
+        "services": 7,
+        "repositories": 1,
+        "entities": 6,
+        "kafka_listeners": 0,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "savings-service",
+      "path": "services/savings-service",
+      "status": "PARTIAL",
+      "completion_percentage": 60,
+      "components": {
+        "controllers": 1,
+        "services": 3,
+        "repositories": 0,
+        "entities": 7,
+        "kafka_listeners": 2,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "search-service",
+      "path": "services/search-service",
+      "status": "STUB",
+      "completion_percentage": 10,
+      "components": {
+        "controllers": 0,
+        "services": 0,
+        "repositories": 0,
+        "entities": 0,
+        "kafka_listeners": 1,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": false
+    },
+    {
+      "name": "security-service",
+      "path": "services/security-service",
+      "status": "COMPLETE",
+      "completion_percentage": 90,
+      "components": {
+        "controllers": 9,
+        "services": 75,
+        "repositories": 10,
+        "entities": 59,
+        "kafka_listeners": 53,
+        "feign_clients": 0
+      },
+      "todos_count": 2,
+      "has_application_class": true
+    },
+    {
+      "name": "settlement-service",
+      "path": "services/settlement-service",
+      "status": "STUB",
+      "completion_percentage": 10,
+      "components": {
+        "controllers": 0,
+        "services": 0,
+        "repositories": 0,
+        "entities": 0,
+        "kafka_listeners": 3,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": false
+    },
+    {
+      "name": "sms-banking-service",
+      "path": "services/sms-banking-service",
+      "status": "PARTIAL",
+      "completion_percentage": 60,
+      "components": {
+        "controllers": 1,
+        "services": 7,
+        "repositories": 1,
+        "entities": 1,
+        "kafka_listeners": 0,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "social-commerce-service",
+      "path": "services/social-commerce-service",
+      "status": "PARTIAL",
+      "completion_percentage": 60,
+      "components": {
+        "controllers": 1,
+        "services": 1,
+        "repositories": 0,
+        "entities": 0,
+        "kafka_listeners": 0,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "social-service",
+      "path": "services/social-service",
+      "status": "COMPLETE",
+      "completion_percentage": 90,
+      "components": {
+        "controllers": 1,
+        "services": 11,
+        "repositories": 5,
+        "entities": 11,
+        "kafka_listeners": 1,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "support-service",
+      "path": "services/support-service",
+      "status": "COMPLETE",
+      "completion_percentage": 90,
+      "components": {
+        "controllers": 2,
+        "services": 24,
+        "repositories": 5,
+        "entities": 12,
+        "kafka_listeners": 4,
+        "feign_clients": 1
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "tax-service",
+      "path": "services/tax-service",
+      "status": "PARTIAL",
+      "completion_percentage": 60,
+      "components": {
+        "controllers": 2,
+        "services": 5,
+        "repositories": 7,
+        "entities": 8,
+        "kafka_listeners": 3,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "tokenization-service",
+      "path": "services/tokenization-service",
+      "status": "PARTIAL",
+      "completion_percentage": 60,
+      "components": {
+        "controllers": 1,
+        "services": 3,
+        "repositories": 1,
+        "entities": 3,
+        "kafka_listeners": 1,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "transaction-service",
+      "path": "services/transaction-service",
+      "status": "COMPLETE",
+      "completion_percentage": 90,
+      "components": {
+        "controllers": 2,
+        "services": 54,
+        "repositories": 6,
+        "entities": 14,
+        "kafka_listeners": 13,
+        "feign_clients": 6
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "transfer-service",
+      "path": "services/transfer-service",
+      "status": "STUB",
+      "completion_percentage": 10,
+      "components": {
+        "controllers": 0,
+        "services": 0,
+        "repositories": 0,
+        "entities": 0,
+        "kafka_listeners": 1,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": false
+    },
+    {
+      "name": "treasury-service",
+      "path": "services/treasury-service",
+      "status": "STUB",
+      "completion_percentage": 10,
+      "components": {
+        "controllers": 0,
+        "services": 0,
+        "repositories": 0,
+        "entities": 2,
+        "kafka_listeners": 15,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": false
+    },
+    {
+      "name": "user-service",
+      "path": "services/user-service",
+      "status": "COMPLETE",
+      "completion_percentage": 90,
+      "components": {
+        "controllers": 10,
+        "services": 73,
+        "repositories": 28,
+        "entities": 44,
+        "kafka_listeners": 42,
+        "feign_clients": 4
+      },
+      "todos_count": 3,
+      "has_application_class": true
+    },
+    {
+      "name": "virtual-card-service",
+      "path": "services/virtual-card-service",
+      "status": "COMPLETE",
+      "completion_percentage": 90,
+      "components": {
+        "controllers": 2,
+        "services": 8,
+        "repositories": 12,
+        "entities": 29,
+        "kafka_listeners": 1,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "voice-payment-service",
+      "path": "services/voice-payment-service",
+      "status": "PARTIAL",
+      "completion_percentage": 60,
+      "components": {
+        "controllers": 1,
+        "services": 2,
+        "repositories": 4,
+        "entities": 4,
+        "kafka_listeners": 0,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "wallet-service",
+      "path": "services/wallet-service",
+      "status": "COMPLETE",
+      "completion_percentage": 90,
+      "components": {
+        "controllers": 4,
+        "services": 64,
+        "repositories": 15,
+        "entities": 37,
+        "kafka_listeners": 37,
+        "feign_clients": 6
+      },
+      "todos_count": 1,
+      "has_application_class": true
+    },
+    {
+      "name": "webhook-service",
+      "path": "services/webhook-service",
+      "status": "PARTIAL",
+      "completion_percentage": 60,
+      "components": {
+        "controllers": 1,
+        "services": 4,
+        "repositories": 0,
+        "entities": 11,
+        "kafka_listeners": 4,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "websocket-service",
+      "path": "services/websocket-service",
+      "status": "PARTIAL",
+      "completion_percentage": 60,
+      "components": {
+        "controllers": 1,
+        "services": 3,
+        "repositories": 0,
+        "entities": 0,
+        "kafka_listeners": 1,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": true
+    },
+    {
+      "name": "wire-transfer-service",
+      "path": "services/wire-transfer-service",
+      "status": "STUB",
+      "completion_percentage": 10,
+      "components": {
+        "controllers": 0,
+        "services": 0,
+        "repositories": 0,
+        "entities": 0,
+        "kafka_listeners": 1,
+        "feign_clients": 0
+      },
+      "todos_count": 0,
+      "has_application_class": false
+    }
+  ],
+  "summary": {
+    "complete_services": 28,
+    "partial_services": 37,
+    "stub_services": 32,
+    "empty_services": 7
+  }
+}

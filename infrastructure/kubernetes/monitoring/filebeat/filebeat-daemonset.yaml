@@ -1,0 +1,428 @@
+# Filebeat DaemonSet for ELK Stack
+# Collects logs from all nodes and pods in the cluster
+
+apiVersion: beat.k8s.elastic.co/v1beta1
+kind: Beat
+metadata:
+  name: waqiti-filebeat
+  namespace: example-monitoring
+  labels:
+    app.kubernetes.io/name: filebeat
+    app.kubernetes.io/component: logging
+    app.kubernetes.io/part-of: elk-stack
+spec:
+  type: filebeat
+  version: 8.11.0
+  
+  elasticsearchRef:
+    name: example-elasticsearch
+    namespace: example-monitoring
+
+  config:
+    # Filebeat inputs
+    filebeat.inputs:
+    # Container logs
+    - type: container
+      paths:
+      - /var/log/containers/*.log
+      exclude_lines: ['^\s*$', '^#']
+      multiline.pattern: '^\d{4}-\d{2}-\d{2}'
+      multiline.negate: true
+      multiline.match: after
+      processors:
+      - add_kubernetes_metadata:
+          host: ${NODE_NAME}
+          matchers:
+          - logs_path:
+              logs_path: "/var/log/containers/"
+      - drop_event:
+          when:
+            equals:
+              kubernetes.container.name: "filebeat"
+      
+    # System logs
+    - type: log
+      paths:
+      - /var/log/messages
+      - /var/log/syslog
+      - /var/log/auth.log
+      fields:
+        log_type: system
+      fields_under_root: true
+      
+    # Docker daemon logs
+    - type: log
+      paths:
+      - /var/log/docker.log
+      fields:
+        log_type: docker
+      fields_under_root: true
+
+    # Filebeat modules
+    filebeat.autodiscover:
+      providers:
+      - type: kubernetes
+        node: ${NODE_NAME}
+        hints.enabled: true
+        hints.default_config:
+          type: container
+          paths:
+          - /var/log/containers/*${data.kubernetes.container.id}.log
+        templates:
+        # Waqiti application services
+        - condition:
+            contains:
+              kubernetes.labels.app: "user-service"
+          config:
+            - type: container
+              paths:
+              - /var/log/containers/*${data.kubernetes.container.id}.log
+              fields:
+                service: user-service
+                log_type: application
+              fields_under_root: true
+              multiline.pattern: '^\d{4}-\d{2}-\d{2}'
+              multiline.negate: true
+              multiline.match: after
+              
+        - condition:
+            contains:
+              kubernetes.labels.app: "payment-service"
+          config:
+            - type: container
+              paths:
+              - /var/log/containers/*${data.kubernetes.container.id}.log
+              fields:
+                service: payment-service
+                log_type: application
+              fields_under_root: true
+              multiline.pattern: '^\d{4}-\d{2}-\d{2}'
+              multiline.negate: true
+              multiline.match: after
+              
+        - condition:
+            contains:
+              kubernetes.labels.app: "wallet-service"
+          config:
+            - type: container
+              paths:
+              - /var/log/containers/*${data.kubernetes.container.id}.log
+              fields:
+                service: wallet-service
+                log_type: application
+              fields_under_root: true
+              multiline.pattern: '^\d{4}-\d{2}-\d{2}'
+              multiline.negate: true
+              multiline.match: after
+              
+        - condition:
+            contains:
+              kubernetes.labels.app: "security-service"
+          config:
+            - type: container
+              paths:
+              - /var/log/containers/*${data.kubernetes.container.id}.log
+              fields:
+                service: security-service
+                log_type: application
+              fields_under_root: true
+              multiline.pattern: '^\d{4}-\d{2}-\d{2}'
+              multiline.negate: true
+              multiline.match: after
+              
+        - condition:
+            contains:
+              kubernetes.labels.app: "notification-service"
+          config:
+            - type: container
+              paths:
+              - /var/log/containers/*${data.kubernetes.container.id}.log
+              fields:
+                service: notification-service
+                log_type: application
+              fields_under_root: true
+              multiline.pattern: '^\d{4}-\d{2}-\d{2}'
+              multiline.negate: true
+              multiline.match: after
+              
+        - condition:
+            contains:
+              kubernetes.labels.app: "analytics-service"
+          config:
+            - type: container
+              paths:
+              - /var/log/containers/*${data.kubernetes.container.id}.log
+              fields:
+                service: analytics-service
+                log_type: application
+              fields_under_root: true
+              multiline.pattern: '^\d{4}-\d{2}-\d{2}'
+              multiline.negate: true
+              multiline.match: after
+              
+        - condition:
+            contains:
+              kubernetes.labels.app: "api-gateway"
+          config:
+            - type: container
+              paths:
+              - /var/log/containers/*${data.kubernetes.container.id}.log
+              fields:
+                service: api-gateway
+                log_type: gateway
+              fields_under_root: true
+              
+        # Infrastructure services
+        - condition:
+            contains:
+              kubernetes.labels.app: "postgres"
+          config:
+            - type: container
+              paths:
+              - /var/log/containers/*${data.kubernetes.container.id}.log
+              fields:
+                service: postgres
+                log_type: database
+              fields_under_root: true
+              
+        - condition:
+            contains:
+              kubernetes.labels.app: "redis"
+          config:
+            - type: container
+              paths:
+              - /var/log/containers/*${data.kubernetes.container.id}.log
+              fields:
+                service: redis
+                log_type: cache
+              fields_under_root: true
+
+    # Global processors
+    processors:
+    - add_host_metadata:
+        when.not.contains.tags: forwarded
+    - add_docker_metadata: ~
+    - add_kubernetes_metadata:
+        host: ${NODE_NAME}
+        matchers:
+        - logs_path:
+            logs_path: "/var/log/containers/"
+    - drop_fields:
+        fields: ["agent", "ecs", "input", "log.file.path"]
+        ignore_missing: true
+
+    # Output configuration
+    output.logstash:
+      hosts: ["logstash:5044"]
+      compression_level: 3
+      bulk_max_size: 2048
+      worker: 2
+
+    # Logging configuration
+    logging.level: info
+    logging.to_files: true
+    logging.files:
+      path: /var/log/filebeat
+      name: filebeat
+      keepfiles: 7
+      permissions: 0644
+
+    # Monitoring
+    monitoring.enabled: true
+    monitoring.elasticsearch:
+      hosts: ["https://example-elasticsearch-http:9200"]
+      username: "elastic"
+      password: "${ELASTICSEARCH_PASSWORD}"
+      ssl.certificate_authorities: ["/usr/share/filebeat/config/certs/ca.crt"]
+
+  daemonSet:
+    podTemplate:
+      metadata:
+        labels:
+          app.kubernetes.io/name: filebeat
+          app.kubernetes.io/component: logging
+      spec:
+        serviceAccountName: filebeat
+        terminationGracePeriodSeconds: 30
+        hostNetwork: true
+        dnsPolicy: ClusterFirstWithHostNet
+        
+        containers:
+        - name: filebeat
+          securityContext:
+            runAsUser: 0
+            privileged: true
+          resources:
+            requests:
+              memory: 200Mi
+              cpu: 100m
+            limits:
+              memory: 500Mi
+              cpu: 500m
+          env:
+          - name: NODE_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: spec.nodeName
+          - name: ELASTICSEARCH_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: example-elasticsearch-elastic-user
+                key: elastic
+          volumeMounts:
+          - name: varlogcontainers
+            mountPath: /var/log/containers
+            readOnly: true
+          - name: varlogpods
+            mountPath: /var/log/pods
+            readOnly: true
+          - name: varlibdockercontainers
+            mountPath: /var/lib/docker/containers
+            readOnly: true
+          - name: varlog
+            mountPath: /var/log
+            readOnly: true
+          - name: elasticsearch-ca
+            mountPath: /usr/share/filebeat/config/certs
+            readOnly: true
+            
+        volumes:
+        - name: varlogcontainers
+          hostPath:
+            path: /var/log/containers
+        - name: varlogpods
+          hostPath:
+            path: /var/log/pods
+        - name: varlibdockercontainers
+          hostPath:
+            path: /var/lib/docker/containers
+        - name: varlog
+          hostPath:
+            path: /var/log
+        - name: elasticsearch-ca
+          secret:
+            secretName: example-elasticsearch-http-certs-public
+            
+        tolerations:
+        - key: node-role.kubernetes.io/master
+          operator: Exists
+          effect: NoSchedule
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+
+---
+# ServiceAccount for Filebeat
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: filebeat
+  namespace: example-monitoring
+  labels:
+    app.kubernetes.io/name: filebeat
+
+---
+# ClusterRole for Filebeat
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: filebeat
+  labels:
+    app.kubernetes.io/name: filebeat
+rules:
+- apiGroups: [""]
+  resources:
+  - nodes
+  - namespaces
+  - events
+  - pods
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources:
+  - replicasets
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["batch"]
+  resources:
+  - jobs
+  verbs: ["get", "list", "watch"]
+
+---
+# ClusterRoleBinding for Filebeat
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: filebeat
+  labels:
+    app.kubernetes.io/name: filebeat
+subjects:
+- kind: ServiceAccount
+  name: filebeat
+  namespace: example-monitoring
+roleRef:
+  kind: ClusterRole
+  name: filebeat
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# ConfigMap for custom Filebeat modules
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: filebeat-modules
+  namespace: example-monitoring
+  labels:
+    app.kubernetes.io/name: filebeat
+data:
+  nginx.yml: |
+    - module: nginx
+      access:
+        enabled: true
+        var.paths: ["/var/log/nginx/access.log*"]
+      error:
+        enabled: true
+        var.paths: ["/var/log/nginx/error.log*"]
+        
+  system.yml: |
+    - module: system
+      syslog:
+        enabled: true
+        var.paths: ["/var/log/syslog*", "/var/log/messages*"]
+      auth:
+        enabled: true
+        var.paths: ["/var/log/auth.log*", "/var/log/secure*"]
+
+---
+# Network Policy for Filebeat
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: filebeat-network-policy
+  namespace: example-monitoring
+spec:
+  podSelector:
+    matchLabels:
+      beat.k8s.elastic.co/name: waqiti-filebeat
+  policyTypes:
+  - Egress
+  egress:
+  # Allow DNS resolution
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+  # Allow Logstash access
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: logstash
+    ports:
+    - protocol: TCP
+      port: 5044
+  # Allow Elasticsearch access for monitoring
+  - to:
+    - podSelector:
+        matchLabels:
+          elasticsearch.k8s.elastic.co/cluster-name: example-elasticsearch
+    ports:
+    - protocol: TCP
+      port: 9200

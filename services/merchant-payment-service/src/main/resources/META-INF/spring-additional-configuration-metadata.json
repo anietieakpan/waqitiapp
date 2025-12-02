@@ -1,0 +1,63 @@
+{
+  "properties": [
+    {
+      "name": "merchant-payment.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable merchant payment functionality",
+      "defaultValue": true
+    },
+    {
+      "name": "merchant-payment.settlement.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable merchant settlement",
+      "defaultValue": true
+    },
+    {
+      "name": "merchant-payment.settlement.frequency",
+      "type": "java.lang.String",
+      "description": "Settlement frequency",
+      "defaultValue": "DAILY"
+    },
+    {
+      "name": "merchant-payment.fees.transaction-percentage",
+      "type": "java.math.BigDecimal",
+      "description": "Transaction fee percentage",
+      "defaultValue": "2.9"
+    },
+    {
+      "name": "merchant-payment.fees.fixed-fee",
+      "type": "java.math.BigDecimal",
+      "description": "Fixed transaction fee",
+      "defaultValue": "0.30"
+    },
+    {
+      "name": "merchant-payment.qr-code.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable QR code payments",
+      "defaultValue": true
+    },
+    {
+      "name": "merchant-payment.nfc.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable NFC payments",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "OAuth2 client ID for service",
+      "defaultValue": "merchant-payment-service"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "OAuth2 client secret for service"
+    }
+  ]
+}

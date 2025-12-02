@@ -1,0 +1,93 @@
+# Keycloak Configuration for Merchant Payment Service
+
+keycloak:
+  enabled: true
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  ssl-required: external
+  resource: merchant-payment-service
+  bearer-only: true
+  credentials:
+    secret: ${MERCHANT_PAYMENT_SERVICE_CLIENT_SECRET:CHANGE_ME_SECURE_SECRET_REQUIRED}
+  use-resource-role-mappings: true
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# Merchant Payment Service Security Configuration
+merchant-payment:
+  security:
+    # Public endpoints that don't require authentication
+    public-endpoints:
+      - /actuator/health
+      - /actuator/info
+      - /api/v1/merchant-payments/webhook/**
+      - /swagger-ui/**
+      - /v3/api-docs/**
+    
+    # Service-to-service endpoints
+    service-endpoints:
+      - /internal/merchant-payments/**
+    
+    # Required roles for merchant payment operations
+    required-roles:
+      read:
+        - MERCHANT_PAYMENT_USER
+        - MERCHANT_PAYMENT_VIEWER
+      write:
+        - MERCHANT_PAYMENT_USER
+        - MERCHANT_PAYMENT_PROCESSOR
+      management:
+        - MERCHANT_PAYMENT_MANAGER
+        - MERCHANT_PAYMENT_OPERATOR
+      admin:
+        - MERCHANT_PAYMENT_ADMIN
+        - SYSTEM_ADMIN
+    
+    # Required scopes for operations
+    required-scopes:
+      read: merchant-payment:read
+      write: merchant-payment:write
+      process: merchant-payment:process
+      settle: merchant-payment:settle
+      refund: merchant-payment:refund
+      dispute: merchant-payment:dispute
+      analytics: merchant-payment:analytics
+      reporting: merchant-payment:reporting
+      gateway: merchant-payment:gateway
+      terminal: merchant-payment:terminal
+      qr-code: merchant-payment:qr-code
+    
+    # Merchant payment security features
+    features:
+      pos-integration-enabled: true
+      qr-code-validation-enabled: true
+      settlement-verification-enabled: true
+      chargeback-protection-enabled: true
+      fraud-detection-enabled: true
+      audit-logging-enabled: true
+      
+    # Merchant payment limits and thresholds
+    limits:
+      max-transaction-amount: 100000.00
+      max-daily-volume: 1000000.00
+      max-settlement-amount: 500000.00
+      max-refund-percentage: 0.15
+      
+    # Security thresholds requiring additional verification
+    verification-thresholds:
+      high-value-transaction: 25000.00
+      unusual-volume-threshold: 500000.00
+      chargeback-risk-threshold: 0.05
+      
+    # Advanced security features
+    advanced-security:
+      require-pos-verification: true
+      real-time-fraud-scoring: true
+      dynamic-risk-assessment: true
+      merchant-behavior-analysis: true

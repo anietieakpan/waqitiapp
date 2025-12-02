@@ -1,0 +1,89 @@
+{
+  "type": "record",
+  "name": "LoyaltyPointsEarnedEvent",
+  "namespace": "com.waqiti.events.v1",
+  "doc": "Event published when loyalty points are earned",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "Unique event identifier (UUID)"
+    },
+    {
+      "name": "eventType",
+      "type": "string",
+      "default": "loyalty-points-earned",
+      "doc": "Type of event"
+    },
+    {
+      "name": "timestamp",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "Event timestamp in epoch milliseconds"
+    },
+    {
+      "name": "correlationId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Correlation ID for distributed tracing"
+    },
+    {
+      "name": "version",
+      "type": "string",
+      "default": "1.0",
+      "doc": "Schema version"
+    },
+    {
+      "name": "userId",
+      "type": "string",
+      "doc": "User ID (UUID)"
+    },
+    {
+      "name": "points",
+      "type": "int",
+      "doc": "Number of loyalty points earned"
+    },
+    {
+      "name": "pointsType",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Type of loyalty points"
+    },
+    {
+      "name": "reason",
+      "type": "string",
+      "doc": "Reason for earning points"
+    },
+    {
+      "name": "transactionId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Associated transaction ID (UUID)"
+    },
+    {
+      "name": "expiresAt",
+      "type": ["null", {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      }],
+      "default": null,
+      "doc": "Expiration timestamp for points"
+    },
+    {
+      "name": "totalPoints",
+      "type": "int",
+      "doc": "Total points after this earn event"
+    },
+    {
+      "name": "metadata",
+      "type": ["null", {
+        "type": "map",
+        "values": "string"
+      }],
+      "default": null,
+      "doc": "Additional metadata"
+    }
+  ]
+}

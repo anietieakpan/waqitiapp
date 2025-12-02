@@ -1,0 +1,172 @@
+{
+  "type": "record",
+  "name": "FraudDetectedEvent",
+  "namespace": "com.waqiti.frauddetection.events",
+  "doc": "Event emitted when fraudulent activity is detected",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "Unique identifier for this event"
+    },
+    {
+      "name": "alertId",
+      "type": "string",
+      "doc": "Unique fraud alert identifier"
+    },
+    {
+      "name": "userId",
+      "type": "string",
+      "doc": "User ID associated with potential fraud"
+    },
+    {
+      "name": "accountId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Account ID if applicable"
+    },
+    {
+      "name": "transactionId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Transaction ID that triggered fraud detection"
+    },
+    {
+      "name": "fraudType",
+      "type": {
+        "type": "enum",
+        "name": "FraudType",
+        "symbols": [
+          "ACCOUNT_TAKEOVER",
+          "CARD_FRAUD",
+          "IDENTITY_THEFT",
+          "TRANSACTION_FRAUD",
+          "VELOCITY_ABUSE",
+          "SYNTHETIC_IDENTITY",
+          "MONEY_LAUNDERING",
+          "CHARGEBACK_FRAUD",
+          "REFUND_ABUSE",
+          "PHISHING",
+          "SUSPICIOUS_PATTERN"
+        ]
+      },
+      "doc": "Type of fraud detected"
+    },
+    {
+      "name": "riskScore",
+      "type": "double",
+      "doc": "Risk score (0.0 to 1.0, where 1.0 is highest risk)"
+    },
+    {
+      "name": "confidenceLevel",
+      "type": {
+        "type": "enum",
+        "name": "ConfidenceLevel",
+        "symbols": ["LOW", "MEDIUM", "HIGH", "VERY_HIGH"]
+      },
+      "doc": "Confidence level of fraud detection"
+    },
+    {
+      "name": "severity",
+      "type": {
+        "type": "enum",
+        "name": "FraudSeverity",
+        "symbols": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+      },
+      "doc": "Severity of the fraud"
+    },
+    {
+      "name": "detectionMethod",
+      "type": "string",
+      "doc": "Method used for detection (e.g., ML_MODEL, RULE_ENGINE, PATTERN_MATCHING)"
+    },
+    {
+      "name": "detectionRules",
+      "type": {
+        "type": "array",
+        "items": "string"
+      },
+      "default": [],
+      "doc": "List of rules that were triggered"
+    },
+    {
+      "name": "indicators",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "default": {},
+      "doc": "Fraud indicators (e.g., unusual_location, velocity_exceeded, device_mismatch)"
+    },
+    {
+      "name": "blockedAction",
+      "type": "boolean",
+      "default": false,
+      "doc": "Whether the action was automatically blocked"
+    },
+    {
+      "name": "requiresReview",
+      "type": "boolean",
+      "default": true,
+      "doc": "Whether manual review is required"
+    },
+    {
+      "name": "reviewStatus",
+      "type": {
+        "type": "enum",
+        "name": "ReviewStatus",
+        "symbols": ["PENDING", "IN_REVIEW", "CONFIRMED_FRAUD", "FALSE_POSITIVE", "RESOLVED"]
+      },
+      "default": "PENDING",
+      "doc": "Status of fraud review"
+    },
+    {
+      "name": "ipAddress",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "IP address of suspicious activity"
+    },
+    {
+      "name": "deviceId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Device fingerprint"
+    },
+    {
+      "name": "geoLocation",
+      "type": ["null", {
+        "type": "record",
+        "name": "GeoLocation",
+        "fields": [
+          {"name": "latitude", "type": "double"},
+          {"name": "longitude", "type": "double"},
+          {"name": "city", "type": ["null", "string"], "default": null},
+          {"name": "country", "type": ["null", "string"], "default": null}
+        ]
+      }],
+      "default": null,
+      "doc": "Geographic location of activity"
+    },
+    {
+      "name": "metadata",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "default": {},
+      "doc": "Additional metadata"
+    },
+    {
+      "name": "timestamp",
+      "type": "long",
+      "logicalType": "timestamp-millis",
+      "doc": "Event timestamp"
+    },
+    {
+      "name": "version",
+      "type": "int",
+      "default": 1,
+      "doc": "Schema version"
+    }
+  ]
+}

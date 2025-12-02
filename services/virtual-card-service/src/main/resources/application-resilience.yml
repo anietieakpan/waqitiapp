@@ -1,0 +1,148 @@
+# Resilience4j Configuration for Circuit Breakers, Retries, and Rate Limiters
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        # Circuit breaker opens after 50% failure rate
+        failureRateThreshold: 50
+        # Minimum number of calls before evaluating failure rate
+        minimumNumberOfCalls: 10
+        # Number of calls in half-open state
+        permittedNumberOfCallsInHalfOpenState: 3
+        # Sliding window size for tracking calls
+        slidingWindowSize: 20
+        # Time to wait before transitioning to half-open
+        waitDurationInOpenState: 30s
+        # Window type: COUNT_BASED or TIME_BASED
+        slidingWindowType: COUNT_BASED
+        # Slow call threshold
+        slowCallDurationThreshold: 5s
+        slowCallRateThreshold: 50
+        # Record specific exceptions as failures
+        recordExceptions:
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
+          - java.io.IOException
+          - org.springframework.web.client.ResourceAccessException
+        # Ignore certain exceptions
+        ignoreExceptions:
+          - java.lang.IllegalArgumentException
+          - com.example.common.exception.ValidationException
+
+    instances:
+      wallet-service:
+        baseConfig: default
+        failureRateThreshold: 60
+        waitDurationInOpenState: 60s
+        minimumNumberOfCalls: 5
+
+      notification-service:
+        baseConfig: default
+        # More lenient for notifications (not critical path)
+        failureRateThreshold: 70
+        waitDurationInOpenState: 30s
+        minimumNumberOfCalls: 10
+
+  retry:
+    configs:
+      default:
+        # Maximum retry attempts
+        maxAttempts: 3
+        # Wait duration between retries
+        waitDuration: 1s
+        # Exponential backoff multiplier
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+        # Retry only on specific exceptions
+        retryExceptions:
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
+          - org.springframework.web.client.ResourceAccessException
+        # Don't retry on these exceptions
+        ignoreExceptions:
+          - java.lang.IllegalArgumentException
+          - com.example.common.exception.ValidationException
+
+    instances:
+      wallet-service:
+        baseConfig: default
+        maxAttempts: 3
+        waitDuration: 500ms
+
+      notification-service:
+        baseConfig: default
+        maxAttempts: 2
+        waitDuration: 1s
+
+  ratelimiter:
+    configs:
+      default:
+        # Maximum number of permissions per refresh period
+        limitForPeriod: 100
+        # Refresh period duration
+        limitRefreshPeriod: 1s
+        # Timeout duration when waiting for permission
+        timeoutDuration: 5s
+
+    instances:
+      wallet-service:
+        limitForPeriod: 50
+        limitRefreshPeriod: 1s
+        timeoutDuration: 3s
+
+      notification-service:
+        limitForPeriod: 100
+        limitRefreshPeriod: 1s
+        timeoutDuration: 2s
+
+  bulkhead:
+    configs:
+      default:
+        # Maximum concurrent calls
+        maxConcurrentCalls: 50
+        # Maximum time to wait for permission
+        maxWaitDuration: 500ms
+
+    instances:
+      wallet-service:
+        maxConcurrentCalls: 25
+        maxWaitDuration: 1s
+
+      notification-service:
+        maxConcurrentCalls: 50
+        maxWaitDuration: 500ms
+
+  timelimiter:
+    configs:
+      default:
+        # Cancel running future after timeout
+        cancelRunningFuture: true
+        # Timeout duration
+        timeoutDuration: 10s
+
+    instances:
+      wallet-service:
+        timeoutDuration: 5s
+        cancelRunningFuture: true
+
+      notification-service:
+        timeoutDuration: 3s
+        cancelRunningFuture: true
+
+# Management endpoints for monitoring resilience metrics
+management:
+  metrics:
+    distribution:
+      percentiles-histogram:
+        resilience4j.circuitbreaker.calls: true
+        resilience4j.retry.calls: true
+        resilience4j.ratelimiter.calls: true
+    tags:
+      application: ${spring.application.name}
+
+  health:
+    circuitbreakers:
+      enabled: true
+    ratelimiters:
+      enabled: true

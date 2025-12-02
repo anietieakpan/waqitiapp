@@ -1,0 +1,517 @@
+name: Production Deployment Pipeline
+
+on:
+  push:
+    branches: [main, production]
+  pull_request:
+    branches: [main, production]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment Environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+          - hotfix
+
+env:
+  JAVA_VERSION: '17'
+  NODE_VERSION: '18'
+  DOCKER_REGISTRY: 'registry.example.com'
+  VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
+  SONAR_HOST: ${{ secrets.SONAR_HOST }}
+
+jobs:
+  # Security Scanning
+  security-scan:
+    name: Security Vulnerability Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+      
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-results.sarif'
+      
+      - name: OWASP Dependency Check
+        uses: dependency-check/Dependency-Check_Action@main
+        with:
+          project: 'Waqiti'
+          path: '.'
+          format: 'ALL'
+          args: >
+            --enableRetired
+            --enableExperimental
+      
+      - name: SonarQube Scan
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          mvn sonar:sonar \
+            -Dsonar.projectKey=waqiti \
+            -Dsonar.host.url=${{ env.SONAR_HOST }} \
+            -Dsonar.login=${{ secrets.SONAR_TOKEN }}
+
+  # Code Quality Gates
+  code-quality:
+    name: Code Quality Analysis
+    runs-on: ubuntu-latest
+    needs: security-scan
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+          cache: maven
+      
+      - name: Run SpotBugs
+        run: mvn spotbugs:check
+      
+      - name: Run PMD
+        run: mvn pmd:check
+      
+      - name: Check Code Coverage
+        run: |
+          mvn clean test jacoco:report
+          coverage=$(grep -oP '(?<=<counter type="LINE" missed="\d+" covered=")\d+' target/site/jacoco/jacoco.xml | head -1)
+          total=$(grep -oP '(?<=<counter type="LINE" missed=")\d+' target/site/jacoco/jacoco.xml | head -1)
+          percentage=$(( coverage * 100 / (coverage + total) ))
+          echo "Code coverage: $percentage%"
+          if [ $percentage -lt 80 ]; then
+            echo "Code coverage is below 80% threshold"
+            exit 1
+          fi
+
+  # Build and Test
+  build-test:
+    name: Build and Test Services
+    runs-on: ubuntu-latest
+    needs: code-quality
+    strategy:
+      matrix:
+        service: [
+          'user-service',
+          'payment-service',
+          'wallet-service',
+          'core-banking-service',
+          'security-service',
+          'notification-service',
+          'analytics-service',
+          'compliance-service'
+        ]
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+          cache: maven
+      
+      - name: Cache Maven dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+      
+      - name: Build service
+        working-directory: services/${{ matrix.service }}
+        run: |
+          mvn clean compile
+          mvn package -DskipTests
+      
+      - name: Run unit tests
+        working-directory: services/${{ matrix.service }}
+        run: mvn test
+      
+      - name: Run integration tests
+        working-directory: services/${{ matrix.service }}
+        run: mvn verify -Pintegration-tests
+      
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-results-${{ matrix.service }}
+          path: services/${{ matrix.service }}/target/surefire-reports/
+
+  # Contract Testing
+  contract-tests:
+    name: API Contract Testing
+    runs-on: ubuntu-latest
+    needs: build-test
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Run Pact Tests
+        run: |
+          mvn pact:verify \
+            -Dpact.verifier.publishResults=true \
+            -Dpact.provider.version=${{ github.sha }}
+
+  # Performance Testing
+  performance-tests:
+    name: Performance Testing
+    runs-on: ubuntu-latest
+    needs: build-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Run JMeter Tests
+        run: |
+          docker run -v $(pwd)/testing/performance:/tests \
+            -e BASE_URL=${{ secrets.STAGING_URL }} \
+            justb4/jmeter \
+            -n -t /tests/load-test.jmx \
+            -l /tests/results.jtl \
+            -e -o /tests/report
+      
+      - name: Analyze Performance Results
+        run: |
+          python3 scripts/analyze-performance.py testing/performance/results.jtl
+      
+      - name: Upload Performance Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: performance-report
+          path: testing/performance/report/
+
+  # Docker Build
+  docker-build:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: [contract-tests, performance-tests]
+    strategy:
+      matrix:
+        service: [
+          'user-service',
+          'payment-service',
+          'wallet-service',
+          'core-banking-service',
+          'api-gateway'
+        ]
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      
+      - name: Log in to Docker Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.DOCKER_REGISTRY }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: services/${{ matrix.service }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ env.DOCKER_REGISTRY }}/waqiti/${{ matrix.service }}:${{ github.sha }}
+            ${{ env.DOCKER_REGISTRY }}/waqiti/${{ matrix.service }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      
+      - name: Scan Docker image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.DOCKER_REGISTRY }}/waqiti/${{ matrix.service }}:${{ github.sha }}
+          format: 'sarif'
+          output: 'docker-scan-${{ matrix.service }}.sarif'
+      
+      - name: Upload scan results
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'docker-scan-${{ matrix.service }}.sarif'
+
+  # Database Migrations
+  database-migrations:
+    name: Run Database Migrations
+    runs-on: ubuntu-latest
+    needs: docker-build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Run Flyway Migrations
+        env:
+          DB_URL: ${{ secrets.STAGING_DB_URL }}
+          DB_USER: ${{ secrets.STAGING_DB_USER }}
+          DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
+        run: |
+          docker run --rm \
+            -v $(pwd)/database/migrations:/flyway/sql \
+            flyway/flyway \
+            -url=$DB_URL \
+            -user=$DB_USER \
+            -password=$DB_PASSWORD \
+            -connectRetries=60 \
+            migrate
+
+  # Deploy to Staging
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [docker-build, database-migrations]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment:
+      name: staging
+      url: https://staging.example.com
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig --name waqiti-staging --region us-east-1
+      
+      - name: Deploy with Helm
+        run: |
+          helm upgrade --install waqiti ./kubernetes/helm/waqiti-platform \
+            --namespace staging \
+            --create-namespace \
+            --set image.tag=${{ github.sha }} \
+            --set environment=staging \
+            --values ./kubernetes/helm/waqiti-platform/values-staging.yaml \
+            --wait --timeout 10m
+      
+      - name: Verify Deployment
+        run: |
+          kubectl rollout status deployment -n staging --timeout=10m
+          kubectl get pods -n staging
+      
+      - name: Run Smoke Tests
+        run: |
+          npm install -g newman
+          newman run testing/e2e/smoke-tests.postman_collection.json \
+            --environment testing/e2e/staging.postman_environment.json \
+            --reporters cli,json \
+            --reporter-json-export smoke-test-results.json
+      
+      - name: Rollback on Failure
+        if: failure()
+        run: |
+          helm rollback waqiti -n staging
+
+  # Security Validation
+  security-validation:
+    name: Security Validation
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    steps:
+      - name: Run OWASP ZAP Scan
+        uses: zaproxy/action-full-scan@v0.4.0
+        with:
+          target: 'https://staging.example.com'
+          rules_file_name: '.zap/rules.tsv'
+          cmd_options: '-a'
+      
+      - name: SSL/TLS Security Check
+        run: |
+          docker run --rm drwetter/testssl.sh https://staging.example.com
+      
+      - name: API Security Test
+        run: |
+          docker run --rm \
+            -v $(pwd)/testing/security:/tests \
+            owasp/zap2docker-stable zap-api-scan.py \
+            -t https://staging.example.com/api/openapi.json \
+            -f openapi \
+            -r api-security-report.html
+
+  # Load Testing
+  load-testing:
+    name: Load Testing
+    runs-on: ubuntu-latest
+    needs: security-validation
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Run K6 Load Tests
+        run: |
+          docker run --rm \
+            -v $(pwd)/testing/load:/scripts \
+            loadimpact/k6 run \
+            --vus 100 \
+            --duration 30m \
+            /scripts/load-test.js
+      
+      - name: Analyze Results
+        run: |
+          python3 scripts/analyze-load-test.py testing/load/results.json
+          if [ $? -ne 0 ]; then
+            echo "Load test failed performance criteria"
+            exit 1
+          fi
+
+  # Deploy to Production
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [load-testing]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/production'
+    environment:
+      name: production
+      url: https://app.example.com
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Production Approval Check
+        uses: trstringer/manual-approval@v1
+        with:
+          secret: ${{ github.TOKEN }}
+          approvers: prod-approvers-team
+          minimum-approvals: 2
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.PROD_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.PROD_AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      
+      - name: Blue-Green Deployment
+        run: |
+          # Deploy to green environment
+          helm upgrade --install waqiti-green ./kubernetes/helm/waqiti-platform \
+            --namespace production \
+            --set image.tag=${{ github.sha }} \
+            --set environment=production \
+            --set deployment.strategy=green \
+            --values ./kubernetes/helm/waqiti-platform/values-production.yaml \
+            --wait --timeout 15m
+          
+          # Run health checks
+          ./scripts/health-check.sh https://green.example.com
+          
+          # Switch traffic to green
+          kubectl patch ingress waqiti-ingress -n production \
+            --type='json' \
+            -p='[{"op": "replace", "path": "/spec/rules/0/http/paths/0/backend/service/name", "value": "waqiti-green"}]'
+          
+          # Monitor for 5 minutes
+          sleep 300
+          
+          # Check error rates
+          ERROR_RATE=$(curl -s ${{ secrets.PROMETHEUS_URL }}/api/v1/query \
+            --data-urlencode 'query=rate(http_requests_total{status=~"5.."}[5m])' | \
+            jq '.data.result[0].value[1]' | tr -d '"')
+          
+          if (( $(echo "$ERROR_RATE > 0.01" | bc -l) )); then
+            echo "Error rate too high, rolling back"
+            kubectl patch ingress waqiti-ingress -n production \
+              --type='json' \
+              -p='[{"op": "replace", "path": "/spec/rules/0/http/paths/0/backend/service/name", "value": "waqiti-blue"}]'
+            exit 1
+          fi
+          
+          # Update blue to match green for next deployment
+          helm upgrade --install waqiti-blue ./kubernetes/helm/waqiti-platform \
+            --namespace production \
+            --set image.tag=${{ github.sha }} \
+            --set environment=production \
+            --set deployment.strategy=blue \
+            --values ./kubernetes/helm/waqiti-platform/values-production.yaml
+
+  # Post-Deployment Validation
+  post-deployment:
+    name: Post-Deployment Validation
+    runs-on: ubuntu-latest
+    needs: deploy-production
+    if: github.event_name == 'push' && github.ref == 'refs/heads/production'
+    steps:
+      - name: Run E2E Tests
+        run: |
+          npm install -g cypress
+          cypress run --config baseUrl=https://app.example.com
+      
+      - name: Monitor Application Metrics
+        run: |
+          # Check key metrics for 10 minutes
+          for i in {1..10}; do
+            ./scripts/monitor-metrics.sh
+            sleep 60
+          done
+      
+      - name: Send Deployment Notification
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          text: |
+            Production Deployment Completed
+            Version: ${{ github.sha }}
+            Environment: Production
+            URL: https://app.example.com
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+      
+      - name: Update Status Page
+        run: |
+          curl -X POST https://status.example.com/api/v1/incidents \
+            -H "Authorization: Bearer ${{ secrets.STATUS_PAGE_TOKEN }}" \
+            -d '{
+              "incident": {
+                "name": "Deployment Complete",
+                "status": "resolved",
+                "message": "Version ${{ github.sha }} successfully deployed"
+              }
+            }'
+
+  # Rollback Job
+  rollback:
+    name: Rollback Deployment
+    runs-on: ubuntu-latest
+    if: failure()
+    needs: [deploy-staging, deploy-production]
+    steps:
+      - name: Determine Environment
+        id: env
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/production" ]]; then
+            echo "environment=production" >> $GITHUB_OUTPUT
+          else
+            echo "environment=staging" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Rollback Helm Release
+        run: |
+          helm rollback waqiti -n ${{ steps.env.outputs.environment }}
+      
+      - name: Notify Team
+        uses: 8398a7/action-slack@v3
+        with:
+          status: failure
+          text: |
+            🚨 Deployment Failed and Rolled Back
+            Environment: ${{ steps.env.outputs.environment }}
+            Commit: ${{ github.sha }}
+            Reason: ${{ job.status }}
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}

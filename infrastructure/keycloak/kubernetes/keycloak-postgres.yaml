@@ -1,0 +1,161 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak-postgres
+  namespace: keycloak-system
+  labels:
+    app: keycloak-postgres
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5432
+      targetPort: 5432
+      protocol: TCP
+      name: postgres
+  selector:
+    app: keycloak-postgres
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak-postgres-headless
+  namespace: keycloak-system
+  labels:
+    app: keycloak-postgres
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - port: 5432
+      targetPort: 5432
+      protocol: TCP
+      name: postgres
+  selector:
+    app: keycloak-postgres
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: keycloak-postgres-pvc
+  namespace: keycloak-system
+  labels:
+    app: keycloak-postgres
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Gi
+  storageClassName: fast-ssd
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: keycloak-postgres
+  namespace: keycloak-system
+  labels:
+    app: keycloak-postgres
+spec:
+  serviceName: keycloak-postgres-headless
+  replicas: 1
+  selector:
+    matchLabels:
+      app: keycloak-postgres
+  template:
+    metadata:
+      labels:
+        app: keycloak-postgres
+    spec:
+      securityContext:
+        fsGroup: 999
+        runAsUser: 999
+        runAsNonRoot: true
+      containers:
+      - name: postgres
+        image: postgres:15-alpine
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5432
+          name: postgres
+          protocol: TCP
+        envFrom:
+        - secretRef:
+            name: keycloak-db-secrets
+        env:
+        - name: POSTGRES_INITDB_ARGS
+          value: "--encoding=UTF8 --locale=C"
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+          limits:
+            cpu: 2000m
+            memory: 4Gi
+        volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/postgresql/data
+        - name: postgres-init
+          mountPath: /docker-entrypoint-initdb.d
+        livenessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - pg_isready -U keycloak -d keycloak
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - pg_isready -U keycloak -d keycloak
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+      volumes:
+      - name: postgres-data
+        persistentVolumeClaim:
+          claimName: keycloak-postgres-pvc
+      - name: postgres-init
+        configMap:
+          name: postgres-init-scripts
+          optional: true
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init-scripts
+  namespace: keycloak-system
+data:
+  01-init-keycloak.sql: |
+    -- Performance tuning for Keycloak database
+    ALTER SYSTEM SET max_connections = 200;
+    ALTER SYSTEM SET shared_buffers = '1GB';
+    ALTER SYSTEM SET effective_cache_size = '3GB';
+    ALTER SYSTEM SET maintenance_work_mem = '256MB';
+    ALTER SYSTEM SET checkpoint_completion_target = 0.9;
+    ALTER SYSTEM SET wal_buffers = '16MB';
+    ALTER SYSTEM SET default_statistics_target = 100;
+    ALTER SYSTEM SET random_page_cost = 1.1;
+    ALTER SYSTEM SET effective_io_concurrency = 200;
+    ALTER SYSTEM SET work_mem = '4MB';
+    ALTER SYSTEM SET min_wal_size = '1GB';
+    ALTER SYSTEM SET max_wal_size = '4GB';
+    
+    -- Create indexes for better performance
+    CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_event_entity_time ON event_entity(realm_id, event_time);
+    CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_event_entity_type ON event_entity(realm_id, type);
+    CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_event_entity_user ON event_entity(realm_id, user_id);
+    
+    -- Create read-only user for monitoring
+    CREATE USER keycloak_monitor WITH PASSWORD 'monitor_password';
+    GRANT CONNECT ON DATABASE keycloak TO keycloak_monitor;
+    GRANT USAGE ON SCHEMA public TO keycloak_monitor;
+    GRANT SELECT ON ALL TABLES IN SCHEMA public TO keycloak_monitor;
+    ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO keycloak_monitor;

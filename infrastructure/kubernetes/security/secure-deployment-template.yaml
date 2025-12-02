@@ -1,0 +1,499 @@
+# CRITICAL SECURITY TEMPLATE: Secure Kubernetes Deployment
+# This template provides comprehensive security configurations for all services
+# Implements defense-in-depth with multiple security layers
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: secure-service-template
+  namespace: waqiti
+  labels:
+    app: secure-service
+    security: hardened
+  annotations:
+    security.example.com/review-date: "2024-01-01"
+    security.example.com/compliance: "PCI-DSS,SOC2,GDPR"
+spec:
+  replicas: 3
+  revisionHistoryLimit: 3  # Limit history to prevent resource exhaustion
+  selector:
+    matchLabels:
+      app: secure-service
+  template:
+    metadata:
+      labels:
+        app: secure-service
+        security: hardened
+      annotations:
+        # Security scanning
+        container.apparmor.security.beta.kubernetes.io/app: runtime/default
+        seccomp.security.alpha.kubernetes.io/pod: runtime/default
+    spec:
+      # CRITICAL: Service account with minimal permissions
+      serviceAccountName: secure-service-sa
+      automountServiceAccountToken: false  # Disable unless explicitly needed
+      
+      # CRITICAL: Security context for pod
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001  # Non-root user ID
+        runAsGroup: 10001
+        fsGroup: 10001
+        fsGroupChangePolicy: "OnRootMismatch"
+        seccompProfile:
+          type: RuntimeDefault
+        supplementalGroups: [10001]
+        sysctls: []  # No custom sysctls allowed
+      
+      # Network policy enforcement
+      dnsPolicy: ClusterFirst
+      hostNetwork: false  # Never use host network
+      hostPID: false      # Never use host PID namespace
+      hostIPC: false      # Never use host IPC namespace
+      
+      initContainers:
+      # Security initialization container
+      - name: security-init
+        image: waqiti/security-init:latest
+        imagePullPolicy: Always
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          # Verify security configurations
+          echo "Checking security requirements..."
+          
+          # Check for required secrets
+          if [ ! -f /var/run/secrets/kubernetes.io/serviceaccount/token ]; then
+            echo "Service account token not mounted - good security practice"
+          fi
+          
+          # Set up secure file permissions
+          chmod 400 /app/config/* 2>/dev/null || true
+          chmod 400 /app/secrets/* 2>/dev/null || true
+          
+          # Verify no world-writable directories
+          find /app -type d -perm -002 -exec chmod o-w {} \; 2>/dev/null || true
+          
+          echo "Security initialization complete"
+        
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 10001
+          runAsGroup: 10001
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+        
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+      
+      containers:
+      - name: app
+        image: waqiti/secure-service:latest
+        imagePullPolicy: Always
+        
+        # CRITICAL: Container security context
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 10001
+          runAsGroup: 10001
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+            # Only add specific capabilities if absolutely required
+            # add:
+            # - NET_BIND_SERVICE  # Only if binding to port < 1024
+          seccompProfile:
+            type: RuntimeDefault
+          # SELinux options (if enabled)
+          seLinuxOptions:
+            level: "s0:c123,c456"
+        
+        # Resource limits (prevent resource exhaustion attacks)
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+            ephemeral-storage: "1Gi"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+            ephemeral-storage: "2Gi"
+        
+        # Health checks with security considerations
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: 8080
+            scheme: HTTPS  # Use HTTPS for health checks
+            httpHeaders:
+            - name: X-Health-Check
+              value: liveness
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+          successThreshold: 1
+        
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: 8080
+            scheme: HTTPS
+            httpHeaders:
+            - name: X-Health-Check
+              value: readiness
+          initialDelaySeconds: 20
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+          successThreshold: 1
+        
+        # Startup probe for slow-starting containers
+        startupProbe:
+          httpGet:
+            path: /health/startup
+            port: 8080
+            scheme: HTTPS
+          initialDelaySeconds: 0
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30
+          successThreshold: 1
+        
+        # Environment variables (avoid secrets in env vars)
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: LOG_LEVEL
+          value: "info"
+        - name: ENABLE_SECURITY_HEADERS
+          value: "true"
+        - name: ENABLE_RATE_LIMITING
+          value: "true"
+        - name: MAX_REQUEST_SIZE
+          value: "1048576"  # 1MB
+        
+        # Volume mounts with specific permissions
+        volumeMounts:
+        - name: config
+          mountPath: /app/config
+          readOnly: true
+        - name: secrets
+          mountPath: /app/secrets
+          readOnly: true
+        - name: tmp
+          mountPath: /tmp
+          readOnly: false  # Writable temp directory
+        - name: cache
+          mountPath: /app/cache
+          readOnly: false
+        - name: logs
+          mountPath: /var/log/app
+          readOnly: false
+      
+      # Image pull secrets
+      imagePullSecrets:
+      - name: registry-credentials
+      
+      # Volumes with security configurations
+      volumes:
+      - name: config
+        configMap:
+          name: secure-service-config
+          defaultMode: 0400  # Read-only for owner
+          items:
+          - key: application.yaml
+            path: application.yaml
+            mode: 0400
+      
+      - name: secrets
+        secret:
+          secretName: secure-service-secrets
+          defaultMode: 0400  # Read-only for owner
+          items:
+          - key: api-keys
+            path: api-keys
+            mode: 0400
+      
+      - name: tmp
+        emptyDir:
+          sizeLimit: 100Mi
+          medium: Memory  # Use memory for temp files
+      
+      - name: cache
+        emptyDir:
+          sizeLimit: 500Mi
+      
+      - name: logs
+        emptyDir:
+          sizeLimit: 1Gi
+      
+      # Node selection and affinity
+      nodeSelector:
+        kubernetes.io/os: linux
+        node.kubernetes.io/instance-type: "t3.large"
+      
+      # Toleration for dedicated nodes
+      tolerations:
+      - key: "workload"
+        operator: "Equal"
+        value: "secure"
+        effect: "NoSchedule"
+      
+      # Anti-affinity for high availability
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - secure-service
+            topologyKey: kubernetes.io/hostname
+        
+        # Prefer secure nodes
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            preference:
+              matchExpressions:
+              - key: security
+                operator: In
+                values:
+                - hardened
+      
+      # Priority class for critical services
+      priorityClassName: high-priority
+      
+      # Restart policy
+      restartPolicy: Always
+      
+      # Termination grace period
+      terminationGracePeriodSeconds: 30
+      
+      # DNS configuration
+      dnsConfig:
+        options:
+        - name: ndots
+          value: "2"
+        - name: edns0
+
+---
+# RBAC: ServiceAccount with minimal permissions
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: secure-service-sa
+  namespace: waqiti
+  labels:
+    app: secure-service
+automountServiceAccountToken: false
+
+---
+# RBAC: Role with minimal permissions
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: secure-service-role
+  namespace: waqiti
+rules:
+# Only grant necessary permissions
+- apiGroups: [""]
+  resources: ["configmaps"]
+  resourceNames: ["secure-service-config"]
+  verbs: ["get", "watch"]
+- apiGroups: [""]
+  resources: ["secrets"]
+  resourceNames: ["secure-service-secrets"]
+  verbs: ["get"]
+
+---
+# RBAC: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: secure-service-rolebinding
+  namespace: waqiti
+subjects:
+- kind: ServiceAccount
+  name: secure-service-sa
+  namespace: waqiti
+roleRef:
+  kind: Role
+  name: secure-service-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# NetworkPolicy: Restrict network traffic
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: secure-service-netpol
+  namespace: waqiti
+spec:
+  podSelector:
+    matchLabels:
+      app: secure-service
+  policyTypes:
+  - Ingress
+  - Egress
+  
+  ingress:
+  # Only allow traffic from API gateway
+  - from:
+    - podSelector:
+        matchLabels:
+          app: api-gateway
+    - namespaceSelector:
+        matchLabels:
+          name: istio-system
+    ports:
+    - protocol: TCP
+      port: 8080
+  
+  egress:
+  # Allow DNS
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    - podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: UDP
+      port: 53
+  
+  # Allow specific service connections
+  - to:
+    - podSelector:
+        matchLabels:
+          app: database
+    ports:
+    - protocol: TCP
+      port: 5432
+  
+  - to:
+    - podSelector:
+        matchLabels:
+          app: redis
+    ports:
+    - protocol: TCP
+      port: 6379
+  
+  - to:
+    - podSelector:
+        matchLabels:
+          app: kafka
+    ports:
+    - protocol: TCP
+      port: 9092
+
+---
+# PodSecurityPolicy (or Pod Security Standards)
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: secure-service-psp
+spec:
+  privileged: false
+  allowPrivilegeEscalation: false
+  requiredDropCapabilities:
+  - ALL
+  volumes:
+  - 'configMap'
+  - 'emptyDir'
+  - 'projected'
+  - 'secret'
+  - 'downwardAPI'
+  - 'persistentVolumeClaim'
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+  runAsUser:
+    rule: 'MustRunAsNonRoot'
+    ranges:
+    - min: 10000
+      max: 20000
+  runAsGroup:
+    rule: 'MustRunAs'
+    ranges:
+    - min: 10000
+      max: 20000
+  seLinux:
+    rule: 'RunAsAny'
+  supplementalGroups:
+    rule: 'MustRunAs'
+    ranges:
+    - min: 10000
+      max: 20000
+  fsGroup:
+    rule: 'MustRunAs'
+    ranges:
+    - min: 10000
+      max: 20000
+  readOnlyRootFilesystem: true
+  forbiddenSysctls:
+  - '*'
+
+---
+# ResourceQuota for namespace
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: waqiti-resource-quota
+  namespace: waqiti
+spec:
+  hard:
+    requests.cpu: "100"
+    requests.memory: "200Gi"
+    limits.cpu: "200"
+    limits.memory: "400Gi"
+    persistentvolumeclaims: "10"
+    services.loadbalancers: "2"
+    services.nodeports: "0"  # Disable NodePort services
+
+---
+# LimitRange for containers
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: waqiti-limit-range
+  namespace: waqiti
+spec:
+  limits:
+  - max:
+      cpu: "2"
+      memory: "4Gi"
+      ephemeral-storage: "10Gi"
+    min:
+      cpu: "50m"
+      memory: "64Mi"
+      ephemeral-storage: "100Mi"
+    default:
+      cpu: "500m"
+      memory: "512Mi"
+      ephemeral-storage: "1Gi"
+    defaultRequest:
+      cpu: "100m"
+      memory: "128Mi"
+      ephemeral-storage: "500Mi"
+    type: Container
+  - max:
+      storage: "10Gi"
+    min:
+      storage: "1Gi"
+    type: PersistentVolumeClaim

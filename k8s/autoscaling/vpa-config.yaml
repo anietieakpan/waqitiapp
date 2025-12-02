@@ -1,0 +1,161 @@
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: payment-service-vpa
+  namespace: default
+  labels:
+    app: payment-service
+    component: autoscaling
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: payment-service
+  updatePolicy:
+    updateMode: "Auto"
+  resourcePolicy:
+    containerPolicies:
+    - containerName: payment-service
+      minAllowed:
+        cpu: 500m
+        memory: 512Mi
+      maxAllowed:
+        cpu: 2000m
+        memory: 4Gi
+      controlledResources: ["cpu", "memory"]
+      controlledValues: RequestsAndLimits
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: wallet-service-vpa
+  namespace: default
+  labels:
+    app: wallet-service
+    component: autoscaling
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: wallet-service
+  updatePolicy:
+    updateMode: "Auto"
+  resourcePolicy:
+    containerPolicies:
+    - containerName: wallet-service
+      minAllowed:
+        cpu: 250m
+        memory: 512Mi
+      maxAllowed:
+        cpu: 1500m
+        memory: 2Gi
+      controlledResources: ["cpu", "memory"]
+      controlledValues: RequestsAndLimits
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: user-service-vpa
+  namespace: default
+  labels:
+    app: user-service
+    component: autoscaling
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: user-service
+  updatePolicy:
+    updateMode: "Auto"
+  resourcePolicy:
+    containerPolicies:
+    - containerName: user-service
+      minAllowed:
+        cpu: 200m
+        memory: 256Mi
+      maxAllowed:
+        cpu: 1000m
+        memory: 1Gi
+      controlledResources: ["cpu", "memory"]
+      controlledValues: RequestsAndLimits
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: ledger-service-vpa
+  namespace: default
+  labels:
+    app: ledger-service
+    component: autoscaling
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ledger-service
+  updatePolicy:
+    updateMode: "Auto"
+  resourcePolicy:
+    containerPolicies:
+    - containerName: ledger-service
+      minAllowed:
+        cpu: 300m
+        memory: 512Mi
+      maxAllowed:
+        cpu: 1500m
+        memory: 2Gi
+      controlledResources: ["cpu", "memory"]
+      controlledValues: RequestsAndLimits
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: fraud-service-vpa
+  namespace: default
+  labels:
+    app: fraud-service
+    component: autoscaling
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: fraud-service
+  updatePolicy:
+    updateMode: "Auto"
+  resourcePolicy:
+    containerPolicies:
+    - containerName: fraud-service
+      minAllowed:
+        cpu: 500m
+        memory: 1Gi
+      maxAllowed:
+        cpu: 3000m
+        memory: 8Gi
+      controlledResources: ["cpu", "memory"]
+      controlledValues: RequestsAndLimits
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: compliance-service-vpa
+  namespace: default
+  labels:
+    app: compliance-service
+    component: autoscaling
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: compliance-service
+  updatePolicy:
+    updateMode: "Auto"
+  resourcePolicy:
+    containerPolicies:
+    - containerName: compliance-service
+      minAllowed:
+        cpu: 300m
+        memory: 512Mi
+      maxAllowed:
+        cpu: 2000m
+        memory: 4Gi
+      controlledResources: ["cpu", "memory"]
+      controlledValues: RequestsAndLimits

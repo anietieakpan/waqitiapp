@@ -1,0 +1,148 @@
+# Configuration for Internal Core Banking Services Migration
+# This profile enables routing to internal services instead of Cyclos
+
+spring:
+  profiles:
+    active: internal
+
+# Integration Service Configuration
+integration:
+  # Primary routing flags
+  use-internal-services: true
+  internal-services-percentage: 100  # Route 100% of traffic to internal services
+  force-internal-for-new-users: true
+  
+  # Operation-specific flags (can be used for gradual migration)
+  internal:
+    users-enabled: true
+    accounts-enabled: true
+    balance-enabled: true
+    payments-enabled: true
+    
+  # Graceful migration settings
+  migration:
+    enable-dual-write: false  # Write to both systems during migration
+    enable-data-validation: true  # Validate data consistency
+    fallback-to-cyclos: false  # Don't fallback to Cyclos on errors
+
+# Service URLs for internal routing
+core-banking-service:
+  url: ${CORE_BANKING_SERVICE_URL:http://localhost:8088}
+
+ledger-service:
+  url: ${LEDGER_SERVICE_URL:http://localhost:8086}
+
+transaction-service:
+  url: ${TRANSACTION_SERVICE_URL:http://localhost:8089}
+
+user-service:
+  url: ${USER_SERVICE_URL:http://localhost:8081}
+
+# Circuit Breaker Configuration for Internal Services
+resilience4j:
+  circuitbreaker:
+    instances:
+      core-banking:
+        registerHealthIndicator: true
+        slidingWindowSize: 20
+        minimumNumberOfCalls: 10
+        permittedNumberOfCallsInHalfOpenState: 5
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 10s
+        failureRateThreshold: 30
+        eventConsumerBufferSize: 20
+        recordExceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+        ignoreExceptions:
+          - java.lang.IllegalArgumentException
+      
+      ledger-service:
+        registerHealthIndicator: true
+        slidingWindowSize: 15
+        minimumNumberOfCalls: 8
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 8s
+        failureRateThreshold: 25
+        
+      transaction-service:
+        registerHealthIndicator: true
+        slidingWindowSize: 25
+        minimumNumberOfCalls: 12
+        permittedNumberOfCallsInHalfOpenState: 6
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 12s
+        failureRateThreshold: 35
+
+  retry:
+    instances:
+      core-banking:
+        maxAttempts: 3
+        waitDuration: 1s
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+          
+      ledger-service:
+        maxAttempts: 2
+        waitDuration: 500ms
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 1.5
+        
+      transaction-service:
+        maxAttempts: 3
+        waitDuration: 2s
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+
+  timelimiter:
+    instances:
+      core-banking:
+        timeoutDuration: 30s
+        cancelRunningFuture: true
+        
+      ledger-service:
+        timeoutDuration: 15s
+        cancelRunningFuture: true
+        
+      transaction-service:
+        timeoutDuration: 45s
+        cancelRunningFuture: true
+
+# Disable Cyclos when using internal services
+cyclos:
+  enabled: false
+  base-url: ${CYCLOS_URL:http://localhost:8888/api}
+  
+# Monitoring and observability
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,circuitbreakers
+  endpoint:
+    health:
+      show-details: when-authorized
+      show-components: always
+  health:
+    circuitbreakers:
+      enabled: true
+  metrics:
+    distribution:
+      percentiles-histogram:
+        resilience4j.circuitbreaker.calls: true
+        resilience4j.retry.calls: true
+        http.server.requests: true
+
+# Logging configuration for migration tracking
+logging:
+  level:
+    com.waqiti.integration.service.RoutingIntegrationService: INFO
+    com.waqiti.integration.service.InternalCoreBankingService: INFO
+    com.waqiti.integration.cyclos: WARN  # Reduce Cyclos logging when using internal
+    resilience4j: DEBUG
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level [%X{traceId},%X{spanId}] %logger{36} - %msg%n"

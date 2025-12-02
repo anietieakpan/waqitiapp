@@ -1,0 +1,39 @@
+{
+  "properties": [
+    {
+      "name": "ar-payment.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable AR payment functionality",
+      "defaultValue": true
+    },
+    {
+      "name": "ar-payment.integration.provider",
+      "type": "java.lang.String",
+      "description": "AR payment integration provider",
+      "defaultValue": "AR_PROVIDER"
+    },
+    {
+      "name": "ar-payment.security.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable AR payment security features",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "OAuth2 client ID for service",
+      "defaultValue": "ar-payment-service"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "OAuth2 client secret for service"
+    }
+  ]
+}

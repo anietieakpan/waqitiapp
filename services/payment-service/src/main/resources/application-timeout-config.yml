@@ -1,0 +1,466 @@
+# ==================================================================================
+# PRODUCTION-GRADE TIMEOUT CONFIGURATION
+# ==================================================================================
+#
+# PURPOSE: Prevent resource exhaustion and cascading failures
+# CRITICALITY: HIGH - Prevents hanging requests that can crash the service
+#
+# TIMEOUT STRATEGY:
+# - Connection Timeout: Time to establish connection (fast fail)
+# - Read Timeout: Time to wait for response (prevent hangs)
+# - Circuit Breaker Timeout: Coordinated with read timeout
+#
+# RISK IF MISSING:
+# - Hanging threads → Resource exhaustion → Service crashes
+# - Cascading failures → Multiple services down
+# - Poor user experience → Timeouts at API gateway level
+#
+# @author Waqiti Platform Team
+# @version 2.0 - Production Ready
+# @since 2025-10-09
+# ==================================================================================
+
+# ==================================================================================
+# FEIGN CLIENT GLOBAL TIMEOUT CONFIGURATION
+# ==================================================================================
+feign:
+  client:
+    config:
+      # ===========================================================================
+      # DEFAULT CONFIGURATION (Applied to ALL Feign clients)
+      # ===========================================================================
+      default:
+        connectTimeout: 3000          # 3s - Fast fail on connection issues
+        readTimeout: 10000             # 10s - Reasonable default for most operations
+        loggerLevel: basic             # Log basic request/response info
+
+        # Error decoder for consistent error handling
+        errorDecoder: com.waqiti.payment.client.config.DefaultErrorDecoder
+
+        # Request interceptor for correlation ID, auth tokens
+        requestInterceptors:
+          - com.waqiti.payment.client.config.DefaultRequestInterceptor
+
+      # ===========================================================================
+      # CRITICAL SERVICES (Lower timeouts for user-facing operations)
+      # ===========================================================================
+
+      # Fraud Detection Service - CRITICAL for payment authorization
+      fraud-detection-service:
+        connectTimeout: 2000           # 2s - Fast fail for fraud checks
+        readTimeout: 5000              # 5s - Fraud checks must be fast
+        loggerLevel: full              # Full logging for fraud investigation
+        errorDecoder: com.waqiti.payment.client.config.FraudDetectionErrorDecoder
+        retryer: com.waqiti.payment.client.config.FraudDetectionRetryer
+
+      # Wallet Service - CRITICAL for balance operations
+      wallet-service:
+        connectTimeout: 2000           # 2s - Fast connection
+        readTimeout: 8000              # 8s - Balance calculations can be complex
+        loggerLevel: basic
+        errorDecoder: com.waqiti.payment.client.config.WalletServiceErrorDecoder
+
+      # User Service - CRITICAL for authentication
+      user-service:
+        connectTimeout: 2000           # 2s - Fast fail
+        readTimeout: 5000              # 5s - User lookups should be fast
+        loggerLevel: basic
+        errorDecoder: com.waqiti.payment.client.config.UserServiceErrorDecoder
+
+      # Risk Service - CRITICAL for transaction approval
+      risk-service:
+        connectTimeout: 2000           # 2s
+        readTimeout: 6000              # 6s - Risk scoring
+        loggerLevel: headers
+        errorDecoder: com.waqiti.payment.client.config.RiskServiceErrorDecoder
+
+      # ===========================================================================
+      # COMPLIANCE SERVICES (Higher timeouts for complex processing)
+      # ===========================================================================
+
+      # Compliance Service - Complex AML/KYC checks
+      compliance-service:
+        connectTimeout: 5000           # 5s - Allow time for compliance systems
+        readTimeout: 30000             # 30s - AML screening can be slow
+        loggerLevel: headers           # Detailed logging for audit
+        errorDecoder: com.waqiti.payment.client.config.ComplianceServiceErrorDecoder
+
+      # Tax Service - Tax calculations
+      tax-service:
+        connectTimeout: 3000           # 3s
+        readTimeout: 15000             # 15s - Tax calculations
+        loggerLevel: basic
+        errorDecoder: com.waqiti.payment.client.config.TaxServiceErrorDecoder
+
+      # ===========================================================================
+      # PAYMENT PROVIDERS (External services - higher timeouts)
+      # ===========================================================================
+
+      # Stripe Service
+      stripe-service:
+        connectTimeout: 5000           # 5s - External service
+        readTimeout: 20000             # 20s - Stripe can be slow
+        loggerLevel: headers
+        errorDecoder: com.waqiti.payment.client.config.StripeServiceErrorDecoder
+
+      # Dwolla Service
+      dwolla-service:
+        connectTimeout: 5000           # 5s
+        readTimeout: 25000             # 25s - ACH processing
+        loggerLevel: headers
+        errorDecoder: com.waqiti.payment.client.config.DwollaServiceErrorDecoder
+
+      # Wise Service
+      wise-service:
+        connectTimeout: 5000           # 5s
+        readTimeout: 30000             # 30s - International transfers
+        loggerLevel: headers
+        errorDecoder: com.waqiti.payment.client.config.WiseServiceErrorDecoder
+
+      # PayPal Service
+      paypal-service:
+        connectTimeout: 5000           # 5s
+        readTimeout: 20000             # 20s
+        loggerLevel: headers
+        errorDecoder: com.waqiti.payment.client.config.PayPalServiceErrorDecoder
+
+      # ===========================================================================
+      # LEDGER & ACCOUNTING SERVICES
+      # ===========================================================================
+
+      # Ledger Service - Financial records
+      ledger-service:
+        connectTimeout: 3000           # 3s
+        readTimeout: 12000             # 12s - Ledger writes
+        loggerLevel: basic
+        errorDecoder: com.waqiti.payment.client.config.LedgerServiceErrorDecoder
+
+      # Balance Service
+      balance-service:
+        connectTimeout: 2000           # 2s - Fast balance checks
+        readTimeout: 8000              # 8s
+        loggerLevel: basic
+        errorDecoder: com.waqiti.payment.client.config.BalanceServiceErrorDecoder
+
+      # ===========================================================================
+      # NON-CRITICAL SERVICES (Standard timeouts)
+      # ===========================================================================
+
+      # Notification Service
+      notification-service:
+        connectTimeout: 3000           # 3s
+        readTimeout: 10000             # 10s - Notifications can fail gracefully
+        loggerLevel: basic
+
+      # Analytics Service
+      analytics-service:
+        connectTimeout: 5000           # 5s
+        readTimeout: 15000             # 15s - Analytics not time-critical
+        loggerLevel: basic
+
+      # Reporting Service
+      reporting-service:
+        connectTimeout: 5000           # 5s
+        readTimeout: 30000             # 30s - Reports can be slow
+        loggerLevel: basic
+
+  # ===========================================================================
+  # FEIGN HTTPCLIENT CONFIGURATION
+  # ===========================================================================
+  httpclient:
+    enabled: true                      # Use Apache HttpClient (more features)
+    max-connections: 200               # Max total connections
+    max-connections-per-route: 50      # Max connections per route
+    time-to-live: 900                  # Connection TTL in seconds (15 min)
+    time-to-live-unit: seconds
+    follow-redirects: true             # Follow HTTP redirects
+    connection-timeout: 3000           # Default connection timeout
+    connection-timer-repeat: 3000      # Connection pool cleanup interval
+    disable-ssl-validation: false      # NEVER disable SSL in production!
+
+  # ===========================================================================
+  # COMPRESSION (Reduce bandwidth usage)
+  # ===========================================================================
+  compression:
+    request:
+      enabled: true
+      mime-types: application/json,application/xml,text/xml
+      min-request-size: 2048           # Only compress requests > 2KB
+    response:
+      enabled: true
+      useGzipDecoder: true
+
+# ==================================================================================
+# RESILIENCE4J CIRCUIT BREAKER TIMEOUTS
+# ==================================================================================
+resilience4j:
+  circuitbreaker:
+    instances:
+      # ===========================================================================
+      # CRITICAL SERVICES - Aggressive circuit breaking
+      # ===========================================================================
+      fraud-detection-service:
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50       # Open circuit at 50% failure
+        slowCallRateThreshold: 50      # Also track slow calls
+        slowCallDurationThreshold: 5000ms  # 5s = slow call
+        waitDurationInOpenState: 30s   # Try recovery after 30s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        registerHealthIndicator: true
+        recordExceptions:
+          - java.net.SocketTimeoutException
+          - java.net.ConnectException
+          - feign.RetryableException
+          - org.springframework.web.client.ResourceAccessException
+        ignoreExceptions:
+          - com.waqiti.payment.exception.BusinessValidationException
+          - com.waqiti.payment.exception.InvalidRequestException
+
+      wallet-service:
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        slowCallRateThreshold: 50
+        slowCallDurationThreshold: 8000ms  # Coordinated with readTimeout
+        waitDurationInOpenState: 30s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        registerHealthIndicator: true
+
+      user-service:
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        slowCallRateThreshold: 50
+        slowCallDurationThreshold: 5000ms
+        waitDurationInOpenState: 30s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        registerHealthIndicator: true
+
+      risk-service:
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        slowCallRateThreshold: 50
+        slowCallDurationThreshold: 6000ms
+        waitDurationInOpenState: 30s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        registerHealthIndicator: true
+
+      # ===========================================================================
+      # COMPLIANCE SERVICES - More lenient timeouts
+      # ===========================================================================
+      compliance-service:
+        slidingWindowSize: 8
+        minimumNumberOfCalls: 3
+        failureRateThreshold: 60       # More lenient for compliance
+        slowCallRateThreshold: 60
+        slowCallDurationThreshold: 30000ms  # 30s
+        waitDurationInOpenState: 60s   # Longer recovery time
+        permittedNumberOfCallsInHalfOpenState: 2
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        registerHealthIndicator: true
+
+      tax-service:
+        slidingWindowSize: 8
+        minimumNumberOfCalls: 3
+        failureRateThreshold: 60
+        slowCallRateThreshold: 60
+        slowCallDurationThreshold: 15000ms
+        waitDurationInOpenState: 45s
+        permittedNumberOfCallsInHalfOpenState: 2
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        registerHealthIndicator: true
+
+      # ===========================================================================
+      # PAYMENT PROVIDERS - Highest timeouts (external services)
+      # ===========================================================================
+      stripe-service:
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 70       # More lenient for external services
+        slowCallRateThreshold: 70
+        slowCallDurationThreshold: 20000ms
+        waitDurationInOpenState: 60s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        registerHealthIndicator: true
+
+      dwolla-service:
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 70
+        slowCallRateThreshold: 70
+        slowCallDurationThreshold: 25000ms
+        waitDurationInOpenState: 60s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        registerHealthIndicator: true
+
+      wise-service:
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 70
+        slowCallRateThreshold: 70
+        slowCallDurationThreshold: 30000ms
+        waitDurationInOpenState: 60s
+        permittedNumberOfCallsInHalfOpenEnabled: true
+        registerHealthIndicator: true
+
+      paypal-service:
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 70
+        slowCallRateThreshold: 70
+        slowCallDurationThreshold: 20000ms
+        waitDurationInOpenState: 60s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        registerHealthIndicator: true
+
+  # ===========================================================================
+  # RETRY CONFIGURATION
+  # ===========================================================================
+  retry:
+    instances:
+      # Default retry configuration
+      default:
+        maxAttempts: 3
+        waitDuration: 1000ms
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - java.net.SocketTimeoutException
+          - java.net.ConnectException
+          - feign.RetryableException
+
+      # No retries for financial operations (prevent double-charging)
+      financial-operations:
+        maxAttempts: 1
+        waitDuration: 0ms
+
+  # ===========================================================================
+  # BULKHEAD CONFIGURATION (Limit concurrent calls)
+  # ===========================================================================
+  bulkhead:
+    instances:
+      fraud-detection-service:
+        maxConcurrentCalls: 25         # Max 25 concurrent fraud checks
+        maxWaitDuration: 100ms         # Don't wait long for permit
+
+      wallet-service:
+        maxConcurrentCalls: 50         # Higher concurrency for wallets
+        maxWaitDuration: 100ms
+
+      compliance-service:
+        maxConcurrentCalls: 10         # Limited concurrency for compliance
+        maxWaitDuration: 1000ms        # Can wait longer
+
+      stripe-service:
+        maxConcurrentCalls: 20
+        maxWaitDuration: 200ms
+
+      dwolla-service:
+        maxConcurrentCalls: 15
+        maxWaitDuration: 200ms
+
+      wise-service:
+        maxConcurrentCalls: 15
+        maxWaitDuration: 200ms
+
+      paypal-service:
+        maxConcurrentCalls: 20
+        maxWaitDuration: 200ms
+
+# ==================================================================================
+# TIMEOUT MONITORING AND ALERTING
+# ==================================================================================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus,circuitbreakers,retries,httptrace
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+    metrics:
+      enabled: true
+  health:
+    circuitbreakers:
+      enabled: true
+    ratelimiters:
+      enabled: true
+  metrics:
+    enable:
+      http.client.requests: true
+    distribution:
+      percentiles-histogram:
+        http.client.requests: true
+        resilience4j.circuitbreaker.calls: true
+      percentiles:
+        http.client.requests: 0.5,0.9,0.95,0.99,0.999
+      sla:
+        http.client.requests: 100ms,500ms,1s,2s,5s,10s,30s
+    tags:
+      application: payment-service
+      environment: ${ENVIRONMENT:production}
+
+  # Prometheus metrics export
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+
+# ==================================================================================
+# LOGGING FOR TIMEOUT DEBUGGING
+# ==================================================================================
+logging:
+  level:
+    # Feign client logging
+    com.waqiti.payment.client: DEBUG
+    feign: INFO
+
+    # HTTP client logging
+    org.apache.http.wire: INFO
+    org.apache.http.impl.conn: DEBUG
+    org.apache.http.impl.client: DEBUG
+
+    # Resilience4j logging
+    io.github.resilience4j.circuitbreaker: INFO
+    io.github.resilience4j.retry: INFO
+    io.github.resilience4j.bulkhead: INFO
+
+    # Timeout-specific logging
+    java.net: DEBUG                    # Network timeout debugging
+
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{X-Correlation-ID:-NO-CORRELATION-ID}] %logger{36} - %msg%n"
+
+# ==================================================================================
+# ALERT THRESHOLDS (For Prometheus AlertManager)
+# ==================================================================================
+#
+# Alert Rules (configure in Prometheus):
+#
+# 1. High Timeout Rate:
+#    - Alert if >5% of requests timeout in 5 min window
+#    - expr: rate(http_client_requests_timeout_total[5m]) > 0.05
+#
+# 2. Circuit Breaker Open:
+#    - Alert if any critical service circuit breaker is open
+#    - expr: resilience4j_circuitbreaker_state{service="fraud-detection-service"} == 1
+#
+# 3. Slow Calls:
+#    - Alert if p95 latency > SLA threshold
+#    - expr: histogram_quantile(0.95, http_client_requests_seconds) > 2.0
+#
+# 4. Connection Pool Exhaustion:
+#    - Alert if connection pool utilization > 90%
+#    - expr: (http_client_connections_active / http_client_connections_max) > 0.9
+#
+# ==================================================================================

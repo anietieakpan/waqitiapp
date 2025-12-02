@@ -1,0 +1,45 @@
+package com.waqiti.support.domain;
+
+public enum TicketSubCategory {
+    // Account
+    ACCOUNT_CREATION,
+    ACCOUNT_VERIFICATION,
+    ACCOUNT_CLOSURE,
+    PROFILE_UPDATE,
+    
+    // Payment
+    PAYMENT_FAILED,
+    PAYMENT_PENDING,
+    PAYMENT_REFUND,
+    PAYMENT_DISPUTE,
+    
+    // Transaction
+    TRANSACTION_NOT_RECEIVED,
+    TRANSACTION_DUPLICATE,
+    TRANSACTION_WRONG_AMOUNT,
+    TRANSACTION_WRONG_RECIPIENT,
+    
+    // Security
+    ACCOUNT_HACKED,
+    SUSPICIOUS_ACTIVITY,
+    TWO_FACTOR_AUTH,
+    PASSWORD_RESET,
+    
+    // Technical
+    APP_CRASH,
+    LOGIN_ISSUE,
+    PERFORMANCE_ISSUE,
+    BUG_REPORT,
+    
+    // Compliance
+    KYC_VERIFICATION,
+    DOCUMENT_UPLOAD,
+    ACCOUNT_LIMITS,
+    REGULATORY_INQUIRY,
+    
+    // Other
+    GENERAL_INQUIRY,
+    FEEDBACK,
+    PARTNERSHIP,
+    MEDIA_INQUIRY
+}

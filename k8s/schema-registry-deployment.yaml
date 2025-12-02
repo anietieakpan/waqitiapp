@@ -1,0 +1,194 @@
+---
+# Schema Registry Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: schema-registry
+  namespace: waqiti-platform
+  labels:
+    app: schema-registry
+    component: event-infrastructure
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: schema-registry
+  template:
+    metadata:
+      labels:
+        app: schema-registry
+        component: event-infrastructure
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8081"
+        prometheus.io/path: "/metrics"
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - schema-registry
+              topologyKey: kubernetes.io/hostname
+
+      containers:
+      - name: schema-registry
+        image: confluentinc/cp-schema-registry:7.5.0
+        ports:
+        - containerPort: 8081
+          name: http
+          protocol: TCP
+
+        env:
+        - name: SCHEMA_REGISTRY_HOST_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+
+        - name: SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS
+          value: "kafka-0.kafka-headless.waqiti-platform.svc.cluster.local:9092,kafka-1.kafka-headless.waqiti-platform.svc.cluster.local:9092,kafka-2.kafka-headless.waqiti-platform.svc.cluster.local:9092"
+
+        - name: SCHEMA_REGISTRY_LISTENERS
+          value: "http://0.0.0.0:8081"
+
+        - name: SCHEMA_REGISTRY_KAFKASTORE_TOPIC
+          value: "_schemas"
+
+        - name: SCHEMA_REGISTRY_KAFKASTORE_TOPIC_REPLICATION_FACTOR
+          value: "3"
+
+        - name: SCHEMA_REGISTRY_SCHEMA_COMPATIBILITY_LEVEL
+          value: "BACKWARD"
+
+        - name: SCHEMA_REGISTRY_MASTER_ELIGIBILITY
+          value: "true"
+
+        - name: SCHEMA_REGISTRY_HEAP_OPTS
+          value: "-Xms512M -Xmx1G"
+
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8081
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+
+        readinessProbe:
+          httpGet:
+            path: /subjects
+            port: 8081
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+        volumeMounts:
+        - name: config
+          mountPath: /etc/schema-registry
+
+      volumes:
+      - name: config
+        configMap:
+          name: schema-registry-config
+
+---
+# Schema Registry Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: schema-registry
+  namespace: waqiti-platform
+  labels:
+    app: schema-registry
+    component: event-infrastructure
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8081
+    targetPort: 8081
+    protocol: TCP
+    name: http
+  selector:
+    app: schema-registry
+
+---
+# Schema Registry ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: schema-registry-config
+  namespace: waqiti-platform
+data:
+  schema-registry.properties: |
+    # Kafka Store Configuration
+    kafkastore.connection.url=kafka:2181
+    kafkastore.timeout.ms=10000
+
+    # Schema Compatibility
+    schema.compatibility.level=BACKWARD
+
+    # Leader Election
+    master.eligibility=true
+
+---
+# Schema Registry Service Monitor (Prometheus)
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: schema-registry
+  namespace: waqiti-platform
+  labels:
+    app: schema-registry
+spec:
+  selector:
+    matchLabels:
+      app: schema-registry
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s
+
+---
+# Horizontal Pod Autoscaler
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: schema-registry
+  namespace: waqiti-platform
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: schema-registry
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80

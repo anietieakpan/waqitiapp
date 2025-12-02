@@ -1,0 +1,111 @@
+{
+  "type": "record",
+  "name": "AuthenticationEvent",
+  "namespace": "com.waqiti.events.v1",
+  "doc": "Event published for authentication actions",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "Unique event identifier (UUID)"
+    },
+    {
+      "name": "eventType",
+      "type": "string",
+      "default": "authentication-event",
+      "doc": "Type of event"
+    },
+    {
+      "name": "timestamp",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "Event timestamp in epoch milliseconds"
+    },
+    {
+      "name": "correlationId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Correlation ID for distributed tracing"
+    },
+    {
+      "name": "version",
+      "type": "string",
+      "default": "1.0",
+      "doc": "Schema version"
+    },
+    {
+      "name": "userId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "User ID (UUID)"
+    },
+    {
+      "name": "authAction",
+      "type": {
+        "type": "enum",
+        "name": "AuthAction",
+        "symbols": ["LOGIN", "LOGOUT", "LOGIN_FAILED", "MFA_REQUIRED", "MFA_COMPLETED", "PASSWORD_RESET", "SESSION_EXPIRED"]
+      },
+      "doc": "Authentication action"
+    },
+    {
+      "name": "authMethod",
+      "type": ["null", {
+        "type": "enum",
+        "name": "AuthMethod",
+        "symbols": ["PASSWORD", "BIOMETRIC", "OTP", "SSO", "API_KEY", "TOKEN"]
+      }],
+      "default": null,
+      "doc": "Authentication method used"
+    },
+    {
+      "name": "success",
+      "type": "boolean",
+      "doc": "Whether authentication was successful"
+    },
+    {
+      "name": "ipAddress",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "IP address of request"
+    },
+    {
+      "name": "userAgent",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "User agent string"
+    },
+    {
+      "name": "deviceId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Device identifier"
+    },
+    {
+      "name": "location",
+      "type": ["null", {
+        "type": "map",
+        "values": "string"
+      }],
+      "default": null,
+      "doc": "Geographic location data"
+    },
+    {
+      "name": "failureReason",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Reason for authentication failure if applicable"
+    },
+    {
+      "name": "metadata",
+      "type": ["null", {
+        "type": "map",
+        "values": "string"
+      }],
+      "default": null,
+      "doc": "Additional metadata"
+    }
+  ]
+}

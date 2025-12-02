@@ -1,0 +1,417 @@
+server:
+  port: 8091
+
+spring:
+  application:
+    name: nft-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:development}
+    include: keycloak
+  
+  # OAuth2 Resource Server Configuration for Keycloak
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+  # Database configuration with Vault integration
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:waqiti_nft}
+    username: ${vault.database.username:nft_user}
+    password: ${vault.database.password}}
+    hikari:
+      maximum-pool-size: 15
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+  
+  # Enhanced Vault configuration
+  cloud:
+    vault:
+      enabled: true
+      uri: ${VAULT_URI:http://vault:8200}
+      scheme: http
+      host: vault
+      port: 8200
+      
+      # Authentication (AppRole for production, Token for development)
+      authentication: ${VAULT_AUTH_METHOD:APPROLE}
+      app-role:
+        role-id: ${VAULT_ROLE_ID:}
+        secret-id: ${VAULT_SECRET_ID:}
+        role: nft-service-role
+        app-role-path: approle
+      
+      # Token fallback for development
+      token: ${VAULT_TOKEN:}
+      
+      # Database dynamic credentials
+      database:
+        enabled: true
+        role: nft-service-db-role
+        backend: database
+        username-property: spring.datasource.username
+        password-property: spring.datasource.password
+      
+      # KV secrets engine
+      kv:
+        enabled: true
+        backend: secret
+        profile-separator: "/"
+        default-context: application
+        application-name: nft-service
+        
+      # Generic secrets
+      generic:
+        enabled: true
+        backend: secret
+        default-context: application
+        application-name: nft-service
+        
+      # SSL and connection settings
+      connection-timeout: 5000
+      read-timeout: 15000
+      fail-fast: true
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+    show-sql: false
+
+  # Database migrations
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    table: nft_schema_version
+
+  # Redis cache with Vault password
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${vault.redis.password}}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 10
+          max-idle: 8
+          min-idle: 2
+          max-wait: -1ms
+
+  # Kafka configuration for NFT events
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}}
+    consumer:
+      group-id: nft-service-group
+      enable-auto-commit: false  # Manual acknowledgment for DLQ support
+      max-poll-records: 50  # Batch size control
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.example.common.events,com.waqiti.nft.domain"
+
+    listener:
+      ack-mode: record  # Acknowledge each record individually for better error handling
+      missing-topics-fatal: false  # Don't fail on missing topics
+      type: batch  # Support batch processing
+      concurrency: 3  # Number of concurrent consumer threads
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      retries: 3
+      acks: all
+      compression-type: snappy
+
+  # Cache configuration
+  cache:
+    type: redis
+    redis:
+      time-to-live: 1800000  # 30 minutes
+      cache-null-values: false
+      enable-statistics: true
+
+# Eureka client configuration
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URI:${EUREKA_SERVER_URL:https://discovery-service:8761/eureka}}
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+    hostname: ${HOSTNAME:localhost}
+    statusPageUrlPath: /actuator/health
+    healthCheckUrlPath: /actuator/health
+
+# NFT Service Configuration
+nft:
+  # Blockchain configuration
+  blockchain:
+    # Ethereum configuration
+    ethereum:
+      enabled: true
+      network: ${ETH_NETWORK:mainnet}
+      rpc-url: ${ETH_RPC_URL:https://mainnet.infura.io/v3/}
+      infura:
+        project-id: ${vault.blockchain.ethereum.infura-project-id}}
+        project-secret: ${vault.blockchain.ethereum.infura-secret}}
+      gas:
+        price-strategy: MEDIUM  # LOW, MEDIUM, HIGH, CUSTOM
+        custom-price: 30  # in Gwei
+        limit:
+          mint: 150000
+          transfer: 75000
+          burn: 50000
+      confirmation-blocks: 3
+      
+    # Polygon configuration
+    polygon:
+      enabled: true
+      network: ${POLYGON_NETWORK:mainnet}
+      rpc-url: ${POLYGON_RPC_URL:https://polygon-rpc.com}
+      gas:
+        price-strategy: MEDIUM
+        limit:
+          mint: 150000
+          transfer: 75000
+      confirmation-blocks: 5
+    
+    # Binance Smart Chain configuration
+    bsc:
+      enabled: false
+      network: ${BSC_NETWORK:mainnet}
+      rpc-url: ${BSC_RPC_URL:https://bsc-dataseed.binance.org}
+    
+    # Solana configuration
+    solana:
+      enabled: false
+      network: ${SOLANA_NETWORK:mainnet-beta}
+      rpc-url: ${SOLANA_RPC_URL:https://api.mainnet-beta.solana.com}
+  
+  # Smart contract configuration
+  contracts:
+    nft-marketplace:
+      address: ${NFT_MARKETPLACE_CONTRACT:0x0000000000000000000000000000000000000000}
+      abi-path: classpath:contracts/NFTMarketplace.json
+    erc721:
+      address: ${ERC721_CONTRACT:0x0000000000000000000000000000000000000000}
+      abi-path: classpath:contracts/ERC721.json
+    erc1155:
+      address: ${ERC1155_CONTRACT:0x0000000000000000000000000000000000000000}
+      abi-path: classpath:contracts/ERC1155.json
+  
+  # IPFS configuration
+  ipfs:
+    enabled: true
+    gateway-url: ${IPFS_GATEWAY:https://ipfs.io/ipfs/}
+    api-url: ${IPFS_API_URL:http://localhost:5001}
+    pinning:
+      enabled: true
+      service: PINATA  # PINATA, INFURA, CUSTOM
+      pinata:
+        api-key: ${vault.ipfs.pinata.api-key}}
+        secret-key: ${vault.ipfs.pinata.secret-key}}
+  
+  # Marketplace configuration
+  marketplace:
+    # Fee configuration
+    fees:
+      platform-percentage: 2.5  # Platform takes 2.5% on sales
+      creator-royalty-max: 10.0  # Maximum creator royalty 10%
+      gas-subsidy:
+        enabled: true
+        threshold: 0.01  # Subsidize gas for transactions < 0.01 ETH
+    
+    # Listing configuration
+    listing:
+      max-duration-days: 365
+      min-price: 0.0001
+      max-price: 1000000
+      auto-delist-expired: true
+    
+    # Auction configuration
+    auction:
+      enabled: true
+      min-duration-hours: 1
+      max-duration-days: 30
+      extension-window-minutes: 10  # Extend auction if bid in last 10 minutes
+      min-bid-increment-percentage: 5
+    
+    # Collections
+    collections:
+      verification:
+        enabled: true
+        min-items: 10
+        min-trading-volume: 1.0  # ETH
+      featured:
+        rotation-days: 7
+        max-collections: 10
+  
+  # Storage configuration
+  storage:
+    metadata:
+      provider: S3  # S3, AZURE, GCS, LOCAL
+      s3:
+        bucket: ${NFT_S3_BUCKET:waqiti-nft-metadata}
+        region: ${AWS_REGION:us-east-1}
+        access-key: ${vault.aws.s3.access-key}}
+        secret-key: ${vault.aws.s3.secret-key}}
+    images:
+      max-size-mb: 50
+      allowed-formats:
+        - JPG
+        - PNG
+        - GIF
+        - WEBP
+        - SVG
+      optimization:
+        enabled: true
+        quality: 85
+        generate-thumbnails: true
+    
+  # Security
+  security:
+    signature:
+      verification: true
+      expiry-minutes: 5
+    rate-limiting:
+      mint:
+        per-user-daily: 100
+        per-user-hourly: 20
+      listing:
+        per-user-daily: 500
+        per-user-hourly: 50
+    wallet:
+      whitelist:
+        enabled: false
+        addresses: []
+      blacklist:
+        enabled: true
+        addresses: []
+  
+  # Integration with other services
+  integration:
+    wallet-service:
+      url: ${WALLET_SERVICE_URL:http://localhost:8082}
+      timeout: 5000
+    user-service:
+      url: ${USER_SERVICE_URL:http://localhost:8081}
+      timeout: 5000
+    payment-service:
+      url: ${PAYMENT_SERVICE_URL:http://localhost:8083}
+      timeout: 5000
+    fraud-service:
+      url: ${FRAUD_SERVICE_URL:http://localhost:8090}
+      timeout: 5000
+
+# Web3 wallet configuration
+web3:
+  wallet:
+    # Hot wallet for gas fees and operations
+    hot-wallet:
+      enabled: true
+      private-key: ${vault.blockchain.hot-wallet.private-key}}
+      max-balance: 1.0  # ETH
+      auto-refill:
+        enabled: true
+        threshold: 0.1  # ETH
+        amount: 0.5  # ETH
+    
+    # Cold wallet for treasury
+    cold-wallet:
+      address: ${vault.blockchain.cold-wallet.address}}
+      threshold: 10.0  # ETH - Transfer to cold wallet when hot wallet exceeds
+
+# API Rate Limiting
+api:
+  rate-limit:
+    enabled: true
+    default:
+      limit: 100
+      duration: 60  # seconds
+    endpoints:
+      mint:
+        limit: 10
+        duration: 60
+      marketplace:
+        limit: 50
+        duration: 60
+
+# Resilience4j configuration
+resilience4j:
+  circuitbreaker:
+    instances:
+      blockchain-api:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 30s
+        failureRateThreshold: 50
+      ipfs-api:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 10s
+        failureRateThreshold: 40
+  
+  retry:
+    instances:
+      blockchain-tx:
+        maxAttempts: 5
+        waitDuration: 2000ms
+        retryExceptions:
+          - java.io.IOException
+          - org.web3j.protocol.exceptions.TransactionException
+      ipfs-upload:
+        maxAttempts: 3
+        waitDuration: 1000ms
+
+# Monitoring and metrics
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,circuitbreakers
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: ${spring.application.name}
+      environment: ${spring.profiles.active}
+
+# Logging configuration
+logging:
+  level:
+    root: INFO
+    com.waqiti.nft: DEBUG
+    org.web3j: INFO
+    org.springframework.kafka: INFO
+    org.hibernate.SQL: ${LOG_LEVEL_SQL:WARN}  # WARN for production
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/nft-service.log
+    max-size: 10MB
+    max-history: 30

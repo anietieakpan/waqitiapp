@@ -1,0 +1,196 @@
+# Production Enhancements Configuration
+# Additional configuration for Phase 7-13 implementations
+# Merge this with main application.yml or use as spring.profiles.include
+
+spring:
+  kafka:
+    # Kafka Topics Configuration
+    topics:
+      cache-invalidation: cache-invalidation-events
+      gdpr-events: gdpr-data-events
+      notification-retry: notification-retry-events
+
+    # Consumer configuration for cache invalidation
+    consumer:
+      properties:
+        # Add cache event package to trusted packages
+        spring.json.trusted.packages: "com.example.common.events,com.waqiti.corebanking.events,com.waqiti.corebanking.cache"
+
+  # Cache Configuration (Caffeine - Local In-Memory)
+  # Note: This overrides Redis cache for better performance with distributed invalidation
+  cache:
+    type: caffeine
+    caffeine:
+      spec: maximumSize=10000,expireAfterWrite=3600s,recordStats
+    cache-names: accounts,transactions,exchangeRates,feeSchedules,userAccounts,accountTransactions
+
+  # JPA Additional Configuration for EntityGraph
+  jpa:
+    properties:
+      hibernate:
+        # Enable EntityGraph hint for query optimization
+        jpa:
+          query:
+            default_graph_semantics: FETCH
+        # Ensure lazy loading works with EntityGraphs
+        enable_lazy_load_no_trans: false
+
+# Notification Retry Queue Configuration
+notification:
+  retry:
+    # Scheduled worker interval (milliseconds)
+    worker-interval: 60000 # 1 minute
+    # Cleanup old notifications (days)
+    cleanup-after-days: 7
+    # Max retry attempts
+    max-attempts: 6
+    # Exponential backoff delays (minutes)
+    backoff-delays: 1,5,30,120,360,1440
+
+# Cache Configuration Details
+cache:
+  # Caffeine-specific settings per cache
+  accounts:
+    initial-capacity: 2000
+    maximum-size: 10000
+    expire-after-write: 3600 # seconds (1 hour)
+    expire-after-access: 1800 # seconds (30 minutes)
+
+  transactions:
+    initial-capacity: 5000
+    maximum-size: 20000
+    expire-after-write: 1800 # seconds (30 minutes)
+    expire-after-access: 900 # seconds (15 minutes)
+
+  exchange-rates:
+    initial-capacity: 100
+    maximum-size: 1000
+    expire-after-write: 300 # seconds (5 minutes)
+    expire-after-access: 180 # seconds (3 minutes)
+
+  fee-schedules:
+    initial-capacity: 50
+    maximum-size: 500
+    expire-after-write: 86400 # seconds (24 hours)
+    expire-after-access: 43200 # seconds (12 hours)
+
+# Validation Configuration
+validation:
+  # Transaction amount limits for AML compliance
+  transaction:
+    min-amount: 0.01
+    max-amount: 1000000.00
+    max-decimal-places: 4
+
+  # Currency validation
+  currency:
+    allowed-codes: USD,EUR,GBP,NGN,GHS,KES,ZAR # Add more as needed
+    validate-iso4217: true
+
+# GDPR Configuration
+gdpr:
+  data-retention:
+    years: 7
+    enforcement: strict
+  erasure:
+    enabled: true
+    validation-required: true
+    audit-trail: true
+  export:
+    enabled: true
+    formats: JSON,CSV,PDF
+
+# Metrics Configuration
+metrics:
+  # Enable detailed metrics collection
+  enabled: true
+  # Export to Prometheus
+  export:
+    prometheus:
+      enabled: true
+      step: 60s # Scrape interval
+  # Custom metrics configuration
+  custom:
+    transactions: true
+    accounts: true
+    compliance: true
+    fraud: true
+    cache: true
+    notifications: true
+
+# Logging Configuration for New Features
+logging:
+  level:
+    com.waqiti.corebanking.cache: DEBUG
+    com.waqiti.corebanking.notification: INFO
+    com.waqiti.corebanking.validation: INFO
+    com.waqiti.corebanking.service.MetricsService: DEBUG
+    com.waqiti.corebanking.service.GdprDataErasureService: INFO
+
+  # Pattern for structured logging
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+# Actuator Configuration for Monitoring
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,env,configprops,caches,scheduledtasks
+
+  endpoint:
+    health:
+      show-details: when-authorized
+      show-components: when-authorized
+
+    caches:
+      enabled: true
+
+    scheduledtasks:
+      enabled: true
+
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+        step: 60s
+        descriptions: true
+
+    tags:
+      application: ${spring.application.name}
+      environment: ${SPRING_PROFILES_ACTIVE:dev}
+      service: core-banking
+
+    enable:
+      jvm: true
+      process: true
+      system: true
+      tomcat: true
+      hikaricp: true
+      cache: true
+      http: true
+
+# Scheduler Configuration
+scheduler:
+  # Thread pool size for scheduled tasks
+  pool-size: 5
+  # Notification retry worker
+  notification-retry:
+    enabled: true
+    cron: "0 * * * * *" # Every minute
+    initial-delay: 10000 # 10 seconds
+  # Cache cleanup worker
+  notification-cleanup:
+    enabled: true
+    cron: "0 0 2 * * *" # Daily at 2 AM
+
+# Feature Flags
+features:
+  gdpr-erasure: true
+  distributed-cache-invalidation: true
+  notification-retry-queue: true
+  advanced-validation: true
+  custom-metrics: true
+  soft-deletes: true
+  entity-graph-optimization: true

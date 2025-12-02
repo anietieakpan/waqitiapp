@@ -1,0 +1,159 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: waqiti-production
+
+# Base resources from staging
+bases:
+  - ../base
+
+# Production-specific configurations
+resources:
+  - namespace.yaml
+  - secrets-sealed.yaml
+  - ingress-production.yaml
+  - certificates.yaml
+  - network-policies-production.yaml
+  - pod-disruption-budgets.yaml
+  - backup-cronjob.yaml
+  - monitoring-stack.yaml
+
+# Production patches
+patchesStrategicMerge:
+  - deployments-patches.yaml
+  - configmaps-patches.yaml
+  - services-patches.yaml
+  - hpa-production.yaml
+  - pdb-patches.yaml
+
+# Production replicas and resources
+replicas:
+  - name: payment-service
+    count: 5
+  - name: wallet-service
+    count: 5
+  - name: transaction-service
+    count: 5
+  - name: user-service
+    count: 3
+  - name: fraud-detection-service
+    count: 3
+  - name: notification-service
+    count: 3
+  - name: gateway-service
+    count: 3
+
+# Production images with tags
+images:
+  - name: waqiti/payment-service
+    newTag: v1.0.0-prod
+  - name: waqiti/wallet-service
+    newTag: v1.0.0-prod
+  - name: waqiti/transaction-service
+    newTag: v1.0.0-prod
+  - name: waqiti/user-service
+    newTag: v1.0.0-prod
+  - name: waqiti/security-service
+    newTag: v1.0.0-prod
+  - name: waqiti/fraud-detection-service
+    newTag: v1.0.0-prod
+  - name: waqiti/notification-service
+    newTag: v1.0.0-prod
+  - name: waqiti/gateway-service
+    newTag: v1.0.0-prod
+  - name: waqiti/ledger-service
+    newTag: v1.0.0-prod
+  - name: waqiti/reconciliation-service
+    newTag: v1.0.0-prod
+
+# ConfigMap generator for production configs
+configMapGenerator:
+  - name: app-config
+    behavior: merge
+    literals:
+      - ENVIRONMENT=production
+      - LOG_LEVEL=info
+      - ENABLE_METRICS=true
+      - ENABLE_TRACING=true
+      - ENABLE_DEBUG=false
+      - DATABASE_CONNECTION_POOL_SIZE=50
+      - REDIS_CONNECTION_POOL_SIZE=30
+      - KAFKA_REPLICATION_FACTOR=3
+      - ENABLE_RATE_LIMITING=true
+      - MAX_REQUESTS_PER_MINUTE=1000
+      - ENABLE_CIRCUIT_BREAKER=true
+      - CIRCUIT_BREAKER_THRESHOLD=0.5
+      - ENABLE_CACHE=true
+      - CACHE_TTL=3600
+      - ENABLE_COMPRESSION=true
+      - ENABLE_SSL=true
+      - FORCE_HTTPS=true
+
+# Secret generator for production secrets
+secretGenerator:
+  - name: database-credentials
+    behavior: merge
+    envs:
+      - secrets/database.env
+  - name: redis-credentials
+    behavior: merge
+    envs:
+      - secrets/redis.env
+  - name: kafka-credentials
+    behavior: merge
+    envs:
+      - secrets/kafka.env
+  - name: jwt-signing-key
+    behavior: merge
+    files:
+      - secrets/jwt-private.key
+      - secrets/jwt-public.key
+  - name: payment-gateway-credentials
+    behavior: merge
+    envs:
+      - secrets/stripe.env
+      - secrets/paypal.env
+  - name: blockchain-credentials
+    behavior: merge
+    envs:
+      - secrets/ethereum.env
+      - secrets/bitcoin.env
+
+# Common labels for all resources
+commonLabels:
+  environment: production
+  managed-by: kustomize
+  version: v1.0.0
+  app.kubernetes.io/part-of: example-platform
+
+# Common annotations
+commonAnnotations:
+  deployment-date: "2024-01-15"
+  team: platform-engineering
+  cost-center: fintech-001
+
+# Resource limits for production
+patches:
+  - target:
+      kind: Deployment
+      name: .*
+    patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "2000m"
+  - target:
+      kind: Deployment
+      labelSelector: "tier=critical"
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "1Gi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "4Gi"

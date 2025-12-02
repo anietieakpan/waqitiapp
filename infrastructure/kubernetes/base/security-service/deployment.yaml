@@ -1,0 +1,168 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: security-service
+  namespace: waqiti
+  labels:
+    app: security-service
+    version: v1
+    component: security
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: security-service
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: security-service
+        version: v1
+        component: security
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/actuator/prometheus"
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/role: "security-service"
+        vault.hashicorp.com/agent-inject-secret-jwt: "security/jwt"
+        vault.hashicorp.com/agent-inject-template-jwt: |
+          {{- with secret "security/jwt" -}}
+          export JWT_SECRET="{{ .Data.secret }}"
+          export JWT_PRIVATE_KEY="{{ .Data.private_key }}"
+          export JWT_PUBLIC_KEY="{{ .Data.public_key }}"
+          {{- end }}
+    spec:
+      serviceAccountName: security-service
+      initContainers:
+      - name: wait-for-dependencies
+        image: busybox:latest
+        command: ['sh', '-c', 'until nc -z postgres 5432 && nc -z redis-master 6379; do echo waiting for dependencies; sleep 2; done']
+      containers:
+      - name: security-service
+        image: waqiti/security-service:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        - containerPort: 9090
+          name: metrics
+          protocol: TCP
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "kubernetes"
+        - name: JAVA_OPTS
+          value: "-Xms512m -Xmx1g -XX:+UseG1GC -XX:MaxGCPauseMillis=200"
+        - name: SERVER_PORT
+          value: "8080"
+        - name: MANAGEMENT_SERVER_PORT
+          value: "9090"
+        - name: SPRING_DATASOURCE_URL
+          value: "jdbc:postgresql://postgres:5432/security_db"
+        - name: SPRING_DATASOURCE_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: security-db-secret
+              key: username
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: security-db-secret
+              key: password
+        - name: SPRING_REDIS_HOST
+          value: "redis-master"
+        - name: SPRING_REDIS_PORT
+          value: "6379"
+        - name: SPRING_REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-password
+              key: password
+        - name: EUREKA_CLIENT_SERVICE_URL_DEFAULT_ZONE
+          value: "http://discovery-service:8761/eureka/"
+        - name: SPRING_CLOUD_CONFIG_URI
+          value: "http://config-service:8888"
+        - name: VAULT_ADDR
+          value: "http://vault:8200"
+        - name: VAULT_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: vault-token
+              key: token
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: jwt-secret
+              key: secret
+        - name: OAUTH_CLIENT_ID
+          value: "waqiti-client"
+        - name: OAUTH_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: oauth-client-secret
+              key: secret
+        - name: TWILIO_ACCOUNT_SID
+          valueFrom:
+            secretKeyRef:
+              name: twilio-credentials
+              key: account-sid
+        - name: TWILIO_AUTH_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: twilio-credentials
+              key: auth-token
+        - name: SENDGRID_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: sendgrid-credentials
+              key: api-key
+        resources:
+          requests:
+            memory: "768Mi"
+            cpu: "500m"
+          limits:
+            memory: "1.5Gi"
+            cpu: "1500m"
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 9090
+          initialDelaySeconds: 90
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 9090
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        volumeMounts:
+        - name: config
+          mountPath: /app/config
+          readOnly: true
+        - name: jwt-keys
+          mountPath: /app/keys
+          readOnly: true
+      volumes:
+      - name: config
+        configMap:
+          name: security-service-config
+      - name: jwt-keys
+        secret:
+          secretName: jwt-keypair
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - security-service
+              topologyKey: kubernetes.io/hostname

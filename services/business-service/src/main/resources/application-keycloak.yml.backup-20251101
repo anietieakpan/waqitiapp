@@ -1,0 +1,336 @@
+# Keycloak Configuration for Business Service
+
+keycloak:
+  enabled: true
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  ssl-required: external
+  resource: business-service
+  bearer-only: true
+  credentials:
+    secret: ${BUSINESS_SERVICE_CLIENT_SECRET:CHANGE_ME_SECURE_SECRET_REQUIRED}
+  use-resource-role-mappings: true
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# Business Service Security Configuration
+business:
+  security:
+    # Public endpoints that don't require authentication
+    public-endpoints:
+      - /actuator/health
+      - /actuator/info
+      - /api/v1/business/registration/check-availability
+      - /api/v1/business/public/**
+      - /swagger-ui/**
+      - /v3/api-docs/**
+    
+    # Service-to-service endpoints
+    service-endpoints:
+      - /internal/business/**
+    
+    # Required roles for business operations
+    required-roles:
+      read:
+        - USER
+        - BUSINESS_USER
+      registration:
+        - USER
+        - BUSINESS_USER
+      profile-manage:
+        - BUSINESS_OWNER
+        - BUSINESS_ADMIN
+      employee-manage:
+        - BUSINESS_OWNER
+        - BUSINESS_ADMIN
+        - HR_MANAGER
+      finance-read:
+        - BUSINESS_OWNER
+        - BUSINESS_ADMIN
+        - FINANCE_MANAGER
+      finance-write:
+        - BUSINESS_OWNER
+        - FINANCE_MANAGER
+      verification:
+        - BUSINESS_VERIFIER
+        - KYB_OFFICER
+      management:
+        - BUSINESS_MANAGER
+        - BUSINESS_OPERATOR
+      admin:
+        - BUSINESS_ADMIN
+        - SYSTEM_ADMIN
+    
+    # Required scopes for operations
+    required-scopes:
+      # Business Account Management
+      account-register: business:account-register
+      accounts-list: business:accounts-list
+      account-details: business:account-details
+      account-update: business:account-update
+      account-delete: business:account-delete
+      account-verify: business:account-verify
+      account-activate: business:account-activate
+      account-suspend: business:account-suspend
+      
+      # Profile Management
+      profile-view: business:profile-view
+      profile-update: business:profile-update
+      logo-upload: business:logo-upload
+      documents-view: business:documents-view
+      document-upload: business:document-upload
+      
+      # Employee Management
+      employee-add: business:employee-add
+      employees-list: business:employees-list
+      employee-update: business:employee-update
+      employee-remove: business:employee-remove
+      employee-permissions: business:employee-permissions
+      
+      # Invoice Management
+      invoice-create: business:invoice-create
+      invoices-list: business:invoices-list
+      invoice-details: business:invoice-details
+      invoice-update: business:invoice-update
+      invoice-delete: business:invoice-delete
+      invoice-send: business:invoice-send
+      invoice-cancel: business:invoice-cancel
+      invoice-mark-paid: business:invoice-mark-paid
+      invoice-download: business:invoice-download
+      invoice-reminder: business:invoice-reminder
+      
+      # Expense Management
+      expense-create: business:expense-create
+      expenses-list: business:expenses-list
+      expense-details: business:expense-details
+      expense-update: business:expense-update
+      expense-delete: business:expense-delete
+      expense-categorize: business:expense-categorize
+      expense-receipt-upload: business:expense-receipt-upload
+      expense-approve: business:expense-approve
+      expense-reject: business:expense-reject
+      expense-reimburse: business:expense-reimburse
+      
+      # Vendor Management
+      vendor-add: business:vendor-add
+      vendors-list: business:vendors-list
+      vendor-details: business:vendor-details
+      vendor-update: business:vendor-update
+      vendor-delete: business:vendor-delete
+      vendor-payment: business:vendor-payment
+      
+      # Customer Management
+      customer-add: business:customer-add
+      customers-list: business:customers-list
+      customer-details: business:customer-details
+      customer-update: business:customer-update
+      customer-delete: business:customer-delete
+      customer-transactions: business:customer-transactions
+      
+      # Payroll Management
+      payroll-process: business:payroll-process
+      payroll-view: business:payroll-view
+      payroll-details: business:payroll-details
+      payroll-approve: business:payroll-approve
+      payroll-schedule: business:payroll-schedule
+      payroll-tax: business:payroll-tax
+      
+      # Financial Reporting
+      report-profit-loss: business:report-profit-loss
+      report-cash-flow: business:report-cash-flow
+      report-balance-sheet: business:report-balance-sheet
+      report-expense: business:report-expense
+      report-revenue: business:report-revenue
+      report-tax: business:report-tax
+      report-export: business:report-export
+      
+      # Business Banking
+      banking-accounts: business:banking-accounts
+      banking-link: business:banking-link
+      banking-transactions: business:banking-transactions
+      banking-transfer: business:banking-transfer
+      banking-statements: business:banking-statements
+      
+      # Tax Management
+      tax-calculate: business:tax-calculate
+      tax-filings: business:tax-filings
+      tax-file: business:tax-file
+      tax-deductions: business:tax-deductions
+      tax-payment: business:tax-payment
+      
+      # Business Loans & Credit
+      loan-apply: business:loan-apply
+      loans-view: business:loans-view
+      loan-details: business:loan-details
+      loan-repay: business:loan-repay
+      credit-score: business:credit-score
+      credit-report: business:credit-report
+    
+    # Business security features
+    features:
+      kyb-validation-enabled: true
+      document-verification-enabled: true
+      compliance-checking-enabled: true
+      financial-verification-enabled: true
+      ownership-verification-enabled: true
+      
+    # Business limits and thresholds
+    limits:
+      max-employees-per-business: 1000
+      max-business-accounts-per-owner: 5
+      max-verification-attempts: 3
+      max-document-uploads-per-day: 20
+      max-invoice-amount: 100000.00
+      max-expense-amount: 50000.00
+      max-payroll-amount: 1000000.00
+      
+    # Security thresholds requiring additional verification
+    verification-thresholds:
+      high-risk-industry: true
+      large-transaction-volume: 100000.00
+      suspicious-ownership-change: 3
+      compliance-flag-count: 2
+      
+    # Advanced security features
+    advanced-security:
+      require-enhanced-due-diligence: true
+      require-beneficial-owner-verification: true
+      automatic-compliance-monitoring: true
+      real-time-risk-assessment: true
+      aml-screening-enabled: true
+      sanctions-screening-enabled: true
+      
+    # CORS Configuration
+    cors:
+      allowed-origins:
+        - "https://*.waqiti.com"
+        - "https://waqiti.com"
+        - "https://localhost:*"
+        - "http://localhost:*"
+      allowed-methods:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - OPTIONS
+        - PATCH
+      allowed-headers:
+        - "*"
+      exposed-headers:
+        - "Authorization"
+        - "X-Total-Count"
+        - "X-Page-Number"
+        - "X-Page-Size"
+        - "X-Request-Id"
+        - "X-Trace-Id"
+        - "X-Service-Name"
+        - "X-Business-Session-Id"
+      allow-credentials: true
+      max-age: 3600
+    
+    # Rate Limiting Configuration
+    rate-limiting:
+      enabled: true
+      global:
+        requests-per-minute: 1000
+        requests-per-hour: 10000
+        requests-per-day: 100000
+      endpoint-specific:
+        "/api/v1/business/accounts/register":
+          requests-per-minute: 10
+          requests-per-hour: 50
+        "/api/v1/business/invoices/create":
+          requests-per-minute: 200
+          requests-per-hour: 2000
+        "/api/v1/business/payroll/process":
+          requests-per-minute: 50
+          requests-per-hour: 500
+        "/api/v1/business/admin/**":
+          requests-per-minute: 30
+          requests-per-hour: 300
+      user-specific:
+        requests-per-minute: 100
+        requests-per-hour: 1000
+        burst-capacity: 200
+    
+    # Circuit Breaker Configuration
+    circuit-breaker:
+      enabled: true
+      patterns:
+        external-banking-api:
+          failure-rate-threshold: 50
+          wait-duration-in-open-state: 60s
+          sliding-window-size: 10
+          minimum-number-of-calls: 5
+        external-verification-service:
+          failure-rate-threshold: 40
+          wait-duration-in-open-state: 45s
+          sliding-window-size: 8
+          minimum-number-of-calls: 4
+        database-operations:
+          failure-rate-threshold: 60
+          wait-duration-in-open-state: 30s
+          sliding-window-size: 15
+          minimum-number-of-calls: 10
+    
+    # Business Compliance Configuration
+    compliance:
+      enabled: true
+      kyb-verification:
+        enabled: true
+        document-types:
+          - "ARTICLES_OF_INCORPORATION"
+          - "TAX_ID_DOCUMENT"
+          - "BUSINESS_LICENSE"
+          - "BANK_STATEMENT"
+          - "BENEFICIAL_OWNER_INFO"
+        verification-timeout: "PT24H" # 24 hours
+      aml-screening:
+        enabled: true
+        screening-interval: "P1D" # Daily
+        risk-threshold: "MEDIUM"
+      beneficial-owner:
+        verification-required: true
+        ownership-threshold: 25.0
+        control-threshold: 25.0
+      enhanced-due-diligence:
+        enabled: true
+        trigger-conditions:
+          - "HIGH_RISK_INDUSTRY"
+          - "POLITICALLY_EXPOSED_PERSON"
+          - "HIGH_TRANSACTION_VOLUME"
+          - "CROSS_BORDER_TRANSACTIONS"
+    
+    # Audit Logging Configuration
+    audit:
+      enabled: true
+      log-level: "INFO"
+      include-request-body: false
+      include-response-body: false
+      sensitive-data-masking: true
+      retention-period: "P7Y" # 7 years for business records
+      events:
+        - "BUSINESS_ACCOUNT_CREATED"
+        - "BUSINESS_ACCOUNT_VERIFIED"
+        - "BUSINESS_ACCOUNT_SUSPENDED"
+        - "EMPLOYEE_ADDED"
+        - "EMPLOYEE_REMOVED"
+        - "INVOICE_CREATED"
+        - "INVOICE_SENT"
+        - "PAYMENT_PROCESSED"
+        - "EXPENSE_APPROVED"
+        - "PAYROLL_PROCESSED"
+        - "TAX_FILING_SUBMITTED"
+        - "COMPLIANCE_CHECK_COMPLETED"
+        - "AML_SCREENING_COMPLETED"
+        - "ADMIN_ACTION"
+        - "FRAUD_DETECTED"
+        - "AUTHENTICATION_SUCCESS"
+        - "AUTHENTICATION_FAILURE"
+        - "AUTHORIZATION_FAILURE"

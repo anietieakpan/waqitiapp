@@ -1,0 +1,186 @@
+global:
+  scrape_interval: 15s
+  scrape_timeout: 10s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'waqiti-production'
+    environment: 'production'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+
+# Load rules once and periodically evaluate them
+rule_files:
+  - "/etc/prometheus/rules/*.yml"
+
+# Scrape configurations
+scrape_configs:
+  # Core Banking Service
+  - job_name: 'core-banking-service'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['core-banking-service:8080']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+      - source_labels: [__address__]
+        target_label: service
+        replacement: 'core-banking-service'
+
+  # Payment Service
+  - job_name: 'payment-service'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 5s  # High-frequency for critical payment metrics
+    static_configs:
+      - targets: ['payment-service:8083']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+      - source_labels: [__address__]
+        target_label: service
+        replacement: 'payment-service'
+
+  # Transaction Service
+  - job_name: 'transaction-service'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 5s
+    static_configs:
+      - targets: ['transaction-service:8085']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+      - source_labels: [__address__]
+        target_label: service
+        replacement: 'transaction-service'
+
+  # Wallet Service
+  - job_name: 'wallet-service'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['wallet-service:8084']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+
+  # Fraud Detection Service
+  - job_name: 'fraud-service'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['fraud-service:8090']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+
+  # Ledger Service
+  - job_name: 'ledger-service'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['ledger-service:8086']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+
+  # User Service
+  - job_name: 'user-service'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['user-service:8081']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+
+  # KYC Service
+  - job_name: 'kyc-service'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['kyc-service:8087']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+
+  # Compliance Service
+  - job_name: 'compliance-service'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['compliance-service:8088']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+
+  # API Gateway
+  - job_name: 'api-gateway'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['api-gateway:8080']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+
+  # PostgreSQL Exporter
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+
+  # Redis Exporter
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+
+  # Kafka Exporter
+  - job_name: 'kafka'
+    static_configs:
+      - targets: ['kafka-exporter:9308']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+
+  # Node Exporter (Infrastructure metrics)
+  - job_name: 'node'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+
+  # Kubernetes metrics (if running on K8s)
+  - job_name: 'kubernetes-apiservers'
+    kubernetes_sd_configs:
+      - role: endpoints
+    scheme: https
+    tls_config:
+      ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+        action: keep
+        regex: default;kubernetes;https
+
+  # Service discovery for dynamic microservices
+  - job_name: 'microservices'
+    consul_sd_configs:
+      - server: 'consul:8500'
+        datacenter: 'dc1'
+        services: ['payment-service', 'transaction-service', 'wallet-service']
+    relabel_configs:
+      - source_labels: [__meta_consul_service]
+        target_label: service
+      - source_labels: [__meta_consul_node]
+        target_label: instance

@@ -1,0 +1,125 @@
+{
+  "type": "record",
+  "name": "CryptoBuyOrderEvent",
+  "namespace": "com.waqiti.events.v1",
+  "doc": "Event published when a crypto buy order is placed",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "Unique event identifier (UUID)"
+    },
+    {
+      "name": "eventType",
+      "type": "string",
+      "default": "crypto-buy-order",
+      "doc": "Type of event"
+    },
+    {
+      "name": "timestamp",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "Event timestamp in epoch milliseconds"
+    },
+    {
+      "name": "correlationId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Correlation ID for distributed tracing"
+    },
+    {
+      "name": "version",
+      "type": "string",
+      "default": "1.0",
+      "doc": "Schema version"
+    },
+    {
+      "name": "orderId",
+      "type": "string",
+      "doc": "Unique order identifier (UUID)"
+    },
+    {
+      "name": "userId",
+      "type": "string",
+      "doc": "User ID (UUID)"
+    },
+    {
+      "name": "cryptoAsset",
+      "type": "string",
+      "doc": "Crypto asset symbol (e.g., BTC, ETH, USDC)"
+    },
+    {
+      "name": "amount",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 19,
+        "scale": 8
+      },
+      "doc": "Amount of crypto to buy"
+    },
+    {
+      "name": "fiatAmount",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 19,
+        "scale": 4
+      },
+      "doc": "Fiat amount for purchase"
+    },
+    {
+      "name": "fiatCurrency",
+      "type": "string",
+      "default": "USD",
+      "doc": "Fiat currency code (ISO 4217)"
+    },
+    {
+      "name": "price",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 19,
+        "scale": 8
+      },
+      "doc": "Price per unit at time of order"
+    },
+    {
+      "name": "orderType",
+      "type": {
+        "type": "enum",
+        "name": "OrderType",
+        "symbols": ["MARKET", "LIMIT", "STOP_LOSS", "STOP_LIMIT"]
+      },
+      "default": "MARKET",
+      "doc": "Type of order"
+    },
+    {
+      "name": "status",
+      "type": {
+        "type": "enum",
+        "name": "OrderStatus",
+        "symbols": ["PENDING", "PROCESSING", "COMPLETED", "FAILED", "CANCELLED", "PARTIAL_FILL"]
+      },
+      "default": "PENDING",
+      "doc": "Order status"
+    },
+    {
+      "name": "walletId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Crypto wallet ID (UUID)"
+    },
+    {
+      "name": "metadata",
+      "type": ["null", {
+        "type": "map",
+        "values": "string"
+      }],
+      "default": null,
+      "doc": "Additional metadata"
+    }
+  ]
+}

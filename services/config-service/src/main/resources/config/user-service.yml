@@ -1,0 +1,42 @@
+# User Service specific configuration
+server:
+  port: 8081
+
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/waqiti_users
+    username: ${DB_USERNAME:${VAULT_DB_USERNAME:user_service}}
+    password: ${DB_PASSWORD:${VAULT_DB_PASSWORD}}
+  kafka:
+    topics:
+          user-created: user.created
+          user-updated: user.updated
+          user-verified: user.verified
+          user-locked: user.locked
+          kyc-completed: user.kyc.completed
+
+# User service specific settings
+user:
+  security:
+    password-min-length: 8
+    password-require-special: true
+    password-require-number: true
+    password-require-uppercase: true
+    max-failed-login-attempts: 5
+    account-lock-duration: 900000  # 15 minutes
+    
+  verification:
+    email-expiration: 86400000  # 24 hours
+    phone-expiration: 300000    # 5 minutes
+    
+  kyc:
+    required-documents:
+      - ID_CARD
+      - PROOF_OF_ADDRESS
+    verification-timeout: 172800000  # 48 hours
+    
+  limits:
+    unverified-daily-limit: 1000
+    verified-daily-limit: 10000
+    
+# Service specific Kafka topics

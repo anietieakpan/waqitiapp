@@ -1,0 +1,16 @@
+{
+  "common": {
+    "loading": "جار التحميل...",
+    "error": "خطأ",
+    "success": "نجح",
+    "cancel": "إلغاء",
+    "save": "حفظ"
+  },
+  "navigation": {
+    "home": "الرئيسية",
+    "dashboard": "لوحة التحكم",
+    "wallet": "المحفظة",
+    "transactions": "المعاملات",
+    "settings": "الإعدادات"
+  }
+}

@@ -1,0 +1,352 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: vault-init-job
+  namespace: vault
+  labels:
+    app.kubernetes.io/name: vault-init
+    app.kubernetes.io/instance: vault-init
+spec:
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: vault-init
+        app.kubernetes.io/instance: vault-init
+    spec:
+      serviceAccountName: vault-init
+      restartPolicy: OnFailure
+      initContainers:
+        - name: wait-for-vault
+          image: curlimages/curl:8.4.0
+          command:
+            - sh
+            - -c
+            - |
+              until curl -k https://vault:8200/v1/sys/health; do
+                echo "Waiting for Vault to be ready..."
+                sleep 5
+              done
+              echo "Vault is ready!"
+      containers:
+        - name: vault-init
+          image: hashicorp/vault:1.15.2
+          env:
+            - name: VAULT_ADDR
+              value: "https://vault:8200"
+            - name: VAULT_SKIP_VERIFY
+              value: "true"
+          command:
+            - sh
+            - -c
+            - |
+              # Wait for Vault to be ready
+              echo "Checking Vault initialization status..."
+              
+              # Check if Vault is already initialized
+              if vault status | grep -q "Initialized.*true"; then
+                echo "Vault is already initialized"
+                exit 0
+              fi
+              
+              # Initialize Vault
+              echo "Initializing Vault..."
+              vault operator init -key-shares=5 -key-threshold=3 -format=json > /tmp/vault-init.json
+              
+              # Extract unseal keys and root token
+              UNSEAL_KEY_1=$(cat /tmp/vault-init.json | jq -r '.unseal_keys_b64[0]')
+              UNSEAL_KEY_2=$(cat /tmp/vault-init.json | jq -r '.unseal_keys_b64[1]')
+              UNSEAL_KEY_3=$(cat /tmp/vault-init.json | jq -r '.unseal_keys_b64[2]')
+              ROOT_TOKEN=$(cat /tmp/vault-init.json | jq -r '.root_token')
+              
+              # Store keys in Kubernetes secrets
+              kubectl create secret generic vault-unseal-keys \
+                --from-literal=key1="$UNSEAL_KEY_1" \
+                --from-literal=key2="$UNSEAL_KEY_2" \
+                --from-literal=key3="$UNSEAL_KEY_3" \
+                --from-literal=root-token="$ROOT_TOKEN" \
+                -n vault || echo "Secret already exists"
+              
+              # Unseal Vault
+              echo "Unsealing Vault..."
+              vault operator unseal "$UNSEAL_KEY_1"
+              vault operator unseal "$UNSEAL_KEY_2"
+              vault operator unseal "$UNSEAL_KEY_3"
+              
+              # Login with root token
+              vault auth "$ROOT_TOKEN"
+              
+              # Enable audit logging
+              vault audit enable file file_path=/vault/logs/audit.log
+              
+              echo "Vault initialization completed successfully"
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: vault-auth-setup
+  namespace: vault
+  labels:
+    app.kubernetes.io/name: vault-auth-setup
+    app.kubernetes.io/instance: vault-auth-setup
+spec:
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: vault-auth-setup
+        app.kubernetes.io/instance: vault-auth-setup
+    spec:
+      serviceAccountName: vault-init
+      restartPolicy: OnFailure
+      containers:
+        - name: vault-auth-setup
+          image: hashicorp/vault:1.15.2
+          env:
+            - name: VAULT_ADDR
+              value: "https://vault:8200"
+            - name: VAULT_SKIP_VERIFY
+              value: "true"
+          command:
+            - sh
+            - -c
+            - |
+              # Get root token from secret
+              ROOT_TOKEN=$(kubectl get secret vault-unseal-keys -n vault -o jsonpath='{.data.root-token}' | base64 -d)
+              
+              # Login with root token
+              vault auth "$ROOT_TOKEN"
+              
+              # Enable Kubernetes authentication
+              echo "Enabling Kubernetes authentication..."
+              vault auth enable kubernetes || echo "Kubernetes auth already enabled"
+              
+              # Configure Kubernetes authentication
+              echo "Configuring Kubernetes authentication..."
+              vault write auth/kubernetes/config \
+                token_reviewer_jwt="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
+                kubernetes_host="https://$KUBERNETES_SERVICE_HOST:$KUBERNETES_SERVICE_PORT" \
+                kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+              
+              # Create policy for Waqiti application
+              echo "Creating Waqiti application policy..."
+              vault policy write waqiti-app - <<EOF
+              # Allow access to application secrets
+              path "secret/data/waqiti/*" {
+                capabilities = ["read", "list"]
+              }
+              
+              # Allow database credential generation
+              path "database/creds/waqiti-app" {
+                capabilities = ["read"]
+              }
+              
+              path "database/creds/waqiti-readonly" {
+                capabilities = ["read"]
+              }
+              
+              # Allow token operations
+              path "auth/token/lookup-self" {
+                capabilities = ["read"]
+              }
+              
+              path "auth/token/renew-self" {
+                capabilities = ["update"]
+              }
+              
+              path "auth/token/revoke-self" {
+                capabilities = ["update"]
+              }
+              
+              # Allow transit encryption
+              path "transit/encrypt/waqiti-*" {
+                capabilities = ["create", "update"]
+              }
+              
+              path "transit/decrypt/waqiti-*" {
+                capabilities = ["create", "update"]
+              }
+              
+              path "transit/datakey/plaintext/waqiti-*" {
+                capabilities = ["create", "update"]
+              }
+              EOF
+              
+              # Create Kubernetes role for Waqiti application
+              echo "Creating Kubernetes role for Waqiti application..."
+              vault write auth/kubernetes/role/waqiti-app \
+                bound_service_account_names="waqiti-app" \
+                bound_service_account_namespaces="waqiti" \
+                policies="waqiti-app" \
+                ttl=24h
+              
+              # Enable secrets engine
+              echo "Enabling KV secrets engine..."
+              vault secrets enable -path=secret kv-v2 || echo "KV secrets engine already enabled"
+              
+              # Enable database secrets engine
+              echo "Enabling database secrets engine..."
+              vault secrets enable database || echo "Database secrets engine already enabled"
+              
+              # Configure PostgreSQL database connection
+              echo "Configuring PostgreSQL database connection..."
+              vault write database/config/waqiti-postgres \
+                plugin_name=postgresql-database-plugin \
+                connection_url="postgresql://{{username}}:{{password}}@postgres:5432/waqiti?sslmode=require" \
+                allowed_roles="waqiti-app,waqiti-readonly" \
+                username="vault_admin" \
+                password="$POSTGRES_VAULT_PASSWORD"
+              
+              # Create database role for application
+              echo "Creating database role for application..."
+              vault write database/roles/waqiti-app \
+                db_name=waqiti-postgres \
+                creation_statements="CREATE ROLE \"{{name}}\" WITH LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}'; GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO \"{{name}}\"; GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO \"{{name}}\"; GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO \"{{name}}\";" \
+                default_ttl="1h" \
+                max_ttl="24h"
+              
+              # Create readonly database role
+              echo "Creating readonly database role..."
+              vault write database/roles/waqiti-readonly \
+                db_name=waqiti-postgres \
+                creation_statements="CREATE ROLE \"{{name}}\" WITH LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}'; GRANT SELECT ON ALL TABLES IN SCHEMA public TO \"{{name}}\"; GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO \"{{name}}\";" \
+                default_ttl="1h" \
+                max_ttl="24h"
+              
+              # Enable transit secrets engine
+              echo "Enabling transit secrets engine..."
+              vault secrets enable transit || echo "Transit secrets engine already enabled"
+              
+              # Create encryption key
+              echo "Creating encryption key..."
+              vault write -f transit/keys/waqiti-encryption-key
+              
+              # Store initial application secrets
+              echo "Storing initial application secrets..."
+              vault kv put secret/waqiti/database \
+                host="postgres" \
+                port="5432" \
+                database="waqiti" \
+                ssl_mode="require"
+              
+              vault kv put secret/waqiti/jwt \
+                secret="$JWT_SECRET" \
+                issuer="waqiti-platform" \
+                expiration="86400"
+              
+              vault kv put secret/waqiti/encryption \
+                key_name="waqiti-encryption-key" \
+                algorithm="AES256-GCM"
+              
+              vault kv put secret/waqiti/external-apis \
+                cyclos_url="https://cyclos.example.internal" \
+                cyclos_username="waqiti_service" \
+                cyclos_password="$CYCLOS_PASSWORD"
+              
+              echo "Vault authentication and secrets setup completed successfully"
+          volumeMounts:
+            - name: vault-init-scripts
+              mountPath: /scripts
+      volumes:
+        - name: vault-init-scripts
+          configMap:
+            name: vault-init-scripts
+            defaultMode: 0755
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vault-init
+  namespace: vault
+  labels:
+    app.kubernetes.io/name: vault-init
+    app.kubernetes.io/instance: vault-init
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: vault-init-role
+  labels:
+    app.kubernetes.io/name: vault-init
+    app.kubernetes.io/instance: vault-init
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create", "get", "list", "patch", "update"]
+  - apiGroups: [""]
+    resources: ["serviceaccounts"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["serviceaccounts/token"]
+    verbs: ["create"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: vault-init-binding
+  labels:
+    app.kubernetes.io/name: vault-init
+    app.kubernetes.io/instance: vault-init
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: vault-init-role
+subjects:
+  - kind: ServiceAccount
+    name: vault-init
+    namespace: vault
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vault-init-scripts
+  namespace: vault
+data:
+  setup-auth.sh: |
+    #!/bin/bash
+    set -e
+    
+    echo "Setting up Vault authentication and secrets..."
+    
+    # Wait for Vault to be ready
+    until vault status; do
+      echo "Waiting for Vault to be ready..."
+      sleep 5
+    done
+    
+    # Get root token
+    ROOT_TOKEN=$(kubectl get secret vault-unseal-keys -n vault -o jsonpath='{.data.root-token}' | base64 -d)
+    export VAULT_TOKEN="$ROOT_TOKEN"
+    
+    # Setup authentication
+    source /scripts/auth-setup.sh
+    
+    # Setup secrets
+    source /scripts/secrets-setup.sh
+    
+    echo "Vault setup completed successfully"
+  
+  auth-setup.sh: |
+    #!/bin/bash
+    
+    # Enable and configure Kubernetes authentication
+    vault auth enable kubernetes || true
+    
+    vault write auth/kubernetes/config \
+      token_reviewer_jwt="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
+      kubernetes_host="https://$KUBERNETES_SERVICE_HOST:$KUBERNETES_SERVICE_PORT" \
+      kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+  
+  secrets-setup.sh: |
+    #!/bin/bash
+    
+    # Enable secrets engines
+    vault secrets enable -path=secret kv-v2 || true
+    vault secrets enable database || true
+    vault secrets enable transit || true
+    
+    # Create encryption keys
+    vault write -f transit/keys/waqiti-encryption-key || true

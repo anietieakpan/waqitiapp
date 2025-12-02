@@ -1,0 +1,270 @@
+name: Performance Regression Tests
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches:
+      - main
+      - develop
+  schedule:
+    # Run nightly at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      test_duration:
+        description: 'Test duration in seconds'
+        required: false
+        default: '60'
+      concurrent_users:
+        description: 'Number of concurrent users'
+        required: false
+        default: '100'
+
+env:
+  JAVA_VERSION: '17'
+  MAVEN_OPTS: '-Xmx4g -XX:+UseG1GC'
+  PERFORMANCE_BASELINE_PATH: './performance-baselines'
+  PERFORMANCE_REPORTS_PATH: './performance-reports'
+
+jobs:
+  performance-tests:
+    name: Run Performance Regression Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: waqiti_test
+          POSTGRES_USER: waqiti
+          POSTGRES_PASSWORD: test123
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      
+      mongodb:
+        image: mongo:6
+        ports:
+          - 27017:27017
+        env:
+          MONGO_INITDB_ROOT_USERNAME: admin
+          MONGO_INITDB_ROOT_PASSWORD: ${{ secrets.TEST_MONGO_PASSWORD }}
+          MONGO_INITDB_DATABASE: waqiti_test
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+          cache: 'maven'
+      
+      - name: Cache Maven dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+      
+      - name: Restore performance baselines
+        uses: actions/cache@v3
+        with:
+          path: ${{ env.PERFORMANCE_BASELINE_PATH }}
+          key: performance-baselines-${{ github.ref }}
+          restore-keys: |
+            performance-baselines-main
+            performance-baselines-
+      
+      - name: Start test infrastructure
+        run: |
+          docker-compose -f docker-compose.test.yml up -d
+          sleep 10
+      
+      - name: Build application
+        run: |
+          mvn clean compile -DskipTests -T 2C
+      
+      - name: Run unit tests (quick validation)
+        run: |
+          mvn test -Dtest="**/unit/**/*Test" -T 2C
+      
+      - name: Start application services
+        run: |
+          # Start services in test mode
+          ./scripts/start-test-services.sh &
+          sleep 30
+          
+          # Wait for services to be healthy
+          ./scripts/wait-for-services.sh
+      
+      - name: Run performance regression tests
+        env:
+          SPRING_PROFILES_ACTIVE: performance-test
+          PERFORMANCE_TEST_DURATION: ${{ github.event.inputs.test_duration || '60' }}
+          PERFORMANCE_CONCURRENT_USERS: ${{ github.event.inputs.concurrent_users || '100' }}
+          PERFORMANCE_REGRESSION_THRESHOLD: '20'
+          PERFORMANCE_FAIL_ON_REGRESSION: 'true'
+        run: |
+          mvn test -Dtest="**/performance/**/*Test" \
+            -Dperformance.test.duration=${{ env.PERFORMANCE_TEST_DURATION }} \
+            -Dperformance.test.concurrent.users=${{ env.PERFORMANCE_CONCURRENT_USERS }} \
+            -Dperformance.baseline.path=${{ env.PERFORMANCE_BASELINE_PATH }} \
+            -Dperformance.report.enabled=true \
+            -DforkCount=0 \
+            -DreuseForks=false
+      
+      - name: Run Gatling load tests
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          cd testing/load-testing
+          mvn gatling:test -Dgatling.simulationClass=com.waqiti.loadtest.TenThousandUsersLoadTest \
+            -DTARGET_USERS=1000 \
+            -DRAMP_DURATION_MINUTES=2 \
+            -DTEST_DURATION_MINUTES=5
+      
+      - name: Analyze performance results
+        if: always()
+        run: |
+          # Parse test results
+          python3 scripts/analyze-performance-results.py \
+            --baseline-path ${{ env.PERFORMANCE_BASELINE_PATH }} \
+            --reports-path ${{ env.PERFORMANCE_REPORTS_PATH }} \
+            --output performance-analysis.json
+      
+      - name: Upload performance reports
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: performance-reports-${{ github.run_id }}
+          path: |
+            ${{ env.PERFORMANCE_REPORTS_PATH }}
+            performance-analysis.json
+            target/gatling/results
+      
+      - name: Update performance baselines
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && success()
+        run: |
+          # Update baselines with current results if tests passed
+          cp -r ${{ env.PERFORMANCE_REPORTS_PATH }}/*.json ${{ env.PERFORMANCE_BASELINE_PATH }}/
+      
+      - name: Comment PR with performance results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const analysisPath = 'performance-analysis.json';
+            
+            if (fs.existsSync(analysisPath)) {
+              const analysis = JSON.parse(fs.readFileSync(analysisPath, 'utf8'));
+              
+              let comment = '## 📊 Performance Test Results\n\n';
+              
+              if (analysis.regressions && analysis.regressions.length > 0) {
+                comment += '### ⚠️ Performance Regressions Detected\n\n';
+                comment += '| Test | Baseline | Current | Change |\n';
+                comment += '|------|----------|---------|--------|\n';
+                
+                analysis.regressions.forEach(r => {
+                  comment += `| ${r.testName} | ${r.baselineValue.toFixed(2)} | ${r.currentValue.toFixed(2)} | +${r.regressionPercent.toFixed(1)}% |\n`;
+                });
+                comment += '\n';
+              } else {
+                comment += '### ✅ No Performance Regressions\n\n';
+              }
+              
+              comment += '### 📈 Performance Metrics\n\n';
+              comment += '| Metric | Value |\n';
+              comment += '|--------|-------|\n';
+              comment += `| API P95 Latency | ${analysis.metrics.api_p95_latency || 'N/A'} ms |\n`;
+              comment += `| Throughput | ${analysis.metrics.throughput || 'N/A'} req/s |\n`;
+              comment += `| Success Rate | ${analysis.metrics.success_rate || 'N/A'}% |\n`;
+              comment += `| Memory Usage | ${analysis.metrics.memory_usage || 'N/A'} MB |\n`;
+              
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+            }
+      
+      - name: Check for performance regressions
+        if: always()
+        run: |
+          if [ -f "performance-analysis.json" ]; then
+            REGRESSIONS=$(jq '.regressions | length' performance-analysis.json)
+            if [ "$REGRESSIONS" -gt 0 ]; then
+              echo "❌ Performance regressions detected!"
+              jq '.regressions' performance-analysis.json
+              exit 1
+            else
+              echo "✅ No performance regressions detected"
+            fi
+          fi
+      
+      - name: Send Slack notification
+        if: failure() && github.event_name == 'push'
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          text: |
+            Performance regression detected in ${{ github.ref }}
+            Repository: ${{ github.repository }}
+            Commit: ${{ github.sha }}
+            View results: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+      
+      - name: Create performance trend report
+        if: github.event_name == 'schedule'
+        run: |
+          # Generate weekly performance trend report
+          python3 scripts/generate-performance-trends.py \
+            --baseline-path ${{ env.PERFORMANCE_BASELINE_PATH }} \
+            --output performance-trends.html
+      
+      - name: Deploy performance dashboard
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          # Update performance dashboard with latest results
+          ./scripts/update-performance-dashboard.sh \
+            --results-path ${{ env.PERFORMANCE_REPORTS_PATH }} \
+            --dashboard-url ${{ secrets.PERFORMANCE_DASHBOARD_URL }}
+
+  cleanup:
+    name: Cleanup Test Resources
+    needs: performance-tests
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Stop test infrastructure
+        run: |
+          docker-compose -f docker-compose.test.yml down -v
+      
+      - name: Clean up test data
+        run: |
+          # Clean up any test data created during performance tests
+          echo "Cleaning up test data..."

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: kyc-documents-pvc
+  namespace: waqiti
+  labels:
+    app: kyc-service
+    component: storage
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: efs-storage-class
+  resources:
+    requests:
+      storage: 100Gi

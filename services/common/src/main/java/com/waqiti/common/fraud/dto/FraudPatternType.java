@@ -1,0 +1,5 @@
+package com.waqiti.common.fraud.dto;
+
+public enum FraudPatternType {
+    CARD_TESTING, ACCOUNT_TAKEOVER, MONEY_LAUNDERING, SYNTHETIC_IDENTITY, VELOCITY_ATTACK, CREDENTIAL_STUFFING
+}

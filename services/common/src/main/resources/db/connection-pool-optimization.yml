@@ -1,0 +1,264 @@
+# Database Connection Pool Optimization Configuration
+# Production-ready settings for high-performance financial applications
+
+# Core Database Connection Pool Settings
+database:
+  connection:
+    optimization:
+      enabled: true
+      
+    # Primary Connection Pool Configuration
+    pool:
+      # Pool sizing - carefully tuned for financial workloads
+      minimum-idle: 10                    # Always keep 10 connections ready
+      maximum-pool-size: 50               # Maximum 50 connections per service
+      connection-timeout: 30000           # 30 seconds to get connection
+      idle-timeout: 600000                # 10 minutes before closing idle connections
+      max-lifetime: 1800000               # 30 minutes maximum connection lifetime
+      validation-timeout: 5000            # 5 seconds for connection validation
+      leak-detection-threshold: 60000     # 1 minute to detect connection leaks
+      initialization-fail-timeout: 30000  # 30 seconds for initial connection
+      
+      # Connection testing and validation
+      connection-test-query: "SELECT 1"
+      test-while-idle: true
+      test-on-borrow: false               # Disable for performance (validation-timeout handles this)
+      test-on-return: false
+      
+      # Statement caching for performance
+      cache-prep-stmts: true
+      prep-stmt-cache-size: 250           # Cache 250 prepared statements
+      prep-stmt-cache-sql-limit: 2048     # Cache statements up to 2KB
+      use-server-prep-stmts: true         # Use server-side prepared statements
+      
+    # Read-Only Replica Configuration (optional)
+    read-replica:
+      enabled: false                      # Enable if read replicas are available
+      url: ${DATABASE_READ_REPLICA_URL:}
+      username: ${DATABASE_READ_REPLICA_USERNAME:}
+      password: ${DATABASE_READ_REPLICA_PASSWORD:}
+      pool:
+        minimum-idle: 5
+        maximum-pool-size: 20
+        connection-timeout: 30000
+        idle-timeout: 600000
+        max-lifetime: 1800000
+        
+    # Batch Processing Pool Configuration (optional)
+    batch:
+      enabled: false                      # Enable for bulk operations
+      pool:
+        minimum-idle: 5
+        maximum-pool-size: 15             # Smaller pool for batch operations
+        connection-timeout: 60000         # Longer timeout for batch operations
+        idle-timeout: 1800000             # 30 minutes idle timeout
+        max-lifetime: 3600000             # 1 hour maximum lifetime
+        
+  # Query Optimization Settings
+  optimization:
+    enabled: true
+    slow-query-threshold: 5000            # 5 seconds defines slow query
+    analysis-enabled: true
+    auto-vacuum-enabled: true
+    
+    # Connection-level optimizations
+    postgresql:
+      # Performance parameters
+      default-row-fetch-size: 100
+      batch-mode: true
+      rewrite-batched-inserts: true
+      
+      # SSL and security
+      ssl-mode: require
+      ssl-factory: org.postgresql.ssl.DefaultJavaSSLFactory
+      
+      # Network optimization
+      socket-timeout: 60                  # 60 seconds socket timeout
+      login-timeout: 30                   # 30 seconds login timeout
+      tcp-keep-alive: true
+      
+      # Application identification
+      application-name: "Waqiti-${spring.application.name:unknown}"
+      
+      # Transaction settings
+      default-transaction-isolation: TRANSACTION_READ_COMMITTED
+      
+# HikariCP Specific Optimizations
+spring:
+  datasource:
+    hikari:
+      # Pool configuration
+      minimum-idle: ${database.connection.pool.minimum-idle}
+      maximum-pool-size: ${database.connection.pool.maximum-pool-size}
+      connection-timeout: ${database.connection.pool.connection-timeout}
+      idle-timeout: ${database.connection.pool.idle-timeout}
+      max-lifetime: ${database.connection.pool.max-lifetime}
+      validation-timeout: ${database.connection.pool.validation-timeout}
+      leak-detection-threshold: ${database.connection.pool.leak-detection-threshold}
+      initialization-fail-timeout: ${database.connection.pool.initialization-fail-timeout}
+      
+      # Connection properties
+      connection-test-query: ${database.connection.pool.connection-test-query}
+      auto-commit: true
+      read-only: false
+      isolate-internal-queries: false
+      register-mbeans: true
+      allow-pool-suspension: true
+      
+      # Data source properties for PostgreSQL optimization
+      data-source-properties:
+        cachePrepStmts: ${database.connection.pool.cache-prep-stmts}
+        prepStmtCacheSize: ${database.connection.pool.prep-stmt-cache-size}
+        prepStmtCacheSqlLimit: ${database.connection.pool.prep-stmt-cache-sql-limit}
+        useServerPrepStmts: ${database.connection.pool.use-server-prep-stmts}
+        reWriteBatchedInserts: true
+        useUnicode: true
+        characterEncoding: UTF-8
+        useSSL: true
+        sslMode: ${database.optimization.postgresql.ssl-mode}
+        socketTimeout: ${database.optimization.postgresql.socket-timeout}
+        loginTimeout: ${database.optimization.postgresql.login-timeout}
+        tcpKeepAlive: ${database.optimization.postgresql.tcp-keep-alive}
+        defaultRowFetchSize: ${database.optimization.postgresql.default-row-fetch-size}
+        applicationName: ${database.optimization.postgresql.application-name}
+        defaultTransactionIsolation: ${database.optimization.postgresql.default-transaction-isolation}
+        logUnclosedConnections: true
+        logServerErrorDetail: false         # Security: don't log sensitive details
+        
+# Monitoring and Alerting Configuration
+connection-pool:
+  monitoring:
+    enabled: true
+    health-check-interval: 60000          # 1 minute health checks
+    metrics-recording-interval: 30000     # 30 seconds metrics recording
+    
+    # Alert thresholds
+    alerts:
+      high-utilization-threshold: 80      # Alert at 80% pool utilization
+      critical-utilization-threshold: 95  # Critical alert at 95%
+      max-connection-leaks: 5             # Alert after 5 connection leaks
+      slow-query-threshold: ${database.optimization.slow-query-threshold}
+      
+    # Integration with monitoring systems
+    prometheus:
+      enabled: true
+      metrics-path: /metrics
+      
+    # Health check endpoints
+    health:
+      enabled: true
+      show-details: when-authorized
+      include-pools: primary,readonly,batch
+      
+# JPA/Hibernate Optimizations
+spring:
+  jpa:
+    properties:
+      hibernate:
+        # JDBC and connection optimizations
+        jdbc:
+          batch_size: 25                  # Batch insert/update operations
+          order_inserts: true             # Order inserts for better performance
+          order_updates: true             # Order updates for better performance
+          batch_versioned_data: true      # Batch versioned entity updates
+          
+        # Connection provider settings
+        connection:
+          provider_disables_autocommit: true
+          
+        # Query optimization
+        query:
+          plan_cache_max_size: 2048       # Query plan cache size
+          in_clause_parameter_padding: true
+          
+        # Cache settings
+        cache:
+          use_second_level_cache: true
+          use_query_cache: true
+          region:
+            factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
+            
+        # Statistics and monitoring
+        generate_statistics: true
+        session:
+          events:
+            log:
+              LOG_QUERIES_SLOWER_THAN_MS: ${database.optimization.slow-query-threshold}
+              
+# Logging Configuration for Database Operations
+logging:
+  level:
+    com.zaxxer.hikari.HikariConfig: INFO
+    com.zaxxer.hikari: INFO
+    org.hibernate.SQL: WARN               # Only log slow queries in production
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+    org.postgresql: WARN
+    
+  # Log slow queries and connection issues
+  pattern:
+    console: "%clr(%d{HH:mm:ss.SSS}){faint} %clr(${LOG_LEVEL_PATTERN:-%5p}) %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n${LOG_EXCEPTION_CONVERSION_WORD:-%wEx}"
+    
+# Performance Monitoring Integration
+management:
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+        step: 30s
+        descriptions: true
+        
+    tags:
+      service: ${spring.application.name}
+      environment: ${ENVIRONMENT:development}
+      
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,hikaricp
+        
+  endpoint:
+    health:
+      show-components: always
+      show-details: when-authorized
+      
+    hikaricp:
+      enabled: true
+      
+# Environment-specific overrides
+---
+spring:
+  config:
+    activate:
+      on-profile: production
+      
+# Production-specific optimizations
+database:
+  connection:
+    pool:
+      maximum-pool-size: 100              # Increase pool size for production
+      minimum-idle: 20                    # More idle connections in production
+      leak-detection-threshold: 30000     # Stricter leak detection in production
+      
+logging:
+  level:
+    org.hibernate.SQL: ERROR             # Disable SQL logging in production
+    com.zaxxer.hikari: WARN
+    
+---
+spring:
+  config:
+    activate:
+      on-profile: development
+      
+# Development-specific settings
+database:
+  connection:
+    pool:
+      maximum-pool-size: 10               # Smaller pool for development
+      minimum-idle: 2                     # Fewer idle connections
+      leak-detection-threshold: 60000     # More lenient leak detection
+      
+logging:
+  level:
+    com.zaxxer.hikari: DEBUG
+    org.hibernate.SQL: DEBUG             # Enable SQL logging in development

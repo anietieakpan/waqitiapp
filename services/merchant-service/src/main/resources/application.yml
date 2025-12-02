@@ -1,0 +1,168 @@
+server:
+  port: 8090
+  servlet:
+    context-path: /merchant
+
+spring:
+  application:
+    name: merchant-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:development}
+    include: keycloak
+  
+  datasource:
+    url: jdbc:postgresql://localhost:5432/waqiti_merchant
+    username: ${DB_USERNAME:waqiti_user}
+    password: ${DB_PASSWORD:}
+    driver-class-name: org.postgresql.Driver
+    
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+    show-sql: ${SHOW_SQL:false}
+    
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+    
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      group-id: merchant-service
+      enable-auto-commit: false  # Manual acknowledgment for DLQ support
+      max-poll-records: 50  # Batch size control
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+
+# Merchant Configuration
+merchant:
+  onboarding:
+    auto-approval-threshold: ${AUTO_APPROVAL_THRESHOLD:5000.00}
+    manual-review-required: ${MANUAL_REVIEW_REQUIRED:true}
+    
+  payments:
+    enabled: ${MERCHANT_PAYMENTS_ENABLED:true}
+    fee-percentage: ${MERCHANT_FEE_PERCENTAGE:2.9}
+    settlement-delay-hours: ${SETTLEMENT_DELAY:24}
+    
+  supported-industries:
+    - RETAIL
+    - FOOD_BEVERAGE
+    - PROFESSIONAL_SERVICES
+    - HEALTHCARE
+    - EDUCATION
+    - NON_PROFIT
+    - E_COMMERCE
+    - SUBSCRIPTION_SERVICES
+
+# Payment Processing
+payment-processing:
+  webhook:
+    timeout-seconds: ${WEBHOOK_TIMEOUT:30}
+    retry-attempts: ${WEBHOOK_RETRY_ATTEMPTS:3}
+    retry-delay-seconds: ${WEBHOOK_RETRY_DELAY:300}
+    
+  settlement:
+    batch-processing-enabled: ${BATCH_SETTLEMENT:true}
+    batch-size: ${SETTLEMENT_BATCH_SIZE:100}
+    automatic-settlement: ${AUTO_SETTLEMENT:true}
+
+# API Keys for Payment Processors
+stripe:
+  api-key: ${STRIPE_API_KEY:}
+  webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
+  
+square:
+  api-key: ${SQUARE_API_KEY:}
+  webhook-secret: ${SQUARE_WEBHOOK_SECRET:}
+  application-id: ${SQUARE_APPLICATION_ID:}
+
+# Risk Management
+risk-management:
+  enabled: ${RISK_MANAGEMENT_ENABLED:true}
+  high-risk-industries:
+    - GAMBLING
+    - ADULT_ENTERTAINMENT
+    - CRYPTOCURRENCY
+    - DEBT_COLLECTION
+  velocity-checks:
+    enabled: ${VELOCITY_CHECKS_ENABLED:true}
+    max-transactions-per-hour: ${MAX_TXN_PER_HOUR:100}
+
+# Security - CRITICAL: JWT secret MUST be provided (no empty default)
+jwt:
+  secret: ${JWT_SECRET:${vault.jwt.merchant-service.secret}}  # NO EMPTY DEFAULT
+  expiration: 86400000
+
+# Keycloak Configuration
+keycloak:
+  enabled: ${KEYCLOAK_ENABLED:true}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  resource: merchant-service
+  credentials:
+    secret: ${KEYCLOAK_CLIENT_SECRET:${vault.keycloak.merchant-service.secret}}
+  use-resource-role-mappings: true
+  bearer-only: true
+  ssl-required: external
+  confidential-port: 8443
+  
+# OAuth2 Resource Server (Keycloak)
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+      client:
+        registration:
+          merchant-service:
+            client-id: ${keycloak.resource}
+            client-secret: ${keycloak.credentials.secret}
+            authorization-grant-type: client_credentials
+            scope: openid
+        provider:
+          keycloak:
+            issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+            
+# Feature Flags for Dual-Mode Authentication
+feature:
+  flags:
+    dual-auth-mode:
+      enabled: ${DUAL_AUTH_MODE_ENABLED:false}
+    keycloak-only:
+      enabled: ${KEYCLOAK_ONLY_MODE:true}
+    legacy-jwt-deprecation-warning:
+      enabled: ${LEGACY_JWT_WARNING:true}
+
+# Monitoring
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+      
+logging:
+  level:
+    com.waqiti.merchant: ${LOG_LEVEL:INFO}
+    org.springframework.security: ${SECURITY_LOG_LEVEL:INFO}
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%logger{36}] - %msg%n"

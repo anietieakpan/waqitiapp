@@ -1,0 +1,701 @@
+version: '3.8'
+
+# Waqiti Local Development Environment
+# Complete multi-service fintech platform development setup
+# 
+# Usage:
+#   docker-compose -f docker-compose.dev.yml up -d
+#   docker-compose -f docker-compose.dev.yml logs -f [service-name]
+#   docker-compose -f docker-compose.dev.yml down
+
+networks:
+  waqiti-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  postgres_data:
+  redis_data:
+  kafka_data:
+  zookeeper_data:
+  vault_data:
+  prometheus_data:
+  grafana_data:
+
+services:
+  # ===============================
+  # Infrastructure Services
+  # ===============================
+  
+  postgres:
+    image: postgres:15-alpine
+    container_name: waqiti-postgres
+    environment:
+      POSTGRES_DB: waqiti
+      POSTGRES_USER: waqiti
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required - set in .env file}
+      POSTGRES_MULTIPLE_DATABASES: "waqiti_users,waqiti_accounts,waqiti_payments,waqiti_transactions,waqiti_notifications,waqiti_kyc,waqiti_audit,waqiti_analytics,waqiti_compliance,waqiti_crypto,waqiti_ml"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/docker/postgres/init:/docker-entrypoint-initdb.d
+    networks:
+      - waqiti-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U waqiti -d waqiti"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: waqiti-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+      - ./infrastructure/docker/redis/redis.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
+    networks:
+      - waqiti-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    container_name: waqiti-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_SYNC_LIMIT: 2
+    ports:
+      - "2181:2181"
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+    networks:
+      - waqiti-network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: waqiti-kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: true
+      KAFKA_NUM_PARTITIONS: 3
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks:
+      - waqiti-network
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:29092"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  vault:
+    image: vault:1.15
+    container_name: waqiti-vault
+    cap_add:
+      - IPC_LOCK
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: ${VAULT_DEV_ROOT_TOKEN_ID:?VAULT_DEV_ROOT_TOKEN_ID is required - set in .env file}
+      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+    ports:
+      - "8200:8200"
+    volumes:
+      - vault_data:/vault/data
+      - ./infrastructure/docker/vault/policies:/vault/policies:ro
+    networks:
+      - waqiti-network
+    command: vault server -dev -dev-root-token-id=${VAULT_DEV_ROOT_TOKEN:?VAULT_DEV_ROOT_TOKEN is required}
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8200/v1/sys/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ===============================
+  # Monitoring & Observability
+  # ===============================
+  
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    container_name: waqiti-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infrastructure/docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    networks:
+      - waqiti-network
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+
+  grafana:
+    image: grafana/grafana:10.0.0
+    container_name: waqiti-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD is required - set in .env file}
+      GF_INSTALL_PLUGINS: grafana-clock-panel,grafana-simple-json-datasource
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infrastructure/docker/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./infrastructure/docker/grafana/datasources:/etc/grafana/provisioning/datasources
+    networks:
+      - waqiti-network
+    depends_on:
+      - prometheus
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.46
+    container_name: waqiti-jaeger
+    ports:
+      - "5775:5775/udp"
+      - "6831:6831/udp"
+      - "6832:6832/udp"
+      - "5778:5778"
+      - "16686:16686"
+      - "14268:14268"
+      - "14250:14250"
+      - "9411:9411"
+    environment:
+      COLLECTOR_OTLP_ENABLED: true
+    networks:
+      - waqiti-network
+
+  # ===============================
+  # Gateway & Discovery
+  # ===============================
+  
+  eureka:
+    image: openjdk:17-jre-slim
+    container_name: waqiti-eureka
+    ports:
+      - "8761:8761"
+    networks:
+      - waqiti-network
+    volumes:
+      - ./services/eureka-server/target/eureka-server.jar:/app.jar
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      EUREKA_CLIENT_REGISTER_WITH_EUREKA: false
+      EUREKA_CLIENT_FETCH_REGISTRY: false
+      EUREKA_CLIENT_SERVICE_URL_DEFAULT_ZONE: http://localhost:8761/eureka/
+    command: java -jar /app.jar
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  api-gateway:
+    image: openjdk:17-jre-slim
+    container_name: waqiti-api-gateway
+    ports:
+      - "8080:8080"
+    networks:
+      - waqiti-network
+    depends_on:
+      - eureka
+      - redis
+    volumes:
+      - ./services/api-gateway/target/api-gateway.jar:/app.jar
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      EUREKA_CLIENT_SERVICE_URL_DEFAULT_ZONE: http://eureka:8761/eureka/
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+    command: java -jar /app.jar
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ===============================
+  # Core Business Services
+  # ===============================
+  
+  user-service:
+    image: openjdk:17-jre-slim
+    container_name: waqiti-user-service
+    ports:
+      - "8081:8081"
+    networks:
+      - waqiti-network
+    depends_on:
+      - postgres
+      - redis
+      - kafka
+      - eureka
+      - vault
+    volumes:
+      - ./services/user-service/target/user-service.jar:/app.jar
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/waqiti_users
+      SPRING_DATASOURCE_USERNAME: waqiti
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      EUREKA_CLIENT_SERVICE_URL_DEFAULT_ZONE: http://eureka:8761/eureka/
+      VAULT_URI: http://vault:8200
+      VAULT_TOKEN: ${VAULT_DEV_ROOT_TOKEN:?VAULT_DEV_ROOT_TOKEN is required}
+    command: java -jar /app.jar
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  account-service:
+    image: openjdk:17-jre-slim
+    container_name: waqiti-account-service
+    ports:
+      - "8082:8082"
+    networks:
+      - waqiti-network
+    depends_on:
+      - postgres
+      - redis
+      - kafka
+      - eureka
+      - vault
+    volumes:
+      - ./services/account-service/target/account-service.jar:/app.jar
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/waqiti_accounts
+      SPRING_DATASOURCE_USERNAME: waqiti
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      EUREKA_CLIENT_SERVICE_URL_DEFAULT_ZONE: http://eureka:8761/eureka/
+      VAULT_URI: http://vault:8200
+      VAULT_TOKEN: ${VAULT_DEV_ROOT_TOKEN:?VAULT_DEV_ROOT_TOKEN is required}
+    command: java -jar /app.jar
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  payment-service:
+    image: openjdk:17-jre-slim
+    container_name: waqiti-payment-service
+    ports:
+      - "8083:8083"
+    networks:
+      - waqiti-network
+    depends_on:
+      - postgres
+      - redis
+      - kafka
+      - eureka
+      - vault
+    volumes:
+      - ./services/payment-service/target/payment-service.jar:/app.jar
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/waqiti_payments
+      SPRING_DATASOURCE_USERNAME: waqiti
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      EUREKA_CLIENT_SERVICE_URL_DEFAULT_ZONE: http://eureka:8761/eureka/
+      VAULT_URI: http://vault:8200
+      VAULT_TOKEN: ${VAULT_DEV_ROOT_TOKEN:?VAULT_DEV_ROOT_TOKEN is required}
+      # Third-party integrations
+      STRIPE_ENABLED: true
+      PLAID_ENABLED: true
+      ADYEN_ENABLED: true
+      DWOLLA_ENABLED: true
+      WISE_ENABLED: true
+    command: java -jar /app.jar
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  transaction-service:
+    image: openjdk:17-jre-slim
+    container_name: waqiti-transaction-service
+    ports:
+      - "8084:8084"
+    networks:
+      - waqiti-network
+    depends_on:
+      - postgres
+      - redis
+      - kafka
+      - eureka
+      - vault
+    volumes:
+      - ./services/transaction-service/target/transaction-service.jar:/app.jar
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/waqiti_transactions
+      SPRING_DATASOURCE_USERNAME: waqiti
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      EUREKA_CLIENT_SERVICE_URL_DEFAULT_ZONE: http://eureka:8761/eureka/
+      VAULT_URI: http://vault:8200
+      VAULT_TOKEN: ${VAULT_DEV_ROOT_TOKEN:?VAULT_DEV_ROOT_TOKEN is required}
+    command: java -jar /app.jar
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8084/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  notification-service:
+    image: openjdk:17-jre-slim
+    container_name: waqiti-notification-service
+    ports:
+      - "8085:8085"
+    networks:
+      - waqiti-network
+    depends_on:
+      - postgres
+      - redis
+      - kafka
+      - eureka
+      - vault
+    volumes:
+      - ./services/notification-service/target/notification-service.jar:/app.jar
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/waqiti_notifications
+      SPRING_DATASOURCE_USERNAME: waqiti
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      EUREKA_CLIENT_SERVICE_URL_DEFAULT_ZONE: http://eureka:8761/eureka/
+      VAULT_URI: http://vault:8200
+      VAULT_TOKEN: ${VAULT_DEV_ROOT_TOKEN:?VAULT_DEV_ROOT_TOKEN is required}
+      # Third-party integrations
+      TWILIO_ENABLED: true
+      SENDGRID_ENABLED: true
+      FCM_ENABLED: true
+    command: java -jar /app.jar
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8085/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  kyc-service:
+    image: openjdk:17-jre-slim
+    container_name: waqiti-kyc-service
+    ports:
+      - "8090:8090"
+    networks:
+      - waqiti-network
+    depends_on:
+      - postgres
+      - redis
+      - kafka
+      - eureka
+      - vault
+    volumes:
+      - ./services/kyc-service/target/kyc-service.jar:/app.jar
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/waqiti_kyc
+      SPRING_DATASOURCE_USERNAME: waqiti
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      EUREKA_CLIENT_SERVICE_URL_DEFAULT_ZONE: http://eureka:8761/eureka/
+      VAULT_URI: http://vault:8200
+      VAULT_TOKEN: ${VAULT_DEV_ROOT_TOKEN:?VAULT_DEV_ROOT_TOKEN is required}
+      # KYC provider integrations
+      ONFIDO_ENABLED: true
+      JUMIO_ENABLED: true
+      VERIFF_ENABLED: true
+      PERSONA_ENABLED: true
+    command: java -jar /app.jar
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8090/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ===============================
+  # Specialized Services
+  # ===============================
+  
+  security-service:
+    image: openjdk:17-jre-slim
+    container_name: waqiti-security-service
+    ports:
+      - "8091:8091"
+    networks:
+      - waqiti-network
+    depends_on:
+      - postgres
+      - redis
+      - kafka
+      - eureka
+      - vault
+    volumes:
+      - ./services/security-service/target/security-service.jar:/app.jar
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/waqiti
+      SPRING_DATASOURCE_USERNAME: waqiti
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      EUREKA_CLIENT_SERVICE_URL_DEFAULT_ZONE: http://eureka:8761/eureka/
+      VAULT_URI: http://vault:8200
+      VAULT_TOKEN: ${VAULT_DEV_ROOT_TOKEN:?VAULT_DEV_ROOT_TOKEN is required}
+    command: java -jar /app.jar
+
+  compliance-service:
+    image: openjdk:17-jre-slim
+    container_name: waqiti-compliance-service
+    ports:
+      - "8089:8089"
+    networks:
+      - waqiti-network
+    depends_on:
+      - postgres
+      - redis
+      - kafka
+      - eureka
+      - vault
+    volumes:
+      - ./services/compliance-service/target/compliance-service.jar:/app.jar
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/waqiti_compliance
+      SPRING_DATASOURCE_USERNAME: waqiti
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      EUREKA_CLIENT_SERVICE_URL_DEFAULT_ZONE: http://eureka:8761/eureka/
+      VAULT_URI: http://vault:8200
+      VAULT_TOKEN: ${VAULT_DEV_ROOT_TOKEN:?VAULT_DEV_ROOT_TOKEN is required}
+    command: java -jar /app.jar
+
+  audit-service:
+    image: openjdk:17-jre-slim
+    container_name: waqiti-audit-service
+    ports:
+      - "8092:8092"
+    networks:
+      - waqiti-network
+    depends_on:
+      - postgres
+      - redis
+      - kafka
+      - eureka
+      - vault
+    volumes:
+      - ./services/audit-service/target/audit-service.jar:/app.jar
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/waqiti_audit
+      SPRING_DATASOURCE_USERNAME: waqiti
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      EUREKA_CLIENT_SERVICE_URL_DEFAULT_ZONE: http://eureka:8761/eureka/
+      VAULT_URI: http://vault:8200
+      VAULT_TOKEN: ${VAULT_DEV_ROOT_TOKEN:?VAULT_DEV_ROOT_TOKEN is required}
+    command: java -jar /app.jar
+
+  analytics-service:
+    image: openjdk:17-jre-slim
+    container_name: waqiti-analytics-service
+    ports:
+      - "8093:8093"
+    networks:
+      - waqiti-network
+    depends_on:
+      - postgres
+      - redis
+      - kafka
+      - eureka
+      - vault
+    volumes:
+      - ./services/analytics-service/target/analytics-service.jar:/app.jar
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/waqiti_analytics
+      SPRING_DATASOURCE_USERNAME: waqiti
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      EUREKA_CLIENT_SERVICE_URL_DEFAULT_ZONE: http://eureka:8761/eureka/
+      VAULT_URI: http://vault:8200
+      VAULT_TOKEN: ${VAULT_DEV_ROOT_TOKEN:?VAULT_DEV_ROOT_TOKEN is required}
+    command: java -jar /app.jar
+
+  ml-service:
+    image: openjdk:17-jre-slim
+    container_name: waqiti-ml-service
+    ports:
+      - "8094:8094"
+    networks:
+      - waqiti-network
+    depends_on:
+      - postgres
+      - redis
+      - kafka
+      - eureka
+      - vault
+    volumes:
+      - ./services/ml-service/target/ml-service.jar:/app.jar
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/waqiti
+      SPRING_DATASOURCE_USERNAME: waqiti
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      EUREKA_CLIENT_SERVICE_URL_DEFAULT_ZONE: http://eureka:8761/eureka/
+      VAULT_URI: http://vault:8200
+      VAULT_TOKEN: ${VAULT_DEV_ROOT_TOKEN:?VAULT_DEV_ROOT_TOKEN is required}
+    command: java -jar /app.jar
+
+  # ===============================
+  # Development Tools
+  # ===============================
+  
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: waqiti-kafka-ui
+    ports:
+      - "8090:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: waqiti-dev
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    networks:
+      - waqiti-network
+    depends_on:
+      - kafka
+
+  adminer:
+    image: adminer:4.8.1
+    container_name: waqiti-adminer
+    ports:
+      - "8080:8080"
+    networks:
+      - waqiti-network
+    depends_on:
+      - postgres
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+
+  # ===============================
+  # Keycloak (Identity & Access Management)
+  # ===============================
+  
+  keycloak-db:
+    image: postgres:15-alpine
+    container_name: waqiti-keycloak-db
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?KEYCLOAK_DB_PASSWORD is required - set in .env file}
+    volumes:
+      - keycloak_data:/var/lib/postgresql/data
+    networks:
+      - waqiti-network
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:22.0.1
+    container_name: waqiti-keycloak
+    ports:
+      - "8180:8080"
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?KEYCLOAK_DB_PASSWORD is required - set in .env file}
+      KC_HOSTNAME: localhost
+      KC_HOSTNAME_PORT: 8180
+      KC_HOSTNAME_STRICT: false
+      KC_HOSTNAME_STRICT_HTTPS: false
+      KC_LOG_LEVEL: INFO
+      KC_METRICS_ENABLED: true
+      KC_HEALTH_ENABLED: true
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?KEYCLOAK_ADMIN_PASSWORD is required - set in .env file}
+    networks:
+      - waqiti-network
+    depends_on:
+      - keycloak-db
+    command: start-dev --import-realm
+    volumes:
+      - ./infrastructure/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+
+# ===============================
+# Development Convenience Commands
+# ===============================
+#
+# Start all infrastructure only:
+#   docker-compose -f docker-compose.dev.yml up -d postgres redis kafka zookeeper vault prometheus grafana jaeger
+#
+# Start core services:
+#   docker-compose -f docker-compose.dev.yml up -d user-service account-service payment-service notification-service
+#
+# View logs:
+#   docker-compose -f docker-compose.dev.yml logs -f user-service
+#
+# Scale services:
+#   docker-compose -f docker-compose.dev.yml up -d --scale user-service=2
+#
+# Stop everything:
+#   docker-compose -f docker-compose.dev.yml down
+#
+# Clean up volumes (WARNING: Deletes all data):
+#   docker-compose -f docker-compose.dev.yml down -v
+#
+# Access URLs (after startup):
+#   - API Gateway: http://localhost:8080
+#   - Eureka Dashboard: http://localhost:8761
+#   - Grafana: http://localhost:3000 (admin/waqiti_grafana)
+#   - Prometheus: http://localhost:9090
+#   - Jaeger: http://localhost:16686
+#   - Kafka UI: http://localhost:8090
+#   - Adminer: http://localhost:8080 (server: postgres, user: see .env, pass: see .env)
+#   - Keycloak: http://localhost:8180 (credentials: see .env)
+#   - Vault UI: http://localhost:8200 (token: see VAULT_DEV_ROOT_TOKEN in .env)

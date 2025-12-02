@@ -1,0 +1,92 @@
+{
+  "properties": [
+    {
+      "name": "rewards.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable rewards functionality",
+      "defaultValue": true
+    },
+    {
+      "name": "rewards.cashback.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable cashback rewards",
+      "defaultValue": true
+    },
+    {
+      "name": "rewards.cashback.default-percentage",
+      "type": "java.math.BigDecimal",
+      "description": "Default cashback percentage",
+      "defaultValue": "1.5"
+    },
+    {
+      "name": "rewards.cashback.categories",
+      "type": "java.util.Map",
+      "description": "Cashback percentages by category"
+    },
+    {
+      "name": "rewards.points.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable points rewards",
+      "defaultValue": true
+    },
+    {
+      "name": "rewards.points.conversion-rate",
+      "type": "java.math.BigDecimal",
+      "description": "Points to currency conversion rate",
+      "defaultValue": "0.01"
+    },
+    {
+      "name": "rewards.points.expiry-days",
+      "type": "java.lang.Integer",
+      "description": "Points expiry period in days",
+      "defaultValue": 365
+    },
+    {
+      "name": "rewards.tiers.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable reward tiers",
+      "defaultValue": true
+    },
+    {
+      "name": "rewards.referral.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable referral rewards",
+      "defaultValue": true
+    },
+    {
+      "name": "rewards.referral.bonus-amount",
+      "type": "java.math.BigDecimal",
+      "description": "Referral bonus amount",
+      "defaultValue": "25.00"
+    },
+    {
+      "name": "rewards.redemption.min-points",
+      "type": "java.lang.Integer",
+      "description": "Minimum points for redemption",
+      "defaultValue": 100
+    },
+    {
+      "name": "rewards.partner-offers.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable partner offers",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "OAuth2 client ID for service",
+      "defaultValue": "rewards-service"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "OAuth2 client secret for service"
+    }
+  ]
+}

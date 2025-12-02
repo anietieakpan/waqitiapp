@@ -1,0 +1,580 @@
+# Compliance Dashboard Configuration
+# Unified compliance monitoring and reporting dashboard
+# SECURITY: Centralized compliance status monitoring and alerting
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: compliance-dashboard
+  namespace: waqiti-system
+  labels:
+    compliance.example.com/component: "dashboard"
+data:
+  dashboard.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "Waqiti Compliance Dashboard",
+        "tags": ["compliance", "security", "regulatory"],
+        "timezone": "browser",
+        "panels": [
+          {
+            "id": 1,
+            "title": "Overall Compliance Status",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "avg(compliance_framework_status{environment=\"production\"})",
+                "legendFormat": "Overall Compliance"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "thresholds": {
+                  "steps": [
+                    {"color": "red", "value": 0},
+                    {"color": "yellow", "value": 70},
+                    {"color": "green", "value": 90}
+                  ]
+                },
+                "unit": "percent",
+                "min": 0,
+                "max": 100
+              }
+            },
+            "gridPos": {"h": 8, "w": 8, "x": 0, "y": 0}
+          },
+          {
+            "id": 2,
+            "title": "PCI DSS Compliance",
+            "type": "gauge",
+            "targets": [
+              {
+                "expr": "compliance_framework_status{framework=\"pci-dss\",environment=\"production\"}",
+                "legendFormat": "PCI DSS"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "thresholds": {
+                  "steps": [
+                    {"color": "red", "value": 0},
+                    {"color": "yellow", "value": 80},
+                    {"color": "green", "value": 95}
+                  ]
+                },
+                "unit": "percent",
+                "min": 0,
+                "max": 100
+              }
+            },
+            "gridPos": {"h": 8, "w": 8, "x": 8, "y": 0}
+          },
+          {
+            "id": 3,
+            "title": "GDPR Compliance",
+            "type": "gauge",
+            "targets": [
+              {
+                "expr": "compliance_framework_status{framework=\"gdpr\",environment=\"production\"}",
+                "legendFormat": "GDPR"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "thresholds": {
+                  "steps": [
+                    {"color": "red", "value": 0},
+                    {"color": "yellow", "value": 75},
+                    {"color": "green", "value": 90}
+                  ]
+                },
+                "unit": "percent",
+                "min": 0,
+                "max": 100
+              }
+            },
+            "gridPos": {"h": 8, "w": 8, "x": 16, "y": 0}
+          },
+          {
+            "id": 4,
+            "title": "SOX Compliance",
+            "type": "gauge",
+            "targets": [
+              {
+                "expr": "compliance_framework_status{framework=\"sox\",environment=\"production\"}",
+                "legendFormat": "SOX"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "thresholds": {
+                  "steps": [
+                    {"color": "red", "value": 0},
+                    {"color": "yellow", "value": 85},
+                    {"color": "green", "value": 95}
+                  ]
+                },
+                "unit": "percent",
+                "min": 0,
+                "max": 100
+              }
+            },
+            "gridPos": {"h": 8, "w": 8, "x": 0, "y": 8}
+          },
+          {
+            "id": 5,
+            "title": "Compliance Checks Over Time",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "compliance_checks_passed{environment=\"production\"}",
+                "legendFormat": "Passed Checks"
+              },
+              {
+                "expr": "compliance_checks_failed{environment=\"production\"}",
+                "legendFormat": "Failed Checks"
+              },
+              {
+                "expr": "compliance_checks_warnings{environment=\"production\"}",
+                "legendFormat": "Warnings"
+              }
+            ],
+            "yAxes": [
+              {"label": "Number of Checks", "min": 0}
+            ],
+            "gridPos": {"h": 8, "w": 16, "x": 8, "y": 8}
+          },
+          {
+            "id": 6,
+            "title": "Recent Compliance Issues",
+            "type": "table",
+            "targets": [
+              {
+                "expr": "increase(compliance_check_failures_total[24h]) > 0",
+                "legendFormat": "{{framework}} - {{check_name}}"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 24, "x": 0, "y": 16}
+          },
+          {
+            "id": 7,
+            "title": "Security Control Effectiveness",
+            "type": "heatmap",
+            "targets": [
+              {
+                "expr": "security_control_effectiveness",
+                "legendFormat": "{{control_category}}"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24}
+          },
+          {
+            "id": 8,
+            "title": "Audit Trail Health",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "rate(audit_log_entries_total[5m])",
+                "legendFormat": "Audit Entries/sec"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24}
+          },
+          {
+            "id": 9,
+            "title": "Data Protection Status",
+            "type": "piechart",
+            "targets": [
+              {
+                "expr": "sum by (protection_type) (data_protection_status)",
+                "legendFormat": "{{protection_type}}"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 8, "x": 0, "y": 32}
+          },
+          {
+            "id": 10,
+            "title": "Access Control Violations",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(access_control_violations_total[5m])",
+                "legendFormat": "Violations/sec"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 8, "x": 8, "y": 32}
+          },
+          {
+            "id": 11,
+            "title": "Compliance Certification Status",
+            "type": "table",
+            "targets": [
+              {
+                "expr": "compliance_certification_expiry_days",
+                "legendFormat": "{{certification_type}}"
+              }
+            ],
+            "fieldConfig": {
+              "overrides": [
+                {
+                  "matcher": {"id": "byName", "options": "Days Until Expiry"},
+                  "properties": [
+                    {
+                      "id": "thresholds",
+                      "value": {
+                        "steps": [
+                          {"color": "red", "value": 0},
+                          {"color": "yellow", "value": 30},
+                          {"color": "green", "value": 90}
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            "gridPos": {"h": 8, "w": 8, "x": 16, "y": 32}
+          }
+        ],
+        "time": {
+          "from": "now-7d",
+          "to": "now"
+        },
+        "refresh": "30s",
+        "schemaVersion": 30,
+        "version": 1,
+        "links": [
+          {
+            "title": "PCI DSS Details",
+            "url": "/d/pci-dss-details"
+          },
+          {
+            "title": "GDPR Details", 
+            "url": "/d/gdpr-details"
+          },
+          {
+            "title": "SOX Details",
+            "url": "/d/sox-details"
+          }
+        ]
+      }
+    }
+
+  alerts.yaml: |
+    groups:
+    - name: compliance.rules
+      interval: 30s
+      rules:
+      - alert: ComplianceFrameworkFailure
+        expr: compliance_framework_status < 80
+        for: 5m
+        labels:
+          severity: critical
+          compliance: "true"
+        annotations:
+          summary: "Compliance framework {{ $labels.framework }} below threshold"
+          description: "{{ $labels.framework }} compliance is at {{ $value }}% which is below the required 80% threshold"
+      
+      - alert: PCIDSSCriticalFailure
+        expr: compliance_framework_status{framework="pci-dss"} < 95
+        for: 1m
+        labels:
+          severity: critical
+          compliance: "pci-dss"
+        annotations:
+          summary: "PCI DSS compliance critical failure"
+          description: "PCI DSS compliance at {{ $value }}% - immediate action required for payment processing"
+      
+      - alert: GDPRPrivacyViolation
+        expr: gdpr_privacy_violations_total > 0
+        for: 0s
+        labels:
+          severity: critical
+          compliance: "gdpr"
+        annotations:
+          summary: "GDPR privacy violation detected"
+          description: "{{ $value }} GDPR privacy violations detected - legal compliance at risk"
+      
+      - alert: SOXFinancialControlFailure
+        expr: sox_financial_controls_failed > 0
+        for: 2m
+        labels:
+          severity: critical
+          compliance: "sox"
+        annotations:
+          summary: "SOX financial control failure"
+          description: "{{ $value }} SOX financial controls have failed - financial reporting integrity at risk"
+      
+      - alert: AuditTrailInterruption
+        expr: rate(audit_log_entries_total[5m]) == 0
+        for: 10m
+        labels:
+          severity: warning
+          compliance: "audit"
+        annotations:
+          summary: "Audit trail interruption detected"
+          description: "No audit log entries in the last 5 minutes - audit trail may be compromised"
+      
+      - alert: ComplianceCheckNotRun
+        expr: (time() - compliance_last_check_timestamp) > 86400
+        for: 0s
+        labels:
+          severity: warning
+          compliance: "general"
+        annotations:
+          summary: "Compliance check overdue"
+          description: "{{ $labels.framework }} compliance check has not run in over 24 hours"
+      
+      - alert: DataProtectionFailure
+        expr: data_protection_failures_total > 0
+        for: 5m
+        labels:
+          severity: critical
+          compliance: "data-protection"
+        annotations:
+          summary: "Data protection control failure"
+          description: "{{ $value }} data protection failures detected - data integrity at risk"
+      
+      - alert: AccessControlViolation
+        expr: rate(access_control_violations_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          compliance: "access-control"
+        annotations:
+          summary: "Elevated access control violations"
+          description: "Access control violations at {{ $value }}/sec - review access policies"
+      
+      - alert: ComplianceCertificationExpiring
+        expr: compliance_certification_expiry_days < 30
+        for: 0s
+        labels:
+          severity: warning
+          compliance: "certification"
+        annotations:
+          summary: "Compliance certification expiring soon"
+          description: "{{ $labels.certification_type }} certification expires in {{ $value }} days"
+
+  compliance-metrics.sh: |
+    #!/bin/bash
+    
+    # Compliance Metrics Collection Script
+    # Collects and exposes compliance metrics for monitoring
+    
+    set -euo pipefail
+    
+    METRICS_FILE="/tmp/compliance-metrics.prom"
+    
+    # Function to add metric
+    add_metric() {
+      local name="$1"
+      local value="$2"
+      local labels="$3"
+      local help="$4"
+      
+      echo "# HELP $name $help" >> "$METRICS_FILE"
+      echo "# TYPE $name gauge" >> "$METRICS_FILE"
+      echo "$name{$labels} $value" >> "$METRICS_FILE"
+    }
+    
+    # Initialize metrics file
+    : > "$METRICS_FILE"
+    
+    echo "# Waqiti Compliance Metrics" >> "$METRICS_FILE"
+    echo "# Generated at $(date)" >> "$METRICS_FILE"
+    
+    # Collect PCI DSS compliance status
+    if [[ -f "/tmp/pci-dss-compliance-report.json" ]]; then
+      pci_compliance=$(jq -r '.summary.compliance_percentage // 0' /tmp/pci-dss-compliance-report.json)
+      pci_failed=$(jq -r '.summary.failed // 0' /tmp/pci-dss-compliance-report.json)
+      
+      add_metric "compliance_framework_status" "$pci_compliance" 'framework="pci-dss",environment="production"' "PCI DSS compliance percentage"
+      add_metric "compliance_checks_failed" "$pci_failed" 'framework="pci-dss",environment="production"' "Failed PCI DSS compliance checks"
+    fi
+    
+    # Collect GDPR compliance status  
+    if [[ -f "/tmp/gdpr-compliance-report.json" ]]; then
+      gdpr_compliance=$(jq -r '.summary.compliance_percentage // 0' /tmp/gdpr-compliance-report.json)
+      gdpr_failed=$(jq -r '.summary.failed // 0' /tmp/gdpr-compliance-report.json)
+      
+      add_metric "compliance_framework_status" "$gdpr_compliance" 'framework="gdpr",environment="production"' "GDPR compliance percentage"
+      add_metric "compliance_checks_failed" "$gdpr_failed" 'framework="gdpr",environment="production"' "Failed GDPR compliance checks"
+    fi
+    
+    # Collect SOX compliance status
+    if [[ -f "/tmp/sox-compliance-report.json" ]]; then
+      sox_compliance=$(jq -r '.summary.compliance_percentage // 0' /tmp/sox-compliance-report.json)
+      sox_failed=$(jq -r '.summary.failed // 0' /tmp/sox-compliance-report.json)
+      sox_high_risk=$(jq -r '.summary.high_risk_failures // 0' /tmp/sox-compliance-report.json)
+      
+      add_metric "compliance_framework_status" "$sox_compliance" 'framework="sox",environment="production"' "SOX compliance percentage"
+      add_metric "compliance_checks_failed" "$sox_failed" 'framework="sox",environment="production"' "Failed SOX compliance checks"
+      add_metric "sox_financial_controls_failed" "$sox_high_risk" 'environment="production"' "Failed high-risk SOX financial controls"
+    fi
+    
+    # Collect audit trail metrics
+    audit_entries_per_minute=$(kubectl logs -n waqiti-system -l app=audit-service --since=1m | wc -l || echo "0")
+    add_metric "audit_log_entries_total" "$audit_entries_per_minute" 'service="audit-service",environment="production"' "Audit log entries per minute"
+    
+    # Update last check timestamp
+    add_metric "compliance_last_check_timestamp" "$(date +%s)" 'environment="production"' "Timestamp of last compliance check"
+    
+    # Collect security control metrics
+    encrypted_secrets=$(kubectl get secrets -A -o jsonpath='{.items[*].metadata.annotations.encryption\.waqiti\.com/enabled}' | grep -o "true" | wc -l || echo "0")
+    total_secrets=$(kubectl get secrets -A --no-headers | wc -l || echo "0")
+    
+    if [[ "$total_secrets" -gt 0 ]]; then
+      encryption_percentage=$((encrypted_secrets * 100 / total_secrets))
+    else
+      encryption_percentage=0
+    fi
+    
+    add_metric "data_protection_status" "$encryption_percentage" 'protection_type="encryption",environment="production"' "Data encryption coverage percentage"
+    
+    # Collect access control metrics
+    rbac_bindings=$(kubectl get rolebindings -A --no-headers | wc -l || echo "0")
+    add_metric "security_control_effectiveness" "$rbac_bindings" 'control_category="access_control",environment="production"' "Number of RBAC bindings"
+    
+    # Output metrics
+    cat "$METRICS_FILE"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: compliance-dashboard
+  namespace: waqiti-system
+  labels:
+    app: compliance-dashboard
+    compliance.example.com/component: "dashboard"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: compliance-dashboard
+  template:
+    metadata:
+      labels:
+        app: compliance-dashboard
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: compliance-service-account
+      containers:
+      - name: grafana
+        image: grafana/grafana:9.5.0
+        ports:
+        - containerPort: 3000
+          name: grafana
+        env:
+        - name: GF_SECURITY_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: compliance-secrets
+              key: grafana-admin-password
+        - name: GF_INSTALL_PLUGINS
+          value: "grafana-piechart-panel,grafana-worldmap-panel"
+        volumeMounts:
+        - name: grafana-storage
+          mountPath: /var/lib/grafana
+        - name: dashboard-config
+          mountPath: /etc/grafana/provisioning/dashboards
+        - name: datasource-config
+          mountPath: /etc/grafana/provisioning/datasources
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 472
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+        
+      - name: compliance-metrics-collector
+        image: waqiti/compliance-metrics:latest
+        ports:
+        - containerPort: 9090
+          name: metrics
+        command: ["/bin/sh"]
+        args: ["-c", "while true; do /scripts/compliance-metrics.sh > /tmp/metrics.prom; sleep 60; done & exec python3 -m http.server 9090"]
+        volumeMounts:
+        - name: compliance-scripts
+          mountPath: /scripts
+        - name: compliance-reports
+          mountPath: /tmp
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1001
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+            
+      volumes:
+      - name: grafana-storage
+        persistentVolumeClaim:
+          claimName: compliance-dashboard-pvc
+      - name: dashboard-config
+        configMap:
+          name: compliance-dashboard
+      - name: datasource-config
+        configMap:
+          name: grafana-datasources
+      - name: compliance-scripts
+        configMap:
+          name: compliance-dashboard
+          defaultMode: 0755
+      - name: compliance-reports
+        persistentVolumeClaim:
+          claimName: compliance-reports-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: compliance-dashboard
+  namespace: waqiti-system
+  labels:
+    app: compliance-dashboard
+spec:
+  selector:
+    app: compliance-dashboard
+  ports:
+  - name: grafana
+    port: 3000
+    targetPort: 3000
+  - name: metrics
+    port: 9090
+    targetPort: 9090
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: compliance-metrics
+  namespace: waqiti-system
+spec:
+  selector:
+    matchLabels:
+      app: compliance-dashboard
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /tmp/metrics.prom

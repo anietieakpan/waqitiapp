@@ -1,0 +1,126 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alertmanager
+  namespace: example-monitoring
+  labels:
+    app: alertmanager
+    component: monitoring
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: alertmanager
+  template:
+    metadata:
+      labels:
+        app: alertmanager
+        component: monitoring
+    spec:
+      securityContext:
+        runAsUser: 65534
+        runAsGroup: 65534
+        fsGroup: 65534
+      containers:
+      - name: alertmanager
+        image: prom/alertmanager:v0.26.0
+        args:
+          - '--config.file=/etc/alertmanager/alertmanager.yml'
+          - '--storage.path=/alertmanager'
+          - '--data.retention=120h'
+          - '--cluster.listen-address=0.0.0.0:9094'
+          - '--cluster.peer=alertmanager-0.alertmanager:9094'
+          - '--cluster.peer=alertmanager-1.alertmanager:9094'
+          - '--cluster.peer=alertmanager-2.alertmanager:9094'
+          - '--web.external-url=https://alertmanager.example.com'
+        ports:
+        - containerPort: 9093
+          name: web
+          protocol: TCP
+        - containerPort: 9094
+          name: cluster
+          protocol: TCP
+        env:
+        - name: SENDGRID_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: alertmanager-secrets
+              key: sendgrid-api-key
+        - name: SLACK_WEBHOOK_URL
+          valueFrom:
+            secretKeyRef:
+              name: alertmanager-secrets
+              key: slack-webhook-url
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        livenessProbe:
+          httpGet:
+            path: /-/healthy
+            port: 9093
+          initialDelaySeconds: 30
+          timeoutSeconds: 30
+          periodSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /-/ready
+            port: 9093
+          initialDelaySeconds: 30
+          timeoutSeconds: 30
+          periodSeconds: 5
+          failureThreshold: 3
+        volumeMounts:
+        - name: config-volume
+          mountPath: /etc/alertmanager
+        - name: alertmanager-storage-volume
+          mountPath: /alertmanager
+      volumes:
+      - name: config-volume
+        configMap:
+          name: alertmanager-config
+      - name: alertmanager-storage-volume
+        persistentVolumeClaim:
+          claimName: alertmanager-storage
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager
+  namespace: example-monitoring
+  labels:
+    app: alertmanager
+    component: monitoring
+spec:
+  type: ClusterIP
+  ports:
+  - port: 9093
+    targetPort: 9093
+    protocol: TCP
+    name: web
+  - port: 9094
+    targetPort: 9094
+    protocol: TCP
+    name: cluster
+  selector:
+    app: alertmanager
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: alertmanager-storage
+  namespace: example-monitoring
+  labels:
+    app: alertmanager
+    component: monitoring
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: fast-ssd
+  resources:
+    requests:
+      storage: 10Gi

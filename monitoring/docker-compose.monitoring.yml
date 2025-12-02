@@ -1,0 +1,332 @@
+version: '3.8'
+
+services:
+  # Prometheus - Metrics collection and storage
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    container_name: waqiti-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/rules:/etc/prometheus/rules:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--storage.tsdb.retention.size=50GB'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+      - '--log.level=info'
+    networks:
+      - waqiti-monitoring
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # AlertManager - Alert routing and notification
+  alertmanager:
+    image: prom/alertmanager:v0.25.0
+    container_name: waqiti-alertmanager
+    restart: unless-stopped
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - ./alertmanager/templates:/etc/alertmanager/templates:ro
+      - alertmanager-data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=http://localhost:9093'
+      - '--log.level=info'
+    networks:
+      - waqiti-monitoring
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9093/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Grafana - Visualization and dashboards
+  grafana:
+    image: grafana/grafana:10.0.3
+    container_name: waqiti-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD is required - set in .env file}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_DOMAIN=monitoring.example.com
+      - GF_SMTP_ENABLED=true
+      - GF_SMTP_HOST=localhost:587
+      - GF_SMTP_USER=grafana@example.com
+      - GF_SMTP_PASSWORD=${GRAFANA_SMTP_PASSWORD:?GRAFANA_SMTP_PASSWORD is required - set in .env file}
+      - GF_SMTP_FROM_ADDRESS=grafana@example.com
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel,grafana-worldmap-panel,grafana-clock-panel
+    networks:
+      - waqiti-monitoring
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Node Exporter - System metrics
+  node-exporter:
+    image: prom/node-exporter:v1.6.0
+    container_name: waqiti-node-exporter
+    restart: unless-stopped
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+      - /run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+      - '--collector.systemd'
+      - '--collector.processes'
+    networks:
+      - waqiti-monitoring
+    privileged: true
+    pid: host
+
+  # PostgreSQL Exporter - Database metrics
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.13.2
+    container_name: waqiti-postgres-exporter
+    restart: unless-stopped
+    ports:
+      - "9187:9187"
+    environment:
+      - DATA_SOURCE_NAME=postgresql://waqiti_user:${POSTGRES_EXPORTER_PASSWORD:VAULT_SECRET_REQUIRED}@postgres:5432/waqiti_db?sslmode=disable
+    networks:
+      - waqiti-monitoring
+      - waqiti-network
+    depends_on:
+      - postgres
+
+  # Redis Exporter - Cache metrics
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.52.0
+    container_name: waqiti-redis-exporter
+    restart: unless-stopped
+    ports:
+      - "9121:9121"
+    environment:
+      - REDIS_ADDR=redis://redis:6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:?REDIS_PASSWORD is required - set in .env file}
+    networks:
+      - waqiti-monitoring
+      - waqiti-network
+    depends_on:
+      - redis
+
+  # Kafka Exporter - Message queue metrics
+  kafka-exporter:
+    image: danielqsj/kafka-exporter:v1.6.0
+    container_name: waqiti-kafka-exporter
+    restart: unless-stopped
+    ports:
+      - "9308:9308"
+    command:
+      - '--kafka.server=kafka:9092'
+      - '--web.listen-address=:9308'
+    networks:
+      - waqiti-monitoring
+      - waqiti-network
+    depends_on:
+      - kafka
+
+  # Blackbox Exporter - External endpoint monitoring
+  blackbox-exporter:
+    image: prom/blackbox-exporter:v0.24.0
+    container_name: waqiti-blackbox-exporter
+    restart: unless-stopped
+    ports:
+      - "9115:9115"
+    volumes:
+      - ./blackbox/blackbox.yml:/etc/blackbox_exporter/config.yml:ro
+    command:
+      - '--config.file=/etc/blackbox_exporter/config.yml'
+    networks:
+      - waqiti-monitoring
+
+  # Nginx Exporter - Load balancer metrics
+  nginx-exporter:
+    image: nginx/nginx-prometheus-exporter:0.11.0
+    container_name: waqiti-nginx-exporter
+    restart: unless-stopped
+    ports:
+      - "9113:9113"
+    command:
+      - '--nginx.scrape-uri=http://nginx:8080/nginx_status'
+    networks:
+      - waqiti-monitoring
+      - waqiti-network
+    depends_on:
+      - nginx
+
+  # cAdvisor - Container metrics
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.47.0
+    container_name: waqiti-cadvisor
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    privileged: true
+    networks:
+      - waqiti-monitoring
+    command:
+      - '--housekeeping_interval=30s'
+      - '--docker_only=true'
+      - '--store_container_labels=false'
+
+  # Loki - Log aggregation
+  loki:
+    image: grafana/loki:2.9.0
+    container_name: waqiti-loki
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki/loki.yml:/etc/loki/local-config.yaml:ro
+      - loki-data:/tmp/loki
+    command:
+      - '-config.file=/etc/loki/local-config.yaml'
+    networks:
+      - waqiti-monitoring
+
+  # Promtail - Log shipping agent
+  promtail:
+    image: grafana/promtail:2.9.0
+    container_name: waqiti-promtail
+    restart: unless-stopped
+    volumes:
+      - ./promtail/promtail.yml:/etc/promtail/config.yml:ro
+      - /var/log:/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    command:
+      - '-config.file=/etc/promtail/config.yml'
+    networks:
+      - waqiti-monitoring
+    depends_on:
+      - loki
+
+  # Jaeger - Distributed tracing
+  jaeger:
+    image: jaegertracing/all-in-one:1.47
+    container_name: waqiti-jaeger
+    restart: unless-stopped
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "14268:14268"  # Jaeger collector HTTP
+      - "14250:14250"  # Jaeger collector gRPC
+      - "6831:6831/udp"  # Jaeger agent UDP
+      - "6832:6832/udp"  # Jaeger agent UDP
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+      - SPAN_STORAGE_TYPE=memory
+    networks:
+      - waqiti-monitoring
+
+  # Elasticsearch - Log storage and search
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.8.2
+    container_name: waqiti-elasticsearch
+    restart: unless-stopped
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    environment:
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms2g -Xmx2g"
+      - xpack.security.enabled=false
+      - xpack.security.http.ssl.enabled=false
+      - xpack.security.transport.ssl.enabled=false
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    networks:
+      - waqiti-monitoring
+
+  # Kibana - Log visualization
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.8.2
+    container_name: waqiti-kibana
+    restart: unless-stopped
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - SERVER_NAME=kibana.example.com
+    networks:
+      - waqiti-monitoring
+    depends_on:
+      - elasticsearch
+
+  # Logstash - Log processing
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.8.2
+    container_name: waqiti-logstash
+    restart: unless-stopped
+    ports:
+      - "5044:5044"  # Beats input
+      - "9600:9600"  # Logstash monitoring
+    volumes:
+      - ./logstash/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
+      - ./logstash/pipelines.yml:/usr/share/logstash/config/pipelines.yml:ro
+      - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
+    environment:
+      - "LS_JAVA_OPTS=-Xmx1g -Xms1g"
+    networks:
+      - waqiti-monitoring
+    depends_on:
+      - elasticsearch
+
+volumes:
+  prometheus-data:
+    name: waqiti-prometheus-data
+  alertmanager-data:
+    name: waqiti-alertmanager-data
+  grafana-data:
+    name: waqiti-grafana-data
+  loki-data:
+    name: waqiti-loki-data
+  elasticsearch-data:
+    name: waqiti-elasticsearch-data
+
+networks:
+  waqiti-monitoring:
+    name: waqiti-monitoring
+    driver: bridge
+  waqiti-network:
+    name: waqiti-network
+    external: true

@@ -1,0 +1,47 @@
+# Build stage for microservices
+FROM maven:3.9-eclipse-temurin-17 AS builder
+
+# Arguments for service-specific paths
+ARG SERVICE_NAME
+
+# Copy parent POM for common module to build
+WORKDIR /app
+COPY pom.xml ./
+
+# Build common module first
+WORKDIR /app/services/common
+COPY services/common/pom.xml ./
+COPY services/common/src ./src
+RUN mvn clean install -DskipTests
+
+# Build the specific service
+WORKDIR /app/services/${SERVICE_NAME}
+COPY services/${SERVICE_NAME}/pom.xml ./
+COPY services/${SERVICE_NAME}/src ./src
+
+# Build the service
+RUN mvn clean package -DskipTests
+
+# Runtime stage
+FROM eclipse-temurin:17-jre-alpine
+
+WORKDIR /app
+
+# Copy JAR from builder
+ARG SERVICE_NAME
+COPY --from=builder /app/services/${SERVICE_NAME}/target/*.jar app.jar
+
+# Create non-root user
+RUN addgroup -g 1000 spring && \
+    adduser -u 1000 -G spring -s /bin/sh -D spring
+
+USER spring
+
+# Expose ports
+EXPOSE 8080 8090
+
+# Set JVM options
+ENV JAVA_OPTS="-Xms256m -Xmx512m -XX:+UseG1GC"
+
+# Run the application
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]

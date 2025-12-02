@@ -1,0 +1,577 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: monitoring
+  labels:
+    app: prometheus
+    component: monitoring
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+      external_labels:
+        cluster: 'example-production'
+        region: 'us-west-2'
+    
+    rule_files:
+      - "/etc/prometheus/rules/*.yml"
+    
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets:
+              - alertmanager:9093
+    
+    scrape_configs:
+    # Kubernetes API Server
+    - job_name: 'kubernetes-apiservers'
+      kubernetes_sd_configs:
+      - role: endpoints
+      scheme: https
+      tls_config:
+        ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+      bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+        action: keep
+        regex: default;kubernetes;https
+    
+    # Kubernetes Node Exporter
+    - job_name: 'kubernetes-nodes'
+      kubernetes_sd_configs:
+      - role: node
+      relabel_configs:
+      - action: labelmap
+        regex: __meta_kubernetes_node_label_(.+)
+      - target_label: __address__
+        replacement: kubernetes.default.svc:443
+      - source_labels: [__meta_kubernetes_node_name]
+        regex: (.+)
+        target_label: __metrics_path__
+        replacement: /api/v1/nodes/${1}/proxy/metrics
+    
+    # Kubernetes Pods
+    - job_name: 'kubernetes-pods'
+      kubernetes_sd_configs:
+      - role: pod
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+        action: keep
+        regex: true
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+        action: replace
+        target_label: __metrics_path__
+        regex: (.+)
+      - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+        action: replace
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        target_label: __address__
+      - action: labelmap
+        regex: __meta_kubernetes_pod_label_(.+)
+      - source_labels: [__meta_kubernetes_namespace]
+        action: replace
+        target_label: kubernetes_namespace
+      - source_labels: [__meta_kubernetes_pod_name]
+        action: replace
+        target_label: kubernetes_pod_name
+    
+    # Waqiti Payment Service
+    - job_name: 'waqiti-payment-service'
+      kubernetes_sd_configs:
+      - role: endpoints
+        namespaces:
+          names:
+          - default
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_service_name]
+        action: keep
+        regex: payment-service
+      - source_labels: [__meta_kubernetes_endpoint_port_name]
+        action: keep
+        regex: metrics
+      metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'payment_.*'
+        action: keep
+    
+    # Waqiti Wallet Service
+    - job_name: 'waqiti-wallet-service'
+      kubernetes_sd_configs:
+      - role: endpoints
+        namespaces:
+          names:
+          - default
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_service_name]
+        action: keep
+        regex: wallet-service
+      - source_labels: [__meta_kubernetes_endpoint_port_name]
+        action: keep
+        regex: metrics
+      metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'wallet_.*'
+        action: keep
+    
+    # Waqiti User Service
+    - job_name: 'waqiti-user-service'
+      kubernetes_sd_configs:
+      - role: endpoints
+        namespaces:
+          names:
+          - default
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_service_name]
+        action: keep
+        regex: user-service
+      - source_labels: [__meta_kubernetes_endpoint_port_name]
+        action: keep
+        regex: metrics
+      metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'user_.*|auth_.*'
+        action: keep
+    
+    # Waqiti Fraud Service
+    - job_name: 'waqiti-fraud-service'
+      kubernetes_sd_configs:
+      - role: endpoints
+        namespaces:
+          names:
+          - default
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_service_name]
+        action: keep
+        regex: fraud-service
+      - source_labels: [__meta_kubernetes_endpoint_port_name]
+        action: keep
+        regex: metrics
+      metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'fraud_.*|ml_.*'
+        action: keep
+    
+    # Waqiti Compliance Service
+    - job_name: 'waqiti-compliance-service'
+      kubernetes_sd_configs:
+      - role: endpoints
+        namespaces:
+          names:
+          - default
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_service_name]
+        action: keep
+        regex: compliance-service
+      - source_labels: [__meta_kubernetes_endpoint_port_name]
+        action: keep
+        regex: metrics
+      metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'compliance_.*|aml_.*|kyc_.*'
+        action: keep
+    
+    # Database Monitoring
+    - job_name: 'postgresql-exporter'
+      kubernetes_sd_configs:
+      - role: endpoints
+        namespaces:
+          names:
+          - database
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_service_name]
+        action: keep
+        regex: postgresql-exporter
+    
+    - job_name: 'redis-exporter'
+      kubernetes_sd_configs:
+      - role: endpoints
+        namespaces:
+          names:
+          - database
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_service_name]
+        action: keep
+        regex: redis-exporter
+    
+    # Kafka Monitoring
+    - job_name: 'kafka-exporter'
+      kubernetes_sd_configs:
+      - role: endpoints
+        namespaces:
+          names:
+          - kafka
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_service_name]
+        action: keep
+        regex: kafka-exporter
+    
+    # Istio Service Mesh Monitoring
+    - job_name: 'istio-mesh'
+      kubernetes_sd_configs:
+      - role: endpoints
+        namespaces:
+          names:
+          - istio-system
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+        action: keep
+        regex: istio-proxy;http-monitoring
+    
+    # Custom Business Metrics
+    - job_name: 'waqiti-business-metrics'
+      static_configs:
+      - targets: ['business-metrics-exporter:8080']
+      scrape_interval: 30s
+      metrics_path: /metrics
+      params:
+        format: ['prometheus']
+    
+    # External Service Monitoring
+    - job_name: 'external-services'
+      static_configs:
+      - targets: 
+        - 'external-payment-provider.com:443'
+        - 'kyc-verification-service.com:443'
+        - 'fraud-detection-api.com:443'
+      metrics_path: /health
+      scheme: https
+      scrape_interval: 60s
+      scrape_timeout: 10s
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-rules
+  namespace: monitoring
+  labels:
+    app: prometheus
+    component: alerting
+data:
+  waqiti-financial-alerts.yml: |
+    groups:
+    - name: waqiti-financial-critical
+      rules:
+      # Payment Service Alerts
+      - alert: PaymentServiceDown
+        expr: up{job="waqiti-payment-service"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          service: payment
+          team: platform
+        annotations:
+          summary: "Payment service is down"
+          description: "Payment service {{ $labels.instance }} has been down for more than 30 seconds"
+          runbook_url: "https://runbook.example.com/payment-service-down"
+          
+      - alert: PaymentTransactionFailureRateHigh
+        expr: rate(payment_transactions_failed_total[5m]) / rate(payment_transactions_total[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+          service: payment
+          team: platform
+        annotations:
+          summary: "Payment transaction failure rate is high"
+          description: "Payment failure rate is {{ $value | humanizePercentage }} over the last 5 minutes"
+          
+      - alert: PaymentResponseTimeHigh
+        expr: histogram_quantile(0.95, rate(payment_request_duration_seconds_bucket[5m])) > 2.0
+        for: 5m
+        labels:
+          severity: warning
+          service: payment
+          team: platform
+        annotations:
+          summary: "Payment service response time is high"
+          description: "95th percentile response time is {{ $value }}s"
+          
+      - alert: PaymentQueueDepthHigh
+        expr: payment_processing_queue_depth > 1000
+        for: 3m
+        labels:
+          severity: warning
+          service: payment
+          team: platform
+        annotations:
+          summary: "Payment processing queue is backing up"
+          description: "Payment queue depth is {{ $value }} transactions"
+    
+    - name: waqiti-wallet-alerts
+      rules:
+      # Wallet Service Alerts
+      - alert: WalletServiceDown
+        expr: up{job="waqiti-wallet-service"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          service: wallet
+          team: platform
+        annotations:
+          summary: "Wallet service is down"
+          description: "Wallet service {{ $labels.instance }} has been down for more than 30 seconds"
+          
+      - alert: WalletBalanceInconsistency
+        expr: wallet_balance_reconciliation_failures_total > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: wallet
+          team: platform
+        annotations:
+          summary: "Wallet balance inconsistency detected"
+          description: "{{ $value }} wallet balance reconciliation failures detected"
+          runbook_url: "https://runbook.example.com/wallet-balance-inconsistency"
+          
+      - alert: WalletDatabaseConnectionsHigh
+        expr: wallet_db_connections_active / wallet_db_connections_max > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          service: wallet
+          team: platform
+        annotations:
+          summary: "Wallet service database connections are high"
+          description: "Database connection usage is {{ $value | humanizePercentage }}"
+    
+    - name: waqiti-fraud-alerts
+      rules:
+      # Fraud Detection Alerts
+      - alert: FraudDetectionModelDown
+        expr: up{job="waqiti-fraud-service"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: fraud
+          team: security
+        annotations:
+          summary: "Fraud detection service is down"
+          description: "Fraud detection service has been down for more than 1 minute"
+          
+      - alert: FraudDetectionLatencyHigh
+        expr: histogram_quantile(0.95, rate(fraud_detection_duration_seconds_bucket[5m])) > 5.0
+        for: 3m
+        labels:
+          severity: warning
+          service: fraud
+          team: security
+        annotations:
+          summary: "Fraud detection latency is high"
+          description: "95th percentile fraud detection time is {{ $value }}s"
+          
+      - alert: FraudAlertsSpike
+        expr: rate(fraud_alerts_generated_total[5m]) > 10
+        for: 2m
+        labels:
+          severity: warning
+          service: fraud
+          team: security
+        annotations:
+          summary: "Fraud alerts spike detected"
+          description: "Fraud alert generation rate is {{ $value }} alerts/sec"
+    
+    - name: waqiti-compliance-alerts  
+      rules:
+      # Compliance Service Alerts
+      - alert: AMLScreeningBacklog
+        expr: aml_screening_queue_depth > 500
+        for: 5m
+        labels:
+          severity: warning
+          service: compliance
+          team: compliance
+        annotations:
+          summary: "AML screening backlog is high"
+          description: "AML screening queue has {{ $value }} pending items"
+          
+      - alert: KYCVerificationFailureRateHigh
+        expr: rate(kyc_verification_failed_total[10m]) / rate(kyc_verification_total[10m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: compliance
+          team: compliance
+        annotations:
+          summary: "KYC verification failure rate is high"
+          description: "KYC failure rate is {{ $value | humanizePercentage }}"
+    
+    - name: waqiti-infrastructure-alerts
+      rules:
+      # Infrastructure Alerts
+      - alert: KubernetesNodeNotReady
+        expr: kube_node_status_condition{condition="Ready",status="true"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: infrastructure
+          team: platform
+        annotations:
+          summary: "Kubernetes node is not ready"
+          description: "Node {{ $labels.node }} has been not ready for more than 2 minutes"
+          
+      - alert: KubernetesPodCrashLooping
+        expr: rate(kube_pod_container_status_restarts_total[15m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: infrastructure
+          team: platform
+        annotations:
+          summary: "Pod is crash looping"
+          description: "Pod {{ $labels.namespace }}/{{ $labels.pod }} is restarting frequently"
+          
+      - alert: KubernetesAPIServerDown
+        expr: up{job="kubernetes-apiservers"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: infrastructure
+          team: platform
+        annotations:
+          summary: "Kubernetes API server is down"
+          description: "Kubernetes API server is unreachable"
+    
+    - name: waqiti-business-metrics
+      rules:
+      # Business Metrics Alerts
+      - alert: DailyTransactionVolumeAnomaly
+        expr: |
+          (
+            sum(rate(payment_transactions_total[1h])) -
+            avg_over_time(sum(rate(payment_transactions_total[1h]))[7d:1h])
+          ) / avg_over_time(sum(rate(payment_transactions_total[1h]))[7d:1h]) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+          service: business
+          team: operations
+        annotations:
+          summary: "Daily transaction volume anomaly detected"
+          description: "Transaction volume is {{ $value | humanizePercentage }} higher than 7-day average"
+          
+      - alert: RevenueDropSignificant
+        expr: |
+          (
+            sum(rate(payment_revenue_total[1h])) -
+            avg_over_time(sum(rate(payment_revenue_total[1h]))[7d:1h])
+          ) / avg_over_time(sum(rate(payment_revenue_total[1h]))[7d:1h]) < -0.2
+        for: 15m
+        labels:
+          severity: critical
+          service: business
+          team: operations
+        annotations:
+          summary: "Significant revenue drop detected"
+          description: "Revenue is {{ $value | humanizePercentage }} lower than 7-day average"
+          
+      - alert: NewUserRegistrationDrop
+        expr: rate(user_registrations_total[1h]) < 10
+        for: 30m
+        labels:
+          severity: warning
+          service: business
+          team: growth
+        annotations:
+          summary: "New user registration rate is low"
+          description: "User registration rate is {{ $value }} registrations/hour"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: monitoring
+  labels:
+    app: prometheus
+    component: monitoring
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+    spec:
+      serviceAccountName: prometheus
+      containers:
+      - name: prometheus
+        image: prom/prometheus:v2.47.0
+        args:
+          - '--config.file=/etc/prometheus/prometheus.yml'
+          - '--storage.tsdb.path=/prometheus/'
+          - '--web.console.libraries=/etc/prometheus/console_libraries'
+          - '--web.console.templates=/etc/prometheus/consoles'
+          - '--storage.tsdb.retention.time=30d'
+          - '--storage.tsdb.retention.size=50GB'
+          - '--web.enable-lifecycle'
+          - '--web.route-prefix=/'
+          - '--web.enable-admin-api'
+        ports:
+        - containerPort: 9090
+          name: web
+        volumeMounts:
+        - name: prometheus-config-volume
+          mountPath: /etc/prometheus/
+        - name: prometheus-rules-volume
+          mountPath: /etc/prometheus/rules/
+        - name: prometheus-storage-volume
+          mountPath: /prometheus/
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "500m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        livenessProbe:
+          httpGet:
+            path: /-/healthy
+            port: 9090
+          initialDelaySeconds: 30
+          timeoutSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /-/ready
+            port: 9090
+          initialDelaySeconds: 5
+          timeoutSeconds: 10
+      volumes:
+      - name: prometheus-config-volume
+        configMap:
+          name: prometheus-config
+      - name: prometheus-rules-volume
+        configMap:
+          name: prometheus-rules
+      - name: prometheus-storage-volume
+        persistentVolumeClaim:
+          claimName: prometheus-storage
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - prometheus
+            topologyKey: kubernetes.io/hostname
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: prometheus-storage
+  namespace: monitoring
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: fast-ssd
+  resources:
+    requests:
+      storage: 100Gi

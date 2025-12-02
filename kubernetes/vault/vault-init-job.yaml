@@ -1,0 +1,82 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: vault-init
+  namespace: waqiti-system
+  labels:
+    app: vault-init
+spec:
+  template:
+    metadata:
+      labels:
+        app: vault-init
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: vault-init
+        image: hashicorp/vault:1.15.2
+        env:
+        - name: VAULT_ADDR
+          value: "http://vault:8200"
+        - name: VAULT_TOKEN
+          value: "dev-only-token"
+        command:
+        - /bin/sh
+        - -c
+        - |
+          # Wait for Vault to be ready
+          until vault status; do
+            echo "Waiting for Vault to be ready..."
+            sleep 5
+          done
+          
+          # Enable secrets engine
+          vault secrets enable -path=secret kv-v2
+          
+          # Create initial secrets
+          vault kv put secret/jwt-secret value="$(openssl rand -base64 32)"
+          vault kv put secret/database/user-service/password value="$(openssl rand -base64 16)"
+          vault kv put secret/database/wallet-service/password value="$(openssl rand -base64 16)"
+          vault kv put secret/database/payment-service/password value="$(openssl rand -base64 16)"
+          vault kv put secret/database/notification-service/password value="$(openssl rand -base64 16)"
+          vault kv put secret/database/security-service/password value="$(openssl rand -base64 16)"
+          vault kv put secret/redis/password value="$(openssl rand -base64 16)"
+          vault kv put secret/kafka/password value="$(openssl rand -base64 16)"
+          vault kv put secret/cyclos/admin-password value="$(openssl rand -base64 16)"
+          
+          # Create API keys for external services
+          vault kv put secret/api-keys/twilio value="your-twilio-api-key"
+          vault kv put secret/api-keys/sendgrid value="your-sendgrid-api-key"
+          vault kv put secret/api-keys/stripe value="your-stripe-api-key"
+          
+          # Create policies
+          cat <<EOF | vault policy write waqiti-app-policy -
+          path "secret/data/*" {
+            capabilities = ["read", "list"]
+          }
+          path "secret/metadata/*" {
+            capabilities = ["read", "list"]
+          }
+          EOF
+          
+          # Enable AppRole auth method
+          vault auth enable approle
+          
+          # Create AppRole for services
+          vault write auth/approle/role/waqiti-app \
+            token_policies="waqiti-app-policy" \
+            token_ttl=1h \
+            token_max_ttl=4h \
+            bind_secret_id=true
+          
+          # Get role-id for services
+          vault read auth/approle/role/waqiti-app/role-id
+          
+          echo "Vault initialization completed successfully!"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi

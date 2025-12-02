@@ -1,0 +1,89 @@
+# Feature Flags Configuration for Payment Service
+# Enables gradual rollout of new features and A/B testing
+
+features:
+  payment-saga:
+    # Controls whether to use centralized saga-orchestration-service
+    # or local PaymentSagaOrchestrator implementation
+    use-central-orchestrator:
+      enabled: false  # Start with feature flag OFF (default: use local orchestrator)
+      description: "Delegate payment saga execution to saga-orchestration-service"
+      rollout-percentage: 0  # Start at 0%, gradually increase to 100%
+      rollout-strategy: "percentage"  # Options: percentage, user-list, time-based
+
+      # Rollout schedule (for gradual rollout)
+      rollout-schedule:
+        phase-1: # 10% rollout
+          percentage: 10
+          start-date: "2025-11-25T02:00:00Z"  # Maintenance window
+          duration-hours: 24
+
+        phase-2: # 25% rollout
+          percentage: 25
+          start-date: "2025-11-26T02:00:00Z"
+          duration-hours: 24
+
+        phase-3: # 50% rollout
+          percentage: 50
+          start-date: "2025-11-27T02:00:00Z"
+          duration-hours: 48
+
+        phase-4: # 100% rollout
+          percentage: 100
+          start-date: "2025-11-29T02:00:00Z"
+          permanent: true
+
+      # Rollback configuration
+      rollback:
+        auto-rollback-enabled: true
+        error-rate-threshold: 0.05  # 5% error rate triggers rollback
+        latency-p95-threshold-ms: 500  # P95 latency > 500ms triggers rollback
+        compensation-failure-threshold: 0.01  # 1% compensation failures triggers rollback
+        alert-channels:
+          - slack: "#incidents"
+          - pagerduty: "payment-saga-oncall"
+
+      # Monitoring
+      metrics:
+        enabled: true
+        comparison-baseline: "payment.saga.local.execution.time"
+        comparison-new: "payment.saga.central.execution.time"
+        alert-on-regression: true
+
+      # Override for specific users (for testing)
+      user-overrides:
+        enabled: true
+        force-enabled-users: []  # Add test user IDs here
+        force-disabled-users: []  # Add exempted user IDs here
+
+  payment-validation:
+    enhanced-split-validation:
+      enabled: true
+      description: "Enhanced validation for split payment requests"
+
+    bnpl-credit-check-v2:
+      enabled: false
+      description: "New credit scoring algorithm for BNPL"
+      rollout-percentage: 0
+
+  payment-notifications:
+    real-time-push:
+      enabled: true
+      description: "Real-time push notifications for payment status updates"
+
+# Configuration for feature flag management API
+management:
+  feature-flags:
+    endpoint:
+      enabled: true
+      path: "/api/admin/feature-flags"
+      security:
+        roles: ["ADMIN", "FEATURE_FLAG_MANAGER"]
+
+    persistence:
+      type: "redis"  # Options: redis, database, in-memory
+      ttl-seconds: 3600  # Cache feature flag values for 1 hour
+
+    refresh:
+      enabled: true
+      interval-seconds: 60  # Refresh feature flags every 60 seconds

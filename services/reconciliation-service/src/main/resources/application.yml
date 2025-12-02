@@ -1,0 +1,397 @@
+spring:
+  application:
+    name: reconciliation-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  
+  cloud:
+    config:
+      uri: ${CONFIG_SERVER_URL:http://localhost:8888}
+      fail-fast: true
+      retry:
+        max-attempts: 3
+  
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/waqiti_reconciliation}
+    username: ${DATABASE_USERNAME:waqiti}
+    password: ${DATABASE_PASSWORD:${VAULT_DATABASE_PASSWORD}}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 300000
+      connection-timeout: 20000
+      validation-timeout: 5000
+  
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        use_sql_comments: true
+        jdbc:
+          batch_size: 100
+          order_inserts: true
+          order_updates: true
+        cache:
+          use_second_level_cache: true
+          use_query_cache: true
+  
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+  
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+  
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.trusted.packages: "*"
+    consumer:
+      group-id: reconciliation-service
+      enable-auto-commit: false  # Manual acknowledgment for DLQ support
+      max-poll-records: 50  # Batch size control
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+      auto-offset-reset: earliest
+  security:
+    oauth2:
+          resourceserver:
+            jwt:
+              issuer-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti
+              jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/certs
+          client:
+            registration:
+              keycloak:
+                client-id: reconciliation-service
+                client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+                authorization-grant-type: client_credentials
+                scope: openid,profile,email,reconciliation
+            provider:
+              keycloak:
+                issuer-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti
+                token-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/token
+                authorization-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/auth
+                userinfo-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/userinfo
+                jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/certs
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:${EUREKA_SERVER_URL:https://discovery-service:8761/eureka}/}
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+    metadata-map:
+      version: ${info.version}
+      region: ${DEPLOYMENT_REGION:us-east-1}
+
+server:
+  port: ${PORT:8093}
+  servlet:
+    context-path: /api/v1
+  error:
+    include-message: always
+    include-binding-errors: always
+
+# Keycloak Configuration - CRITICAL SECURITY IMPLEMENTATION
+keycloak:
+  enabled: true
+  realm: waqiti-fintech
+  auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}
+  ssl-required: external
+  resource: reconciliation-service
+  bearer-only: true
+  use-resource-role-mappings: true
+  cors: true
+  cors-allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+  cors-allowed-headers: Authorization,Content-Type,X-Requested-With,X-Reconciliation-Id
+  cors-max-age: 3600
+  public-client: false
+  credentials:
+    secret: ${KEYCLOAK_CLIENT_SECRET:}
+
+# Spring Security OAuth2 Configuration
+
+# Service-to-Service Authentication
+service:
+  auth:
+    enabled: true
+    client-id: reconciliation-service
+    client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+
+# Feign client configuration
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 5000
+        readTimeout: 5000
+        loggerLevel: FULL
+      audit-service:
+        url: ${AUDIT_SERVICE_URL:http://audit-service/api/v1}
+      ledger-service:
+        url: ${LEDGER_SERVICE_URL:http://ledger-service/api/v1}
+      notification-service:
+        url: ${NOTIFICATION_SERVICE_URL:http://notification-service/api/v1}
+      transaction-service:
+        url: ${TRANSACTION_SERVICE_URL:http://transaction-service/api/v1}
+
+# Kafka topics
+kafka:
+  topics:
+    reconciliation-started: reconciliation-started
+    reconciliation-completed: reconciliation-completed
+    discrepancy-detected: discrepancy-detected
+    auto-match-found: auto-match-found
+    manual-review-required: manual-review-required
+    notification: notification-events
+
+logging:
+  level:
+    com.waqiti.reconciliation: INFO
+    org.springframework.web: INFO
+    org.springframework.kafka: INFO
+    org.hibernate.SQL: INFO
+    org.hibernate.type.descriptor.sql.BasicBinder: INFO
+    org.springframework.security: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# Service-specific configuration
+reconciliation:
+  matching:
+    auto-match:
+      enabled: true
+      confidence-threshold: 0.95
+      batch-size: 1000
+      parallel-threads: 4
+    
+    algorithms:
+      exact-match:
+        enabled: true
+        weight: 1.0
+      fuzzy-match:
+        enabled: true
+        weight: 0.8
+        similarity-threshold: 0.85
+      amount-match:
+        enabled: true
+        weight: 0.9
+        tolerance-amount: 0.01
+        tolerance-percentage: 0.001
+      date-match:
+        enabled: true
+        weight: 0.7
+        tolerance-days: 2
+    
+    rules:
+      duplicate-check: true
+      one-to-many: true
+      many-to-many: false
+  
+  discrepancy:
+    auto-resolution:
+      enabled: true
+      rules:
+        - type: AMOUNT_MISMATCH
+          tolerance: 0.01
+          action: AUTO_ADJUST
+        - type: DATE_MISMATCH
+          tolerance-days: 1
+          action: FLAG_FOR_REVIEW
+        - type: MISSING_REFERENCE
+          action: MANUAL_REVIEW
+    
+    escalation:
+      enabled: true
+      thresholds:
+        amount: 10000
+        age-days: 7
+        severity: HIGH
+  
+  import:
+    supported-formats:
+      bank-statement: BAI2,MT940,CSV,EXCEL
+      transactions: CSV,JSON,XML,EXCEL
+    max-file-size: 50MB
+    batch-processing: true
+    validation:
+      strict: true
+      reject-on-error: false
+  
+  export:
+    formats: PDF,CSV,EXCEL
+    template-engine: jasper
+    max-records: 50000
+    compression: true
+  
+  retention:
+    completed-days: 90
+    failed-days: 30
+    archive-after-days: 365
+  
+  performance:
+    cache-enabled: true
+    cache-ttl: 3600
+    bulk-operations: true
+    async-processing: true
+
+# Batch Processing Configuration (Migrated from batch-service)
+batch:
+  settlement:
+    schedule: "0 0 15 * * *"  # 3 PM daily - configurable
+    cutoff-hour: 14
+    enabled: true
+    max-retries: 3
+    timeout-minutes: 30
+
+  reconciliation:
+    schedule: "0 0 1 * * ?"  # 1 AM daily - configurable
+    enabled: true
+    tolerance: 0.01
+    parallel-processing: true
+    max-threads: 4
+
+  alerts:
+    enabled: true
+    critical-threshold: 100
+    send-summary: true
+
+# External service configurations
+services:
+  audit-service:
+    url: ${AUDIT_SERVICE_URL:http://localhost:8090}
+    timeout: 30s
+    url: ${AUDIT_SERVICE_URL:http://audit-service/api/v1}
+  ledger-service:
+    url: ${LEDGER_SERVICE_URL:http://localhost:8092}
+    timeout: 30s
+    url: ${LEDGER_SERVICE_URL:http://ledger-service/api/v1}
+  notification-service:
+    url: ${NOTIFICATION_SERVICE_URL:http://localhost:8084}
+    timeout: 30s
+    url: ${NOTIFICATION_SERVICE_URL:http://notification-service/api/v1}
+  transaction-service:
+    url: ${TRANSACTION_SERVICE_URL:http://localhost:8087}
+    timeout: 30s
+
+# Circuit breaker configuration
+resilience4j:
+  circuitbreaker:
+    instances:
+      audit-service:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 5s
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10
+      ledger-service:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        waitDurationInOpenState: 5s
+        failureRateThreshold: 50
+  
+  retry:
+    instances:
+      default:
+        maxAttempts: 3
+        waitDuration: 500ms
+        exponentialBackoffMultiplier: 2
+
+# External service configurations - Updated for Keycloak
+
+---
+spring:
+  profiles: test
+  
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+  
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    database-platform: org.hibernate.dialect.H2Dialect
+  
+  kafka:
+    bootstrap-servers: ${spring.embedded.kafka.brokers}
+
+reconciliation:
+  matching:
+    auto-match:
+      parallel-threads: 1
+  performance:
+    async-processing: false
+
+---
+spring:
+  profiles: production
+  
+  jpa:
+    show-sql: false
+    properties:
+      hibernate:
+        generate_statistics: false
+
+logging:
+  level:
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+
+reconciliation:
+  matching:
+    auto-match:
+      parallel-threads: 8
+  discrepancy:
+    auto-resolution:
+      enabled: true
+  performance:
+    cache-enabled: true
+    async-processing: true

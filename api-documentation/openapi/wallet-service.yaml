@@ -1,0 +1,1469 @@
+openapi: 3.0.3
+info:
+  title: Waqiti Wallet Service API
+  description: |
+    The Wallet Service manages digital wallets, balances, transaction history,
+    and wallet-related operations for the Waqiti platform.
+    
+    ## Features
+    - Multi-currency wallet support
+    - Real-time balance tracking
+    - Transaction history and filtering
+    - Wallet creation and management
+    - Balance holds and reserves
+    - Virtual and physical card integration
+    
+    ## Authentication
+    All endpoints require Bearer token authentication.
+    
+    ## Rate Limiting
+    - Balance queries: 300 requests per minute
+    - Transaction history: 100 requests per minute
+    - Wallet operations: 60 requests per minute
+    
+    ## Currency Support
+    Supports major fiat currencies (USD, EUR, GBP, etc.) and select cryptocurrencies.
+    All amounts are represented in the smallest currency unit (cents, satoshis, etc.).
+  version: 1.0.0
+  contact:
+    name: Waqiti API Support
+    email: api-support@example.com
+    url: https://developers.example.com/support
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+
+servers:
+  - url: https://api.example.com/v1/wallets
+    description: Production
+  - url: https://staging-api.example.com/v1/wallets
+    description: Staging
+  - url: https://sandbox-api.example.com/v1/wallets
+    description: Sandbox
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Wallets
+    description: Wallet management operations
+  - name: Balances
+    description: Balance queries and operations
+  - name: Transactions
+    description: Transaction history and details
+  - name: Cards
+    description: Linked card management
+  - name: Holds
+    description: Balance holds and reserves
+
+paths:
+  /:
+    get:
+      tags:
+        - Wallets
+      summary: List user wallets
+      description: |
+        Returns all wallets owned by the authenticated user.
+        Includes balance information and wallet metadata.
+      operationId: listWallets
+      parameters:
+        - name: currency
+          in: query
+          description: Filter by currency
+          schema:
+            type: string
+            pattern: '^[A-Z]{3}$'
+        - name: status
+          in: query
+          description: Filter by wallet status
+          schema:
+            type: string
+            enum: [active, suspended, closed]
+        - name: type
+          in: query
+          description: Filter by wallet type
+          schema:
+            type: string
+            enum: [primary, savings, business, crypto]
+      responses:
+        '200':
+          description: List of wallets
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - Wallets
+      summary: Create new wallet
+      description: |
+        Creates a new wallet for the authenticated user.
+        Users can have multiple wallets in different currencies.
+      operationId: createWallet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWalletRequest'
+            examples:
+              primaryUSD:
+                summary: Primary USD Wallet
+                value:
+                  name: "Primary USD Wallet"
+                  currency: "USD"
+                  type: "primary"
+                  description: "Main spending wallet"
+              euroSavings:
+                summary: Euro Savings Wallet
+                value:
+                  name: "Euro Savings"
+                  currency: "EUR"
+                  type: "savings"
+                  description: "European travel fund"
+              businessWallet:
+                summary: Business Wallet
+                value:
+                  name: "Business Operations"
+                  currency: "USD"
+                  type: "business"
+                  description: "Company expense wallet"
+      responses:
+        '201':
+          description: Wallet created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Wallet'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          description: Wallet limit reached
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: wallet_limit_reached
+                  message: Maximum number of wallets reached for your account type
+
+  /{walletId}:
+    get:
+      tags:
+        - Wallets
+      summary: Get wallet details
+      description: Returns detailed information about a specific wallet
+      operationId: getWallet
+      parameters:
+        - name: walletId
+          in: path
+          required: true
+          description: Wallet ID
+          schema:
+            type: string
+            pattern: '^wal_[a-zA-Z0-9]{20}$'
+      responses:
+        '200':
+          description: Wallet details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - Wallets
+      summary: Update wallet
+      description: Updates wallet information such as name and description
+      operationId: updateWallet
+      parameters:
+        - name: walletId
+          in: path
+          required: true
+          description: Wallet ID
+          schema:
+            type: string
+            pattern: '^wal_[a-zA-Z0-9]{20}$'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateWalletRequest'
+      responses:
+        '200':
+          description: Wallet updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Wallet'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Wallets
+      summary: Close wallet
+      description: |
+        Closes a wallet. The wallet must have zero balance and no pending transactions.
+        Primary wallets cannot be closed if they are the only wallet for that currency.
+      operationId: closeWallet
+      parameters:
+        - name: walletId
+          in: path
+          required: true
+          description: Wallet ID
+          schema:
+            type: string
+            pattern: '^wal_[a-zA-Z0-9]{20}$'
+      responses:
+        '200':
+          description: Wallet closed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Wallet closed successfully"
+        '400':
+          description: Cannot close wallet
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: wallet_cannot_close
+                  message: Cannot close wallet with non-zero balance
+                  details:
+                    balance: 1500
+                    pendingTransactions: 2
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /{walletId}/balance:
+    get:
+      tags:
+        - Balances
+      summary: Get wallet balance
+      description: |
+        Returns current wallet balance including available balance,
+        pending transactions, and holds.
+      operationId: getWalletBalance
+      parameters:
+        - name: walletId
+          in: path
+          required: true
+          description: Wallet ID
+          schema:
+            type: string
+            pattern: '^wal_[a-zA-Z0-9]{20}$'
+        - name: includeHolds
+          in: query
+          description: Include detailed hold information
+          schema:
+            type: boolean
+            default: false
+        - name: includePending
+          in: query
+          description: Include pending transaction details
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Wallet balance information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletBalance'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /{walletId}/transactions:
+    get:
+      tags:
+        - Transactions
+      summary: Get wallet transactions
+      description: |
+        Returns transaction history for a specific wallet.
+        Supports filtering, sorting, and pagination.
+      operationId: getWalletTransactions
+      parameters:
+        - name: walletId
+          in: path
+          required: true
+          description: Wallet ID
+          schema:
+            type: string
+            pattern: '^wal_[a-zA-Z0-9]{20}$'
+        - name: type
+          in: query
+          description: Filter by transaction type
+          schema:
+            type: string
+            enum: [credit, debit, transfer, fee, refund, adjustment]
+        - name: status
+          in: query
+          description: Filter by transaction status
+          schema:
+            type: string
+            enum: [pending, completed, failed, cancelled]
+        - name: from_date
+          in: query
+          description: Start date (ISO 8601)
+          schema:
+            type: string
+            format: date-time
+        - name: to_date
+          in: query
+          description: End date (ISO 8601)
+          schema:
+            type: string
+            format: date-time
+        - name: min_amount
+          in: query
+          description: Minimum amount in smallest currency unit
+          schema:
+            type: integer
+            minimum: 0
+        - name: max_amount
+          in: query
+          description: Maximum amount in smallest currency unit
+          schema:
+            type: integer
+            minimum: 0
+        - name: category
+          in: query
+          description: Filter by transaction category
+          schema:
+            type: string
+        - name: page
+          in: query
+          description: Page number
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: per_page
+          in: query
+          description: Items per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: sort
+          in: query
+          description: Sort field and order
+          schema:
+            type: string
+            enum: [created_at, -created_at, amount, -amount, description]
+            default: -created_at
+      responses:
+        '200':
+          description: Transaction history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /{walletId}/transactions/{transactionId}:
+    get:
+      tags:
+        - Transactions
+      summary: Get transaction details
+      description: Returns detailed information about a specific transaction
+      operationId: getTransaction
+      parameters:
+        - name: walletId
+          in: path
+          required: true
+          description: Wallet ID
+          schema:
+            type: string
+            pattern: '^wal_[a-zA-Z0-9]{20}$'
+        - name: transactionId
+          in: path
+          required: true
+          description: Transaction ID
+          schema:
+            type: string
+            pattern: '^txn_[a-zA-Z0-9]{20}$'
+      responses:
+        '200':
+          description: Transaction details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /{walletId}/holds:
+    get:
+      tags:
+        - Holds
+      summary: List balance holds
+      description: |
+        Returns all active holds on the wallet balance.
+        Holds temporarily reserve funds for pending transactions.
+      operationId: getWalletHolds
+      parameters:
+        - name: walletId
+          in: path
+          required: true
+          description: Wallet ID
+          schema:
+            type: string
+            pattern: '^wal_[a-zA-Z0-9]{20}$'
+        - name: status
+          in: query
+          description: Filter by hold status
+          schema:
+            type: string
+            enum: [active, expired, released]
+        - name: type
+          in: query
+          description: Filter by hold type
+          schema:
+            type: string
+            enum: [payment, authorization, compliance, manual]
+      responses:
+        '200':
+          description: List of holds
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  holds:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BalanceHold'
+                  totalAmount:
+                    type: integer
+                    description: Total amount on hold
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags:
+        - Holds
+      summary: Create balance hold
+      description: |
+        Creates a hold on the wallet balance. This is typically used
+        to reserve funds for pending transactions.
+      operationId: createBalanceHold
+      parameters:
+        - name: walletId
+          in: path
+          required: true
+          description: Wallet ID
+          schema:
+            type: string
+            pattern: '^wal_[a-zA-Z0-9]{20}$'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateHoldRequest'
+      responses:
+        '201':
+          description: Hold created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BalanceHold'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: Insufficient balance
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: insufficient_balance
+                  message: Insufficient funds to place hold
+                  details:
+                    availableBalance: 5000
+                    requestedAmount: 10000
+
+  /{walletId}/holds/{holdId}:
+    get:
+      tags:
+        - Holds
+      summary: Get hold details
+      description: Returns detailed information about a specific balance hold
+      operationId: getBalanceHold
+      parameters:
+        - name: walletId
+          in: path
+          required: true
+          description: Wallet ID
+          schema:
+            type: string
+            pattern: '^wal_[a-zA-Z0-9]{20}$'
+        - name: holdId
+          in: path
+          required: true
+          description: Hold ID
+          schema:
+            type: string
+            pattern: '^hold_[a-zA-Z0-9]{20}$'
+      responses:
+        '200':
+          description: Hold details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BalanceHold'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Holds
+      summary: Release balance hold
+      description: Releases a balance hold, making the funds available again
+      operationId: releaseBalanceHold
+      parameters:
+        - name: walletId
+          in: path
+          required: true
+          description: Wallet ID
+          schema:
+            type: string
+            pattern: '^wal_[a-zA-Z0-9]{20}$'
+        - name: holdId
+          in: path
+          required: true
+          description: Hold ID
+          schema:
+            type: string
+            pattern: '^hold_[a-zA-Z0-9]{20}$'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  description: Reason for releasing the hold
+      responses:
+        '200':
+          description: Hold released successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Hold released successfully"
+                  releasedAmount:
+                    type: integer
+                    description: Amount released in smallest currency unit
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Hold already released
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /{walletId}/cards:
+    get:
+      tags:
+        - Cards
+      summary: List linked cards
+      description: Returns all cards linked to the wallet
+      operationId: getLinkedCards
+      parameters:
+        - name: walletId
+          in: path
+          required: true
+          description: Wallet ID
+          schema:
+            type: string
+            pattern: '^wal_[a-zA-Z0-9]{20}$'
+        - name: status
+          in: query
+          description: Filter by card status
+          schema:
+            type: string
+            enum: [active, inactive, expired, blocked]
+        - name: type
+          in: query
+          description: Filter by card type
+          schema:
+            type: string
+            enum: [virtual, physical]
+      responses:
+        '200':
+          description: List of linked cards
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  cards:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/LinkedCard'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /{walletId}/statements:
+    get:
+      tags:
+        - Transactions
+      summary: Generate wallet statement
+      description: |
+        Generates a wallet statement for a specified period.
+        Returns downloadable PDF or structured data.
+      operationId: generateWalletStatement
+      parameters:
+        - name: walletId
+          in: path
+          required: true
+          description: Wallet ID
+          schema:
+            type: string
+            pattern: '^wal_[a-zA-Z0-9]{20}$'
+        - name: from_date
+          in: query
+          required: true
+          description: Statement start date
+          schema:
+            type: string
+            format: date
+        - name: to_date
+          in: query
+          required: true
+          description: Statement end date
+          schema:
+            type: string
+            format: date
+        - name: format
+          in: query
+          description: Statement format
+          schema:
+            type: string
+            enum: [pdf, json, csv]
+            default: json
+        - name: include_charts
+          in: query
+          description: Include spending charts in PDF
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: Statement generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletStatement'
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+            text/csv:
+              schema:
+                type: string
+        '400':
+          description: Invalid date range
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /aggregate/balances:
+    get:
+      tags:
+        - Balances
+      summary: Get aggregate balances
+      description: |
+        Returns aggregate balance information across all user wallets.
+        Includes conversion to a base currency for total portfolio value.
+      operationId: getAggregateBalances
+      parameters:
+        - name: base_currency
+          in: query
+          description: Base currency for conversion
+          schema:
+            type: string
+            pattern: '^[A-Z]{3}$'
+            default: USD
+        - name: include_crypto
+          in: query
+          description: Include cryptocurrency wallets
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: Aggregate balance information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AggregateBalances'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    CreateWalletRequest:
+      type: object
+      required:
+        - name
+        - currency
+        - type
+      properties:
+        name:
+          type: string
+          maxLength: 100
+          description: User-defined wallet name
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          description: ISO 4217 currency code
+        type:
+          type: string
+          enum: [primary, savings, business, crypto]
+          description: Wallet type/purpose
+        description:
+          type: string
+          maxLength: 500
+          description: Optional wallet description
+        isPrimary:
+          type: boolean
+          default: false
+          description: Set as primary wallet for this currency
+        metadata:
+          type: object
+          additionalProperties: true
+          description: Additional metadata
+
+    UpdateWalletRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 500
+        isPrimary:
+          type: boolean
+        metadata:
+          type: object
+          additionalProperties: true
+
+    Wallet:
+      type: object
+      properties:
+        id:
+          type: string
+          pattern: '^wal_[a-zA-Z0-9]{20}$'
+        name:
+          type: string
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+        type:
+          type: string
+          enum: [primary, savings, business, crypto]
+        description:
+          type: string
+        balance:
+          type: integer
+          description: Current balance in smallest currency unit
+        availableBalance:
+          type: integer
+          description: Available balance (excluding holds)
+        isPrimary:
+          type: boolean
+          description: Primary wallet for this currency
+        status:
+          type: string
+          enum: [active, suspended, closed]
+        limits:
+          $ref: '#/components/schemas/WalletLimits'
+        metadata:
+          type: object
+          additionalProperties: true
+        createdAt:
+          type: string
+          format: date-time
+        lastActivityAt:
+          type: string
+          format: date-time
+
+    WalletDetail:
+      allOf:
+        - $ref: '#/components/schemas/Wallet'
+        - type: object
+          properties:
+            holdAmount:
+              type: integer
+              description: Total amount on hold
+            pendingIncoming:
+              type: integer
+              description: Pending incoming transactions
+            pendingOutgoing:
+              type: integer
+              description: Pending outgoing transactions
+            statistics:
+              $ref: '#/components/schemas/WalletStatistics'
+            recentTransactions:
+              type: array
+              items:
+                $ref: '#/components/schemas/Transaction'
+              maxItems: 5
+
+    WalletList:
+      type: object
+      properties:
+        wallets:
+          type: array
+          items:
+            $ref: '#/components/schemas/Wallet'
+        totalBalance:
+          type: object
+          additionalProperties:
+            type: integer
+          description: Total balance by currency
+        summary:
+          type: object
+          properties:
+            totalWallets:
+              type: integer
+            activeCurrencies:
+              type: array
+              items:
+                type: string
+
+    WalletBalance:
+      type: object
+      properties:
+        walletId:
+          type: string
+          pattern: '^wal_[a-zA-Z0-9]{20}$'
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+        balance:
+          type: integer
+          description: Total balance including holds
+        availableBalance:
+          type: integer
+          description: Available balance for transactions
+        heldBalance:
+          type: integer
+          description: Amount currently on hold
+        pendingIncoming:
+          type: integer
+          description: Pending incoming amount
+        pendingOutgoing:
+          type: integer
+          description: Pending outgoing amount
+        lastUpdated:
+          type: string
+          format: date-time
+        holds:
+          type: array
+          items:
+            $ref: '#/components/schemas/BalanceHold'
+          description: Active holds (if includeHolds=true)
+        pendingTransactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Transaction'
+          description: Pending transactions (if includePending=true)
+
+    Transaction:
+      type: object
+      properties:
+        id:
+          type: string
+          pattern: '^txn_[a-zA-Z0-9]{20}$'
+        walletId:
+          type: string
+          pattern: '^wal_[a-zA-Z0-9]{20}$'
+        type:
+          type: string
+          enum: [credit, debit, transfer, fee, refund, adjustment]
+        status:
+          type: string
+          enum: [pending, processing, completed, failed, cancelled]
+        amount:
+          type: integer
+          description: Transaction amount in smallest currency unit
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+        description:
+          type: string
+        category:
+          type: string
+          description: Transaction category
+        reference:
+          type: string
+          description: External reference number
+        relatedTransactionId:
+          type: string
+          pattern: '^txn_[a-zA-Z0-9]{20}$'
+          description: Related transaction ID (for transfers)
+        paymentId:
+          type: string
+          pattern: '^pay_[a-zA-Z0-9]{20}$'
+          description: Associated payment ID
+        balanceBefore:
+          type: integer
+          description: Wallet balance before transaction
+        balanceAfter:
+          type: integer
+          description: Wallet balance after transaction
+        metadata:
+          type: object
+          additionalProperties: true
+        createdAt:
+          type: string
+          format: date-time
+        processedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+
+    TransactionDetail:
+      allOf:
+        - $ref: '#/components/schemas/Transaction'
+        - type: object
+          properties:
+            fees:
+              type: array
+              items:
+                type: object
+                properties:
+                  type:
+                    type: string
+                    enum: [platform, processing, network, regulatory]
+                  amount:
+                    type: integer
+                  description:
+                    type: string
+            exchangeRate:
+              type: object
+              properties:
+                fromCurrency:
+                  type: string
+                toCurrency:
+                  type: string
+                rate:
+                  type: number
+                  format: double
+                provider:
+                  type: string
+                timestamp:
+                  type: string
+                  format: date-time
+            auditTrail:
+              type: array
+              items:
+                type: object
+                properties:
+                  action:
+                    type: string
+                  actor:
+                    type: string
+                  timestamp:
+                    type: string
+                    format: date-time
+                  details:
+                    type: object
+                    additionalProperties: true
+
+    TransactionList:
+      type: object
+      properties:
+        transactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Transaction'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+        summary:
+          type: object
+          properties:
+            totalAmount:
+              type: integer
+              description: Total transaction amount in period
+            creditAmount:
+              type: integer
+              description: Total credits in period
+            debitAmount:
+              type: integer
+              description: Total debits in period
+            transactionCount:
+              type: integer
+            averageAmount:
+              type: number
+              format: double
+        filters:
+          type: object
+          description: Applied filters
+          additionalProperties: true
+
+    BalanceHold:
+      type: object
+      properties:
+        id:
+          type: string
+          pattern: '^hold_[a-zA-Z0-9]{20}$'
+        walletId:
+          type: string
+          pattern: '^wal_[a-zA-Z0-9]{20}$'
+        amount:
+          type: integer
+          description: Hold amount in smallest currency unit
+        type:
+          type: string
+          enum: [payment, authorization, compliance, manual]
+        status:
+          type: string
+          enum: [active, expired, released, captured]
+        reason:
+          type: string
+          description: Reason for the hold
+        reference:
+          type: string
+          description: External reference
+        paymentId:
+          type: string
+          pattern: '^pay_[a-zA-Z0-9]{20}$'
+          description: Associated payment ID
+        expiresAt:
+          type: string
+          format: date-time
+          description: Hold expiration time
+        createdAt:
+          type: string
+          format: date-time
+        releasedAt:
+          type: string
+          format: date-time
+        capturedAt:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+          additionalProperties: true
+
+    CreateHoldRequest:
+      type: object
+      required:
+        - amount
+        - type
+        - reason
+      properties:
+        amount:
+          type: integer
+          minimum: 1
+          description: Amount to hold in smallest currency unit
+        type:
+          type: string
+          enum: [payment, authorization, compliance, manual]
+        reason:
+          type: string
+          maxLength: 200
+          description: Reason for creating the hold
+        reference:
+          type: string
+          maxLength: 100
+          description: External reference
+        paymentId:
+          type: string
+          pattern: '^pay_[a-zA-Z0-9]{20}$'
+          description: Associated payment ID
+        expiresIn:
+          type: integer
+          minimum: 60
+          maximum: 2592000
+          default: 86400
+          description: Hold expiration time in seconds (1 min to 30 days)
+        metadata:
+          type: object
+          additionalProperties: true
+
+    LinkedCard:
+      type: object
+      properties:
+        id:
+          type: string
+          pattern: '^card_[a-zA-Z0-9]{20}$'
+        walletId:
+          type: string
+          pattern: '^wal_[a-zA-Z0-9]{20}$'
+        type:
+          type: string
+          enum: [virtual, physical]
+        status:
+          type: string
+          enum: [active, inactive, expired, blocked]
+        brand:
+          type: string
+          enum: [visa, mastercard, amex]
+        last4:
+          type: string
+          pattern: '^\d{4}$'
+        expiryMonth:
+          type: integer
+          minimum: 1
+          maximum: 12
+        expiryYear:
+          type: integer
+        holderName:
+          type: string
+        isDefault:
+          type: boolean
+        spendingLimits:
+          type: object
+          properties:
+            daily:
+              type: integer
+            weekly:
+              type: integer
+            monthly:
+              type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    WalletStatement:
+      type: object
+      properties:
+        walletId:
+          type: string
+          pattern: '^wal_[a-zA-Z0-9]{20}$'
+        walletName:
+          type: string
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+        period:
+          type: object
+          properties:
+            fromDate:
+              type: string
+              format: date
+            toDate:
+              type: string
+              format: date
+        openingBalance:
+          type: integer
+        closingBalance:
+          type: integer
+        totalCredits:
+          type: integer
+        totalDebits:
+          type: integer
+        netChange:
+          type: integer
+        transactionCount:
+          type: integer
+        transactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Transaction'
+        categoryBreakdown:
+          type: array
+          items:
+            type: object
+            properties:
+              category:
+                type: string
+              amount:
+                type: integer
+              percentage:
+                type: number
+                format: double
+              transactionCount:
+                type: integer
+        monthlyComparison:
+          type: object
+          properties:
+            previousPeriodBalance:
+              type: integer
+            changeAmount:
+              type: integer
+            changePercentage:
+              type: number
+              format: double
+        generatedAt:
+          type: string
+          format: date-time
+
+    WalletStatistics:
+      type: object
+      properties:
+        totalTransactions:
+          type: integer
+          description: Total number of transactions
+        averageTransactionAmount:
+          type: number
+          format: double
+        largestTransaction:
+          type: integer
+        smallestTransaction:
+          type: integer
+        monthlySpending:
+          type: integer
+          description: Current month spending
+        previousMonthSpending:
+          type: integer
+        spendingTrend:
+          type: number
+          format: double
+          description: Spending change percentage
+        topCategories:
+          type: array
+          items:
+            type: object
+            properties:
+              category:
+                type: string
+              amount:
+                type: integer
+              percentage:
+                type: number
+                format: double
+          maxItems: 5
+        lastTransactionDate:
+          type: string
+          format: date-time
+
+    WalletLimits:
+      type: object
+      properties:
+        daily:
+          type: object
+          properties:
+            spending:
+              type: integer
+              description: Daily spending limit
+            incoming:
+              type: integer
+              description: Daily incoming limit
+        monthly:
+          type: object
+          properties:
+            spending:
+              type: integer
+            incoming:
+              type: integer
+        balance:
+          type: object
+          properties:
+            maximum:
+              type: integer
+              description: Maximum balance allowed
+            minimum:
+              type: integer
+              description: Minimum balance to maintain
+
+    AggregateBalances:
+      type: object
+      properties:
+        baseCurrency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+        totalPortfolioValue:
+          type: integer
+          description: Total portfolio value in base currency
+        totalAvailableBalance:
+          type: integer
+          description: Total available balance in base currency
+        totalHeldBalance:
+          type: integer
+          description: Total held balance in base currency
+        balancesByWallet:
+          type: array
+          items:
+            type: object
+            properties:
+              walletId:
+                type: string
+              name:
+                type: string
+              currency:
+                type: string
+              balance:
+                type: integer
+              valueInBaseCurrency:
+                type: integer
+              exchangeRate:
+                type: number
+                format: double
+        balancesByCurrency:
+          type: array
+          items:
+            type: object
+            properties:
+              currency:
+                type: string
+              balance:
+                type: integer
+              valueInBaseCurrency:
+                type: integer
+              walletCount:
+                type: integer
+        performanceMetrics:
+          type: object
+          properties:
+            monthToDateChange:
+              type: integer
+            monthToDatePercentage:
+              type: number
+              format: double
+            yearToDateChange:
+              type: integer
+            yearToDatePercentage:
+              type: number
+              format: double
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        perPage:
+          type: integer
+        total:
+          type: integer
+        totalPages:
+          type: integer
+        hasNext:
+          type: boolean
+        hasPrev:
+          type: boolean
+
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            field:
+              type: string
+            details:
+              type: object
+              additionalProperties: true
+            requestId:
+              type: string
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: invalid_request
+              message: The request contains invalid parameters
+              field: currency
+              details:
+                currency: Invalid currency code
+              requestId: req_abc123
+
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: unauthorized
+              message: Invalid or missing authentication token
+              requestId: req_abc123
+
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: not_found
+              message: The requested wallet was not found
+              requestId: req_abc123

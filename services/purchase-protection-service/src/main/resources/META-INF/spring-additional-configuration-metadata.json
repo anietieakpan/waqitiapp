@@ -1,0 +1,57 @@
+{
+  "properties": [
+    {
+      "name": "purchase-protection.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable purchase protection functionality",
+      "defaultValue": true
+    },
+    {
+      "name": "purchase-protection.coverage.max-amount",
+      "type": "java.math.BigDecimal",
+      "description": "Maximum coverage amount",
+      "defaultValue": "10000.00"
+    },
+    {
+      "name": "purchase-protection.claim-period-days",
+      "type": "java.lang.Integer",
+      "description": "Claim period in days",
+      "defaultValue": 90
+    },
+    {
+      "name": "purchase-protection.auto-approval.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable automatic claim approval for small amounts",
+      "defaultValue": true
+    },
+    {
+      "name": "purchase-protection.auto-approval.threshold",
+      "type": "java.math.BigDecimal",
+      "description": "Auto-approval threshold amount",
+      "defaultValue": "100.00"
+    },
+    {
+      "name": "purchase-protection.evidence.required",
+      "type": "java.lang.Boolean",
+      "description": "Require evidence for claims",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "OAuth2 client ID for service",
+      "defaultValue": "purchase-protection-service"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "OAuth2 client secret for service"
+    }
+  ]
+}

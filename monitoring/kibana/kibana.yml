@@ -1,0 +1,171 @@
+server.name: kibana
+server.host: "0.0.0.0"
+server.port: 5601
+server.publicBaseUrl: "https://logs.example.com"
+server.ssl.enabled: true
+server.ssl.certificate: "/usr/share/kibana/config/certs/kibana.crt"
+server.ssl.key: "/usr/share/kibana/config/certs/kibana.key"
+server.ssl.certificateAuthorities: ["/usr/share/kibana/config/certs/ca.crt"]
+
+# Elasticsearch configuration
+elasticsearch.hosts: ["https://elasticsearch:9200"]
+elasticsearch.username: "kibana_system"
+elasticsearch.password: "${KIBANA_SYSTEM_PASSWORD}"
+elasticsearch.requestTimeout: 30000
+elasticsearch.shardTimeout: 30000
+elasticsearch.ssl.certificateAuthorities: ["/usr/share/kibana/config/certs/ca.crt"]
+elasticsearch.ssl.verificationMode: certificate
+
+# Security settings - ENABLED for production
+xpack.security.enabled: true
+xpack.encryptedSavedObjects.encryptionKey: "${KIBANA_ENCRYPTION_KEY}"
+xpack.security.encryptionKey: "${KIBANA_SECURITY_ENCRYPTION_KEY}"
+xpack.reporting.encryptionKey: "${KIBANA_REPORTING_ENCRYPTION_KEY}"
+
+# Authentication settings
+xpack.security.authc.providers:
+  basic.basic1:
+    order: 0
+    enabled: true
+  oidc.oidc1:
+    order: 1
+    realm: "oidc1"
+    description: "Log in with Keycloak"
+    hint: "Use your Waqiti account to log in"
+    icon: "logoKeycloak"
+
+# Role-based access control
+xpack.security.authz.store.roles:
+  waqiti_admin:
+    cluster: ["all"]
+    indices:
+      - names: ["waqiti-*", "audit-*", "security-*"]
+        privileges: ["all"]
+  waqiti_analyst:
+    cluster: ["monitor"]
+    indices:
+      - names: ["waqiti-transactions-*", "waqiti-analytics-*"]
+        privileges: ["read", "view_index_metadata"]
+  waqiti_support:
+    cluster: ["monitor"]
+    indices:
+      - names: ["waqiti-support-*", "waqiti-notifications-*"]
+        privileges: ["read", "view_index_metadata"]
+  waqiti_compliance:
+    cluster: ["monitor"]
+    indices:
+      - names: ["waqiti-compliance-*", "audit-*", "waqiti-kyc-*"]
+        privileges: ["read", "view_index_metadata"]
+
+# Space-based access control
+xpack.spaces.enabled: true
+xpack.spaces.defaultSpace: "default"
+
+# Audit logging
+xpack.security.audit.enabled: true
+xpack.security.audit.appender.type: file
+xpack.security.audit.appender.fileName: /usr/share/kibana/logs/kibana-audit.log
+xpack.security.audit.appender.layout.type: json
+xpack.security.audit.ignore_filters:
+  - actions: ["indices:data/read/search"]
+    users: ["kibana_system"]
+
+# Session management
+xpack.security.session.idleTimeout: "1h"
+xpack.security.session.lifespan: "8h"
+xpack.security.cookieName: "waqiti_kibana_session"
+
+# Monitoring
+monitoring.ui.container.elasticsearch.enabled: true
+monitoring.kibana.collection.enabled: false
+
+# Logging
+logging.appenders:
+  file:
+    type: file
+    fileName: /usr/share/kibana/logs/kibana.log
+    layout:
+      type: json
+  console:
+    type: console
+    layout:
+      type: pattern
+
+logging.loggers:
+  - name: elasticsearch
+    appenders: [file]
+    level: info
+  - name: elasticsearch.query
+    appenders: [file]
+    level: debug
+
+logging.root:
+  appenders: [file, console]
+  level: info
+
+# Data views and index patterns
+data_views.scriptedFieldsEnabled: true
+
+# Saved objects
+savedObjects.maxImportPayloadBytes: 26214400
+
+# Maps configuration
+xpack.maps.enabled: true
+
+# Machine learning
+xpack.ml.enabled: true
+
+# Alerting
+xpack.alerting.enabled: true
+
+# Canvas
+xpack.canvas.enabled: true
+
+# Graph
+xpack.graph.enabled: true
+
+# Reporting
+xpack.reporting.enabled: true
+xpack.reporting.kibanaServer.hostname: "kibana"
+xpack.reporting.kibanaServer.port: 5601
+
+# UI settings
+newsfeed.enabled: false
+telemetry.enabled: false
+telemetry.optIn: false
+
+# Enhanced security headers for Waqiti
+server.customResponseHeaders:
+  "X-Frame-Options": "DENY"
+  "X-Content-Type-Options": "nosniff"
+  "X-XSS-Protection": "1; mode=block"
+  "Referrer-Policy": "strict-origin-when-cross-origin"
+  "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' wss: https:; frame-ancestors 'none';"
+  "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload"
+  "Permissions-Policy": "camera=(), microphone=(), geolocation=()"
+
+# IP allowlisting for admin access
+server.host: "0.0.0.0"
+server.cors.enabled: false
+
+# Disable unnecessary features for security
+newsfeed.enabled: false
+telemetry.enabled: false
+telemetry.optIn: false
+usageCollection.uiCounters.enabled: false
+
+# Enhanced logging for security events
+logging.loggers:
+  - name: plugins.security
+    appenders: [file, console]
+    level: info
+  - name: elasticsearch.query
+    appenders: [file]
+    level: warn
+  - name: server.http
+    appenders: [file]
+    level: info
+
+# Resource limits
+node.options.max-old-space-size: 1800
+ops.interval: 5000

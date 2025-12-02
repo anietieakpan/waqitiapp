@@ -1,0 +1,76 @@
+{
+  "type": "record",
+  "name": "WalletBalanceUpdated",
+  "namespace": "com.waqiti.events.wallet",
+  "doc": "Event published when wallet balance changes",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string"
+    },
+    {
+      "name": "eventTimestamp",
+      "type": "long",
+      "logicalType": "timestamp-millis"
+    },
+    {
+      "name": "walletId",
+      "type": "string",
+      "doc": "Wallet identifier"
+    },
+    {
+      "name": "userId",
+      "type": "string",
+      "doc": "Wallet owner"
+    },
+    {
+      "name": "previousBalance",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 19,
+        "scale": 4
+      },
+      "doc": "Balance before update"
+    },
+    {
+      "name": "newBalance",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 19,
+        "scale": 4
+      },
+      "doc": "Balance after update"
+    },
+    {
+      "name": "delta",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 19,
+        "scale": 4
+      },
+      "doc": "Change amount (positive for credit, negative for debit)"
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "default": "USD"
+    },
+    {
+      "name": "reason",
+      "type": {
+        "type": "enum",
+        "name": "BalanceUpdateReason",
+        "symbols": ["PAYMENT", "TRANSFER", "REFUND", "FEE", "INTEREST", "ADJUSTMENT", "REVERSAL"]
+      }
+    },
+    {
+      "name": "referenceId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Reference to transaction/payment that caused this update"
+    }
+  ]
+}

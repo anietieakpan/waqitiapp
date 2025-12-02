@@ -1,0 +1,363 @@
+name: Waqiti P2P Platform CI/CD
+
+on:
+  push:
+    branches: [main, develop, 'feature/*']
+  pull_request:
+    branches: [main, develop]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: waqiti/p2p-platform
+
+jobs:
+  # Security scanning and vulnerability assessment
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Run CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
+        with:
+          languages: java, javascript
+
+  # Backend service testing
+  backend-tests:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [user-service, wallet-service, payment-service, notification-service, security-service, analytics-service]
+    
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_PASSWORD: ${{ secrets.TEST_POSTGRES_PASSWORD }}
+          POSTGRES_DB: waqiti_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+      kafka:
+        image: confluentinc/cp-kafka:latest
+        env:
+          KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+          KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+          KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+        ports:
+          - 9092:9092
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: temurin
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+
+      - name: Wait for services to be ready
+        run: |
+          timeout 60 bash -c 'until printf "" 2>>/dev/null >>/dev/tcp/$0/$1; do sleep 1; done' localhost 5432
+          timeout 60 bash -c 'until printf "" 2>>/dev/null >>/dev/tcp/$0/$1; do sleep 1; done' localhost 6379
+
+      - name: Run unit tests
+        run: |
+          cd services/${{ matrix.service }}
+          mvn test -P unit-tests
+
+      - name: Run integration tests
+        run: |
+          cd services/${{ matrix.service }}
+          mvn test -P integration-tests
+        env:
+          DB_URL: jdbc:postgresql://localhost:5432/waqiti_test
+          DB_USERNAME: postgres
+          DB_PASSWORD: ${{ secrets.TEST_POSTGRES_PASSWORD }}
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          KAFKA_BOOTSTRAP_SERVERS: localhost:9092
+
+      - name: Generate test coverage report
+        run: |
+          cd services/${{ matrix.service }}
+          mvn jacoco:report
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: services/${{ matrix.service }}/target/site/jacoco/jacoco.xml
+          flags: ${{ matrix.service }}
+
+  # Frontend testing
+  frontend-tests:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: [web-app, mobile-app, admin-dashboard]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend/${{ matrix.app }}/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          cd frontend/${{ matrix.app }}
+          npm ci
+
+      - name: Run linting
+        run: |
+          cd frontend/${{ matrix.app }}
+          npm run lint
+
+      - name: Run type checking
+        run: |
+          cd frontend/${{ matrix.app }}
+          npm run type-check
+
+      - name: Run unit tests
+        run: |
+          cd frontend/${{ matrix.app }}
+          npm run test:unit
+
+      - name: Run e2e tests
+        run: |
+          cd frontend/${{ matrix.app }}
+          npm run test:e2e
+
+      - name: Build application
+        run: |
+          cd frontend/${{ matrix.app }}
+          npm run build
+
+  # Build and push Docker images
+  build-images:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: [security-scan, backend-tests, frontend-tests]
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    
+    strategy:
+      matrix:
+        service: [
+          user-service, wallet-service, payment-service, notification-service,
+          security-service, analytics-service, api-gateway, config-service, discovery-service
+        ]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.service }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: services/${{ matrix.service }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # Deploy to staging environment
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [build-images]
+    if: github.ref == 'refs/heads/develop'
+    environment: staging
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+
+      - name: Configure kubectl
+        run: |
+          echo "${{ secrets.KUBE_CONFIG_STAGING }}" | base64 -d > kubeconfig
+          export KUBECONFIG=kubeconfig
+
+      - name: Deploy to staging
+        run: |
+          export KUBECONFIG=kubeconfig
+          # Update image tags in Kubernetes manifests
+          find infrastructure/kubernetes/overlays/staging -name "*.yaml" -exec \
+            sed -i "s|image: .*${{ env.IMAGE_NAME }}|image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:develop-${{ github.sha }}|g" {} \;
+          
+          # Apply Kubernetes manifests
+          kubectl apply -k infrastructure/kubernetes/overlays/staging
+          
+          # Wait for rollout to complete
+          kubectl rollout status deployment/user-service -n waqiti-staging --timeout=300s
+          kubectl rollout status deployment/wallet-service -n waqiti-staging --timeout=300s
+          kubectl rollout status deployment/payment-service -n waqiti-staging --timeout=300s
+
+      - name: Run smoke tests
+        run: |
+          # Run basic health checks against staging environment
+          curl -f ${{ secrets.STAGING_API_URL }}/actuator/health || exit 1
+          
+          # Run API integration tests
+          cd scripts/smoke-tests
+          npm install
+          npm run test:staging
+
+  # Deploy to production environment
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [build-images]
+    if: github.ref == 'refs/heads/main'
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+
+      - name: Configure kubectl
+        run: |
+          echo "${{ secrets.KUBE_CONFIG_PRODUCTION }}" | base64 -d > kubeconfig
+          export KUBECONFIG=kubeconfig
+
+      - name: Deploy to production with Blue-Green strategy
+        run: |
+          export KUBECONFIG=kubeconfig
+          
+          # Blue-Green deployment strategy
+          # 1. Deploy to green environment
+          find infrastructure/kubernetes/overlays/production -name "*.yaml" -exec \
+            sed -i "s|image: .*${{ env.IMAGE_NAME }}|image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:main-${{ github.sha }}|g" {} \;
+          
+          # Create green deployment
+          kubectl apply -k infrastructure/kubernetes/overlays/production --selector=app.kubernetes.io/environment=green
+          
+          # Wait for green deployment to be ready
+          kubectl rollout status deployment/user-service-green -n waqiti-production --timeout=600s
+          
+          # Run production smoke tests against green environment
+          curl -f ${{ secrets.PRODUCTION_GREEN_API_URL }}/actuator/health || exit 1
+          
+          # Switch traffic to green (update service selectors)
+          kubectl patch service user-service -n waqiti-production -p '{"spec":{"selector":{"app.kubernetes.io/environment":"green"}}}'
+          
+          # Clean up blue environment after successful deployment
+          kubectl delete deployment user-service-blue -n waqiti-production --ignore-not-found=true
+
+      - name: Notify Slack on deployment
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          channel: '#deployments'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+        if: always()
+
+  # Performance testing (on production deploy)
+  performance-tests:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    needs: [deploy-production]
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run load tests
+        run: |
+          # Install k6 for load testing
+          sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install k6
+          
+          # Run performance tests
+          cd scripts/load-tests
+          k6 run --out json=results.json payment-flow.js
+          
+          # Analyze results and fail if performance degrades
+          node analyze-results.js results.json
+
+      - name: Upload performance results
+        uses: actions/upload-artifact@v3
+        with:
+          name: performance-results
+          path: scripts/load-tests/results.json

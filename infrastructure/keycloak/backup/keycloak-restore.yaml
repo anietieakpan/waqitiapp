@@ -1,0 +1,276 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: keycloak-restore
+  namespace: keycloak
+  labels:
+    app: keycloak
+    component: restore
+spec:
+  template:
+    metadata:
+      labels:
+        app: keycloak-restore
+        version: v1
+    spec:
+      serviceAccountName: keycloak-backup
+      restartPolicy: OnFailure
+      containers:
+      - name: keycloak-restore
+        image: registry.example.com/keycloak-backup:latest
+        imagePullPolicy: Always
+        env:
+        - name: KEYCLOAK_URL
+          value: "http://keycloak:8080"
+        - name: KEYCLOAK_REALM
+          value: "waqiti"
+        - name: KEYCLOAK_USER
+          valueFrom:
+            secretKeyRef:
+              name: keycloak-admin-credentials
+              key: username
+        - name: KEYCLOAK_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: keycloak-admin-credentials
+              key: password
+        - name: BACKUP_LOCATION
+          value: "s3://waqiti-backups/keycloak"
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: aws-credentials
+              key: access-key-id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: aws-credentials
+              key: secret-access-key
+        - name: AWS_REGION
+          value: "us-east-1"
+        - name: DECRYPTION_KEY
+          valueFrom:
+            secretKeyRef:
+              name: backup-encryption
+              key: key
+        - name: BACKUP_FILE
+          value: "${BACKUP_FILE_TO_RESTORE}" # Specify the backup file to restore
+        - name: NOTIFICATION_WEBHOOK
+          value: "https://hooks.slack.com/services/xxx/yyy/zzz"
+        command:
+        - /bin/bash
+        - -c
+        - |
+          set -e
+          echo "Starting Keycloak restore at $(date)"
+          
+          # Validate environment variables
+          if [ -z "${BACKUP_FILE}" ]; then
+            echo "ERROR: BACKUP_FILE environment variable not set"
+            echo "Please specify the backup file to restore"
+            exit 1
+          fi
+          
+          # Create restore directory
+          mkdir -p /tmp/restore
+          cd /tmp/restore
+          
+          # Download backup from S3
+          echo "Downloading backup file: ${BACKUP_FILE}"
+          aws s3 cp ${BACKUP_LOCATION}/${BACKUP_FILE} ./${BACKUP_FILE}
+          
+          # Verify download
+          if [ ! -f "${BACKUP_FILE}" ]; then
+            echo "ERROR: Failed to download backup file"
+            exit 1
+          fi
+          
+          echo "Backup file downloaded successfully"
+          echo "File size: $(du -h ${BACKUP_FILE} | cut -f1)"
+          
+          # Decrypt backup
+          echo "Decrypting backup..."
+          openssl enc -aes-256-cbc \
+            -d \
+            -in ${BACKUP_FILE} \
+            -out backup.tar.gz \
+            -pass pass:${DECRYPTION_KEY}
+          
+          # Extract backup
+          echo "Extracting backup..."
+          tar -xzf backup.tar.gz
+          
+          # List extracted files
+          echo "Extracted files:"
+          ls -la *.json
+          
+          # Create a backup of current state before restore
+          echo "Creating backup of current state..."
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          /opt/keycloak/bin/kc.sh export \
+            --dir /tmp/current_backup \
+            --realm ${KEYCLOAK_REALM} \
+            --users realm_file
+          
+          # Compress and upload current state backup
+          cd /tmp/current_backup
+          tar -czf pre_restore_backup_${TIMESTAMP}.tar.gz *.json
+          aws s3 cp pre_restore_backup_${TIMESTAMP}.tar.gz \
+            ${BACKUP_LOCATION}/pre_restore/pre_restore_backup_${TIMESTAMP}.tar.gz
+          
+          # Return to restore directory
+          cd /tmp/restore
+          
+          # Perform restore
+          echo "Starting restore process..."
+          
+          # Import realms
+          for realm_file in *.json; do
+            if [ -f "$realm_file" ]; then
+              echo "Importing realm from: $realm_file"
+              
+              # Check if realm exists
+              REALM_NAME=$(jq -r '.realm' $realm_file)
+              
+              # Import with overwrite
+              /opt/keycloak/bin/kc.sh import \
+                --file $realm_file \
+                --override true
+              
+              echo "Successfully imported realm: $REALM_NAME"
+            fi
+          done
+          
+          # Verify restore
+          echo "Verifying restore..."
+          
+          # Check if realms are accessible
+          curl -f -s -o /dev/null -w "%{http_code}" \
+            ${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}
+          
+          if [ $? -eq 0 ]; then
+            echo "✅ Restore verification successful"
+            
+            # Send success notification
+            if [ -n "${NOTIFICATION_WEBHOOK}" ]; then
+              curl -X POST ${NOTIFICATION_WEBHOOK} \
+                -H 'Content-Type: application/json' \
+                -d "{
+                  \"text\": \"✅ Keycloak restore completed successfully\",
+                  \"attachments\": [{
+                    \"color\": \"good\",
+                    \"fields\": [
+                      {\"title\": \"Restored File\", \"value\": \"${BACKUP_FILE}\", \"short\": true},
+                      {\"title\": \"Restore Time\", \"value\": \"$(date)\", \"short\": true},
+                      {\"title\": \"Pre-restore Backup\", \"value\": \"pre_restore_backup_${TIMESTAMP}.tar.gz\", \"short\": false}
+                    ]
+                  }]
+                }"
+            fi
+          else
+            echo "❌ Restore verification failed"
+            
+            # Send failure notification
+            if [ -n "${NOTIFICATION_WEBHOOK}" ]; then
+              curl -X POST ${NOTIFICATION_WEBHOOK} \
+                -H 'Content-Type: application/json' \
+                -d "{
+                  \"text\": \"❌ Keycloak restore verification failed\",
+                  \"attachments\": [{
+                    \"color\": \"danger\",
+                    \"fields\": [
+                      {\"title\": \"Error\", \"value\": \"Realm not accessible after restore\", \"short\": false},
+                      {\"title\": \"Action Required\", \"value\": \"Manual intervention needed\", \"short\": false}
+                    ]
+                  }]
+                }"
+            fi
+            exit 1
+          fi
+          
+          # Clean up
+          echo "Cleaning up temporary files..."
+          rm -rf /tmp/restore/*
+          rm -rf /tmp/current_backup/*
+          
+          echo "Restore completed successfully at $(date)"
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1"
+        volumeMounts:
+        - name: restore-temp
+          mountPath: /tmp/restore
+        - name: backup-temp
+          mountPath: /tmp/current_backup
+      volumes:
+      - name: restore-temp
+        emptyDir: {}
+      - name: backup-temp
+        emptyDir: {}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keycloak-restore-scripts
+  namespace: keycloak
+data:
+  restore-procedure.md: |
+    # Keycloak Restore Procedure
+    
+    ## Prerequisites
+    1. Identify the backup file to restore
+    2. Ensure you have admin access to the cluster
+    3. Notify team about planned restore
+    
+    ## Restore Steps
+    
+    ### 1. List available backups
+    ```bash
+    aws s3 ls s3://waqiti-backups/keycloak/
+    ```
+    
+    ### 2. Set the backup file to restore
+    ```bash
+    export BACKUP_FILE_TO_RESTORE="keycloak_backup_20240101_020000.json.tar.gz.enc"
+    ```
+    
+    ### 3. Apply the restore job
+    ```bash
+    kubectl apply -f keycloak-restore.yaml
+    ```
+    
+    ### 4. Monitor restore progress
+    ```bash
+    kubectl logs -f job/keycloak-restore -n keycloak
+    ```
+    
+    ### 5. Verify restore
+    ```bash
+    # Check realm accessibility
+    curl -f http://keycloak.example.internal:8080/realms/waqiti
+    
+    # Check user count
+    kubectl exec -it keycloak-0 -n keycloak -- \
+      /opt/keycloak/bin/kcadm.sh get users -r waqiti --no-config --server http://localhost:8080 \
+      --realm master --user admin --password $KEYCLOAK_ADMIN_PASSWORD | jq '. | length'
+    ```
+    
+    ## Rollback Procedure
+    If restore fails, a pre-restore backup is automatically created at:
+    `s3://waqiti-backups/keycloak/pre_restore/`
+    
+    To rollback:
+    1. Identify the pre-restore backup file
+    2. Set BACKUP_FILE_TO_RESTORE to the pre-restore backup
+    3. Re-run the restore job
+    
+    ## Post-Restore Tasks
+    1. Clear service caches
+    2. Restart dependent services if needed
+    3. Verify user authentication
+    4. Test service-to-service authentication
+    5. Check monitoring dashboards

@@ -1,0 +1,462 @@
+# ============================================================================
+# WAQITI PRODUCTION CONFIGURATION
+# ============================================================================
+#
+# CRITICAL SECURITY: Production environment REQUIRES HashiCorp Vault
+# All sensitive credentials are dynamically generated and auto-rotated
+#
+# Vault Integration:
+# - Database: Dynamic credentials (24h TTL, auto-rotated)
+# - Redis: Centrally managed password
+# - JWT: Vault-generated signing keys with rotation
+# - Encryption: Vault Transit engine for PII/PCI data
+# - External APIs: Vault KV engine for provider credentials
+#
+# Fail-Fast: Application will NOT start if Vault unavailable
+# ============================================================================
+
+spring:
+  profiles:
+    active: production
+
+  # Import Vault configuration FIRST (highest priority)
+  config:
+    import: "vault://"
+
+  # Vault Integration - PRIMARY source for all secrets
+  cloud:
+    vault:
+      # REQUIRED: Vault must be available in production
+      enabled: true
+      fail-fast: true  # Fail immediately if Vault unavailable
+
+      # Vault server configuration
+      uri: ${VAULT_URI:https://vault.example.internal:8200}
+      scheme: https  # HTTPS required in production
+      host: ${VAULT_HOST:vault.example.internal}
+      port: ${VAULT_PORT:8200}
+
+      # Kubernetes authentication (RECOMMENDED for production)
+      authentication: ${VAULT_AUTH_METHOD:KUBERNETES}
+      kubernetes:
+        role: ${VAULT_K8S_ROLE:waqiti-${spring.application.name}}
+        kubernetes-path: kubernetes
+        service-account-token-file: /var/run/secrets/kubernetes.io/serviceaccount/token
+
+      # AppRole authentication (fallback)
+      app-role:
+        role-id: ${VAULT_ROLE_ID}
+        secret-id: ${VAULT_SECRET_ID}
+        app-role-path: approle
+
+      # Token authentication (emergency only)
+      token: ${VAULT_TOKEN}
+
+      # Dynamic Database Credentials (CRITICAL FEATURE)
+      database:
+        enabled: true
+        role: waqiti-${spring.application.name}-db
+        backend: database
+        username-property: spring.datasource.username
+        password-property: spring.datasource.password
+        ttl: 24h           # Credentials expire after 24 hours
+        max-ttl: 168h      # Maximum 7 days
+
+      # KV Secrets Engine (Application secrets)
+      kv:
+        enabled: true
+        backend: secret
+        backend-version: 2  # KV v2 with versioning
+        profile-separator: /
+        default-context: waqiti/${spring.application.name}
+        application-name: ${spring.application.name}
+        profiles: production
+        additional-contexts:
+          - waqiti/common
+          - waqiti/infrastructure
+
+      # Transit Encryption Engine (Encryption-as-a-Service)
+      transit:
+        enabled: true
+        backend: transit
+        key-name: waqiti-production-master-key
+
+      # PKI Engine (TLS certificates)
+      pki:
+        enabled: ${VAULT_PKI_ENABLED:false}
+        backend: pki
+        role: waqiti-tls
+        common-name: ${spring.application.name}.example.internal
+
+      # Lease management (credential refresh)
+      lease:
+        min-renewal: 30s
+        expiry-threshold: 300s
+
+      # SSL/TLS for Vault connection
+      ssl:
+        trust-store: ${VAULT_TRUST_STORE:/etc/ssl/certs/vault-ca.jks}
+        trust-store-password: ${VAULT_TRUST_STORE_PASSWORD}
+        verify-hostname: true
+
+      # Retry configuration
+      retry:
+        enabled: true
+        max-attempts: 5
+        initial-interval: 1000ms
+        max-interval: 10000ms
+        multiplier: 2.0
+  
+  # Database Configuration - Production Settings
+  datasource:
+    hikari:
+      maximum-pool-size: 50
+      minimum-idle: 10
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      leak-detection-threshold: 60000
+      connection-test-query: SELECT 1
+    
+  # JPA/Hibernate Configuration
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: false
+        show_sql: false
+        use_sql_comments: false
+        jdbc:
+          batch_size: 50
+          order_inserts: true
+          order_updates: true
+        cache:
+          use_second_level_cache: true
+          use_query_cache: true
+          region:
+            factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
+  
+  # Redis Configuration
+  redis:
+    timeout: 3000ms
+    jedis:
+      pool:
+        max-active: 50
+        max-idle: 20
+        min-idle: 5
+        max-wait: 3000ms
+  
+  # Kafka Configuration
+  kafka:
+    producer:
+      bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+      acks: all
+      retries: 3
+      batch-size: 16384
+      linger-ms: 5
+      buffer-memory: 33554432
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+    consumer:
+      bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+      group-id: ${spring.application.name}-${random.uuid}
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      fetch-min-size: 1024
+      fetch-max-wait: 1000
+      max-poll-records: 500
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.waqiti.*"
+  
+  # Security Configuration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${OAUTH2_JWK_SET_URI}
+          cache-duration: PT5M
+  
+  # MongoDB Configuration
+  data:
+    mongodb:
+      uri: ${MONGODB_URI}
+      auto-index-creation: false
+  
+  # Actuator Configuration
+  management:
+    endpoints:
+      web:
+        exposure:
+          include: health,metrics,prometheus,info
+        base-path: /actuator
+    endpoint:
+      health:
+        show-details: when-authorized
+    metrics:
+      export:
+        prometheus:
+          enabled: true
+        interval: PT30S
+    health:
+      redis:
+        enabled: true
+      db:
+        enabled: true
+      kafka:
+        enabled: true
+
+# Logging Configuration
+logging:
+  level:
+    root: WARN
+    com.waqiti: INFO
+    org.springframework.security: WARN
+    org.hibernate.SQL: WARN
+    org.springframework.kafka: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: /var/log/waqiti/${spring.application.name}.log
+    max-size: 100MB
+    max-history: 30
+    total-size-cap: 3GB
+
+# Fraud Detection Configuration
+fraud:
+  detection:
+    enabled: true
+    ml-models:
+      enabled: true
+      model-update-interval: PT1H
+    blacklist:
+      enabled: true
+      cache-ttl: PT5M
+    velocity:
+      enabled: true
+      time-windows: 1m,5m,1h,24h
+  alert:
+    critical:
+      threshold: 0.9
+      auto-block: true
+    high:
+      threshold: 0.7
+      escalation-timeout: PT15M
+    medium:
+      threshold: 0.5
+      escalation-timeout: PT30M
+    notifications:
+      sms: true
+      email: true
+      push: true
+
+# Rate Limiting Configuration
+rate-limiting:
+  enabled: true
+  default-limits:
+    requests-per-minute: 60
+    requests-per-hour: 1000
+    requests-per-day: 10000
+  endpoints:
+    "/api/v1/auth/login":
+      requests-per-minute: 5
+      requests-per-hour: 50
+    "/api/v1/transactions":
+      requests-per-minute: 30
+      requests-per-hour: 500
+
+# Circuit Breaker Configuration
+resilience4j:
+  circuitbreaker:
+    instances:
+      fraud-detection:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+      payment-gateway:
+        sliding-window-size: 20
+        minimum-number-of-calls: 10
+        failure-rate-threshold: 40
+        wait-duration-in-open-state: 60s
+  retry:
+    instances:
+      fraud-detection:
+        max-attempts: 3
+        wait-duration: 500ms
+        exponential-backoff-multiplier: 2
+      payment-gateway:
+        max-attempts: 2
+        wait-duration: 1s
+  timelimiter:
+    instances:
+      fraud-detection:
+        timeout-duration: PT3S
+      payment-gateway:
+        timeout-duration: PT10S
+
+# Vault Configuration
+vault:
+  enabled: true
+  uri: ${VAULT_URI}
+  authentication: TOKEN
+  token: ${VAULT_TOKEN}
+  kv:
+    enabled: true
+    backend: secret
+    application-name: ${spring.application.name}
+
+# Encryption Configuration
+encryption:
+  field-level:
+    enabled: true
+    algorithm: AES-256-GCM
+    key-rotation: PT24H
+  database:
+    enabled: true
+    sensitive-fields:
+      - email
+      - phone
+      - ssn
+      - account_number
+      - card_number
+
+# Monitoring and Alerting
+monitoring:
+  metrics:
+    enabled: true
+    export-interval: PT30S
+  tracing:
+    enabled: true
+    sampling-rate: 0.1
+  alerts:
+    enabled: true
+    channels:
+      - slack
+      - email
+      - pagerduty
+
+# Geolocation Configuration
+geolocation:
+  enabled: true
+  database:
+    city:
+      path: /opt/geoip/GeoLite2-City.mmdb
+    country:
+      path: /opt/geoip/GeoLite2-Country.mmdb
+    asn:
+      path: /opt/geoip/GeoLite2-ASN.mmdb
+  cache:
+    enabled: true
+    ttl: PT1H
+  high-risk-countries:
+    - NG
+    - GH
+    - RO
+    - PH
+    - IN
+    - ID
+    - VN
+    - CN
+    - RU
+    - UA
+
+# API Documentation
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+# Server Configuration - HTTPS REQUIRED in Production
+server:
+  port: 8443  # HTTPS port
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/xml,text/plain
+  http2:
+    enabled: true
+
+  # SECURITY: SSL/TLS Configuration - REQUIRED in production
+  ssl:
+    enabled: true  # ALWAYS enabled in production
+    key-store: ${SSL_KEYSTORE_PATH}  # NO DEFAULT - must be provided
+    key-store-password: ${SSL_KEYSTORE_PASSWORD}  # NO DEFAULT - must be provided
+    key-store-type: ${SSL_KEYSTORE_TYPE:PKCS12}
+    key-alias: ${SSL_KEY_ALIAS:waqiti-service}
+
+    # Trust store for mutual TLS
+    trust-store: ${SSL_TRUSTSTORE_PATH:}
+    trust-store-password: ${SSL_TRUSTSTORE_PASSWORD:}
+    trust-store-type: ${SSL_TRUSTSTORE_TYPE:PKCS12}
+
+    # TLS protocol configuration - only secure protocols
+    protocol: TLS
+    enabled-protocols: TLSv1.3,TLSv1.2
+
+    # Cipher suite configuration - only strong ciphers
+    ciphers:
+      - TLS_AES_256_GCM_SHA384
+      - TLS_CHACHA20_POLY1305_SHA256
+      - TLS_AES_128_GCM_SHA256
+      - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+      - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+
+    # Client authentication (for mutual TLS if needed)
+    client-auth: ${SSL_CLIENT_AUTH:want}  # want, need, or none
+
+  tomcat:
+    threads:
+      max: 200
+      min-spare: 10
+    max-connections: 8192
+    accept-count: 100
+    connection-timeout: 20000
+
+# SECURITY: HTTPS Enforcement Configuration
+waqiti:
+  security:
+    https:
+      enforce: true  # Enforce HTTPS in production
+      redirect-port: 8443
+      hsts:
+        enabled: true
+        max-age: 31536000  # 1 year
+        include-subdomains: true
+        preload: true
+
+# Cache Configuration
+cache:
+  type: redis
+  redis:
+    time-to-live: PT1H
+    cache-null-values: false
+  caffeine:
+    spec: maximumSize=1000,expireAfterWrite=1h
+
+# Async Configuration
+async:
+  core-pool-size: 10
+  max-pool-size: 50
+  queue-capacity: 1000
+  thread-name-prefix: async-
+  keep-alive-seconds: 60
+
+# Jackson Configuration
+spring.jackson:
+  serialization:
+    write-dates-as-timestamps: false
+    fail-on-empty-beans: false
+  deserialization:
+    fail-on-unknown-properties: false
+    fail-on-null-for-primitives: true
+  time-zone: UTC
+  date-format: yyyy-MM-dd'T'HH:mm:ss.SSSZ

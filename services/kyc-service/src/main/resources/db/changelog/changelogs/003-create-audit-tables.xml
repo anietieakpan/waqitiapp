@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
+
+    <changeSet id="003-1" author="kyc-service">
+        <createTable tableName="kyc_audit_log">
+            <column name="id" type="VARCHAR(255)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="entity_type" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="entity_id" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="action" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="user_id" type="VARCHAR(255)"/>
+            <column name="performed_by" type="VARCHAR(255)"/>
+            <column name="old_values" type="JSONB"/>
+            <column name="new_values" type="JSONB"/>
+            <column name="changed_fields" type="TEXT[]"/>
+            <column name="ip_address" type="VARCHAR(45)"/>
+            <column name="user_agent" type="VARCHAR(500)"/>
+            <column name="correlation_id" type="VARCHAR(255)"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="003-2" author="kyc-service">
+        <createIndex tableName="kyc_audit_log" indexName="idx_audit_entity">
+            <column name="entity_type"/>
+            <column name="entity_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="003-3" author="kyc-service">
+        <createIndex tableName="kyc_audit_log" indexName="idx_audit_user">
+            <column name="user_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="003-4" author="kyc-service">
+        <createIndex tableName="kyc_audit_log" indexName="idx_audit_performed_by">
+            <column name="performed_by"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="003-5" author="kyc-service">
+        <createIndex tableName="kyc_audit_log" indexName="idx_audit_created">
+            <column name="created_at"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="003-6" author="kyc-service">
+        <createTable tableName="kyc_data_retention_log">
+            <column name="id" type="VARCHAR(255)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="entity_type" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="entity_id" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="user_id" type="VARCHAR(255)"/>
+            <column name="action" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="reason" type="TEXT"/>
+            <column name="requested_by" type="VARCHAR(255)"/>
+            <column name="approved_by" type="VARCHAR(255)"/>
+            <column name="scheduled_at" type="TIMESTAMP"/>
+            <column name="executed_at" type="TIMESTAMP"/>
+            <column name="status" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="metadata" type="JSONB"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="003-7" author="kyc-service">
+        <createTable tableName="kyc_compliance_log">
+            <column name="id" type="VARCHAR(255)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="verification_id" type="VARCHAR(255)"/>
+            <column name="user_id" type="VARCHAR(255)"/>
+            <column name="compliance_type" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="jurisdiction" type="VARCHAR(100)"/>
+            <column name="requirement" type="TEXT"/>
+            <column name="status" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="details" type="JSONB"/>
+            <column name="reviewed_by" type="VARCHAR(255)"/>
+            <column name="reviewed_at" type="TIMESTAMP"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+</databaseChangeLog>

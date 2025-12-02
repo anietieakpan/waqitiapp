@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
+
+    <changeSet id="001-1" author="kyc-service">
+        <createTable tableName="kyc_verifications">
+            <column name="id" type="VARCHAR(255)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="user_id" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="verification_level" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="provider" type="VARCHAR(50)"/>
+            <column name="provider_session_id" type="VARCHAR(255)"/>
+            <column name="provider_verification_id" type="VARCHAR(255)"/>
+            <column name="attempt_count" type="INT" defaultValue="0"/>
+            <column name="verified_at" type="TIMESTAMP"/>
+            <column name="expires_at" type="TIMESTAMP"/>
+            <column name="rejection_reason" type="TEXT"/>
+            <column name="risk_score" type="DECIMAL(5,2)"/>
+            <column name="risk_level" type="VARCHAR(20)"/>
+            <column name="ip_address" type="VARCHAR(45)"/>
+            <column name="user_agent" type="VARCHAR(500)"/>
+            <column name="consent_given" type="BOOLEAN" defaultValue="false"/>
+            <column name="consent_text" type="TEXT"/>
+            <column name="consent_timestamp" type="VARCHAR(50)"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_by" type="VARCHAR(255)"/>
+            <column name="updated_by" type="VARCHAR(255)"/>
+            <column name="version" type="BIGINT" defaultValue="0"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="001-2" author="kyc-service">
+        <createTable tableName="verification_documents">
+            <column name="id" type="VARCHAR(255)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="verification_id" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="document_type" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="file_name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="file_path" type="VARCHAR(500)"/>
+            <column name="file_hash" type="VARCHAR(64)"/>
+            <column name="content_type" type="VARCHAR(100)"/>
+            <column name="file_size" type="BIGINT"/>
+            <column name="document_number" type="VARCHAR(100)"/>
+            <column name="issuing_country" type="VARCHAR(2)"/>
+            <column name="expiry_date" type="DATE"/>
+            <column name="is_front" type="BOOLEAN" defaultValue="true"/>
+            <column name="provider_document_id" type="VARCHAR(255)"/>
+            <column name="extracted_data" type="JSONB"/>
+            <column name="verification_result" type="JSONB"/>
+            <column name="uploaded_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="verified_at" type="TIMESTAMP"/>
+            <column name="expires_at" type="TIMESTAMP"/>
+            <column name="rejection_reason" type="TEXT"/>
+            <column name="metadata" type="JSONB"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="001-3" author="kyc-service">
+        <createTable tableName="kyc_verification_checks">
+            <column name="id" type="VARCHAR(255)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="verification_id" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="check_type" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="result" type="VARCHAR(50)"/>
+            <column name="details" type="JSONB"/>
+            <column name="provider_check_id" type="VARCHAR(255)"/>
+            <column name="started_at" type="TIMESTAMP"/>
+            <column name="completed_at" type="TIMESTAMP"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="001-4" author="kyc-service">
+        <createTable tableName="kyc_metadata">
+            <column name="id" type="VARCHAR(255)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="verification_id" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="key" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="value" type="TEXT"/>
+            <column name="encrypted" type="BOOLEAN" defaultValue="false"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="001-5" author="kyc-service">
+        <addForeignKeyConstraint
+            baseTableName="verification_documents"
+            baseColumnNames="verification_id"
+            constraintName="fk_documents_verification"
+            referencedTableName="kyc_verifications"
+            referencedColumnNames="id"
+            onDelete="CASCADE"/>
+    </changeSet>
+
+    <changeSet id="001-6" author="kyc-service">
+        <addForeignKeyConstraint
+            baseTableName="kyc_verification_checks"
+            baseColumnNames="verification_id"
+            constraintName="fk_checks_verification"
+            referencedTableName="kyc_verifications"
+            referencedColumnNames="id"
+            onDelete="CASCADE"/>
+    </changeSet>
+
+    <changeSet id="001-7" author="kyc-service">
+        <addForeignKeyConstraint
+            baseTableName="kyc_metadata"
+            baseColumnNames="verification_id"
+            constraintName="fk_metadata_verification"
+            referencedTableName="kyc_verifications"
+            referencedColumnNames="id"
+            onDelete="CASCADE"/>
+    </changeSet>
+
+    <changeSet id="001-8" author="kyc-service">
+        <createTable tableName="kyc_provider_logs">
+            <column name="id" type="VARCHAR(255)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="verification_id" type="VARCHAR(255)"/>
+            <column name="provider" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="action" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="request_data" type="JSONB"/>
+            <column name="response_data" type="JSONB"/>
+            <column name="status_code" type="INT"/>
+            <column name="error_message" type="TEXT"/>
+            <column name="duration_ms" type="BIGINT"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+</databaseChangeLog>

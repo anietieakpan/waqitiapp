@@ -1,0 +1,451 @@
+# Logstash Deployment for ELK Stack
+# Processes and transforms logs before sending to Elasticsearch
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: logstash
+  namespace: example-monitoring
+  labels:
+    app.kubernetes.io/name: logstash
+    app.kubernetes.io/component: logging
+    app.kubernetes.io/part-of: elk-stack
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: logstash
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: logstash
+        app.kubernetes.io/component: logging
+        app.kubernetes.io/part-of: elk-stack
+    spec:
+      serviceAccountName: logstash
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      
+      containers:
+      - name: logstash
+        image: docker.elastic.co/logstash/logstash:8.11.0
+        ports:
+        - containerPort: 5044
+          name: beats
+          protocol: TCP
+        - containerPort: 9600
+          name: http
+          protocol: TCP
+        - containerPort: 5000
+          name: tcp
+          protocol: TCP
+        - containerPort: 9300
+          name: udp
+          protocol: UDP
+
+        env:
+        - name: LS_JAVA_OPTS
+          value: "-Xms2g -Xmx2g"
+        - name: ELASTICSEARCH_HOSTS
+          value: "https://example-elasticsearch-http:9200"
+        - name: ELASTICSEARCH_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: example-elasticsearch-elastic-user
+              key: elastic
+        - name: ELASTICSEARCH_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: example-elasticsearch-elastic-user
+              key: elastic
+
+        resources:
+          requests:
+            memory: 2Gi
+            cpu: 1000m
+          limits:
+            memory: 4Gi
+            cpu: 2000m
+
+        volumeMounts:
+        - name: logstash-config
+          mountPath: /usr/share/logstash/config/logstash.yml
+          subPath: logstash.yml
+        - name: logstash-pipeline
+          mountPath: /usr/share/logstash/pipeline
+        - name: elasticsearch-ca
+          mountPath: /usr/share/logstash/config/certs
+          readOnly: true
+
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 9600
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 9600
+          initialDelaySeconds: 60
+          periodSeconds: 20
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+      volumes:
+      - name: logstash-config
+        configMap:
+          name: logstash-config
+      - name: logstash-pipeline
+        configMap:
+          name: logstash-pipeline
+      - name: elasticsearch-ca
+        secret:
+          secretName: example-elasticsearch-http-certs-public
+
+      nodeSelector:
+        node-type: application
+
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: logstash
+              topologyKey: kubernetes.io/hostname
+
+---
+# Service for Logstash
+apiVersion: v1
+kind: Service
+metadata:
+  name: logstash
+  namespace: example-monitoring
+  labels:
+    app.kubernetes.io/name: logstash
+    app.kubernetes.io/component: logging
+spec:
+  type: ClusterIP
+  ports:
+  - name: beats
+    port: 5044
+    targetPort: 5044
+    protocol: TCP
+  - name: http
+    port: 9600
+    targetPort: 9600
+    protocol: TCP
+  - name: tcp
+    port: 5000
+    targetPort: 5000
+    protocol: TCP
+  - name: udp
+    port: 9300
+    targetPort: 9300
+    protocol: UDP
+  selector:
+    app.kubernetes.io/name: logstash
+
+---
+# ServiceAccount for Logstash
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: logstash
+  namespace: example-monitoring
+  labels:
+    app.kubernetes.io/name: logstash
+
+---
+# ConfigMap for Logstash configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: logstash-config
+  namespace: example-monitoring
+  labels:
+    app.kubernetes.io/name: logstash
+data:
+  logstash.yml: |
+    http.host: "0.0.0.0"
+    path.config: /usr/share/logstash/pipeline
+    pipeline.workers: 4
+    pipeline.batch.size: 1000
+    pipeline.batch.delay: 50
+    log.level: info
+    monitoring.enabled: true
+    monitoring.elasticsearch.hosts: ["https://example-elasticsearch-http:9200"]
+    monitoring.elasticsearch.username: elastic
+    monitoring.elasticsearch.password: "${ELASTICSEARCH_PASSWORD}"
+    monitoring.elasticsearch.ssl.certificate_authority: /usr/share/logstash/config/certs/ca.crt
+    xpack.monitoring.collection.interval: 10s
+
+---
+# ConfigMap for Logstash pipeline configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: logstash-pipeline
+  namespace: example-monitoring
+  labels:
+    app.kubernetes.io/name: logstash
+data:
+  # Main pipeline for application logs
+  main.conf: |
+    input {
+      beats {
+        port => 5044
+        host => "0.0.0.0"
+      }
+      
+      tcp {
+        port => 5000
+        codec => json_lines
+      }
+      
+      udp {
+        port => 9300
+        codec => json
+      }
+    }
+
+    filter {
+      # Parse timestamp
+      if [fields][log_type] == "application" {
+        date {
+          match => [ "timestamp", "ISO8601" ]
+          target => "@timestamp"
+        }
+      }
+
+      # Kubernetes metadata enrichment
+      if [kubernetes] {
+        mutate {
+          add_field => {
+            "k8s_namespace" => "%{[kubernetes][namespace_name]}"
+            "k8s_pod_name" => "%{[kubernetes][pod_name]}"
+            "k8s_container_name" => "%{[kubernetes][container_name]}"
+            "k8s_node_name" => "%{[kubernetes][node_name]}"
+          }
+        }
+      }
+
+      # Service-specific parsing
+      if [k8s_container_name] == "user-service" {
+        grok {
+          match => { "message" => "%{TIMESTAMP_ISO8601:timestamp} %{LOGLEVEL:level} %{DATA:logger} - %{GREEDYDATA:msg}" }
+        }
+        
+        if [msg] =~ /JWT token/ {
+          mutate {
+            add_field => { "security_event" => "jwt_activity" }
+          }
+        }
+        
+        if [msg] =~ /Login attempt/ {
+          mutate {
+            add_field => { "security_event" => "login_attempt" }
+          }
+        }
+      }
+
+      if [k8s_container_name] == "payment-service" {
+        grok {
+          match => { "message" => "%{TIMESTAMP_ISO8601:timestamp} %{LOGLEVEL:level} %{DATA:logger} - %{GREEDYDATA:msg}" }
+        }
+        
+        if [msg] =~ /Payment/ {
+          mutate {
+            add_field => { "business_event" => "payment_activity" }
+          }
+        }
+        
+        if [msg] =~ /Transaction/ {
+          mutate {
+            add_field => { "business_event" => "transaction_activity" }
+          }
+        }
+      }
+
+      if [k8s_container_name] == "security-service" {
+        grok {
+          match => { "message" => "%{TIMESTAMP_ISO8601:timestamp} %{LOGLEVEL:level} %{DATA:logger} - %{GREEDYDATA:msg}" }
+        }
+        
+        if [level] == "ERROR" or [level] == "WARN" {
+          mutate {
+            add_field => { "alert_type" => "security_alert" }
+          }
+        }
+      }
+
+      # API Gateway access logs
+      if [k8s_container_name] == "api-gateway" {
+        grok {
+          match => { 
+            "message" => "%{COMBINEDAPACHELOG}"
+          }
+        }
+        
+        mutate {
+          convert => { "response" => "integer" }
+          convert => { "bytes" => "integer" }
+        }
+        
+        if [response] >= 400 {
+          mutate {
+            add_field => { "alert_type" => "http_error" }
+          }
+        }
+        
+        if [response] >= 500 {
+          mutate {
+            add_field => { "alert_type" => "http_server_error" }
+          }
+        }
+      }
+
+      # Database logs
+      if [k8s_container_name] =~ /postgres/ {
+        grok {
+          match => { 
+            "message" => "%{TIMESTAMP_ISO8601:timestamp} \[%{DATA:pid}\] %{LOGLEVEL:level}:  %{GREEDYDATA:msg}"
+          }
+        }
+        
+        if [msg] =~ /ERROR/ or [msg] =~ /FATAL/ {
+          mutate {
+            add_field => { "alert_type" => "database_error" }
+          }
+        }
+      }
+
+      # Remove sensitive data
+      mutate {
+        remove_field => [ "password", "token", "secret", "key" ]
+      }
+
+      # Add environment and service tags
+      mutate {
+        add_field => {
+          "environment" => "${ENVIRONMENT:unknown}"
+          "platform" => "waqiti-p2p"
+        }
+      }
+    }
+
+    output {
+      # Send to Elasticsearch
+      elasticsearch {
+        hosts => ["https://example-elasticsearch-http:9200"]
+        user => "elastic"
+        password => "${ELASTICSEARCH_PASSWORD}"
+        ssl => true
+        ssl_certificate_verification => true
+        cacert => "/usr/share/logstash/config/certs/ca.crt"
+        
+        # Dynamic index naming based on service and date
+        index => "waqiti-%{k8s_container_name}-%{+YYYY.MM.dd}"
+        
+        # Template for index settings
+        template_name => "waqiti"
+        template_pattern => "waqiti-*"
+        template => {
+          "settings" => {
+            "number_of_shards" => 3
+            "number_of_replicas" => 1
+            "index.refresh_interval" => "5s"
+            "index.codec" => "best_compression"
+          }
+          "mappings" => {
+            "properties" => {
+              "@timestamp" => { "type" => "date" }
+              "level" => { "type" => "keyword" }
+              "logger" => { "type" => "keyword" }
+              "message" => { "type" => "text" }
+              "k8s_namespace" => { "type" => "keyword" }
+              "k8s_pod_name" => { "type" => "keyword" }
+              "k8s_container_name" => { "type" => "keyword" }
+              "k8s_node_name" => { "type" => "keyword" }
+              "security_event" => { "type" => "keyword" }
+              "business_event" => { "type" => "keyword" }
+              "alert_type" => { "type" => "keyword" }
+            }
+          }
+        }
+      }
+
+      # Debug output (remove in production)
+      if [alert_type] {
+        stdout {
+          codec => rubydebug
+        }
+      }
+    }
+
+  # Pipeline for metrics and monitoring
+  metrics.conf: |
+    input {
+      tcp {
+        port => 5001
+        codec => json
+        type => "metrics"
+      }
+    }
+
+    filter {
+      if [type] == "metrics" {
+        mutate {
+          add_field => { "environment" => "${ENVIRONMENT:unknown}" }
+        }
+      }
+    }
+
+    output {
+      if [type] == "metrics" {
+        elasticsearch {
+          hosts => ["https://example-elasticsearch-http:9200"]
+          user => "elastic"
+          password => "${ELASTICSEARCH_PASSWORD}"
+          ssl => true
+          ssl_certificate_verification => true
+          cacert => "/usr/share/logstash/config/certs/ca.crt"
+          index => "waqiti-metrics-%{+YYYY.MM.dd}"
+        }
+      }
+    }
+
+---
+# Horizontal Pod Autoscaler for Logstash
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: logstash-hpa
+  namespace: example-monitoring
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: logstash
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80

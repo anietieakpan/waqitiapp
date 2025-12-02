@@ -1,0 +1,313 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-rules
+  namespace: monitoring
+data:
+  waqiti-alerts.yml: |
+    groups:
+      # Service Health Alerts
+      - name: service_health
+        interval: 30s
+        rules:
+          - alert: ServiceDown
+            expr: up{job="waqiti-services"} == 0
+            for: 2m
+            labels:
+              severity: critical
+              team: platform
+            annotations:
+              summary: "Service {{ $labels.service_name }} is down"
+              description: "Service {{ $labels.service_name }} in namespace {{ $labels.namespace }} has been down for more than 2 minutes."
+
+          - alert: HighErrorRate
+            expr: rate(http_server_requests_seconds_count{status=~"5.."}[5m]) > 0.05
+            for: 5m
+            labels:
+              severity: warning
+              team: platform
+            annotations:
+              summary: "High error rate on {{ $labels.service_name }}"
+              description: "Service {{ $labels.service_name }} has error rate above 5% (current: {{ $value | humanizePercentage }})"
+
+          - alert: HighLatency
+            expr: histogram_quantile(0.99, rate(http_server_requests_seconds_bucket[5m])) > 1
+            for: 10m
+            labels:
+              severity: warning
+              team: platform
+            annotations:
+              summary: "High latency on {{ $labels.service_name }}"
+              description: "Service {{ $labels.service_name }} p99 latency is {{ $value }}s (threshold: 1s)"
+
+      # Payment Processing Alerts
+      - name: payment_alerts
+        interval: 30s
+        rules:
+          - alert: PaymentProcessingFailureSpike
+            expr: rate(payment_processing_failed_total[5m]) > 0.1
+            for: 5m
+            labels:
+              severity: critical
+              team: payments
+            annotations:
+              summary: "Payment processing failure spike"
+              description: "Payment failures increased to {{ $value | humanize }}/sec (threshold: 0.1/sec)"
+
+          - alert: PaymentIdempotencyViolation
+            expr: increase(idempotency_duplicate_detected_total[5m]) > 10
+            for: 2m
+            labels:
+              severity: critical
+              team: payments
+            annotations:
+              summary: "Idempotency violations detected"
+              description: "{{ $value }} duplicate payment attempts detected in 5 minutes"
+
+          - alert: PaymentSettlementBacklog
+            expr: kafka_consumergroup_lag{topic="settlement-initiated"} > 10000
+            for: 15m
+            labels:
+              severity: warning
+              team: payments
+            annotations:
+              summary: "Payment settlement backlog"
+              description: "Settlement consumer lag: {{ $value }} messages (threshold: 10000)"
+
+      # Database Alerts
+      - name: database_alerts
+        interval: 30s
+        rules:
+          - alert: PostgreSQLDown
+            expr: pg_up == 0
+            for: 1m
+            labels:
+              severity: critical
+              team: database
+            annotations:
+              summary: "PostgreSQL is down"
+              description: "PostgreSQL instance {{ $labels.instance }} is down"
+
+          - alert: HighDatabaseConnections
+            expr: pg_stat_database_numbackends / pg_settings_max_connections > 0.8
+            for: 5m
+            labels:
+              severity: warning
+              team: database
+            annotations:
+              summary: "High database connection usage"
+              description: "Database {{ $labels.datname }} using {{ $value | humanizePercentage }} of max connections"
+
+          - alert: DatabaseDeadlocks
+            expr: rate(pg_stat_database_deadlocks[5m]) > 0
+            for: 2m
+            labels:
+              severity: warning
+              team: database
+            annotations:
+              summary: "Database deadlocks detected"
+              description: "{{ $value }} deadlocks/sec in database {{ $labels.datname }}"
+
+          - alert: SlowQueries
+            expr: rate(pg_stat_statements_mean_exec_time[5m]) > 1000
+            for: 10m
+            labels:
+              severity: warning
+              team: database
+            annotations:
+              summary: "Slow database queries detected"
+              description: "Average query execution time: {{ $value }}ms (threshold: 1000ms)"
+
+      # Kafka Alerts
+      - name: kafka_alerts
+        interval: 30s
+        rules:
+          - alert: KafkaConsumerLag
+            expr: kafka_consumergroup_lag > 5000
+            for: 10m
+            labels:
+              severity: warning
+              team: platform
+            annotations:
+              summary: "High Kafka consumer lag"
+              description: "Consumer {{ $labels.consumergroup }} lag on {{ $labels.topic }}: {{ $value }} messages"
+
+          - alert: KafkaDLQMessagesAccumulating
+            expr: increase(kafka_topic_partition_current_offset{topic=~".*\\.dlq"}[30m]) > 100
+            for: 15m
+            labels:
+              severity: warning
+              team: platform
+            annotations:
+              summary: "DLQ messages accumulating"
+              description: "DLQ topic {{ $labels.topic }} accumulated {{ $value }} messages in 30 minutes"
+
+          - alert: KafkaBrokerDown
+            expr: kafka_brokers < 3
+            for: 2m
+            labels:
+              severity: critical
+              team: platform
+            annotations:
+              summary: "Kafka broker down"
+              description: "Only {{ $value }} Kafka brokers available (expected: 3)"
+
+      # Redis Alerts
+      - name: redis_alerts
+        interval: 30s
+        rules:
+          - alert: RedisDown
+            expr: redis_up == 0
+            for: 1m
+            labels:
+              severity: critical
+              team: platform
+            annotations:
+              summary: "Redis is down"
+              description: "Redis instance {{ $labels.instance }} is down"
+
+          - alert: RedisHighMemoryUsage
+            expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.9
+            for: 5m
+            labels:
+              severity: warning
+              team: platform
+            annotations:
+              summary: "Redis high memory usage"
+              description: "Redis using {{ $value | humanizePercentage }} of max memory"
+
+          - alert: RedisHighConnectionUsage
+            expr: redis_connected_clients / redis_config_maxclients > 0.8
+            for: 5m
+            labels:
+              severity: warning
+              team: platform
+            annotations:
+              summary: "Redis high connection usage"
+              description: "Redis using {{ $value | humanizePercentage }} of max connections"
+
+      # Fraud Detection Alerts
+      - name: fraud_alerts
+        interval: 30s
+        rules:
+          - alert: HighFraudDetectionRate
+            expr: rate(fraud_alerts_triggered_total[5m]) > 1
+            for: 5m
+            labels:
+              severity: warning
+              team: security
+            annotations:
+              summary: "High fraud detection rate"
+              description: "{{ $value }} fraud alerts/sec (threshold: 1/sec)"
+
+          - alert: FraudMLModelDegraded
+            expr: fraud_ml_model_accuracy < 0.85
+            for: 15m
+            labels:
+              severity: warning
+              team: ml
+            annotations:
+              summary: "Fraud ML model accuracy degraded"
+              description: "Model accuracy: {{ $value | humanizePercentage }} (threshold: 85%)"
+
+      # Security Alerts
+      - name: security_alerts
+        interval: 30s
+        rules:
+          - alert: IDORAttemptSpike
+            expr: rate(security_idor_attempts_total[5m]) > 0.5
+            for: 5m
+            labels:
+              severity: critical
+              team: security
+            annotations:
+              summary: "IDOR attack attempts detected"
+              description: "{{ $value }} IDOR attempts/sec (threshold: 0.5/sec)"
+
+          - alert: RateLimitExceeded
+            expr: rate(rate_limit_exceeded_total[5m]) > 10
+            for: 5m
+            labels:
+              severity: warning
+              team: security
+            annotations:
+              summary: "High rate limit violations"
+              description: "{{ $value }} rate limit violations/sec (threshold: 10/sec)"
+
+          - alert: VaultSealed
+            expr: vault_core_unsealed == 0
+            for: 5m
+            labels:
+              severity: critical
+              team: security
+            annotations:
+              summary: "Vault is sealed"
+              description: "Vault instance {{ $labels.instance }} has been sealed for more than 5 minutes"
+
+      # Resource Alerts
+      - name: resource_alerts
+        interval: 30s
+        rules:
+          - alert: HighCPUUsage
+            expr: rate(container_cpu_usage_seconds_total{namespace="waqiti-services"}[5m]) > 0.8
+            for: 10m
+            labels:
+              severity: warning
+              team: platform
+            annotations:
+              summary: "High CPU usage"
+              description: "Pod {{ $labels.pod }} CPU usage: {{ $value | humanizePercentage }}"
+
+          - alert: HighMemoryUsage
+            expr: container_memory_usage_bytes{namespace="waqiti-services"} / container_spec_memory_limit_bytes > 0.9
+            for: 10m
+            labels:
+              severity: warning
+              team: platform
+            annotations:
+              summary: "High memory usage"
+              description: "Pod {{ $labels.pod }} memory usage: {{ $value | humanizePercentage }}"
+
+          - alert: PodCrashLooping
+            expr: rate(kube_pod_container_status_restarts_total{namespace="waqiti-services"}[15m]) > 0
+            for: 5m
+            labels:
+              severity: critical
+              team: platform
+            annotations:
+              summary: "Pod crash looping"
+              description: "Pod {{ $labels.pod }} is crash looping"
+
+      # Compliance Alerts
+      - name: compliance_alerts
+        interval: 30s
+        rules:
+          - alert: AMLCheckBacklog
+            expr: kafka_consumergroup_lag{topic="aml-check-requested"} > 1000
+            for: 10m
+            labels:
+              severity: warning
+              team: compliance
+            annotations:
+              summary: "AML check backlog"
+              description: "{{ $value }} pending AML checks (threshold: 1000)"
+
+          - alert: CTRFilingDelayed
+            expr: compliance_ctr_filing_pending_count > 10
+            for: 30m
+            labels:
+              severity: critical
+              team: compliance
+            annotations:
+              summary: "CTR filings delayed"
+              description: "{{ $value }} CTR filings pending for >30min (threshold: 10)"
+
+          - alert: SuspiciousActivityDetected
+            expr: increase(compliance_suspicious_activity_total[1h]) > 50
+            for: 5m
+            labels:
+              severity: warning
+              team: compliance
+            annotations:
+              summary: "High suspicious activity"
+              description: "{{ $value }} suspicious activities detected in 1 hour"

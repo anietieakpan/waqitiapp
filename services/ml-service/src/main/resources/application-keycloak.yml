@@ -1,0 +1,112 @@
+# Keycloak Configuration for ML Service
+
+keycloak:
+  enabled: true
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  ssl-required: external
+  resource: ml-service
+  bearer-only: true
+  credentials:
+    secret: ${ML_SERVICE_CLIENT_SECRET}
+  use-resource-role-mappings: true
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# ML Service Security Configuration
+ml:
+  security:
+    # Public endpoints that don't require authentication
+    public-endpoints:
+      - /actuator/health
+      - /actuator/info
+      - /swagger-ui/**
+      - /v3/api-docs/**
+    
+    # Service-to-service endpoints
+    service-endpoints:
+      - /internal/ml/**
+    
+    # Required roles for ML operations
+    required-roles:
+      read:
+        - ML_USER
+        - DATA_SCIENTIST
+      model-inference:
+        - ML_USER
+        - SERVICE_USER
+      model-training:
+        - ML_ENGINEER
+        - DATA_SCIENTIST
+      model-deployment:
+        - ML_OPS_ENGINEER
+        - ML_ADMIN
+      data-analysis:
+        - DATA_ANALYST
+        - DATA_SCIENTIST
+      feature-engineering:
+        - ML_ENGINEER
+        - DATA_SCIENTIST
+      experiment-tracking:
+        - ML_RESEARCHER
+        - DATA_SCIENTIST
+      model-monitoring:
+        - ML_OPS_ENGINEER
+        - ML_MONITOR
+      management:
+        - ML_MANAGER
+        - ML_OPERATOR
+      admin:
+        - ML_ADMIN
+        - SYSTEM_ADMIN
+    
+    # Required scopes for operations
+    required-scopes:
+      model-inference: ml:model:inference
+      model-training: ml:model:training
+      model-deployment: ml:model:deployment
+      data-access: ml:data:access
+      feature-engineering: ml:feature:engineering
+      experiment-tracking: ml:experiment:tracking
+      model-monitoring: ml:model:monitoring
+      ml-ops: ml:ops
+      admin: ml:admin
+      management: ml:manage
+    
+    # ML security features
+    features:
+      data-privacy-preservation: true
+      model-encryption-enabled: true
+      differential-privacy-enabled: true
+      federated-learning-enabled: true
+      model-versioning-enabled: true
+      bias-detection-enabled: true
+      
+    # ML limits and thresholds
+    limits:
+      max-model-size-gb: 10
+      max-training-duration-hours: 24
+      max-concurrent-training-jobs: 5
+      max-inference-requests-per-minute: 10000
+      
+    # Security thresholds requiring monitoring
+    monitoring-thresholds:
+      model-drift-threshold: 0.1
+      data-drift-threshold: 0.15
+      performance-degradation-threshold: 0.05
+      bias-detection-threshold: 0.1
+      
+    # Advanced security features
+    advanced-security:
+      require-data-anonymization: true
+      federated-learning-privacy: true
+      differential-privacy-enforcement: true
+      model-watermarking-enabled: true
+      adversarial-attack-detection: true
+      explainable-ai-required: true

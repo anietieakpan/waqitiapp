@@ -1,0 +1,297 @@
+# Container Image Scanning Infrastructure
+# Implements comprehensive vulnerability scanning for all container images
+# Integrates Trivy, Clair, and Anchore for defense-in-depth
+
+version: '3.8'
+
+services:
+  # Trivy Scanner - Fast, comprehensive vulnerability scanner
+  trivy:
+    image: aquasecurity/trivy:latest
+    container_name: waqiti-trivy
+    command: server --listen 0.0.0.0:8080
+    ports:
+      - "8080:8080"
+    volumes:
+      - trivy-cache:/root/.cache
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      TRIVY_SEVERITY: CRITICAL,HIGH,MEDIUM
+      TRIVY_DEBUG: "true"
+      TRIVY_IGNORE_UNFIXED: "false"
+      TRIVY_SKIP_UPDATE: "false"
+      TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db
+      TRIVY_JAVA_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-java-db
+    networks:
+      - scanning-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--quiet", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Clair Scanner - CoreOS vulnerability scanner
+  clair:
+    image: quay.io/coreos/clair:latest
+    container_name: waqiti-clair
+    ports:
+      - "6060:6060"
+      - "6061:6061"
+    volumes:
+      - ./clair/config.yaml:/config/config.yaml
+      - clair-data:/var/lib/clair
+    environment:
+      CLAIR_MODE: combo
+      CLAIR_CONF: /config/config.yaml
+    depends_on:
+      - clair-postgres
+    networks:
+      - scanning-network
+    command: ["-conf", "/config/config.yaml"]
+
+  # Clair Database
+  clair-postgres:
+    image: postgres:14-alpine
+    container_name: waqiti-clair-db
+    environment:
+      POSTGRES_DB: clair
+      POSTGRES_USER: clair
+      POSTGRES_PASSWORD: ${CLAIR_DB_PASSWORD:-Cl@ir$ecure123}
+    volumes:
+      - clair-postgres-data:/var/lib/postgresql/data
+    networks:
+      - scanning-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U clair"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # Anchore Engine - Policy-based compliance scanning
+  anchore-engine:
+    image: anchore/anchore-engine:latest
+    container_name: waqiti-anchore
+    depends_on:
+      - anchore-postgres
+    ports:
+      - "8228:8228"
+    environment:
+      ANCHORE_HOST_ID: dockerhostid-anchore-engine
+      ANCHORE_ENDPOINT_HOSTNAME: anchore-engine
+      ANCHORE_DB_HOST: anchore-postgres
+      ANCHORE_DB_PASSWORD: ${ANCHORE_DB_PASSWORD:-Anch0re$ecure123}
+      ANCHORE_ADMIN_PASSWORD: ${ANCHORE_ADMIN_PASSWORD:-Adm1n$ecure123}
+      ANCHORE_CLI_USER: admin
+      ANCHORE_CLI_PASS: ${ANCHORE_ADMIN_PASSWORD:-Adm1n$ecure123}
+      ANCHORE_ENABLE_METRICS: "true"
+      ANCHORE_LOG_LEVEL: INFO
+    volumes:
+      - ./anchore/config.yaml:/config/config.yaml
+      - anchore-data:/var/lib/anchore
+    networks:
+      - scanning-network
+    command: ["anchore-manager", "service", "start", "--all"]
+
+  # Anchore Database
+  anchore-postgres:
+    image: postgres:14-alpine
+    container_name: waqiti-anchore-db
+    environment:
+      POSTGRES_DB: anchore
+      POSTGRES_USER: anchore
+      POSTGRES_PASSWORD: ${ANCHORE_DB_PASSWORD:-Anch0re$ecure123}
+    volumes:
+      - anchore-postgres-data:/var/lib/postgresql/data
+    networks:
+      - scanning-network
+
+  # Grype - Additional vulnerability scanner
+  grype:
+    image: anchore/grype:latest
+    container_name: waqiti-grype
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - grype-cache:/root/.grype
+    environment:
+      GRYPE_DB_AUTO_UPDATE: "true"
+      GRYPE_MATCH_UPSTREAM_KERNEL_HEADERS: "true"
+    networks:
+      - scanning-network
+
+  # Syft - SBOM (Software Bill of Materials) generator
+  syft:
+    image: anchore/syft:latest
+    container_name: waqiti-syft
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./sbom:/sbom
+    environment:
+      SYFT_CHECK_FOR_APP_UPDATE: "false"
+    networks:
+      - scanning-network
+
+  # Scanning Orchestrator - Custom service to coordinate scans
+  scan-orchestrator:
+    build: ./scan-orchestrator
+    container_name: waqiti-scan-orchestrator
+    depends_on:
+      - trivy
+      - clair
+      - anchore-engine
+    ports:
+      - "9090:9090"
+    environment:
+      TRIVY_URL: http://trivy:8080
+      CLAIR_URL: http://clair:6060
+      ANCHORE_URL: http://anchore-engine:8228
+      WEBHOOK_URL: ${SECURITY_WEBHOOK_URL}
+      SCAN_SCHEDULE: "0 */6 * * *"  # Every 6 hours
+      FAIL_ON_CRITICAL: "true"
+      FAIL_ON_HIGH: "true"
+      COMPLIANCE_POLICIES: "pci-dss,cis-docker,nist-800-53"
+    volumes:
+      - ./policies:/policies
+      - scan-results:/results
+    networks:
+      - scanning-network
+
+  # Registry Scanner - Continuously scans registry
+  registry-scanner:
+    build: ./registry-scanner
+    container_name: waqiti-registry-scanner
+    environment:
+      REGISTRY_URL: ${REGISTRY_URL:-registry.example.com}
+      REGISTRY_USERNAME: ${REGISTRY_USERNAME}
+      REGISTRY_PASSWORD: ${REGISTRY_PASSWORD}
+      SCAN_INTERVAL: 3600  # 1 hour in seconds
+      PARALLEL_SCANS: 5
+    volumes:
+      - registry-scan-cache:/cache
+      - ./scan-reports:/reports
+    depends_on:
+      - scan-orchestrator
+    networks:
+      - scanning-network
+
+  # Vulnerability Database Updater
+  vuln-db-updater:
+    build: ./vuln-db-updater
+    container_name: waqiti-vuln-db-updater
+    environment:
+      UPDATE_SCHEDULE: "0 */4 * * *"  # Every 4 hours
+      NVD_API_KEY: ${NVD_API_KEY}
+      CVE_FEED_URL: https://nvd.nist.gov/feeds/json/cve/1.1/
+      ENABLE_ZERO_DAY_ALERTS: "true"
+    volumes:
+      - vuln-database:/var/lib/vulndb
+    networks:
+      - scanning-network
+
+  # Compliance Checker
+  compliance-checker:
+    build: ./compliance-checker
+    container_name: waqiti-compliance-checker
+    ports:
+      - "8081:8081"
+    environment:
+      PCI_DSS_ENABLED: "true"
+      CIS_BENCHMARK_ENABLED: "true"
+      NIST_ENABLED: "true"
+      GDPR_ENABLED: "true"
+      HIPAA_ENABLED: "false"
+      SOC2_ENABLED: "true"
+    volumes:
+      - ./compliance-policies:/policies
+      - compliance-reports:/reports
+    networks:
+      - scanning-network
+
+  # Scan Result Aggregator and Reporter
+  scan-reporter:
+    build: ./scan-reporter
+    container_name: waqiti-scan-reporter
+    ports:
+      - "8082:8082"
+    environment:
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+      GRAFANA_URL: http://grafana:3000
+      SLACK_WEBHOOK: ${SLACK_SECURITY_WEBHOOK}
+      EMAIL_RECIPIENTS: ${SECURITY_EMAIL_LIST}
+      REPORT_FORMAT: "json,html,pdf"
+      DASHBOARD_ENABLED: "true"
+    volumes:
+      - scan-results:/results
+      - scan-reports:/reports
+    depends_on:
+      - elasticsearch
+    networks:
+      - scanning-network
+
+  # Elasticsearch for storing scan results
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.10.2
+    container_name: waqiti-scan-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - xpack.security.enabled=true
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-El@stic$ecure123}
+    volumes:
+      - elasticsearch-scan-data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    networks:
+      - scanning-network
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: waqiti-scan-grafana
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-Gr@fana$ecure123}
+      GF_INSTALL_PLUGINS: grafana-piechart-panel
+    volumes:
+      - grafana-scan-data:/var/lib/grafana
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources
+    depends_on:
+      - elasticsearch
+    networks:
+      - scanning-network
+
+  # Redis for caching and job queue
+  redis:
+    image: redis:7-alpine
+    container_name: waqiti-scan-redis
+    command: redis-server --requirepass ${REDIS_PASSWORD:-R3dis$ecure123}
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis-scan-data:/data
+    networks:
+      - scanning-network
+
+networks:
+  scanning-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.26.0.0/16
+
+volumes:
+  trivy-cache:
+  clair-data:
+  clair-postgres-data:
+  anchore-data:
+  anchore-postgres-data:
+  grype-cache:
+  scan-results:
+  registry-scan-cache:
+  vuln-database:
+  compliance-reports:
+  scan-reports:
+  elasticsearch-scan-data:
+  grafana-scan-data:
+  redis-scan-data:

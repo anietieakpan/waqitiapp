@@ -1,0 +1,224 @@
+# Secure Vault Integration Configuration Template
+# This configuration template shows how to properly integrate with HashiCorp Vault
+# SECURITY: Replaces hardcoded secrets with Vault references
+
+spring:
+  application:
+    name: ${SERVICE_NAME:waqiti-service}
+  
+  # Database Configuration - Using Vault for credentials
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:waqiti}
+    # SECURITY FIX: Get credentials from Vault instead of hardcoding
+    username: ${vault:secret/database/${spring.application.name}/username}
+    password: ${vault:secret/database/${spring.application.name}/password}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:20}
+      minimum-idle: ${DB_MIN_IDLE:5}
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      leak-detection-threshold: 60000
+
+  # Redis Configuration - Using Vault for password
+  redis:
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+    # SECURITY FIX: Get Redis password from Vault
+    password: ${vault:secret/redis/${spring.application.name}/password}
+    timeout: 2000ms
+    jedis:
+      pool:
+        max-active: 8
+        max-wait: -1ms
+        max-idle: 8
+        min-idle: 0
+
+  # Kafka Configuration - Using Vault for SASL credentials
+  kafka:
+    bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}
+    security:
+      protocol: SASL_SSL
+    sasl:
+      mechanism: PLAIN
+      # SECURITY FIX: Get Kafka credentials from Vault
+      jaas-config: org.apache.kafka.common.security.plain.PlainLoginModule required username="${vault:secret/kafka/username}" password="${vault:secret/kafka/password}";
+    ssl:
+      trust-store-location: ${vault:secret/ssl/kafka/truststore-path}
+      trust-store-password: ${vault:secret/ssl/kafka/truststore-password}
+      key-store-location: ${vault:secret/ssl/kafka/keystore-path}
+      key-store-password: ${vault:secret/ssl/kafka/keystore-password}
+
+# Encryption Configuration - Using Vault for keys
+encryption:
+  # SECURITY FIX: Remove hardcoded keys, use Vault integration
+  vault:
+    enabled: true
+    key-contexts:
+      - pii
+      - financial
+      - default
+  key-rotation-hours: 24
+  algorithm: AES
+  key-length: 256
+
+# JWT Configuration - Using Vault for secrets
+jwt:
+  # SECURITY FIX: Get JWT secrets from Vault
+  secret: ${vault:secret/jwt/${spring.application.name}/secret}
+  expiration: ${JWT_EXPIRATION:3600000}
+  refresh-expiration: ${JWT_REFRESH_EXPIRATION:86400000}
+  issuer: ${JWT_ISSUER:example.com}
+
+# OAuth2 Configuration - Using Vault for client secrets
+oauth2:
+  client:
+    registration:
+      google:
+        client-id: ${vault:secret/oauth2/google/client-id}
+        client-secret: ${vault:secret/oauth2/google/client-secret}
+      facebook:
+        client-id: ${vault:secret/oauth2/facebook/client-id}
+        client-secret: ${vault:secret/oauth2/facebook/client-secret}
+
+# External Service API Keys - Using Vault
+external-services:
+  stripe:
+    # SECURITY FIX: Get Stripe keys from Vault
+    publishable-key: ${vault:secret/stripe/publishable-key}
+    secret-key: ${vault:secret/stripe/secret-key}
+    webhook-secret: ${vault:secret/stripe/webhook-secret}
+  
+  plaid:
+    # SECURITY FIX: Get Plaid credentials from Vault
+    client-id: ${vault:secret/plaid/client-id}
+    secret: ${vault:secret/plaid/secret}
+    public-key: ${vault:secret/plaid/public-key}
+    environment: ${PLAID_ENV:sandbox}
+  
+  aws:
+    # SECURITY FIX: Use IAM roles instead of hardcoded keys
+    region: ${AWS_REGION:us-east-1}
+    # Access keys managed via IAM roles and IRSA
+    s3:
+      bucket: ${AWS_S3_BUCKET:waqiti-documents}
+    
+  twilio:
+    # SECURITY FIX: Get Twilio credentials from Vault
+    account-sid: ${vault:secret/twilio/account-sid}
+    auth-token: ${vault:secret/twilio/auth-token}
+    from-number: ${vault:secret/twilio/from-number}
+
+# Vault Configuration
+vault:
+  uri: ${VAULT_URI:https://vault.example.internal:8200}
+  authentication: kubernetes
+  kubernetes:
+    role: ${VAULT_ROLE:waqiti-services}
+    service-account-token-file: /var/run/secrets/kubernetes.io/serviceaccount/token
+  
+  # Connection settings
+  connection-timeout: 5000
+  read-timeout: 15000
+  
+  # KV settings
+  kv:
+    enabled: true
+    backend: secret
+    default-context: ${spring.application.name}
+  
+  # Lease settings
+  lease:
+    min-renewal: 10s
+    expiry-threshold: 1m
+
+# TLS Configuration - Using Vault for certificates
+server:
+  port: ${SERVER_PORT:8080}
+  ssl:
+    enabled: ${SSL_ENABLED:false}
+    # SECURITY FIX: Get TLS certificates from Vault
+    key-store: ${vault:secret/tls/${spring.application.name}/keystore-path}
+    key-store-password: ${vault:secret/tls/${spring.application.name}/keystore-password}
+    key-store-type: PKCS12
+    trust-store: ${vault:secret/tls/${spring.application.name}/truststore-path}
+    trust-store-password: ${vault:secret/tls/${spring.application.name}/truststore-password}
+
+# Security Configuration
+security:
+  # CORS settings
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:https://app.example.com,https://admin.example.com}
+    allowed-methods: ${CORS_ALLOWED_METHODS:GET,POST,PUT,DELETE,OPTIONS}
+    allowed-headers: ${CORS_ALLOWED_HEADERS:*}
+    allow-credentials: true
+    max-age: 3600
+  
+  # Content Security Policy
+  csp:
+    policy: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
+  
+  # HSTS settings
+  hsts:
+    max-age: 31536000
+    include-subdomains: true
+    preload: true
+
+# Webhook Configuration - Using Vault for secrets
+webhook:
+  providers:
+    stripe:
+      secret: ${vault:secret/webhooks/stripe/secret}
+      endpoint: /api/webhooks/stripe
+    
+    plaid:
+      secret: ${vault:secret/webhooks/plaid/secret}
+      endpoint: /api/webhooks/plaid
+    
+    paypal:
+      secret: ${vault:secret/webhooks/paypal/secret}
+      endpoint: /api/webhooks/paypal
+  
+  security:
+    require-signature: true
+    require-timestamp: true
+    tolerance-seconds: 300
+    require-ip-allowlist: true
+
+# Monitoring Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  health:
+    vault:
+      enabled: true
+
+# Logging Configuration
+logging:
+  level:
+    com.waqiti: ${LOG_LEVEL:INFO}
+    org.springframework.vault: INFO
+    com.waqiti.security: DEBUG
+  pattern:
+    console: "%d{ISO8601} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{ISO8601} [%thread] %-5level %logger{36} - %msg%n"
+
+# SECURITY BEST PRACTICES APPLIED:
+# 1. No hardcoded secrets - all retrieved from Vault
+# 2. Proper Vault integration with Kubernetes authentication
+# 3. TLS certificates managed through Vault
+# 4. JWT secrets rotated regularly via Vault
+# 5. Database credentials secured in Vault
+# 6. External API keys secured in Vault
+# 7. Webhook secrets secured and validated
+# 8. SSL/TLS properly configured
+# 9. CORS settings properly configured
+# 10. Security headers enabled

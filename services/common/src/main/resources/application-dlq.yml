@@ -1,0 +1,361 @@
+# DLQ Infrastructure Configuration
+# Production-ready configuration for Dead Letter Queue processing with resilience patterns
+
+spring:
+  application:
+    name: ${SERVICE_NAME:common-service}
+
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+
+# ========================================
+# Resilience4j Configuration
+# ========================================
+resilience:
+  # Circuit Breaker Configuration
+  circuit-breaker:
+    failure-rate-threshold: ${CIRCUIT_BREAKER_FAILURE_RATE:50}
+    slow-call-rate-threshold: ${CIRCUIT_BREAKER_SLOW_CALL_RATE:50}
+    slow-call-duration-threshold: ${CIRCUIT_BREAKER_SLOW_CALL_DURATION:5000}
+    permitted-calls-in-half-open: ${CIRCUIT_BREAKER_HALF_OPEN_CALLS:5}
+    sliding-window-size: ${CIRCUIT_BREAKER_WINDOW_SIZE:100}
+    wait-duration-in-open-state: ${CIRCUIT_BREAKER_WAIT_DURATION:30000}
+
+  # Retry Configuration
+  retry:
+    max-attempts: ${RETRY_MAX_ATTEMPTS:3}
+    wait-duration: ${RETRY_WAIT_DURATION:1000}
+    exponential-backoff-multiplier: ${RETRY_BACKOFF_MULTIPLIER:2.0}
+
+  # Bulkhead Configuration
+  bulkhead:
+    max-concurrent-calls: ${BULKHEAD_MAX_CONCURRENT:25}
+    max-wait-duration: ${BULKHEAD_MAX_WAIT:500}
+
+  # Time Limiter Configuration
+  time-limiter:
+    timeout-duration: ${TIME_LIMITER_TIMEOUT:30000}
+    cancel-running-future: ${TIME_LIMITER_CANCEL_FUTURE:true}
+
+# ========================================
+# OpenTelemetry Distributed Tracing
+# ========================================
+tracing:
+  enabled: ${TRACING_ENABLED:true}
+
+  # OTLP Exporter Configuration
+  otlp:
+    endpoint: ${OTLP_ENDPOINT:http://localhost:4317}
+    protocol: ${OTLP_PROTOCOL:grpc}
+    compression: ${OTLP_COMPRESSION:gzip}
+
+  # Sampling Configuration
+  sampling:
+    probability: ${TRACING_SAMPLING_PROBABILITY:1.0}
+    strategy: ${TRACING_SAMPLING_STRATEGY:probability}
+
+  # Batch Span Processing
+  batch:
+    max-queue-size: ${TRACING_BATCH_QUEUE_SIZE:2048}
+    max-export-batch-size: ${TRACING_BATCH_EXPORT_SIZE:512}
+    schedule-delay-millis: ${TRACING_BATCH_SCHEDULE_DELAY:5000}
+    export-timeout-millis: ${TRACING_BATCH_EXPORT_TIMEOUT:30000}
+
+  # Service Attributes
+  service:
+    version: ${SERVICE_VERSION:1.0.0}
+    namespace: ${SERVICE_NAMESPACE:waqiti}
+    deployment: ${DEPLOYMENT_ID:production}
+
+# ========================================
+# DLQ Escalation Configuration
+# ========================================
+dlq:
+  escalation:
+    enabled: ${DLQ_ESCALATION_ENABLED:true}
+
+    # PagerDuty Configuration
+    pagerduty:
+      enabled: ${PAGERDUTY_ENABLED:true}
+      api-key: ${PAGERDUTY_API_KEY:}
+      api-url: ${PAGERDUTY_API_URL:https://events.pagerduty.com/v2/enqueue}
+      p0-service-key: ${PAGERDUTY_P0_SERVICE_KEY:}
+      p1-service-key: ${PAGERDUTY_P1_SERVICE_KEY:}
+      timeout-ms: ${PAGERDUTY_TIMEOUT:5000}
+      retry-attempts: ${PAGERDUTY_RETRY_ATTEMPTS:3}
+
+    # Slack Escalation Configuration
+    slack:
+      enabled: ${SLACK_ESCALATION_ENABLED:true}
+      critical-webhook: ${SLACK_CRITICAL_WEBHOOK:}
+      p0-webhook: ${SLACK_P0_WEBHOOK:}
+      p1-webhook: ${SLACK_P1_WEBHOOK:}
+      general-webhook: ${SLACK_GENERAL_WEBHOOK:}
+      timeout-ms: ${SLACK_TIMEOUT:3000}
+      retry-attempts: ${SLACK_RETRY_ATTEMPTS:2}
+
+    # Escalation Tiers
+    tiers:
+      l1-oncall: ${ESCALATION_L1_ONCALL:sre-oncall@example.com}
+      l2-lead: ${ESCALATION_L2_LEAD:sre-lead@example.com}
+      l3-director: ${ESCALATION_L3_DIRECTOR:engineering-director@example.com}
+      executive: ${ESCALATION_EXECUTIVE:cto@example.com}
+
+    # Escalation Cooldowns (milliseconds)
+    cooldown:
+      p0: ${ESCALATION_COOLDOWN_P0:300000}  # 5 minutes
+      p1: ${ESCALATION_COOLDOWN_P1:900000}  # 15 minutes
+      p2: ${ESCALATION_COOLDOWN_P2:1800000} # 30 minutes
+
+# ========================================
+# DLQ Notification Configuration
+# ========================================
+notification:
+  channels:
+    email:
+      enabled: ${NOTIFICATION_EMAIL_ENABLED:true}
+      from: ${NOTIFICATION_EMAIL_FROM:dlq-alerts@example.com}
+      critical-recipients: ${NOTIFICATION_EMAIL_CRITICAL:sre-team@example.com,oncall@example.com}
+
+    sms:
+      enabled: ${NOTIFICATION_SMS_ENABLED:true}
+      critical-numbers: ${NOTIFICATION_SMS_CRITICAL:}
+
+    push:
+      enabled: ${NOTIFICATION_PUSH_ENABLED:true}
+
+    slack:
+      enabled: ${NOTIFICATION_SLACK_ENABLED:true}
+      default-channel: ${NOTIFICATION_SLACK_CHANNEL:#dlq-alerts}
+      critical-channel: ${NOTIFICATION_SLACK_CRITICAL_CHANNEL:#critical-alerts}
+
+# ========================================
+# Incident Management Configuration
+# ========================================
+incident:
+  management:
+    enabled: ${INCIDENT_MANAGEMENT_ENABLED:true}
+
+    # SLA Configuration (in minutes for ACK, hours for resolve)
+    sla:
+      p0:
+        acknowledge-minutes: ${INCIDENT_P0_ACK_MINUTES:15}
+        resolve-hours: ${INCIDENT_P0_RESOLVE_HOURS:4}
+      p1:
+        acknowledge-minutes: ${INCIDENT_P1_ACK_MINUTES:30}
+        resolve-hours: ${INCIDENT_P1_RESOLVE_HOURS:24}
+      p2:
+        acknowledge-minutes: ${INCIDENT_P2_ACK_MINUTES:120}
+        resolve-hours: ${INCIDENT_P2_RESOLVE_HOURS:72}
+      p3:
+        acknowledge-minutes: ${INCIDENT_P3_ACK_MINUTES:480}
+        resolve-hours: ${INCIDENT_P3_RESOLVE_HOURS:168}
+      p4:
+        acknowledge-minutes: ${INCIDENT_P4_ACK_MINUTES:1440}
+        resolve-hours: ${INCIDENT_P4_RESOLVE_HOURS:336}
+
+    # Auto-escalation Configuration
+    auto-escalation:
+      enabled: ${INCIDENT_AUTO_ESCALATION_ENABLED:true}
+      p0-immediate: ${INCIDENT_P0_IMMEDIATE_ESCALATION:true}
+      stale-check-interval-minutes: ${INCIDENT_STALE_CHECK_INTERVAL:5}
+
+# ========================================
+# Idempotency Configuration
+# ========================================
+idempotency:
+  enabled: ${IDEMPOTENCY_ENABLED:true}
+
+  # Redis Configuration for distributed idempotency
+  redis:
+    enabled: ${IDEMPOTENCY_REDIS_ENABLED:true}
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD:}
+    database: ${REDIS_DATABASE:0}
+    ttl-hours: ${IDEMPOTENCY_REDIS_TTL:24}
+    pool:
+      max-active: ${REDIS_POOL_MAX_ACTIVE:20}
+      max-idle: ${REDIS_POOL_MAX_IDLE:10}
+      min-idle: ${REDIS_POOL_MIN_IDLE:5}
+
+  # PostgreSQL fallback for idempotency
+  postgresql:
+    enabled: ${IDEMPOTENCY_POSTGRESQL_ENABLED:true}
+    cleanup-interval-hours: ${IDEMPOTENCY_CLEANUP_INTERVAL:6}
+    retention-hours: ${IDEMPOTENCY_RETENTION_HOURS:72}
+
+# ========================================
+# Kafka DLQ Configuration
+# ========================================
+kafka:
+  dlq:
+    # Consumer Configuration
+    consumer:
+      bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+      group-id-prefix: ${KAFKA_GROUP_ID_PREFIX:common-service}
+      auto-offset-reset: ${KAFKA_AUTO_OFFSET_RESET:earliest}
+      enable-auto-commit: ${KAFKA_ENABLE_AUTO_COMMIT:false}
+      max-poll-records: ${KAFKA_MAX_POLL_RECORDS:100}
+      max-poll-interval-ms: ${KAFKA_MAX_POLL_INTERVAL:300000}
+      session-timeout-ms: ${KAFKA_SESSION_TIMEOUT:30000}
+      isolation-level: ${KAFKA_ISOLATION_LEVEL:read_committed}
+
+    # Topic Configuration
+    topics:
+      system-alerts-dlq: ${KAFKA_TOPIC_SYSTEM_ALERTS_DLQ:system.alerts.dlq}
+      slack-notifications-dlq: ${KAFKA_TOPIC_SLACK_NOTIFICATIONS_DLQ:slack.notifications.dlq}
+      crypto-compliance-dlq: ${KAFKA_TOPIC_CRYPTO_COMPLIANCE_DLQ:crypto.compliance.completed.dlq}
+      currency-conversion-dlq: ${KAFKA_TOPIC_CURRENCY_CONVERSION_DLQ:currency.conversion.events.dlq}
+      feature-flag-dlq: ${KAFKA_TOPIC_FEATURE_FLAG_DLQ:feature.flag.events.dlq}
+      data-export-dlq: ${KAFKA_TOPIC_DATA_EXPORT_DLQ:data.export.events.dlq}
+      insurance-claim-dlq: ${KAFKA_TOPIC_INSURANCE_CLAIM_DLQ:insurance.claim.events.dlq}
+
+    # Retry Configuration
+    retry:
+      attempts: ${KAFKA_RETRY_ATTEMPTS:3}
+      backoff-initial-ms: ${KAFKA_RETRY_BACKOFF_INITIAL:1500}
+      backoff-multiplier: ${KAFKA_RETRY_BACKOFF_MULTIPLIER:2.0}
+      backoff-max-ms: ${KAFKA_RETRY_BACKOFF_MAX:12000}
+
+# ========================================
+# Database Configuration
+# ========================================
+spring:
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/waqiti}
+    username: ${DATABASE_USERNAME:waqiti}
+    password: ${DATABASE_PASSWORD:}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${DATABASE_POOL_MAX_SIZE:20}
+      minimum-idle: ${DATABASE_POOL_MIN_IDLE:5}
+      connection-timeout: ${DATABASE_CONNECTION_TIMEOUT:30000}
+      idle-timeout: ${DATABASE_IDLE_TIMEOUT:600000}
+      max-lifetime: ${DATABASE_MAX_LIFETIME:1800000}
+      pool-name: DlqHikariPool
+
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:validate}
+    show-sql: ${JPA_SHOW_SQL:false}
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: ${JPA_FORMAT_SQL:true}
+        jdbc:
+          batch_size: ${JPA_BATCH_SIZE:20}
+        order_inserts: true
+        order_updates: true
+        query:
+          in_clause_parameter_padding: true
+
+# ========================================
+# Metrics Configuration
+# ========================================
+management:
+  metrics:
+    export:
+      prometheus:
+        enabled: ${METRICS_PROMETHEUS_ENABLED:true}
+        step: ${METRICS_PROMETHEUS_STEP:1m}
+
+      datadog:
+        enabled: ${METRICS_DATADOG_ENABLED:false}
+        api-key: ${DATADOG_API_KEY:}
+        application-key: ${DATADOG_APPLICATION_KEY:}
+        step: ${METRICS_DATADOG_STEP:1m}
+
+    tags:
+      application: ${spring.application.name}
+      environment: ${spring.profiles.active}
+      service: dlq-infrastructure
+
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+
+  endpoint:
+    health:
+      show-details: ${HEALTH_SHOW_DETAILS:always}
+      probes:
+        enabled: ${HEALTH_PROBES_ENABLED:true}
+
+# ========================================
+# Logging Configuration
+# ========================================
+logging:
+  level:
+    root: ${LOG_LEVEL_ROOT:INFO}
+    com.waqiti: ${LOG_LEVEL_WAQITI:INFO}
+    com.example.common.dlq: ${LOG_LEVEL_DLQ:DEBUG}
+    com.example.common.service: ${LOG_LEVEL_SERVICE:INFO}
+    io.github.resilience4j: ${LOG_LEVEL_RESILIENCE4J:INFO}
+    io.opentelemetry: ${LOG_LEVEL_OPENTELEMETRY:WARN}
+    org.springframework.kafka: ${LOG_LEVEL_KAFKA:INFO}
+
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - correlationId=%X{correlationId} - %msg%n"
+
+# ========================================
+# Environment-Specific Overrides
+# ========================================
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+tracing:
+  enabled: true
+  sampling:
+    probability: 1.0
+
+dlq:
+  escalation:
+    pagerduty:
+      enabled: false
+    slack:
+      enabled: true
+
+---
+spring:
+  config:
+    activate:
+      on-profile: staging
+
+tracing:
+  enabled: true
+  sampling:
+    probability: 0.5
+
+dlq:
+  escalation:
+    pagerduty:
+      enabled: true
+    slack:
+      enabled: true
+
+---
+spring:
+  config:
+    activate:
+      on-profile: production
+
+tracing:
+  enabled: true
+  sampling:
+    probability: 0.1  # Sample 10% in production
+
+dlq:
+  escalation:
+    pagerduty:
+      enabled: true
+    slack:
+      enabled: true
+
+logging:
+  level:
+    com.example.common.dlq: INFO

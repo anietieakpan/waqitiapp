@@ -1,0 +1,667 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: waqiti-zero-downtime-deployment
+  namespace: tekton-pipelines
+  labels:
+    app: deployment-pipeline
+    strategy: zero-downtime
+spec:
+  description: Zero-downtime deployment pipeline for Waqiti services
+  params:
+  - name: service-name
+    type: string
+    description: Name of the service to deploy
+  - name: image-tag
+    type: string
+    description: Docker image tag to deploy
+  - name: deployment-strategy
+    type: string
+    default: rolling-update
+    description: Deployment strategy (rolling-update, blue-green, canary)
+  - name: namespace
+    type: string
+    default: default
+    description: Kubernetes namespace
+  - name: git-revision
+    type: string
+    description: Git commit hash
+  - name: git-url
+    type: string
+    description: Git repository URL
+    
+  workspaces:
+  - name: shared-data
+    description: Workspace for sharing data between tasks
+  - name: git-credentials
+    description: Git credentials for private repositories
+    
+  tasks:
+  # Pre-deployment validation
+  - name: pre-deployment-checks
+    taskRef:
+      name: pre-deployment-validation
+    params:
+    - name: service-name
+      value: $(params.service-name)
+    - name: namespace
+      value: $(params.namespace)
+    workspaces:
+    - name: source
+      workspace: shared-data
+      
+  # Security scanning
+  - name: security-scan
+    taskRef:
+      name: security-scanner
+    runAfter: ["pre-deployment-checks"]
+    params:
+    - name: image
+      value: waqiti/$(params.service-name):$(params.image-tag)
+    workspaces:
+    - name: source
+      workspace: shared-data
+      
+  # Database migrations
+  - name: database-migrations
+    taskRef:
+      name: database-migrator
+    runAfter: ["security-scan"]
+    when:
+    - input: "$(params.service-name)"
+      operator: in
+      values: ["payment-service", "wallet-service", "user-service"]
+    params:
+    - name: service-name
+      value: $(params.service-name)
+    - name: git-revision
+      value: $(params.git-revision)
+    workspaces:
+    - name: source
+      workspace: shared-data
+      
+  # Choose deployment strategy
+  - name: rolling-update-deployment
+    taskRef:
+      name: rolling-update-deployer
+    runAfter: ["database-migrations"]
+    when:
+    - input: "$(params.deployment-strategy)"
+      operator: in
+      values: ["rolling-update"]
+    params:
+    - name: service-name
+      value: $(params.service-name)
+    - name: image-tag
+      value: $(params.image-tag)
+    - name: namespace
+      value: $(params.namespace)
+    workspaces:
+    - name: source
+      workspace: shared-data
+      
+  - name: blue-green-deployment
+    taskRef:
+      name: blue-green-deployer
+    runAfter: ["database-migrations"]
+    when:
+    - input: "$(params.deployment-strategy)"
+      operator: in
+      values: ["blue-green"]
+    params:
+    - name: service-name
+      value: $(params.service-name)
+    - name: image-tag
+      value: $(params.image-tag)
+    - name: namespace
+      value: $(params.namespace)
+    workspaces:
+    - name: source
+      workspace: shared-data
+      
+  - name: canary-deployment
+    taskRef:
+      name: canary-deployer
+    runAfter: ["database-migrations"]
+    when:
+    - input: "$(params.deployment-strategy)"
+      operator: in
+      values: ["canary"]
+    params:
+    - name: service-name
+      value: $(params.service-name)
+    - name: image-tag
+      value: $(params.image-tag)
+    - name: namespace
+      value: $(params.namespace)
+    workspaces:
+    - name: source
+      workspace: shared-data
+      
+  # Post-deployment validation
+  - name: post-deployment-validation
+    taskRef:
+      name: post-deployment-validator
+    runAfter: ["rolling-update-deployment", "blue-green-deployment", "canary-deployment"]
+    params:
+    - name: service-name
+      value: $(params.service-name)
+    - name: namespace
+      value: $(params.namespace)
+    - name: image-tag
+      value: $(params.image-tag)
+    workspaces:
+    - name: source
+      workspace: shared-data
+      
+  # Smoke tests
+  - name: smoke-tests
+    taskRef:
+      name: smoke-test-runner
+    runAfter: ["post-deployment-validation"]
+    params:
+    - name: service-name
+      value: $(params.service-name)
+    - name: namespace
+      value: $(params.namespace)
+    workspaces:
+    - name: source
+      workspace: shared-data
+      
+  # Performance validation
+  - name: performance-validation
+    taskRef:
+      name: performance-validator
+    runAfter: ["smoke-tests"]
+    params:
+    - name: service-name
+      value: $(params.service-name)
+    - name: namespace
+      value: $(params.namespace)
+    workspaces:
+    - name: source
+      workspace: shared-data
+      
+  # Notification
+  - name: deployment-notification
+    taskRef:
+      name: slack-notifier
+    runAfter: ["performance-validation"]
+    params:
+    - name: service-name
+      value: $(params.service-name)
+    - name: image-tag
+      value: $(params.image-tag)
+    - name: status
+      value: "success"
+    workspaces:
+    - name: source
+      workspace: shared-data
+      
+  finally:
+  - name: cleanup
+    taskRef:
+      name: cleanup-task
+    params:
+    - name: service-name
+      value: $(params.service-name)
+    - name: namespace
+      value: $(params.namespace)
+    workspaces:
+    - name: source
+      workspace: shared-data
+      
+  - name: failure-notification
+    taskRef:
+      name: slack-notifier
+    when:
+    - input: "$(tasks.status)"
+      operator: in
+      values: ["Failed"]
+    params:
+    - name: service-name
+      value: $(params.service-name)
+    - name: image-tag
+      value: $(params.image-tag)
+    - name: status
+      value: "failed"
+    workspaces:
+    - name: source
+      workspace: shared-data
+
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: pre-deployment-validation
+  namespace: tekton-pipelines
+spec:
+  description: Validate system health before deployment
+  params:
+  - name: service-name
+    type: string
+  - name: namespace
+    type: string
+  workspaces:
+  - name: source
+  steps:
+  - name: validate-cluster-health
+    image: bitnami/kubectl:latest
+    script: |
+      #!/bin/bash
+      set -e
+      
+      echo "Validating cluster health..."
+      
+      # Check node status
+      READY_NODES=$(kubectl get nodes --no-headers | grep -c " Ready ")
+      TOTAL_NODES=$(kubectl get nodes --no-headers | wc -l)
+      
+      if [ "$READY_NODES" != "$TOTAL_NODES" ]; then
+        echo "ERROR: Not all nodes are ready ($READY_NODES/$TOTAL_NODES)"
+        exit 1
+      fi
+      
+      echo "✓ All $TOTAL_NODES nodes are ready"
+      
+      # Check current service health
+      if kubectl get deployment $(params.service-name) -n $(params.namespace) > /dev/null 2>&1; then
+        CURRENT_REPLICAS=$(kubectl get deployment $(params.service-name) -n $(params.namespace) -o jsonpath='{.status.replicas}')
+        READY_REPLICAS=$(kubectl get deployment $(params.service-name) -n $(params.namespace) -o jsonpath='{.status.readyReplicas}')
+        
+        if [ "$CURRENT_REPLICAS" != "$READY_REPLICAS" ]; then
+          echo "ERROR: Current deployment is unhealthy ($READY_REPLICAS/$CURRENT_REPLICAS)"
+          exit 1
+        fi
+        
+        echo "✓ Current service is healthy: $READY_REPLICAS replicas"
+      else
+        echo "ℹ New service deployment"
+      fi
+      
+      # Check resource availability
+      CPU_AVAILABLE=$(kubectl top nodes | awk 'NR>1 {sum += $3} END {print sum}')
+      MEMORY_AVAILABLE=$(kubectl top nodes | awk 'NR>1 {sum += $5} END {print sum}')
+      
+      echo "✓ Cluster resources available - CPU: ${CPU_AVAILABLE}%, Memory: ${MEMORY_AVAILABLE}%"
+      
+      echo "Pre-deployment validation passed"
+
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: rolling-update-deployer
+  namespace: tekton-pipelines
+spec:
+  description: Perform rolling update deployment
+  params:
+  - name: service-name
+    type: string
+  - name: image-tag
+    type: string
+  - name: namespace
+    type: string
+  workspaces:
+  - name: source
+  steps:
+  - name: rolling-update
+    image: bitnami/kubectl:latest
+    script: |
+      #!/bin/bash
+      set -e
+      
+      SERVICE_NAME="$(params.service-name)"
+      IMAGE_TAG="$(params.image-tag)"
+      NAMESPACE="$(params.namespace)"
+      NEW_IMAGE="waqiti/${SERVICE_NAME}:${IMAGE_TAG}"
+      
+      echo "Starting rolling update for $SERVICE_NAME to $NEW_IMAGE"
+      
+      # Update deployment image
+      kubectl set image deployment/$SERVICE_NAME $SERVICE_NAME=$NEW_IMAGE -n $NAMESPACE --record
+      
+      # Monitor rollout
+      echo "Monitoring rollout progress..."
+      kubectl rollout status deployment/$SERVICE_NAME -n $NAMESPACE --timeout=10m
+      
+      if [ $? -eq 0 ]; then
+        echo "✓ Rolling update completed successfully"
+      else
+        echo "✗ Rolling update failed, initiating rollback"
+        kubectl rollout undo deployment/$SERVICE_NAME -n $NAMESPACE
+        kubectl rollout status deployment/$SERVICE_NAME -n $NAMESPACE --timeout=5m
+        exit 1
+      fi
+      
+      # Wait for stabilization
+      sleep 30
+      
+      # Verify deployment
+      READY_REPLICAS=$(kubectl get deployment $SERVICE_NAME -n $NAMESPACE -o jsonpath='{.status.readyReplicas}')
+      DESIRED_REPLICAS=$(kubectl get deployment $SERVICE_NAME -n $NAMESPACE -o jsonpath='{.spec.replicas}')
+      
+      if [ "$READY_REPLICAS" != "$DESIRED_REPLICAS" ]; then
+        echo "ERROR: Deployment unhealthy after rollout ($READY_REPLICAS/$DESIRED_REPLICAS)"
+        exit 1
+      fi
+      
+      echo "✓ Rolling update verification passed"
+
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: blue-green-deployer
+  namespace: tekton-pipelines
+spec:
+  description: Perform blue-green deployment
+  params:
+  - name: service-name
+    type: string
+  - name: image-tag
+    type: string
+  - name: namespace
+    type: string
+  workspaces:
+  - name: source
+  steps:
+  - name: blue-green-deploy
+    image: bitnami/kubectl:latest
+    script: |
+      #!/bin/bash
+      set -e
+      
+      SERVICE_NAME="$(params.service-name)"
+      IMAGE_TAG="$(params.image-tag)"
+      NAMESPACE="$(params.namespace)"
+      NEW_IMAGE="waqiti/${SERVICE_NAME}:${IMAGE_TAG}"
+      
+      echo "Starting blue-green deployment for $SERVICE_NAME"
+      
+      # Determine current color
+      CURRENT_COLOR=$(kubectl get service $SERVICE_NAME -n $NAMESPACE -o jsonpath='{.spec.selector.version}')
+      if [ "$CURRENT_COLOR" == "blue" ]; then
+        NEW_COLOR="green"
+      else
+        NEW_COLOR="blue"
+        CURRENT_COLOR="green"
+      fi
+      
+      echo "Current: $CURRENT_COLOR, Deploying: $NEW_COLOR"
+      
+      # Update the inactive deployment
+      kubectl set image deployment/${SERVICE_NAME}-${NEW_COLOR} $SERVICE_NAME=$NEW_IMAGE -n $NAMESPACE --record
+      
+      # Scale up new deployment
+      kubectl scale deployment ${SERVICE_NAME}-${NEW_COLOR} -n $NAMESPACE --replicas=3
+      
+      # Wait for deployment to be ready
+      kubectl rollout status deployment/${SERVICE_NAME}-${NEW_COLOR} -n $NAMESPACE --timeout=10m
+      
+      # Wait for stabilization
+      sleep 60
+      
+      # Health check on new deployment
+      NEW_POD=$(kubectl get pods -n $NAMESPACE -l app=$SERVICE_NAME,version=$NEW_COLOR -o jsonpath='{.items[0].metadata.name}')
+      kubectl exec $NEW_POD -n $NAMESPACE -- curl -f http://localhost:8080/health/ready
+      
+      if [ $? -eq 0 ]; then
+        echo "✓ New deployment health check passed"
+        
+        # Switch traffic to new deployment
+        kubectl patch service $SERVICE_NAME -n $NAMESPACE -p "{\"spec\":{\"selector\":{\"version\":\"$NEW_COLOR\"}}}"
+        
+        echo "✓ Traffic switched to $NEW_COLOR deployment"
+        
+        # Wait before scaling down old deployment
+        sleep 30
+        
+        # Scale down old deployment
+        kubectl scale deployment ${SERVICE_NAME}-${CURRENT_COLOR} -n $NAMESPACE --replicas=0
+        
+        echo "✓ Blue-green deployment completed successfully"
+      else
+        echo "✗ New deployment health check failed"
+        kubectl scale deployment ${SERVICE_NAME}-${NEW_COLOR} -n $NAMESPACE --replicas=0
+        exit 1
+      fi
+
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: post-deployment-validator
+  namespace: tekton-pipelines
+spec:
+  description: Validate deployment after completion
+  params:
+  - name: service-name
+    type: string
+  - name: namespace
+    type: string
+  - name: image-tag
+    type: string
+  workspaces:
+  - name: source
+  steps:
+  - name: validate-deployment
+    image: curlimages/curl:latest
+    script: |
+      #!/bin/sh
+      set -e
+      
+      SERVICE_NAME="$(params.service-name)"
+      NAMESPACE="$(params.namespace)"
+      IMAGE_TAG="$(params.image-tag)"
+      
+      echo "Starting post-deployment validation..."
+      
+      # Get service endpoint
+      SERVICE_IP=$(kubectl get service $SERVICE_NAME -n $NAMESPACE -o jsonpath='{.spec.clusterIP}')
+      SERVICE_PORT=$(kubectl get service $SERVICE_NAME -n $NAMESPACE -o jsonpath='{.spec.ports[0].port}')
+      
+      ENDPOINT="http://${SERVICE_IP}:${SERVICE_PORT}"
+      
+      echo "Testing service endpoint: $ENDPOINT"
+      
+      # Health check
+      if curl -f "${ENDPOINT}/health/ready"; then
+        echo "✓ Health check passed"
+      else
+        echo "✗ Health check failed"
+        exit 1
+      fi
+      
+      # Version check
+      VERSION_RESPONSE=$(curl -s "${ENDPOINT}/api/version" || echo '{"version":"unknown"}')
+      DEPLOYED_VERSION=$(echo $VERSION_RESPONSE | jq -r '.version')
+      
+      echo "Deployed version: $DEPLOYED_VERSION"
+      echo "Expected version: $IMAGE_TAG"
+      
+      # API endpoints check
+      if curl -f "${ENDPOINT}/health/live"; then
+        echo "✓ Liveness check passed"
+      else
+        echo "✗ Liveness check failed"
+        exit 1
+      fi
+      
+      # Metrics endpoint check
+      if curl -f "${ENDPOINT}/metrics"; then
+        echo "✓ Metrics endpoint accessible"
+      else
+        echo "⚠ Metrics endpoint not accessible"
+      fi
+      
+      echo "✓ Post-deployment validation completed"
+
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: smoke-test-runner
+  namespace: tekton-pipelines
+spec:
+  description: Run smoke tests against deployed service
+  params:
+  - name: service-name
+    type: string
+  - name: namespace
+    type: string
+  workspaces:
+  - name: source
+  steps:
+  - name: smoke-tests
+    image: waqiti/smoke-tester:latest
+    script: |
+      #!/bin/bash
+      set -e
+      
+      SERVICE_NAME="$(params.service-name)"
+      NAMESPACE="$(params.namespace)"
+      
+      echo "Running smoke tests for $SERVICE_NAME..."
+      
+      # Service-specific smoke tests
+      case $SERVICE_NAME in
+        "payment-service")
+          echo "Running payment service smoke tests..."
+          
+          # Test payment validation
+          RESPONSE=$(curl -s -X POST http://${SERVICE_NAME}.${NAMESPACE}.svc.cluster.local:8080/api/v1/payments/validate \
+            -H "Content-Type: application/json" \
+            -d '{"amount":100,"currency":"USD","paymentMethod":"CARD"}')
+          
+          STATUS=$(echo $RESPONSE | jq -r '.status')
+          if [ "$STATUS" == "valid" ]; then
+            echo "✓ Payment validation test passed"
+          else
+            echo "✗ Payment validation test failed"
+            exit 1
+          fi
+          ;;
+          
+        "wallet-service")
+          echo "Running wallet service smoke tests..."
+          
+          # Test wallet balance check
+          RESPONSE=$(curl -s http://${SERVICE_NAME}.${NAMESPACE}.svc.cluster.local:8080/api/v1/wallets/test/balance)
+          
+          if [ $? -eq 0 ]; then
+            echo "✓ Wallet balance test passed"
+          else
+            echo "✗ Wallet balance test failed"
+            exit 1
+          fi
+          ;;
+          
+        "user-service")
+          echo "Running user service smoke tests..."
+          
+          # Test user lookup
+          RESPONSE=$(curl -s http://${SERVICE_NAME}.${NAMESPACE}.svc.cluster.local:8080/api/v1/users/test)
+          
+          if [ $? -eq 0 ]; then
+            echo "✓ User lookup test passed"
+          else
+            echo "✗ User lookup test failed"
+            exit 1
+          fi
+          ;;
+      esac
+      
+      echo "✓ All smoke tests passed"
+
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: slack-notifier
+  namespace: tekton-pipelines
+spec:
+  description: Send Slack notification about deployment status
+  params:
+  - name: service-name
+    type: string
+  - name: image-tag
+    type: string
+  - name: status
+    type: string
+  workspaces:
+  - name: source
+  steps:
+  - name: notify
+    image: curlimages/curl:latest
+    env:
+    - name: SLACK_WEBHOOK_URL
+      valueFrom:
+        secretKeyRef:
+          name: slack-webhook
+          key: url
+    script: |
+      #!/bin/sh
+      
+      SERVICE_NAME="$(params.service-name)"
+      IMAGE_TAG="$(params.image-tag)"
+      STATUS="$(params.status)"
+      
+      if [ "$STATUS" == "success" ]; then
+        COLOR="good"
+        EMOJI="✅"
+        TITLE="Deployment Successful"
+      else
+        COLOR="danger"
+        EMOJI="❌"
+        TITLE="Deployment Failed"
+      fi
+      
+      PAYLOAD=$(cat <<EOF
+      {
+        "channel": "#deployments",
+        "username": "Deployment Bot",
+        "icon_emoji": ":rocket:",
+        "attachments": [
+          {
+            "color": "$COLOR",
+            "title": "$EMOJI $TITLE",
+            "fields": [
+              {
+                "title": "Service",
+                "value": "$SERVICE_NAME",
+                "short": true
+              },
+              {
+                "title": "Version",
+                "value": "$IMAGE_TAG",
+                "short": true
+              },
+              {
+                "title": "Status",
+                "value": "$STATUS",
+                "short": true
+              }
+            ],
+            "footer": "Waqiti Deployment Pipeline",
+            "ts": $(date +%s)
+          }
+        ]
+      }
+      EOF
+      )
+      
+      curl -X POST -H "Content-type: application/json" \
+        --data "$PAYLOAD" \
+        "$SLACK_WEBHOOK_URL"
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: slack-webhook
+  namespace: tekton-pipelines
+type: Opaque
+stringData:
+  # CONFIGURE_IN_VAULT: Replace with actual Slack webhook URL for deployment notifications
+  url: "CHANGE_ME_SLACK_WEBHOOK_URL"

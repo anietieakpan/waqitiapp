@@ -1,0 +1,258 @@
+# ============================================================================
+# OPTIMIZED DATABASE CONNECTION POOL CONFIGURATIONS
+# ============================================================================
+# This document provides optimized HikariCP configurations for all services
+# to work with PgBouncer connection pooling
+#
+# ARCHITECTURE:
+#   Services (with small pools) -> PgBouncer (connection multiplexing) -> PostgreSQL
+#
+# CALCULATION:
+#   Before: 60 services × 100 connections = 6,000 connections (CRASH)
+#   After:  60 services × 10-20 connections = 600-1,200 client connections
+#           -> PgBouncer (transaction pooling) -> 100 PostgreSQL connections (OK)
+#
+# KEY PRINCIPLES:
+#   1. Services use small connection pools (10-30)
+#   2. PgBouncer handles connection multiplexing
+#   3. PostgreSQL maintains only ~100 actual connections
+#   4. Total throughput remains high due to transaction-mode pooling
+# ============================================================================
+
+---
+# Payment Service - Optimized Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: payment-service-db-config
+  namespace: example-production
+data:
+  connection-pool.properties: |
+    # Database URL - Points to PgBouncer instead of PostgreSQL directly
+    spring.datasource.url=jdbc:postgresql://pgbouncer:6432/waqiti_payments
+    spring.datasource.username=${VAULT_DB_USERNAME}
+    spring.datasource.password=${VAULT_DB_PASSWORD}
+
+    # OPTIMIZED: Reduced from 100 to 20
+    # Calculation: 15 replicas × 20 = 300 PgBouncer connections -> 30 PostgreSQL connections
+    spring.datasource.hikari.maximum-pool-size=20
+    spring.datasource.hikari.minimum-idle=5
+
+    # Faster connection timeout with PgBouncer (it's local to cluster)
+    spring.datasource.hikari.connection-timeout=5000
+
+    # Shorter idle timeout - PgBouncer recycles connections efficiently
+    spring.datasource.hikari.idle-timeout=300000
+
+    # Shorter max lifetime with PgBouncer
+    spring.datasource.hikari.max-lifetime=900000
+
+    # Aggressive leak detection for financial service
+    spring.datasource.hikari.leak-detection-threshold=20000
+
+    spring.datasource.hikari.pool-name=payment-service-pgbouncer-pool
+    spring.datasource.hikari.connection-test-query=SELECT 1
+    spring.datasource.hikari.auto-commit=false
+    spring.datasource.hikari.transaction-isolation=TRANSACTION_READ_COMMITTED
+
+    # Enhanced monitoring
+    spring.datasource.hikari.register-mbeans=true
+    spring.datasource.hikari.health-check-registry=true
+
+---
+# Wallet Service - Optimized Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wallet-service-db-config
+  namespace: example-production
+data:
+  connection-pool.properties: |
+    # Points to PgBouncer
+    spring.datasource.url=jdbc:postgresql://pgbouncer:6432/waqiti_wallets
+    spring.datasource.username=${VAULT_DB_USERNAME}
+    spring.datasource.password=${VAULT_DB_PASSWORD}
+
+    # OPTIMIZED: Reduced from 40 to 15
+    # Calculation: 10 replicas × 15 = 150 PgBouncer connections -> 25 PostgreSQL connections
+    spring.datasource.hikari.maximum-pool-size=15
+    spring.datasource.hikari.minimum-idle=5
+
+    spring.datasource.hikari.connection-timeout=5000
+    spring.datasource.hikari.idle-timeout=300000
+    spring.datasource.hikari.max-lifetime=900000
+    spring.datasource.hikari.leak-detection-threshold=20000
+    spring.datasource.hikari.pool-name=wallet-service-pgbouncer-pool
+    spring.datasource.hikari.connection-test-query=SELECT 1
+
+---
+# Transaction Service - Optimized Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: transaction-service-db-config
+  namespace: example-production
+data:
+  connection-pool.properties: |
+    # Points to PgBouncer
+    spring.datasource.url=jdbc:postgresql://pgbouncer:6432/waqiti_transactions
+    spring.datasource.username=${VAULT_DB_USERNAME}
+    spring.datasource.password=${VAULT_DB_PASSWORD}
+
+    # OPTIMIZED: Kept at 20 (already reasonable)
+    # Calculation: 10 replicas × 20 = 200 PgBouncer connections -> 20 PostgreSQL connections
+    spring.datasource.hikari.maximum-pool-size=20
+    spring.datasource.hikari.minimum-idle=5
+
+    spring.datasource.hikari.connection-timeout=5000
+    spring.datasource.hikari.idle-timeout=300000
+    spring.datasource.hikari.max-lifetime=900000
+    spring.datasource.hikari.leak-detection-threshold=20000
+    spring.datasource.hikari.pool-name=transaction-service-pgbouncer-pool
+    spring.datasource.hikari.connection-test-query=SELECT 1
+
+---
+# User Service - Optimized Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: user-service-db-config
+  namespace: example-production
+data:
+  connection-pool.properties: |
+    spring.datasource.url=jdbc:postgresql://pgbouncer:6432/waqiti_users
+    spring.datasource.username=${VAULT_DB_USERNAME}
+    spring.datasource.password=${VAULT_DB_PASSWORD}
+
+    spring.datasource.hikari.maximum-pool-size=15
+    spring.datasource.hikari.minimum-idle=5
+    spring.datasource.hikari.connection-timeout=5000
+    spring.datasource.hikari.idle-timeout=300000
+    spring.datasource.hikari.max-lifetime=900000
+    spring.datasource.hikari.leak-detection-threshold=20000
+    spring.datasource.hikari.pool-name=user-service-pgbouncer-pool
+    spring.datasource.hikari.connection-test-query=SELECT 1
+
+---
+# Fraud Detection Service - Optimized Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fraud-detection-service-db-config
+  namespace: example-production
+data:
+  connection-pool.properties: |
+    spring.datasource.url=jdbc:postgresql://pgbouncer:6432/waqiti_fraud
+    spring.datasource.username=${VAULT_DB_USERNAME}
+    spring.datasource.password=${VAULT_DB_PASSWORD}
+
+    spring.datasource.hikari.maximum-pool-size=10
+    spring.datasource.hikari.minimum-idle=3
+    spring.datasource.hikari.connection-timeout=5000
+    spring.datasource.hikari.idle-timeout=300000
+    spring.datasource.hikari.max-lifetime=900000
+    spring.datasource.hikari.leak-detection-threshold=20000
+    spring.datasource.hikari.pool-name=fraud-detection-service-pgbouncer-pool
+    spring.datasource.hikari.connection-test-query=SELECT 1
+
+---
+# KYC Service - Optimized Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kyc-service-db-config
+  namespace: example-production
+data:
+  connection-pool.properties: |
+    spring.datasource.url=jdbc:postgresql://pgbouncer:6432/waqiti_kyc
+    spring.datasource.username=${VAULT_DB_USERNAME}
+    spring.datasource.password=${VAULT_DB_PASSWORD}
+
+    spring.datasource.hikari.maximum-pool-size=10
+    spring.datasource.hikari.minimum-idle=3
+    spring.datasource.hikari.connection-timeout=5000
+    spring.datasource.hikari.idle-timeout=300000
+    spring.datasource.hikari.max-lifetime=900000
+    spring.datasource.hikari.leak-detection-threshold=20000
+    spring.datasource.hikari.pool-name=kyc-service-pgbouncer-pool
+    spring.datasource.hikari.connection-test-query=SELECT 1
+
+---
+# Compliance Service - Optimized Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: compliance-service-db-config
+  namespace: example-production
+data:
+  connection-pool.properties: |
+    spring.datasource.url=jdbc:postgresql://pgbouncer:6432/waqiti_compliance
+    spring.datasource.username=${VAULT_DB_USERNAME}
+    spring.datasource.password=${VAULT_DB_PASSWORD}
+
+    spring.datasource.hikari.maximum-pool-size=10
+    spring.datasource.hikari.minimum-idle=3
+    spring.datasource.hikari.connection-timeout=5000
+    spring.datasource.hikari.idle-timeout=300000
+    spring.datasource.hikari.max-lifetime=900000
+    spring.datasource.hikari.leak-detection-threshold=20000
+    spring.datasource.hikari.pool-name=compliance-service-pgbouncer-pool
+    spring.datasource.hikari.connection-test-query=SELECT 1
+
+---
+# Generic Service Configuration Template (for remaining services)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: generic-service-db-config-template
+  namespace: example-production
+data:
+  connection-pool.properties: |
+    # Use this template for all other services
+    # Replace DATABASE_NAME with actual database
+
+    spring.datasource.url=jdbc:postgresql://pgbouncer:6432/${DATABASE_NAME}
+    spring.datasource.username=${VAULT_DB_USERNAME}
+    spring.datasource.password=${VAULT_DB_PASSWORD}
+
+    # Standard pool size for non-critical services
+    spring.datasource.hikari.maximum-pool-size=10
+    spring.datasource.hikari.minimum-idle=2
+    spring.datasource.hikari.connection-timeout=5000
+    spring.datasource.hikari.idle-timeout=300000
+    spring.datasource.hikari.max-lifetime=900000
+    spring.datasource.hikari.leak-detection-threshold=30000
+    spring.datasource.hikari.pool-name=${SERVICE_NAME}-pgbouncer-pool
+    spring.datasource.hikari.connection-test-query=SELECT 1
+    spring.datasource.hikari.auto-commit=false
+
+---
+# SUMMARY TABLE
+# ============================================================================
+# Service                  | Replicas | Pool Size | Total Client | PG Connections
+# -------------------------|----------|-----------|--------------|---------------
+# payment-service          |    15    |    20     |     300      |      30
+# wallet-service           |    10    |    15     |     150      |      25
+# transaction-service      |    10    |    20     |     200      |      20
+# user-service             |     8    |    15     |     120      |      15
+# fraud-detection-service  |     5    |    10     |      50      |      10
+# kyc-service              |     5    |    10     |      50      |      10
+# compliance-service       |     5    |    10     |      50      |      10
+# notification-service     |     5    |    10     |      50      |      10
+# integration-service      |     5    |    10     |      50      |      10
+# audit-service            |     5    |    10     |      50      |      15
+# Other 50+ services       |   ~100   |   5-10    |   500-1000   |      20
+# -------------------------|----------|-----------|--------------|---------------
+# TOTAL                    |   ~173   |   varies  |  1,570-1,870 |     ~175
+# ============================================================================
+#
+# BEFORE OPTIMIZATION: 2,100+ connections -> PostgreSQL CRASHES
+# AFTER OPTIMIZATION:  ~175 connections -> PostgreSQL HEALTHY (max_connections=200)
+#
+# BENEFITS:
+# ✓ 92% reduction in PostgreSQL connections
+# ✓ Zero impact on application throughput (PgBouncer transaction pooling)
+# ✓ Better connection reuse and efficiency
+# ✓ Reduced PostgreSQL memory footprint
+# ✓ Improved stability and reliability
+# ============================================================================

@@ -1,0 +1,91 @@
+{
+  "namespace": "com.waqiti.events.v1.kyc",
+  "type": "record",
+  "name": "KycVerificationCompletedEvent",
+  "doc": "Event published when KYC verification completes",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "Unique identifier for this event (UUID)"
+    },
+    {
+      "name": "eventType",
+      "type": "string",
+      "default": "kyc.verification.completed",
+      "doc": "Type of event"
+    },
+    {
+      "name": "eventVersion",
+      "type": "string",
+      "default": "1.0.0",
+      "doc": "Event schema version"
+    },
+    {
+      "name": "timestamp",
+      "type": "long",
+      "logicalType": "timestamp-millis",
+      "doc": "Event timestamp"
+    },
+    {
+      "name": "correlationId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Correlation ID"
+    },
+    {
+      "name": "verificationId",
+      "type": "string",
+      "doc": "KYC verification identifier (UUID)"
+    },
+    {
+      "name": "userId",
+      "type": "string",
+      "doc": "User being verified (UUID)"
+    },
+    {
+      "name": "verificationType",
+      "type": {
+        "type": "enum",
+        "name": "VerificationType",
+        "symbols": ["IDENTITY", "ADDRESS", "DOCUMENT", "BIOMETRIC", "FULL_KYC"]
+      },
+      "doc": "Type of verification"
+    },
+    {
+      "name": "verificationStatus",
+      "type": {
+        "type": "enum",
+        "name": "VerificationStatus",
+        "symbols": ["APPROVED", "REJECTED", "PENDING_REVIEW", "REQUIRES_ADDITIONAL_INFO"]
+      },
+      "doc": "Verification result status"
+    },
+    {
+      "name": "provider",
+      "type": "string",
+      "doc": "KYC provider (JUMIO, ONFIDO, VERIFF, etc.)"
+    },
+    {
+      "name": "riskLevel",
+      "type": {
+        "type": "enum",
+        "name": "RiskLevel",
+        "symbols": ["LOW", "MEDIUM", "HIGH"]
+      },
+      "doc": "Assessed risk level"
+    },
+    {
+      "name": "verifiedAt",
+      "type": "long",
+      "logicalType": "timestamp-millis",
+      "doc": "Verification completion timestamp"
+    },
+    {
+      "name": "rejectionReason",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Reason for rejection if status is REJECTED"
+    }
+  ]
+}

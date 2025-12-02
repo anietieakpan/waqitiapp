@@ -1,0 +1,243 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Waqiti P2P Platform - Business Metrics",
+    "tags": ["waqiti", "business", "payments"],
+    "style": "dark",
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Total Transaction Volume (24h)",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(increase(waqiti_payment_amount_total[24h]))",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyUSD",
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 100000},
+                {"color": "green", "value": 500000}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "Transaction Count (24h)",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(increase(waqiti_payment_count_total[24h]))",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 1000},
+                {"color": "green", "value": 5000}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 6, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "Active Users (24h)",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "count(increase(waqiti_user_login_total[24h]) > 0)",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 500},
+                {"color": "green", "value": 2000}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 12, "y": 0}
+      },
+      {
+        "id": 4,
+        "title": "Average Transaction Value",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(increase(waqiti_payment_amount_total[24h])) / sum(increase(waqiti_payment_count_total[24h]))",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyUSD",
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 50},
+                {"color": "green", "value": 100}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 18, "y": 0}
+      },
+      {
+        "id": 5,
+        "title": "Transaction Volume Over Time",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "sum(rate(waqiti_payment_amount_total[5m])) * 300",
+            "refId": "A",
+            "legendFormat": "Transaction Volume (USD/5min)"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyUSD",
+            "color": {
+              "mode": "palette-classic"
+            }
+          }
+        },
+        "gridPos": {"h": 9, "w": 12, "x": 0, "y": 8}
+      },
+      {
+        "id": 6,
+        "title": "Transaction Success Rate",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "sum(rate(waqiti_payment_success_total[5m])) / sum(rate(waqiti_payment_total[5m])) * 100",
+            "refId": "A",
+            "legendFormat": "Success Rate %"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 95},
+                {"color": "green", "value": 99}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 9, "w": 12, "x": 12, "y": 8}
+      },
+      {
+        "id": 7,
+        "title": "Top Payment Methods",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "sum by (payment_method) (increase(waqiti_payment_total[24h]))",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "color": {
+              "mode": "palette-classic"
+            }
+          }
+        },
+        "gridPos": {"h": 9, "w": 8, "x": 0, "y": 17}
+      },
+      {
+        "id": 8,
+        "title": "Security Events",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "sum(rate(waqiti_security_events_total[5m])) by (event_type)",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "color": {
+              "mode": "palette-classic"
+            }
+          }
+        },
+        "gridPos": {"h": 9, "w": 8, "x": 8, "y": 17}
+      },
+      {
+        "id": 9,
+        "title": "Failed Login Attempts",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(increase(waqiti_login_failed_total[1h]))",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 50},
+                {"color": "red", "value": 200}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 9, "w": 8, "x": 16, "y": 17}
+      }
+    ],
+    "time": {
+      "from": "now-24h",
+      "to": "now"
+    },
+    "refresh": "30s",
+    "version": 1
+  }
+}

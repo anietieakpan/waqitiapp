@@ -1,0 +1,83 @@
+# Resilience4j Configuration for Circuit Breakers, Retry, and Rate Limiting
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 5s
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10
+        recordExceptions:
+          - org.springframework.web.client.HttpServerErrorException
+          - java.util.concurrent.TimeoutException
+          - java.io.IOException
+        ignoreExceptions:
+          - com.waqiti.expense.exception.ExpenseNotFoundException
+    instances:
+      notificationService:
+        baseConfig: default
+        waitDurationInOpenState: 10s
+        failureRateThreshold: 30
+      externalApiService:
+        baseConfig: default
+        waitDurationInOpenState: 20s
+        failureRateThreshold: 40
+
+  retry:
+    configs:
+      default:
+        maxAttempts: 3
+        waitDuration: 1s
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - org.springframework.web.client.ResourceAccessException
+          - java.net.SocketTimeoutException
+        ignoreExceptions:
+          - com.waqiti.expense.exception.InvalidExpenseException
+    instances:
+      notificationService:
+        baseConfig: default
+        maxAttempts: 5
+        waitDuration: 2s
+      kafkaProducer:
+        baseConfig: default
+        maxAttempts: 3
+        waitDuration: 500ms
+
+  ratelimiter:
+    configs:
+      default:
+        limitForPeriod: 100
+        limitRefreshPeriod: 1s
+        timeoutDuration: 0s
+    instances:
+      apiEndpoints:
+        baseConfig: default
+        limitForPeriod: 50
+        limitRefreshPeriod: 1s
+
+  bulkhead:
+    configs:
+      default:
+        maxConcurrentCalls: 25
+    instances:
+      expenseService:
+        maxConcurrentCalls: 10
+      reportGeneration:
+        maxConcurrentCalls: 5
+
+  timelimiter:
+    configs:
+      default:
+        timeoutDuration: 10s
+        cancelRunningFuture: true
+    instances:
+      reportGeneration:
+        timeoutDuration: 30s
+      expenseProcessing:
+        timeoutDuration: 5s

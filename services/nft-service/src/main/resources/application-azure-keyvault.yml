@@ -1,0 +1,86 @@
+# Production-ready Azure Key Vault Configuration
+# Environment: Production
+
+waqiti:
+  security:
+    azure-keyvault:
+      # Azure Key Vault URL (use Managed HSM for production)
+      vault-url: ${AZURE_KEYVAULT_URL:https://waqiti-prod-keyvault.managedhsm.azure.net/}
+
+      # Key Encryption Key name for blockchain key wrapping
+      kek-name: ${AZURE_KEK_NAME:blockchain-master-kek}
+
+      # Enable HSM-backed operations (FIPS 140-2 Level 3)
+      enable-hsm: ${AZURE_KEYVAULT_ENABLE_HSM:true}
+
+      # Connection settings
+      connection-timeout: ${AZURE_KEYVAULT_CONNECTION_TIMEOUT:10s}
+      read-timeout: ${AZURE_KEYVAULT_READ_TIMEOUT:30s}
+
+      # Retry configuration
+      max-retries: ${AZURE_KEYVAULT_MAX_RETRIES:3}
+      retry-delay: ${AZURE_KEYVAULT_RETRY_DELAY:2s}
+
+      # Key rotation
+      enable-key-rotation: ${AZURE_KEYVAULT_ENABLE_ROTATION:true}
+      key-rotation-interval-days: ${AZURE_KEYVAULT_ROTATION_DAYS:90}
+
+      # Observability
+      enable-tracing: ${AZURE_KEYVAULT_ENABLE_TRACING:true}
+      enable-metrics: ${AZURE_KEYVAULT_ENABLE_METRICS:true}
+
+      # Disaster recovery
+      backup-vault-url: ${AZURE_KEYVAULT_BACKUP_URL:https://waqiti-dr-keyvault.managedhsm.azure.net/}
+
+      # Environment tag
+      environment: ${ENVIRONMENT:production}
+
+# Azure SDK logging
+logging:
+  level:
+    com.azure.security.keyvault: INFO
+    com.azure.core: WARN
+    com.azure.identity: INFO
+
+# Spring Boot Actuator for health checks
+management:
+  health:
+    azure-keyvault:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      service: nft-service
+      component: azure-keyvault
+
+---
+# Development environment overrides
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+waqiti:
+  security:
+    azure-keyvault:
+      vault-url: https://waqiti-dev-keyvault.vault.azure.net/
+      kek-name: blockchain-dev-kek
+      enable-hsm: false
+      enable-key-rotation: false
+
+---
+# Staging environment
+spring:
+  config:
+    activate:
+      on-profile: staging
+
+waqiti:
+  security:
+    azure-keyvault:
+      vault-url: https://waqiti-staging-keyvault.managedhsm.azure.net/
+      kek-name: blockchain-staging-kek
+      enable-hsm: true
+      key-rotation-interval-days: 30

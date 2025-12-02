@@ -1,0 +1,314 @@
+spring:
+  application:
+    name: webhook-service
+  
+  datasource:
+    url: ${DB_URL:?Database URL must be provided via DB_URL environment variable}
+    username: ${DB_USERNAME:?Database username must be provided via DB_USERNAME environment variable}
+    password: ${DB_PASSWORD:?Database password must be provided via DB_PASSWORD environment variable}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      pool-name: WebhookServicePool
+  
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        show_sql: false
+        format_sql: true
+        use_sql_comments: true
+        jdbc:
+          batch_size: 25
+        order_inserts: true
+        order_updates: true
+        query:
+          statistics: true
+  
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+    consumer:
+      group-id: webhook-service-group
+      enable-auto-commit: false  # Manual acknowledgment for DLQ support
+      max-poll-records: 50  # Batch size control
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      auto-offset-reset: earliest
+      properties:
+        spring.json.trusted.packages: com.waqiti.webhookservice.dto,com.example.common.dto
+  
+  cloud:
+    discovery:
+      enabled: true
+    loadbalancer:
+      ribbon:
+        enabled: false
+  
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${JWT_ISSUER_URI:http://localhost:8080/auth/realms/waqiti}
+          jwk-set-uri: ${JWT_JWK_SET_URI:http://localhost:8080/auth/realms/waqiti/protocol/openid-connect/certs}
+  # Redis Cache Configuration
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD}  # SECURITY: No default - service must fail if password not provided
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 2
+
+  cache:
+    type: redis
+    redis:
+      time-to-live: 3600000  # 1 hour
+      cache-null-values: false
+      enable-statistics: true
+
+
+server:
+  port: ${SERVER_PORT:8087}
+  servlet:
+    context-path: /
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/xml,text/plain
+  error:
+    include-message: always
+    include-binding-errors: always
+    include-stacktrace: on_param
+    include-exception: false
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER:${EUREKA_SERVER_URL:https://discovery-service:8761/eureka}}
+    registry-fetch-interval-seconds: 30
+  instance:
+    hostname: ${HOSTNAME:localhost}
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+    metadata-map:
+      zone: primary
+      version: 1.0.0
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+    metrics:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: ${spring.application.name}
+      environment: ${ENVIRONMENT:development}
+
+logging:
+  level:
+    root: INFO
+    com.waqiti.webhookservice: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.web.client: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/webhook-service.log
+    max-size: 10MB
+    max-history: 30
+
+# Application specific configurations
+webhook:
+  service:
+    delivery:
+      max-retry-attempts: 5
+      initial-retry-delay: 1000  # 1 second
+      max-retry-delay: 300000    # 5 minutes
+      retry-multiplier: 2.0
+      timeout: 30000             # 30 seconds
+      batch-size: 100
+    
+    validation:
+      url-validation-timeout: 10000  # 10 seconds
+      require-https: false
+      allowed-domains:
+        - "*"
+      blocked-domains:
+        - "localhost"
+        - "127.0.0.1"
+        - "0.0.0.0"
+    
+    security:
+      signature-algorithm: HmacSHA256
+      signature-header: X-Webhook-Signature
+      timestamp-header: X-Webhook-Timestamp
+      timestamp-tolerance: 300   # 5 minutes
+    
+    rate-limiting:
+      enabled: true
+      max-subscriptions-per-user: 20
+      max-deliveries-per-minute: 1000
+    
+    monitoring:
+      metrics-enabled: true
+      health-check-interval: 60  # seconds
+      alert-on-failure-rate: 0.5 # 50%
+      alert-threshold-count: 100
+
+# Event types configuration
+event-types:
+  payment:
+    - PAYMENT_CREATED
+    - PAYMENT_COMPLETED
+    - PAYMENT_FAILED
+    - PAYMENT_CANCELLED
+  user:
+    - USER_REGISTERED
+    - USER_VERIFIED
+    - USER_PROFILE_UPDATED
+    - USER_DELETED
+  transaction:
+    - TRANSACTION_INITIATED
+    - TRANSACTION_COMPLETED
+    - TRANSACTION_FAILED
+    - TRANSACTION_DISPUTED
+  dispute:
+    - DISPUTE_CREATED
+    - DISPUTE_UPDATED
+    - DISPUTE_RESOLVED
+    - DISPUTE_ESCALATED
+  security:
+    - SECURITY_ALERT
+    - LOGIN_ATTEMPT
+    - PASSWORD_CHANGED
+    - ACCOUNT_LOCKED
+
+# Feign client configurations
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 5000
+        readTimeout: 10000
+        loggerLevel: full
+      user-service:
+        url: ${USER_SERVICE_URL:http://user-service:8081}
+      payment-service:
+        url: ${PAYMENT_SERVICE_URL:http://payment-service:8082}
+      notification-service:
+        url: ${NOTIFICATION_SERVICE_URL:http://notification-service:8084}
+
+# Resilience4j circuit breaker
+resilience4j:
+  circuitbreaker:
+    instances:
+      webhookService:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 30s
+        failureRateThreshold: 60
+        eventConsumerBufferSize: 10
+      webhookDelivery:
+        registerHealthIndicator: true
+        slidingWindowSize: 20
+        minimumNumberOfCalls: 10
+        permittedNumberOfCallsInHalfOpenState: 5
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 60s
+        failureRateThreshold: 70
+  
+  retry:
+    instances:
+      webhookService:
+        maxAttempts: 3
+        waitDuration: 2s
+        retryExceptions:
+          - java.io.IOException
+          - java.net.SocketTimeoutException
+          - java.util.concurrent.TimeoutException
+      webhookDelivery:
+        maxAttempts: 5
+        waitDuration: 1s
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - java.io.IOException
+          - java.net.ConnectException
+  
+  bulkhead:
+    instances:
+      webhookService:
+        maxConcurrentCalls: 50
+        maxWaitDuration: 100ms
+      webhookDelivery:
+        maxConcurrentCalls: 200
+        maxWaitDuration: 50ms
+
+# Thread pool configuration
+async:
+  executor:
+    webhook-delivery:
+      core-pool-size: 10
+      max-pool-size: 50
+      queue-capacity: 1000
+      thread-name-prefix: webhook-delivery-
+      keep-alive-seconds: 60
+    webhook-retry:
+      core-pool-size: 5
+      max-pool-size: 20
+      queue-capacity: 500
+      thread-name-prefix: webhook-retry-
+      keep-alive-seconds: 60
+
+# Swagger/OpenAPI Configuration
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    operationsSorter: method
+    tagsSorter: alpha
+
+# Security configurations
+security:
+  jwt:
+    secret: ${JWT_SECRET:?JWT secret key must be provided via JWT_SECRET environment variable}
+    expiration: 86400000 # 24 hours
+  cors:
+    allowed-origins: ${CORS_ORIGINS:http://localhost:3000,http://localhost:3001}
+    allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+    allowed-headers: "*"
+    allow-credentials: true

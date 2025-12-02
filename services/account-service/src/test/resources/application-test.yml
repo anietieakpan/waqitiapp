@@ -1,0 +1,111 @@
+# Test Configuration for Account Service
+# Used by JUnit tests and integration tests
+
+spring:
+  application:
+    name: account-service-test
+
+  # Use H2 in-memory database for tests
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop  # Recreate schema for each test
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        format_sql: true
+    show-sql: false  # Set to true for debugging
+
+  # Disable Liquibase in tests (using ddl-auto instead)
+  liquibase:
+    enabled: false
+
+  flyway:
+    enabled: false
+
+  # Embedded Kafka for tests (TestContainers handles this)
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.trusted.packages: com.waqiti.account,com.example.common,com.waqiti.event
+    consumer:
+      group-id: account-service-test
+      auto-offset-reset: earliest
+      properties:
+        spring.json.trusted.packages: com.waqiti.account,com.example.common,com.waqiti.event
+
+  # Embedded Redis (or mock)
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password:  # No password for test Redis
+      timeout: 1000ms
+
+  # Disable Eureka in tests
+  cloud:
+    config:
+      enabled: false
+    discovery:
+      enabled: false
+
+# Disable Eureka client
+eureka:
+  client:
+    enabled: false
+    register-with-eureka: false
+    fetch-registry: false
+
+# Test server configuration
+server:
+  port: 0  # Random available port
+
+# Actuator for health checks in tests
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics
+
+# Logging for tests
+logging:
+  level:
+    com.waqiti.account: DEBUG
+    org.springframework.test: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+# Mock Keycloak for tests (or use Testcontainers)
+keycloak:
+  enabled: false
+
+spring.security:
+  oauth2:
+    resourceserver:
+      jwt:
+        issuer-uri: http://localhost:8080/realms/waqiti
+
+# Feature flags for testing
+account:
+  validation:
+    enabled: true
+    kyc:
+      required: true
+      minimum-level: BASIC
+    limits:
+      daily: 10000.00
+      monthly: 100000.00
+      single-transaction: 5000.00
+    auto-freeze:
+      enabled: false  # Disable auto-freeze in tests

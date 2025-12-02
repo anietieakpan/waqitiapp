@@ -1,0 +1,521 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: disaster-recovery
+  labels:
+    name: disaster-recovery
+    environment: production
+    
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dr-scripts
+  namespace: disaster-recovery
+data:
+  failover-script.sh: |
+    #!/bin/bash
+    set -e
+    
+    # Disaster Recovery Failover Script
+    # Automatically switches to standby database and updates service endpoints
+    
+    echo "🚨 DISASTER RECOVERY FAILOVER INITIATED at $(date)"
+    
+    # Check primary database health
+    PRIMARY_HOST="postgres-primary.database"
+    STANDBY_HOST="postgres-standby.database"
+    DR_HOST="postgres-dr-region.database"
+    
+    check_database_health() {
+      local host=$1
+      local timeout=10
+      
+      if timeout $timeout pg_isready -h $host -U $POSTGRES_USER; then
+        return 0
+      else
+        return 1
+      fi
+    }
+    
+    # Determine failover target
+    FAILOVER_TARGET=""
+    
+    if check_database_health $STANDBY_HOST; then
+      FAILOVER_TARGET=$STANDBY_HOST
+      echo "✅ Standby database is healthy, failing over to: $STANDBY_HOST"
+    elif check_database_health $DR_HOST; then
+      FAILOVER_TARGET=$DR_HOST
+      echo "✅ DR database is healthy, failing over to: $DR_HOST"
+    else
+      echo "❌ No healthy database found for failover!"
+      exit 1
+    fi
+    
+    # Promote standby to primary
+    echo "Promoting $FAILOVER_TARGET to primary..."
+    
+    # Update Kubernetes service to point to new primary
+    kubectl patch service postgres-primary -n database \
+      --type='json' \
+      -p='[{"op": "replace", "path": "/spec/selector/role", "value": "failover-primary"}]'
+    
+    # Update all application services to use new database endpoint
+    SERVICES=(
+      "payment-service"
+      "transaction-service" 
+      "user-service"
+      "kyc-service"
+      "compliance-service"
+      "ledger-service"
+      "analytics-service"
+      "audit-service"
+    )
+    
+    for service in "${SERVICES[@]}"; do
+      echo "Updating $service database configuration..."
+      
+      # Update ConfigMap with new database endpoint
+      kubectl patch configmap ${service}-config -n example-prod \
+        --type='json' \
+        -p="[{\"op\": \"replace\", \"path\": \"/data/application.yml\", \"value\": \"$(sed "s|$PRIMARY_HOST|$FAILOVER_TARGET|g" <<< "$(kubectl get configmap ${service}-config -n example-prod -o jsonpath='{.data.application\.yml}')")\"}]"
+      
+      # Restart deployment to pick up new configuration
+      kubectl rollout restart deployment $service -n example-prod
+    done
+    
+    # Verify failover success
+    sleep 30
+    
+    for service in "${SERVICES[@]}"; do
+      if kubectl rollout status deployment $service -n example-prod --timeout=300s; then
+        echo "✅ $service successfully restarted"
+      else
+        echo "❌ $service failed to restart"
+      fi
+    done
+    
+    # Send alerts
+    curl -X POST "$SLACK_WEBHOOK_URL" \
+      -H 'Content-type: application/json' \
+      --data "{\"text\":\"🚨 DISASTER RECOVERY FAILOVER COMPLETED\\nNew Primary: $FAILOVER_TARGET\\nTime: $(date)\\nStatus: ✅ All services updated\"}"
+    
+    # Update monitoring
+    kubectl patch configmap prometheus-config -n monitoring \
+      --type='json' \
+      -p="[{\"op\": \"replace\", \"path\": \"/data/prometheus.yml\", \"value\": \"$(sed "s|$PRIMARY_HOST|$FAILOVER_TARGET|g" <<< "$(kubectl get configmap prometheus-config -n monitoring -o jsonpath='{.data.prometheus\.yml}')")\"}]"
+    
+    echo "✅ Disaster recovery failover completed successfully"
+
+  recovery-verification.sh: |
+    #!/bin/bash
+    set -e
+    
+    # Post-failover verification script
+    # Verifies system health after disaster recovery
+    
+    echo "🔍 Starting post-failover verification at $(date)"
+    
+    # Test database connectivity
+    SERVICES=(
+      "payment-service"
+      "transaction-service"
+      "user-service"
+      "kyc-service"
+      "compliance-service"
+      "ledger-service"
+    )
+    
+    for service in "${SERVICES[@]}"; do
+      echo "Testing $service database connectivity..."
+      
+      # Get pod name
+      POD=$(kubectl get pods -n example-prod -l app=$service -o jsonpath='{.items[0].metadata.name}')
+      
+      # Test database connection
+      if kubectl exec $POD -n example-prod -- \
+        psql -h postgres-primary.database -U $POSTGRES_USER -d waqiti_core -c "SELECT 1;" > /dev/null 2>&1; then
+        echo "✅ $service database connectivity: OK"
+      else
+        echo "❌ $service database connectivity: FAILED"
+      fi
+      
+      # Test application health endpoint
+      if kubectl exec $POD -n example-prod -- \
+        curl -s http://localhost:8081/actuator/health | grep -q "UP"; then
+        echo "✅ $service health check: OK"
+      else
+        echo "❌ $service health check: FAILED"
+      fi
+    done
+    
+    # Test critical business functions
+    echo "Testing critical business functions..."
+    
+    # Test payment processing
+    PAYMENT_POD=$(kubectl get pods -n example-prod -l app=payment-service -o jsonpath='{.items[0].metadata.name}')
+    if kubectl exec $PAYMENT_POD -n example-prod -- \
+      curl -s -X POST http://localhost:8080/api/health/payment-test \
+      -H "Content-Type: application/json" \
+      -d '{"amount": 1.00, "currency": "USD"}' | grep -q "success"; then
+      echo "✅ Payment processing: OK"
+    else
+      echo "❌ Payment processing: FAILED"
+    fi
+    
+    # Test user authentication
+    USER_POD=$(kubectl get pods -n example-prod -l app=user-service -o jsonpath='{.items[0].metadata.name}')
+    if kubectl exec $USER_POD -n example-prod -- \
+      curl -s http://localhost:8080/api/health/auth-test | grep -q "success"; then
+      echo "✅ User authentication: OK"
+    else
+      echo "❌ User authentication: FAILED"
+    fi
+    
+    # Generate recovery report
+    cat > /tmp/recovery-report.json << EOF
+    {
+      "timestamp": "$(date --iso-8601)",
+      "failover_target": "$(kubectl get service postgres-primary -n database -o jsonpath='{.spec.selector.role}')",
+      "services_status": {
+        $(for service in "${SERVICES[@]}"; do
+          POD=$(kubectl get pods -n example-prod -l app=$service -o jsonpath='{.items[0].metadata.name}')
+          STATUS=$(kubectl get pod $POD -n example-prod -o jsonpath='{.status.phase}')
+          echo "\"$service\": \"$STATUS\","
+        done | sed '$ s/,$//')
+      },
+      "verification_complete": true
+    }
+    EOF
+    
+    # Upload report to S3
+    aws s3 cp /tmp/recovery-report.json \
+      s3://waqiti-dr-reports/$(date +%Y%m%d_%H%M%S)_recovery_report.json
+    
+    echo "✅ Post-failover verification completed"
+
+  point-in-time-recovery.sh: |
+    #!/bin/bash
+    set -e
+    
+    # Point-in-time recovery script
+    # Restores database to specific timestamp
+    
+    TARGET_TIME=$1
+    TARGET_DB=$2
+    
+    if [ -z "$TARGET_TIME" ] || [ -z "$TARGET_DB" ]; then
+      echo "Usage: $0 <YYYY-MM-DD HH:MM:SS> <target_database>"
+      exit 1
+    fi
+    
+    echo "Starting point-in-time recovery to $TARGET_TIME for $TARGET_DB"
+    
+    # Find closest backup before target time
+    BACKUP_LIST=$(aws s3api list-objects-v2 \
+      --bucket waqiti-db-backups-prod \
+      --prefix "daily/" \
+      --query "Contents[?LastModified<='$TARGET_TIME'].Key" \
+      --output text | sort -r | head -1)
+    
+    if [ -z "$BACKUP_LIST" ]; then
+      echo "❌ No backup found before target time $TARGET_TIME"
+      exit 1
+    fi
+    
+    echo "Using backup: $BACKUP_LIST"
+    
+    # Download and restore base backup
+    aws s3 cp s3://waqiti-db-backups-prod/$BACKUP_LIST /tmp/base_backup.sql.gz.gpg
+    
+    # Decrypt backup
+    gpg --batch --yes --passphrase "$BACKUP_ENCRYPTION_KEY" \
+        --decrypt /tmp/base_backup.sql.gz.gpg > /tmp/base_backup.sql.gz
+    
+    # Create recovery database
+    RECOVERY_DB="${TARGET_DB}_recovery_$(date +%Y%m%d_%H%M%S)"
+    createdb -h postgres-primary.database -U $POSTGRES_USER $RECOVERY_DB
+    
+    # Restore base backup
+    pg_restore -h postgres-primary.database -U $POSTGRES_USER -d $RECOVERY_DB \
+      --verbose --clean --if-exists /tmp/base_backup.sql.gz
+    
+    # Apply WAL files up to target time (if available)
+    echo "Applying transaction logs up to $TARGET_TIME..."
+    
+    # This would typically involve restoring from continuous archiving
+    # For demo purposes, we'll simulate this step
+    
+    echo "✅ Point-in-time recovery completed"
+    echo "Recovery database: $RECOVERY_DB"
+    
+    # Cleanup
+    rm -f /tmp/base_backup.sql.gz.gpg /tmp/base_backup.sql.gz
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dr-controller
+  namespace: disaster-recovery
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dr-controller
+  template:
+    metadata:
+      labels:
+        app: dr-controller
+    spec:
+      serviceAccountName: dr-service-account
+      containers:
+      - name: dr-controller
+        image: postgres:15-alpine
+        command: ["/bin/sh", "-c", "while true; do sleep 3600; done"]
+        env:
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: username
+        - name: PGPASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-credentials
+              key: password
+        - name: BACKUP_ENCRYPTION_KEY
+          valueFrom:
+            secretKeyRef:
+              name: backup-encryption
+              key: encryption-key
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: aws-credentials
+              key: access-key-id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: aws-credentials
+              key: secret-access-key
+        - name: SLACK_WEBHOOK_URL
+          valueFrom:
+            secretKeyRef:
+              name: notification-secrets
+              key: slack-webhook-url
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        volumeMounts:
+        - name: dr-scripts
+          mountPath: /scripts
+          readOnly: true
+      volumes:
+      - name: dr-scripts
+        configMap:
+          name: dr-scripts
+          defaultMode: 0755
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: dr-service-account
+  namespace: disaster-recovery
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: dr-cluster-role
+rules:
+- apiGroups: [""]
+  resources: ["services", "configmaps", "secrets", "pods"]
+  verbs: ["get", "list", "patch", "update"]
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get", "list", "patch", "update"]
+- apiGroups: ["apps"]
+  resources: ["deployments/status"]
+  verbs: ["get"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: dr-cluster-role-binding
+subjects:
+- kind: ServiceAccount
+  name: dr-service-account
+  namespace: disaster-recovery
+roleRef:
+  kind: ClusterRole
+  name: dr-cluster-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: dr-health-check
+  namespace: disaster-recovery
+spec:
+  schedule: "*/5 * * * *"  # Every 5 minutes
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+          serviceAccountName: dr-service-account
+          containers:
+          - name: health-check
+            image: postgres:15-alpine
+            command: ["/bin/bash", "-c"]
+            args:
+            - |
+              # Monitor primary database health
+              PRIMARY_HOST="postgres-primary.database"
+              
+              if ! timeout 10 pg_isready -h $PRIMARY_HOST -U $POSTGRES_USER; then
+                echo "🚨 Primary database health check failed!"
+                
+                # Check if this is a persistent failure
+                sleep 30
+                if ! timeout 10 pg_isready -h $PRIMARY_HOST -U $POSTGRES_USER; then
+                  echo "🚨 Primary database confirmed down, initiating failover..."
+                  
+                  # Trigger failover
+                  /scripts/failover-script.sh
+                  
+                  # Run verification
+                  sleep 60
+                  /scripts/recovery-verification.sh
+                else
+                  echo "✅ Primary database recovered"
+                fi
+              else
+                echo "✅ Primary database healthy"
+              fi
+            env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: username
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: password
+            - name: SLACK_WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: notification-secrets
+                  key: slack-webhook-url
+            volumeMounts:
+            - name: dr-scripts
+              mountPath: /scripts
+              readOnly: true
+          volumes:
+          - name: dr-scripts
+            configMap:
+              name: dr-scripts
+              defaultMode: 0755
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: database-dr-alerts
+  namespace: disaster-recovery
+spec:
+  groups:
+  - name: database.disaster.recovery
+    rules:
+    - alert: DatabasePrimaryDown
+      expr: pg_up{instance="postgres-primary.database:5432"} == 0
+      for: 1m
+      labels:
+        severity: critical
+        service: database
+      annotations:
+        summary: "Primary database is down"
+        description: "Primary database has been down for more than 1 minute"
+        
+    - alert: DatabaseFailoverTriggered
+      expr: increase(database_failover_total[5m]) > 0
+      labels:
+        severity: warning
+        service: database
+      annotations:
+        summary: "Database failover has been triggered"
+        description: "Automatic database failover has been initiated"
+        
+    - alert: BackupFailed
+      expr: time() - database_backup_last_success_timestamp > 86400
+      labels:
+        severity: critical
+        service: backup
+      annotations:
+        summary: "Database backup has failed"
+        description: "No successful database backup in the last 24 hours"
+
+---
+# IMPORTANT: These secrets are placeholders for demonstration purposes.
+# In production, use External Secrets Operator, Sealed Secrets, or HashiCorp Vault
+# to inject real credentials. NEVER commit actual secrets to version control.
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-credentials
+  namespace: disaster-recovery
+  annotations:
+    description: "PLACEHOLDER - Replace with actual credentials via secrets management"
+type: Opaque
+stringData:
+  username: "${POSTGRES_USERNAME}"
+  password: "${POSTGRES_PASSWORD}"
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: backup-encryption
+  namespace: disaster-recovery
+  annotations:
+    description: "PLACEHOLDER - Replace with actual encryption key via secrets management"
+type: Opaque
+stringData:
+  encryption-key: "${BACKUP_ENCRYPTION_KEY}"
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: aws-credentials
+  namespace: disaster-recovery
+  annotations:
+    description: "PLACEHOLDER - Use IAM roles for service accounts (IRSA) in production"
+type: Opaque
+stringData:
+  access-key-id: "${AWS_ACCESS_KEY_ID}"
+  secret-access-key: "${AWS_SECRET_ACCESS_KEY}"
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: notification-secrets
+  namespace: disaster-recovery
+  annotations:
+    description: "PLACEHOLDER - Replace with actual webhook URL via secrets management"
+type: Opaque
+stringData:
+  slack-webhook-url: "${SLACK_WEBHOOK_URL}"

@@ -1,0 +1,92 @@
+{
+  "type": "record",
+  "name": "WalletFrozenEvent",
+  "namespace": "com.waqiti.events.v1",
+  "doc": "Event published when a wallet is frozen",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "Unique event identifier (UUID)"
+    },
+    {
+      "name": "eventType",
+      "type": "string",
+      "default": "wallet-frozen",
+      "doc": "Type of event"
+    },
+    {
+      "name": "timestamp",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "Event timestamp in epoch milliseconds"
+    },
+    {
+      "name": "correlationId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Correlation ID for distributed tracing"
+    },
+    {
+      "name": "version",
+      "type": "string",
+      "default": "1.0",
+      "doc": "Schema version"
+    },
+    {
+      "name": "walletId",
+      "type": "string",
+      "doc": "Wallet identifier (UUID)"
+    },
+    {
+      "name": "userId",
+      "type": "string",
+      "doc": "User ID (UUID)"
+    },
+    {
+      "name": "reason",
+      "type": "string",
+      "doc": "Reason for freezing wallet"
+    },
+    {
+      "name": "freezeType",
+      "type": {
+        "type": "enum",
+        "name": "FreezeType",
+        "symbols": ["FRAUD_DETECTION", "COMPLIANCE", "USER_REQUEST", "LEGAL_HOLD", "SUSPICIOUS_ACTIVITY", "AML"]
+      },
+      "doc": "Type of freeze"
+    },
+    {
+      "name": "initiatedBy",
+      "type": "string",
+      "doc": "ID of user or system that initiated freeze"
+    },
+    {
+      "name": "expiresAt",
+      "type": ["null", {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      }],
+      "default": null,
+      "doc": "Optional expiration timestamp for temporary freeze"
+    },
+    {
+      "name": "caseId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Associated fraud/compliance case ID"
+    },
+    {
+      "name": "metadata",
+      "type": ["null", {
+        "type": "map",
+        "values": "string"
+      }],
+      "default": null,
+      "doc": "Additional metadata"
+    }
+  ]
+}

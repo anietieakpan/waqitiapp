@@ -1,0 +1,112 @@
+{
+  "properties": [
+    {
+      "name": "messaging.encryption.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable message encryption",
+      "defaultValue": true
+    },
+    {
+      "name": "messaging.encryption.algorithm",
+      "type": "java.lang.String",
+      "description": "Encryption algorithm",
+      "defaultValue": "AES-256-GCM"
+    },
+    {
+      "name": "messaging.encryption.key-rotation-days",
+      "type": "java.lang.Integer",
+      "description": "Key rotation period in days",
+      "defaultValue": 30
+    },
+    {
+      "name": "messaging.websocket.max-sessions-per-user",
+      "type": "java.lang.Integer",
+      "description": "Maximum WebSocket sessions per user",
+      "defaultValue": 5
+    },
+    {
+      "name": "messaging.websocket.heartbeat-interval",
+      "type": "java.lang.Long",
+      "description": "WebSocket heartbeat interval in milliseconds",
+      "defaultValue": 30000
+    },
+    {
+      "name": "messaging.websocket.session-timeout",
+      "type": "java.lang.Long",
+      "description": "WebSocket session timeout in milliseconds",
+      "defaultValue": 300000
+    },
+    {
+      "name": "messaging.storage.media.bucket",
+      "type": "java.lang.String",
+      "description": "S3 bucket for media storage",
+      "defaultValue": "waqiti-messaging-media"
+    },
+    {
+      "name": "messaging.storage.media.region",
+      "type": "java.lang.String",
+      "description": "AWS region for media storage",
+      "defaultValue": "us-east-1"
+    },
+    {
+      "name": "messaging.storage.media.expiry-days",
+      "type": "java.lang.Integer",
+      "description": "Media expiry days",
+      "defaultValue": 90
+    },
+    {
+      "name": "messaging.limits.max-message-size",
+      "type": "java.lang.Integer",
+      "description": "Maximum message size in characters",
+      "defaultValue": 5000
+    },
+    {
+      "name": "messaging.limits.max-attachment-size",
+      "type": "java.lang.Long",
+      "description": "Maximum attachment size in bytes",
+      "defaultValue": 104857600
+    },
+    {
+      "name": "messaging.limits.max-attachments-per-message",
+      "type": "java.lang.Integer",
+      "description": "Maximum attachments per message",
+      "defaultValue": 10
+    },
+    {
+      "name": "messaging.limits.ephemeral-message-max-duration",
+      "type": "java.lang.Long",
+      "description": "Maximum ephemeral message duration in seconds",
+      "defaultValue": 604800
+    },
+    {
+      "name": "messaging.cleanup.deleted-messages-retention-days",
+      "type": "java.lang.Integer",
+      "description": "Retention days for deleted messages",
+      "defaultValue": 30
+    },
+    {
+      "name": "messaging.cleanup.expired-ephemeral-check-interval",
+      "type": "java.lang.Long",
+      "description": "Check interval for expired ephemeral messages in milliseconds",
+      "defaultValue": 60000
+    },
+    {
+      "name": "feature.flags.dual-auth-mode.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable dual authentication mode",
+      "defaultValue": false
+    },
+    {
+      "name": "feature.flags.keycloak-only.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Keycloak-only mode",
+      "defaultValue": true
+    },
+    {
+      "name": "feature.flags.legacy-jwt-deprecation-warning.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable legacy JWT deprecation warning",
+      "defaultValue": true
+    }
+  ]
+}

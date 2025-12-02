@@ -1,0 +1,128 @@
+{
+  "type": "record",
+  "name": "PaymentInitiatedEvent",
+  "namespace": "com.waqiti.payment.events",
+  "doc": "Event emitted when a payment is initiated",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "Unique identifier for this event"
+    },
+    {
+      "name": "paymentId",
+      "type": "string",
+      "doc": "Unique identifier for the payment"
+    },
+    {
+      "name": "transactionId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Associated transaction ID if available"
+    },
+    {
+      "name": "userId",
+      "type": "string",
+      "doc": "ID of the user initiating the payment"
+    },
+    {
+      "name": "sourceWalletId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Source wallet ID for wallet-to-wallet transfers"
+    },
+    {
+      "name": "destinationWalletId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Destination wallet ID for wallet-to-wallet transfers"
+    },
+    {
+      "name": "amount",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 19,
+        "scale": 4
+      },
+      "doc": "Payment amount with 4 decimal precision (financial-grade)"
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "doc": "ISO 4217 currency code (e.g., USD, EUR, GBP)"
+    },
+    {
+      "name": "paymentType",
+      "type": {
+        "type": "enum",
+        "name": "PaymentType",
+        "symbols": ["P2P", "MERCHANT", "BILL_PAYMENT", "INTERNATIONAL", "BNPL", "RECURRING", "SPLIT", "GROUP"]
+      },
+      "doc": "Type of payment transaction"
+    },
+    {
+      "name": "paymentMethod",
+      "type": {
+        "type": "enum",
+        "name": "PaymentMethod",
+        "symbols": ["WALLET", "CARD", "BANK_TRANSFER", "ACH", "WIRE", "CRYPTO", "PAYPAL", "STRIPE"]
+      },
+      "doc": "Payment method used"
+    },
+    {
+      "name": "status",
+      "type": {
+        "type": "enum",
+        "name": "PaymentStatus",
+        "symbols": ["INITIATED", "PENDING", "PROCESSING", "COMPLETED", "FAILED", "CANCELLED", "REFUNDED"]
+      },
+      "doc": "Current status of the payment"
+    },
+    {
+      "name": "merchantId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Merchant ID for merchant payments"
+    },
+    {
+      "name": "description",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Payment description or memo"
+    },
+    {
+      "name": "metadata",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "default": {},
+      "doc": "Additional metadata as key-value pairs"
+    },
+    {
+      "name": "ipAddress",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "IP address of the initiating client (for fraud detection)"
+    },
+    {
+      "name": "deviceId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Device fingerprint ID"
+    },
+    {
+      "name": "timestamp",
+      "type": "long",
+      "logicalType": "timestamp-millis",
+      "doc": "Event timestamp in milliseconds since epoch"
+    },
+    {
+      "name": "version",
+      "type": "int",
+      "default": 1,
+      "doc": "Schema version for evolution"
+    }
+  ]
+}

@@ -1,0 +1,108 @@
+{
+  "type": "record",
+  "name": "FraudAlertTriggeredEvent",
+  "namespace": "com.waqiti.events.v1",
+  "doc": "Event published when a fraud alert is triggered",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "Unique event identifier (UUID)"
+    },
+    {
+      "name": "eventType",
+      "type": "string",
+      "default": "fraud-alert-triggered",
+      "doc": "Type of event"
+    },
+    {
+      "name": "timestamp",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "Event timestamp in epoch milliseconds"
+    },
+    {
+      "name": "correlationId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Correlation ID for distributed tracing"
+    },
+    {
+      "name": "version",
+      "type": "string",
+      "default": "1.0",
+      "doc": "Schema version"
+    },
+    {
+      "name": "alertId",
+      "type": "string",
+      "doc": "Unique alert identifier (UUID)"
+    },
+    {
+      "name": "userId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "User ID (UUID)"
+    },
+    {
+      "name": "transactionId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Transaction ID if applicable (UUID)"
+    },
+    {
+      "name": "alertType",
+      "type": "string",
+      "doc": "Type of fraud alert"
+    },
+    {
+      "name": "riskScore",
+      "type": "double",
+      "doc": "Risk score (0.0 to 1.0)"
+    },
+    {
+      "name": "severity",
+      "type": {
+        "type": "enum",
+        "name": "AlertSeverity",
+        "symbols": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+      },
+      "doc": "Alert severity"
+    },
+    {
+      "name": "ruleName",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Name of fraud detection rule that triggered"
+    },
+    {
+      "name": "description",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Alert description"
+    },
+    {
+      "name": "actionTaken",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Automatic action taken (e.g., BLOCK_TRANSACTION, FREEZE_ACCOUNT)"
+    },
+    {
+      "name": "requiresReview",
+      "type": "boolean",
+      "default": true,
+      "doc": "Indicates if manual review is required"
+    },
+    {
+      "name": "metadata",
+      "type": ["null", {
+        "type": "map",
+        "values": "string"
+      }],
+      "default": null,
+      "doc": "Additional metadata"
+    }
+  ]
+}

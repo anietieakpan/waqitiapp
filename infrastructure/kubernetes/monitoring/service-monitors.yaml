@@ -1,0 +1,228 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: waqiti-services
+  namespace: example-monitoring
+  labels:
+    app: waqiti-services
+    component: monitoring
+spec:
+  namespaceSelector:
+    matchNames:
+    - waqiti
+  selector:
+    matchLabels:
+      component: backend
+  endpoints:
+  - port: metrics
+    path: /actuator/prometheus
+    interval: 30s
+    scrapeTimeout: 10s
+    honorLabels: true
+    metricRelabelings:
+    - sourceLabels: [__name__]
+      regex: '^(http_requests_total|http_request_duration_seconds.*|jvm_.*|process_.*|system_.*|payment_.*|transaction_.*|wallet_.*|fraud_.*|vault_.*)$'
+      action: keep
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: database-monitoring
+  namespace: example-monitoring
+  labels:
+    app: database-monitoring
+    component: monitoring
+spec:
+  namespaceSelector:
+    matchNames:
+    - waqiti
+  selector:
+    matchLabels:
+      app: postgres-exporter
+  endpoints:
+  - port: metrics
+    path: /metrics
+    interval: 30s
+    scrapeTimeout: 10s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: redis-monitoring
+  namespace: example-monitoring
+  labels:
+    app: redis-monitoring
+    component: monitoring
+spec:
+  namespaceSelector:
+    matchNames:
+    - waqiti
+  selector:
+    matchLabels:
+      app: redis-exporter
+  endpoints:
+  - port: metrics
+    path: /metrics
+    interval: 30s
+    scrapeTimeout: 10s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: kafka-monitoring
+  namespace: example-monitoring
+  labels:
+    app: kafka-monitoring
+    component: monitoring
+spec:
+  namespaceSelector:
+    matchNames:
+    - waqiti
+  selector:
+    matchLabels:
+      app: kafka-exporter
+  endpoints:
+  - port: metrics
+    path: /metrics
+    interval: 30s
+    scrapeTimeout: 10s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: vault-monitoring
+  namespace: example-monitoring
+  labels:
+    app: vault-monitoring
+    component: monitoring
+spec:
+  namespaceSelector:
+    matchNames:
+    - waqiti
+  selector:
+    matchLabels:
+      app: vault
+  endpoints:
+  - port: metrics
+    path: /v1/sys/metrics
+    interval: 30s
+    scrapeTimeout: 10s
+    params:
+      format: ['prometheus']
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: nginx-ingress-monitoring
+  namespace: example-monitoring
+  labels:
+    app: nginx-ingress-monitoring
+    component: monitoring
+spec:
+  namespaceSelector:
+    matchNames:
+    - ingress-nginx
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ingress-nginx
+  endpoints:
+  - port: prometheus
+    path: /metrics
+    interval: 30s
+    scrapeTimeout: 10s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: waqiti-payment-rules
+  namespace: example-monitoring
+  labels:
+    app: waqiti-payment-rules
+    component: monitoring
+spec:
+  groups:
+  - name: payment.rules
+    rules:
+    - alert: PaymentSuccessRateLow
+      expr: rate(payment_success_total[5m]) / rate(payment_attempts_total[5m]) < 0.95
+      for: 2m
+      labels:
+        severity: warning
+        team: payments
+      annotations:
+        summary: "Payment success rate is below 95%"
+        description: "Payment success rate has been {{ $value | humanizePercentage }} for more than 2 minutes"
+
+    - alert: PaymentVolumeSpike
+      expr: rate(payment_attempts_total[5m]) > 5 * rate(payment_attempts_total[1h] offset 1h)
+      for: 1m
+      labels:
+        severity: warning
+        team: payments
+      annotations:
+        summary: "Unusual payment volume spike detected"
+        description: "Payment volume is {{ $value }}x higher than usual"
+
+    - alert: CardTransactionDeclined
+      expr: increase(card_transaction_declined_total[5m]) > 100
+      for: 2m
+      labels:
+        severity: warning
+        team: payments
+      annotations:
+        summary: "High card transaction decline rate"
+        description: "{{ $value }} card transactions declined in the last 5 minutes"
+
+    - alert: InternationalTransferDelayed
+      expr: increase(international_transfer_delayed_total[10m]) > 5
+      for: 5m
+      labels:
+        severity: warning
+        team: international
+      annotations:
+        summary: "International transfers experiencing delays"
+        description: "{{ $value }} international transfers delayed in the last 10 minutes"
+
+  - name: fraud.rules
+    rules:
+    - alert: FraudScoreHigh
+      expr: avg_over_time(fraud_risk_score[5m]) > 0.8
+      for: 1m
+      labels:
+        severity: critical
+        team: security
+      annotations:
+        summary: "High fraud risk score detected"
+        description: "Average fraud risk score is {{ $value | humanizePercentage }} over the last 5 minutes"
+
+    - alert: SuspiciousPatternDetected
+      expr: increase(suspicious_pattern_detected_total[5m]) > 10
+      for: 1m
+      labels:
+        severity: warning
+        team: security
+      annotations:
+        summary: "Suspicious transaction patterns detected"
+        description: "{{ $value }} suspicious patterns detected in the last 5 minutes"
+
+  - name: wallet.rules
+    rules:
+    - alert: WalletBalanceInconsistency
+      expr: increase(wallet_balance_inconsistency_total[5m]) > 0
+      for: 0s
+      labels:
+        severity: critical
+        team: wallet
+      annotations:
+        summary: "Wallet balance inconsistency detected"
+        description: "{{ $value }} wallet balance inconsistencies detected - immediate investigation required"
+
+    - alert: LowWalletFunds
+      expr: wallet_balance_total < wallet_minimum_balance_total
+      for: 1m
+      labels:
+        severity: warning
+        team: wallet
+      annotations:
+        summary: "Wallet balance below minimum threshold"
+        description: "Wallet {{ $labels.wallet_id }} balance is below minimum threshold"

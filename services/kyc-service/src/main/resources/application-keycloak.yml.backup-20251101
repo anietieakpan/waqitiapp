@@ -1,0 +1,109 @@
+# Keycloak Configuration for KYC Service
+
+keycloak:
+  enabled: true
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  ssl-required: external
+  resource: kyc-service
+  bearer-only: true
+  credentials:
+    secret: ${KYC_SERVICE_CLIENT_SECRET:CHANGE_ME_SECURE_SECRET_REQUIRED}
+  use-resource-role-mappings: true
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# KYC Service Security Configuration
+kyc:
+  security:
+    # Public endpoints that don't require authentication
+    public-endpoints:
+      - /actuator/health
+      - /actuator/info
+      - /swagger-ui/**
+      - /v3/api-docs/**
+    
+    # Service-to-service endpoints
+    service-endpoints:
+      - /internal/kyc/**
+    
+    # Required roles for KYC operations
+    required-roles:
+      read:
+        - USER
+        - KYC_USER
+      document-upload:
+        - USER
+        - KYC_USER
+      verification-request:
+        - USER
+        - KYC_USER
+      document-review:
+        - KYC_ANALYST
+        - KYC_OFFICER
+      verification-approval:
+        - KYC_APPROVER
+        - KYC_MANAGER
+      risk-assessment:
+        - KYC_RISK_ANALYST
+        - COMPLIANCE_OFFICER
+      audit:
+        - KYC_AUDITOR
+        - COMPLIANCE_AUDITOR
+      management:
+        - KYC_MANAGER
+        - KYC_OPERATOR
+      admin:
+        - KYC_ADMIN
+        - SYSTEM_ADMIN
+    
+    # Required scopes for operations
+    required-scopes:
+      document-read: kyc:document:read
+      document-write: kyc:document:write
+      verification-read: kyc:verification:read
+      verification-write: kyc:verification:write
+      risk-assessment: kyc:risk:assess
+      biometric-verification: kyc:biometric:verify
+      compliance-check: kyc:compliance:check
+      audit: kyc:audit
+      admin: kyc:admin
+      management: kyc:manage
+    
+    # KYC security features
+    features:
+      document-encryption-enabled: true
+      biometric-verification-enabled: true
+      liveness-detection-enabled: true
+      document-authenticity-checking: true
+      risk-scoring-enabled: true
+      aml-screening-enabled: true
+      
+    # KYC limits and thresholds
+    limits:
+      max-document-size-mb: 20
+      max-documents-per-submission: 10
+      verification-attempt-limit: 3
+      document-retention-years: 7
+      
+    # Security thresholds requiring manual review
+    manual-review-thresholds:
+      low-document-quality-score: 70
+      high-risk-jurisdiction: true
+      suspicious-document-patterns: 3
+      failed-biometric-attempts: 2
+      
+    # Advanced security features
+    advanced-security:
+      require-liveness-detection: true
+      document-forensics-enabled: true
+      cross-reference-verification: true
+      ml-based-fraud-detection: true
+      behavioral-analysis-enabled: true
+      continuous-monitoring-enabled: true

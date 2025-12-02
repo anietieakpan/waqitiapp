@@ -1,0 +1,308 @@
+# Waqiti-Specific Security Rules for Semgrep
+# Tailored for Java Spring Boot Financial Services Application
+
+rules:
+  # Payment Security Rules
+  - id: waqiti-payment-amount-validation
+    message: "Payment amount must be validated and sanitized"
+    languages: [java]
+    severity: ERROR
+    patterns:
+      - pattern: |
+          class $CLASS {
+            ...
+            $TYPE $METHOD(..., BigDecimal $AMOUNT, ...) {
+              ...
+            }
+          }
+      - metavariable-pattern:
+          metavariable: $METHOD
+          patterns:
+            - pattern-regex: ".*payment.*|.*transfer.*|.*charge.*"
+    fix: |
+      // Add amount validation
+      if ($AMOUNT == null || $AMOUNT.compareTo(BigDecimal.ZERO) <= 0) {
+          throw new InvalidAmountException("Amount must be positive");
+      }
+      if ($AMOUNT.compareTo(MAX_TRANSACTION_AMOUNT) > 0) {
+          throw new AmountExceedsLimitException("Amount exceeds maximum limit");
+      }
+
+  - id: waqiti-sensitive-data-logging
+    message: "Sensitive data should not be logged"
+    languages: [java]
+    severity: ERROR
+    patterns:
+      - pattern-either:
+          - pattern: log.$METHOD(..., $VAR, ...)
+          - pattern: logger.$METHOD(..., $VAR, ...)
+          - pattern: System.out.println(..., $VAR, ...)
+    fix-regex:
+      regex: '(\w+)\.(?:info|debug|trace|warn|error)\([^,]*,\s*([^,]*(?:password|ssn|cardNumber|pin|secret|token|key)[^,]*),.*\)'
+      replacement: '$1.$2(..., maskSensitiveData($3), ...)'
+
+  - id: waqiti-sql-injection-prevention
+    message: "Use parameterized queries to prevent SQL injection"
+    languages: [java]
+    severity: ERROR
+    patterns:
+      - pattern-either:
+          - pattern: |
+              String $SQL = "..." + $VAR + "...";
+              ...
+              $STMT.execute($SQL)
+          - pattern: |
+              $STMT.execute("..." + $VAR + "...")
+          - pattern: |
+              Query $Q = $EM.createQuery("..." + $VAR + "...")
+
+  - id: waqiti-jwt-secret-hardcoded
+    message: "JWT secret should not be hardcoded"
+    languages: [java]
+    severity: ERROR
+    patterns:
+      - pattern-either:
+          - pattern: |
+              String $SECRET = "...";
+              ...
+              Jwts.builder().signWith(..., $SECRET)...
+          - pattern: |
+              @Value("...")
+              String jwtSecret = "...";
+
+  - id: waqiti-encryption-weak-algorithm
+    message: "Use AES-256-GCM for encryption in financial applications"
+    languages: [java]
+    severity: ERROR
+    patterns:
+      - pattern-either:
+          - pattern: Cipher.getInstance("DES")
+          - pattern: Cipher.getInstance("AES/ECB/PKCS5Padding")
+          - pattern: Cipher.getInstance("RSA/ECB/PKCS1Padding")
+
+  - id: waqiti-payment-transaction-atomic
+    message: "Payment transactions must be atomic with @Transactional"
+    languages: [java]
+    severity: ERROR
+    patterns:
+      - pattern: |
+          class $CLASS {
+            ...
+            public $TYPE $METHOD(...) {
+              ...
+              $PAYMENT_SERVICE.processPayment(...)
+              ...
+            }
+          }
+      - pattern-not: |
+          @Transactional
+          public $TYPE $METHOD(...) { ... }
+
+  - id: waqiti-sensitive-endpoint-auth
+    message: "Sensitive endpoints must have authentication"
+    languages: [java]
+    severity: ERROR
+    patterns:
+      - pattern: |
+          @RequestMapping(...)
+          public $TYPE $METHOD(...) { ... }
+      - metavariable-pattern:
+          metavariable: $METHOD
+          patterns:
+            - pattern-regex: ".*payment.*|.*transfer.*|.*withdraw.*|.*deposit.*"
+      - pattern-not: |
+          @PreAuthorize(...)
+          @RequestMapping(...)
+          public $TYPE $METHOD(...) { ... }
+
+  - id: waqiti-pci-dss-card-data
+    message: "Card data must be encrypted at rest and in transit"
+    languages: [java]
+    severity: ERROR
+    patterns:
+      - pattern-either:
+          - pattern: |
+              class $CLASS {
+                ...
+                String cardNumber;
+                ...
+              }
+          - pattern: |
+              class $CLASS {
+                ...
+                String cvv;
+                ...
+              }
+      - pattern-not: |
+          @Encrypted
+          String $FIELD;
+
+  - id: waqiti-api-rate-limiting
+    message: "Payment APIs must have rate limiting"
+    languages: [java]
+    severity: WARNING
+    patterns:
+      - pattern: |
+          @RequestMapping(value = "/api/v*/payment*", ...)
+          public $TYPE $METHOD(...) { ... }
+      - pattern-not: |
+          @RateLimited
+          @RequestMapping(...)
+          public $TYPE $METHOD(...) { ... }
+
+  - id: waqiti-input-validation
+    message: "All user inputs must be validated"
+    languages: [java]
+    severity: ERROR
+    patterns:
+      - pattern: |
+          public $TYPE $METHOD(@RequestBody $PARAM_TYPE $PARAM, ...) {
+            ...
+          }
+      - pattern-not: |
+          public $TYPE $METHOD(@Valid @RequestBody $PARAM_TYPE $PARAM, ...) {
+            ...
+          }
+
+  - id: waqiti-fraud-detection-check
+    message: "High-value transactions must include fraud detection"
+    languages: [java]
+    severity: WARNING
+    patterns:
+      - pattern: |
+          $PAYMENT_SERVICE.processPayment($REQUEST)
+      - pattern-not: |
+          $FRAUD_SERVICE.analyzeTransaction(...)
+          ...
+          $PAYMENT_SERVICE.processPayment($REQUEST)
+
+  - id: waqiti-kyc-verification-check
+    message: "Payment operations must verify KYC status"
+    languages: [java]
+    severity: ERROR
+    patterns:
+      - pattern: |
+          public $TYPE $METHOD(..., String userId, ...) {
+            ...
+            $PAYMENT_SERVICE.processPayment(...)
+            ...
+          }
+      - pattern-not: |
+          @RequireKYCVerification
+          public $TYPE $METHOD(...) { ... }
+
+  - id: waqiti-secure-random
+    message: "Use SecureRandom for cryptographic operations"
+    languages: [java]
+    severity: ERROR
+    patterns:
+      - pattern-either:
+          - pattern: new Random()
+          - pattern: Math.random()
+      - pattern-inside: |
+          class $CLASS {
+            ...
+            $METHOD(...) {
+              ...
+              $CRYPTO_OPERATION
+              ...
+            }
+          }
+
+  - id: waqiti-session-timeout
+    message: "Financial applications must have session timeouts"
+    languages: [java]
+    severity: WARNING
+    patterns:
+      - pattern: |
+          @Configuration
+          class $CLASS extends WebSecurityConfigurerAdapter {
+            ...
+          }
+      - pattern-not: |
+          http.sessionManagement()
+              .maximumSessions(...)
+              .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
+
+  - id: waqiti-pii-data-masking
+    message: "PII data must be masked in responses"
+    languages: [java]
+    severity: ERROR
+    patterns:
+      - pattern-either:
+          - pattern: |
+              class $CLASS {
+                ...
+                String ssn;
+                ...
+              }
+          - pattern: |
+              class $CLASS {
+                ...
+                String phoneNumber;
+                ...
+              }
+      - pattern-not: |
+          @JsonIgnore
+          String $FIELD;
+      - pattern-not: |
+          @MaskSensitiveData
+          String $FIELD;
+
+  - id: waqiti-cors-configuration
+    message: "CORS must be properly configured for financial APIs"
+    languages: [java]
+    severity: ERROR
+    patterns:
+      - pattern: |
+          @CrossOrigin(origins = "*")
+          $METHOD
+      - pattern-inside: |
+          class $CLASS {
+            ...
+            @RequestMapping(value = "/api/*", ...)
+            ...
+          }
+
+  - id: waqiti-error-information-disclosure
+    message: "Error responses must not leak sensitive information"
+    languages: [java]
+    severity: ERROR
+    patterns:
+      - pattern-either:
+          - pattern: |
+              catch ($EXCEPTION $E) {
+                return ResponseEntity.badRequest().body($E.getMessage());
+              }
+          - pattern: |
+              throw new $EXCEPTION($E.getMessage());
+
+  - id: waqiti-database-connection-security
+    message: "Database connections must use SSL/TLS"
+    languages: [java]
+    severity: ERROR
+    patterns:
+      - pattern: |
+          spring.datasource.url=jdbc:postgresql://$HOST:$PORT/$DB
+      - pattern-not: |
+          spring.datasource.url=jdbc:postgresql://$HOST:$PORT/$DB?sslmode=require
+
+  - id: waqiti-audit-trail
+    message: "Financial operations must have audit trails"
+    languages: [java]
+    severity: WARNING
+    patterns:
+      - pattern: |
+          public $TYPE $METHOD(...) {
+            ...
+            $PAYMENT_SERVICE.processPayment(...)
+            ...
+          }
+      - pattern-not: |
+          public $TYPE $METHOD(...) {
+            ...
+            $AUDIT_SERVICE.logOperation(...)
+            ...
+            $PAYMENT_SERVICE.processPayment(...)
+            ...
+          }

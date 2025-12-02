@@ -1,0 +1,108 @@
+{
+  "type": "record",
+  "name": "UserRegisteredEvent",
+  "namespace": "com.waqiti.events.v1",
+  "doc": "Event published when a new user registers",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "Unique event identifier (UUID)"
+    },
+    {
+      "name": "eventType",
+      "type": "string",
+      "default": "user-registered",
+      "doc": "Type of event"
+    },
+    {
+      "name": "timestamp",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "Event timestamp in epoch milliseconds"
+    },
+    {
+      "name": "correlationId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Correlation ID for distributed tracing"
+    },
+    {
+      "name": "version",
+      "type": "string",
+      "default": "1.0",
+      "doc": "Schema version"
+    },
+    {
+      "name": "userId",
+      "type": "string",
+      "doc": "Unique user identifier (UUID)"
+    },
+    {
+      "name": "email",
+      "type": "string",
+      "doc": "User email address"
+    },
+    {
+      "name": "phoneNumber",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "User phone number"
+    },
+    {
+      "name": "firstName",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "User first name"
+    },
+    {
+      "name": "lastName",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "User last name"
+    },
+    {
+      "name": "registrationMethod",
+      "type": {
+        "type": "enum",
+        "name": "RegistrationMethod",
+        "symbols": ["EMAIL", "PHONE", "SOCIAL", "SSO"]
+      },
+      "default": "EMAIL",
+      "doc": "Registration method used"
+    },
+    {
+      "name": "accountType",
+      "type": {
+        "type": "enum",
+        "name": "AccountType",
+        "symbols": ["PERSONAL", "BUSINESS", "MERCHANT"]
+      },
+      "default": "PERSONAL",
+      "doc": "Type of account"
+    },
+    {
+      "name": "countryCode",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Country code (ISO 3166-1 alpha-2)"
+    },
+    {
+      "name": "referralCode",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Referral code used during registration"
+    },
+    {
+      "name": "metadata",
+      "type": ["null", {
+        "type": "map",
+        "values": "string"
+      }],
+      "default": null,
+      "doc": "Additional metadata"
+    }
+  ]
+}

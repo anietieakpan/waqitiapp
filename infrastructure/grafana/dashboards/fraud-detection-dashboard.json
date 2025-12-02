@@ -1,0 +1,300 @@
+{
+  "dashboard": {
+    "title": "Fraud Detection - Real-Time Monitoring",
+    "tags": ["fraud", "security", "real-time"],
+    "timezone": "browser",
+    "schemaVersion": 38,
+    "version": 1,
+    "refresh": "10s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Fraud Detection Rate",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(fraud_checks_total{result=\"BLOCKED\"}[5m])",
+            "legendFormat": "Blocked Transactions/sec",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(fraud_checks_total{result=\"ALLOWED\"}[5m])",
+            "legendFormat": "Allowed Transactions/sec",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {"format": "ops", "label": "Checks/sec"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Fraud Block Rate",
+        "type": "gauge",
+        "gridPos": {"x": 12, "y": 0, "w": 6, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(fraud_checks_total{result=\"BLOCKED\"}[5m])) / sum(rate(fraud_checks_total[5m])) * 100",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 5, "color": "yellow"},
+                {"value": 15, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 3,
+        "title": "Fraud Check Latency (SLA: <100ms)",
+        "type": "graph",
+        "gridPos": {"x": 18, "y": 0, "w": 6, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(fraud_check_duration_milliseconds_bucket[5m]))",
+            "legendFormat": "p95",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.99, rate(fraud_check_duration_milliseconds_bucket[5m]))",
+            "legendFormat": "p99",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {"format": "ms", "label": "Latency"},
+          {"format": "short"}
+        ],
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": {"type": "gt", "params": [100]},
+              "operator": {"type": "and"},
+              "query": {"params": ["A", "5m", "now"]},
+              "type": "query"
+            }
+          ],
+          "frequency": "1m",
+          "handler": 1,
+          "name": "Fraud Check SLA Breach",
+          "message": "Fraud check latency exceeds 100ms SLA"
+        }
+      },
+      {
+        "id": 4,
+        "title": "Blocked Transactions by Reason",
+        "type": "piechart",
+        "gridPos": {"x": 0, "y": 8, "w": 8, "h": 8},
+        "targets": [
+          {
+            "expr": "sum by (block_reason) (increase(blocked_transactions_total[1h]))",
+            "legendFormat": "{{block_reason}}",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "High-Risk Transactions",
+        "type": "stat",
+        "gridPos": {"x": 8, "y": 8, "w": 4, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(increase(fraud_scores_total{risk_level=\"HIGH\"}[1h]))",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 50, "color": "yellow"},
+                {"value": 100, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 6,
+        "title": "Critical Fraud Alerts",
+        "type": "stat",
+        "gridPos": {"x": 12, "y": 8, "w": 4, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(fraud_alerts_total{severity=\"CRITICAL\",status=\"OPEN\"})",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 1, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 7,
+        "title": "ML Model Performance",
+        "type": "graph",
+        "gridPos": {"x": 16, "y": 8, "w": 8, "h": 8},
+        "targets": [
+          {
+            "expr": "fraud_model_accuracy{model_version=~\".*\"}",
+            "legendFormat": "{{model_version}} Accuracy",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "percentunit", "label": "Accuracy", "min": 0, "max": 1},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 8,
+        "title": "False Positive Rate",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 16, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(fraud_investigations_total{outcome=\"FALSE_POSITIVE\"}[24h])) / sum(rate(blocked_transactions_total[24h])) * 100",
+            "legendFormat": "False Positive Rate %",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "percent", "label": "False Positive %"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 9,
+        "title": "Sanctions Screening",
+        "type": "stat",
+        "gridPos": {"x": 12, "y": 16, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(increase(sanctions_matches_total[1h]))",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 1, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 10,
+        "title": "Velocity Violations",
+        "type": "graph",
+        "gridPos": {"x": 18, "y": 16, "w": 6, "h": 8},
+        "targets": [
+          {
+            "expr": "sum by (violation_type) (rate(velocity_violations_total[5m]))",
+            "legendFormat": "{{violation_type}}",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 11,
+        "title": "Device Fingerprint Anomalies",
+        "type": "stat",
+        "gridPos": {"x": 12, "y": 20, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(device_anomalies_total{status=\"SUSPICIOUS\"})",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 12,
+        "title": "Investigation Queue Size",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 24, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "fraud_investigation_queue_size{status=\"PENDING\"}",
+            "legendFormat": "Pending Investigations",
+            "refId": "A"
+          },
+          {
+            "expr": "fraud_investigation_queue_size{status=\"ASSIGNED\"}",
+            "legendFormat": "Assigned Investigations",
+            "refId": "B"
+          }
+        ]
+      },
+      {
+        "id": 13,
+        "title": "Fraud Amount Prevented (24h)",
+        "type": "stat",
+        "gridPos": {"x": 12, "y": 24, "w": 6, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(increase(blocked_transaction_amount_total[24h]))",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyUSD",
+            "decimals": 0,
+            "color": {"mode": "value"},
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 100000, "color": "yellow"},
+                {"value": 1000000, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 14,
+        "title": "IP Reputation Distribution",
+        "type": "graph",
+        "gridPos": {"x": 18, "y": 24, "w": 6, "h": 8},
+        "targets": [
+          {
+            "expr": "sum by (risk_level) (ip_reputation_checks_total)",
+            "legendFormat": "{{risk_level}}",
+            "refId": "A"
+          }
+        ]
+      }
+    ]
+  }
+}

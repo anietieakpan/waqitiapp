@@ -1,0 +1,144 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: core-banking-service
+  namespace: waqiti
+  labels:
+    app: core-banking-service
+    version: v1
+    component: core
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: core-banking-service
+  template:
+    metadata:
+      labels:
+        app: core-banking-service
+        version: v1
+        component: core
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      serviceAccountName: waqiti-service-account
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+      containers:
+      - name: core-banking-service
+        image: waqiti/core-banking-service:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        - containerPort: 8090
+          name: management
+          protocol: TCP
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "kubernetes"
+        - name: JAVA_OPTS
+          value: "-Xmx512m -Xms256m -XX:+UseG1GC -XX:+UseContainerSupport"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: core-banking-db-secret
+              key: url
+        - name: DATABASE_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: core-banking-db-secret
+              key: username
+        - name: DATABASE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: core-banking-db-secret
+              key: password
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: redis-secret
+              key: url
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          valueFrom:
+            configMapKeyRef:
+              name: kafka-config
+              key: bootstrap-servers
+        - name: VAULT_ENDPOINT
+          valueFrom:
+            configMapKeyRef:
+              name: vault-config
+              key: endpoint
+        - name: VAULT_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: vault-secret
+              key: token
+        - name: EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE
+          value: "http://discovery-service:8761/eureka/"
+        resources:
+          requests:
+            cpu: 200m
+            memory: 512Mi
+          limits:
+            cpu: 1000m
+            memory: 1Gi
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: management
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: management
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: management
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30
+        volumeMounts:
+        - name: config-volume
+          mountPath: /config
+          readOnly: true
+        - name: logs-volume
+          mountPath: /logs
+      volumes:
+      - name: config-volume
+        configMap:
+          name: core-banking-config
+      - name: logs-volume
+        emptyDir: {}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - core-banking-service
+              topologyKey: kubernetes.io/hostname
+      terminationGracePeriodSeconds: 30

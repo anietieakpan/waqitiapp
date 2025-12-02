@@ -1,0 +1,185 @@
+---
+# PgBouncer Configuration ConfigMap
+# Description: Production-grade connection pooling configuration for PostgreSQL
+# Performance: Handles 10,000+ connections with minimal overhead
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pgbouncer-config
+  namespace: database
+  labels:
+    app: pgbouncer
+    component: connection-pooler
+data:
+  pgbouncer.ini: |
+    ;; PgBouncer Configuration
+    ;; Production settings for high-performance connection pooling
+
+    [databases]
+    ; Database connection strings
+    ; Format: dbname = host=hostname port=5432 dbname=realdbname
+
+    ; Core Banking Database
+    waqiti_core = host=postgres-primary.database.svc.cluster.local port=5432 dbname=waqiti_core user=pgbouncer_user
+
+    ; Payment Service Database
+    waqiti_payment = host=postgres-primary.database.svc.cluster.local port=5432 dbname=waqiti_payment user=pgbouncer_user
+
+    ; Wallet Service Database
+    waqiti_wallet = host=postgres-primary.database.svc.cluster.local port=5432 dbname=waqiti_wallet user=pgbouncer_user
+
+    ; User Service Database
+    waqiti_user = host=postgres-primary.database.svc.cluster.local port=5432 dbname=waqiti_user user=pgbouncer_user
+
+    ; Transaction Service Database
+    waqiti_transaction = host=postgres-primary.database.svc.cluster.local port=5432 dbname=waqiti_transaction user=pgbouncer_user
+
+    ; Ledger Service Database
+    waqiti_ledger = host=postgres-primary.database.svc.cluster.local port=5432 dbname=waqiti_ledger user=pgbouncer_user
+
+    ; Fraud Detection Database
+    waqiti_fraud = host=postgres-primary.database.svc.cluster.local port=5432 dbname=waqiti_fraud user=pgbouncer_user
+
+    ; Compliance Database
+    waqiti_compliance = host=postgres-primary.database.svc.cluster.local port=5432 dbname=waqiti_compliance user=pgbouncer_user
+
+    ; Analytics Database (Read replica for heavy queries)
+    waqiti_analytics = host=postgres-replica.database.svc.cluster.local port=5432 dbname=waqiti_analytics user=pgbouncer_readonly
+
+    ; Wildcard for other databases
+    * = host=postgres-primary.database.svc.cluster.local port=5432
+
+    [pgbouncer]
+    ;;; Administrative settings
+    logfile = /var/log/pgbouncer/pgbouncer.log
+    pidfile = /var/run/pgbouncer/pgbouncer.pid
+
+    ;;; Connection settings
+    listen_addr = 0.0.0.0
+    listen_port = 5432
+    unix_socket_dir = /var/run/postgresql
+
+    ;;; Authentication
+    auth_type = md5
+    auth_file = /etc/pgbouncer/userlist.txt
+    auth_user = pgbouncer_auth
+    auth_query = SELECT usename, passwd FROM pgbouncer.user_lookup($1)
+
+    ;;; Users
+    admin_users = postgres, admin
+    stats_users = stats, admin
+
+    ;;; Pooling mode
+    ; transaction = Best for most workloads (recommended)
+    ; session = For applications that need session-level features
+    ; statement = For very simple queries (not recommended for complex apps)
+    pool_mode = transaction
+
+    ;;; Connection pool size
+    ; Maximum connections per user+database combination
+    max_client_conn = 10000
+
+    ; Maximum PostgreSQL connections to allow
+    default_pool_size = 25
+    min_pool_size = 10
+    reserve_pool_size = 5
+    reserve_pool_timeout = 3
+
+    ; Per-database pool size overrides
+    max_db_connections = 100
+    max_user_connections = 100
+
+    ;;; Server connection settings
+    server_lifetime = 3600
+    server_idle_timeout = 600
+    server_connect_timeout = 15
+    server_login_retry = 15
+
+    ;;; Client connection settings
+    client_idle_timeout = 0
+    client_login_timeout = 60
+
+    ;;; Query settings
+    query_timeout = 0
+    query_wait_timeout = 120
+
+    ;;; Timeouts
+    idle_transaction_timeout = 300
+
+    ;;; Dangerous timeouts
+    ; Close server connection if no queries for this long
+    server_check_delay = 30
+    server_check_query = select 1
+
+    ;;; TLS settings
+    client_tls_sslmode = prefer
+    client_tls_ca_file = /etc/pgbouncer/certs/ca.crt
+    client_tls_cert_file = /etc/pgbouncer/certs/server.crt
+    client_tls_key_file = /etc/pgbouncer/certs/server.key
+
+    server_tls_sslmode = require
+    server_tls_ca_file = /etc/pgbouncer/certs/ca.crt
+    server_tls_cert_file = /etc/pgbouncer/certs/client.crt
+    server_tls_key_file = /etc/pgbouncer/certs/client.key
+
+    ;;; Logging
+    log_connections = 1
+    log_disconnections = 1
+    log_pooler_errors = 1
+    log_stats = 1
+    stats_period = 60
+
+    ;;; Verbose logging (disable in production)
+    verbose = 0
+
+    ;;; Console access
+    admin_users = admin
+    stats_users = stats
+
+    ;;; Connection limits per database (optional)
+    ; Prevents a single database from exhausting the pool
+    ; [pgbouncer]
+    ; max_db_connections = 50
+
+    ;;; DNS settings
+    dns_max_ttl = 15
+    dns_nxdomain_ttl = 15
+    dns_zone_check_period = 0
+
+    ;;; Tuning
+    ; Reduce memory usage
+    pkt_buf = 4096
+    max_packet_size = 2147483647
+
+    ; TCP settings
+    tcp_keepalive = 1
+    tcp_keepcnt = 5
+    tcp_keepidle = 30
+    tcp_keepintvl = 10
+    tcp_user_timeout = 0
+
+    ;;; Security
+    ignore_startup_parameters = extra_float_digits,options
+
+    ;;; Application name tracking
+    application_name_add_host = 1
+
+    ;;; Dangerous settings (use with caution)
+    ; Disable prepared statement support
+    ; disable_pqexec = 0
+
+    ;;; Per-database overrides
+    ; [databases]
+    ; waqiti_analytics = ... default_pool_size=10
+
+  userlist.txt: |
+    ; PgBouncer user list
+    ; Format: "username" "password_hash"
+    ; Generate hash: echo -n "passwordusername" | md5sum
+    ; Then prepend with "md5"
+
+    "pgbouncer_user" "REPLACE_WITH_MD5_HASH"
+    "pgbouncer_readonly" "REPLACE_WITH_MD5_HASH"
+    "pgbouncer_auth" "REPLACE_WITH_MD5_HASH"
+    "admin" "REPLACE_WITH_MD5_HASH"
+    "stats" "REPLACE_WITH_MD5_HASH"

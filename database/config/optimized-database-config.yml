@@ -1,0 +1,313 @@
+# =====================================================================
+# Database Performance Optimization: Connection Pool Configuration
+# =====================================================================
+# Optimized database connection pool settings for high-concurrency
+# financial application with multiple services
+
+# =====================================================================
+# PRODUCTION ENVIRONMENT CONFIGURATION
+# =====================================================================
+production:
+  datasource:
+    # Primary Database Configuration
+    primary:
+      url: jdbc:postgresql://${DB_PRIMARY_HOST:localhost}:${DB_PRIMARY_PORT:5432}/${DB_NAME:waqiti_core}
+      username: ${DB_USERNAME:waqiti_user}
+      password: ${DB_PASSWORD:${VAULT_DATABASE_PASSWORD}}
+      driver-class-name: org.postgresql.Driver
+      
+      # HikariCP Configuration - Optimized for High Concurrency
+      hikari:
+        # Connection Pool Sizing
+        maximum-pool-size: ${DB_MAX_POOL_SIZE:50}      # Increased for high concurrency
+        minimum-idle: ${DB_MIN_IDLE:10}                # Higher minimum for quick response
+        
+        # Connection Lifecycle Management
+        connection-timeout: 30000                       # 30 seconds - aggressive timeout
+        idle-timeout: 600000                           # 10 minutes - balanced retention
+        max-lifetime: 1800000                          # 30 minutes - prevent stale connections
+        
+        # Performance Optimizations
+        leak-detection-threshold: 60000                 # 1 minute - detect connection leaks
+        validation-timeout: 5000                       # 5 seconds - quick validation
+        initialization-fail-timeout: -1                # Fail fast on startup issues
+        
+        # Connection Properties for PostgreSQL Optimization
+        data-source-properties:
+          cachePrepStmts: true                         # Enable statement caching
+          prepStmtCacheSize: 250                       # Cache size for prepared statements
+          prepStmtCacheSqlLimit: 2048                  # SQL length limit for caching
+          useServerPrepStmts: true                     # Use server-side prepared statements
+          useLocalSessionState: true                   # Optimize session state
+          rewriteBatchedStatements: true               # Optimize batch operations
+          cacheResultSetMetadata: true                 # Cache result set metadata
+          cacheServerConfiguration: true               # Cache server configuration
+          elideSetAutoCommits: true                    # Optimize autocommit calls
+          maintainTimeStats: false                     # Disable time stats for performance
+          
+          # PostgreSQL Specific Optimizations
+          stringtype: unspecified                      # Optimize string handling
+          ApplicationName: ${spring.application.name:waqiti-service}
+          loginTimeout: 10                             # Quick login timeout
+          socketTimeout: 30                            # Socket operation timeout
+          tcpKeepAlive: true                          # Keep TCP connections alive
+          
+        # Pool Health and Monitoring
+        register-mbeans: true                          # Enable JMX monitoring
+        health-check-grace-period: 5000               # Grace period for health checks
+        
+        # Connection Pool Name for Monitoring
+        pool-name: ${spring.application.name:waqiti}-primary-pool
+
+    # Read Replica Configuration for Analytics
+    read-replica:
+      url: jdbc:postgresql://${DB_REPLICA_HOST:localhost}:${DB_REPLICA_PORT:5433}/${DB_NAME:waqiti_core}
+      username: ${DB_USERNAME:waqiti_user}
+      password: ${DB_PASSWORD:${VAULT_DATABASE_PASSWORD}}
+      driver-class-name: org.postgresql.Driver
+      
+      hikari:
+        # Optimized for Read-Heavy Analytics Workloads
+        maximum-pool-size: ${DB_REPLICA_MAX_POOL_SIZE:30}  # Smaller pool for read operations
+        minimum-idle: ${DB_REPLICA_MIN_IDLE:5}             # Lower minimum for analytics
+        
+        connection-timeout: 45000                          # Longer timeout for complex queries
+        idle-timeout: 900000                              # 15 minutes - longer retention for analytics
+        max-lifetime: 3600000                             # 1 hour - longer lifetime for read operations
+        
+        leak-detection-threshold: 120000                   # 2 minutes - longer for analytics queries
+        validation-timeout: 10000                         # 10 seconds - allow for slower validation
+        
+        data-source-properties:
+          cachePrepStmts: true
+          prepStmtCacheSize: 500                          # Larger cache for complex analytics queries
+          prepStmtCacheSqlLimit: 4096                     # Larger SQL limit for analytics
+          useServerPrepStmts: true
+          useLocalSessionState: true
+          rewriteBatchedStatements: true
+          cacheResultSetMetadata: true
+          cacheServerConfiguration: true
+          elideSetAutoCommits: true
+          maintainTimeStats: false
+          
+          # PostgreSQL Read Optimization
+          defaultRowFetchSize: 1000                       # Optimize for large result sets
+          readOnly: true                                  # Hint that this is read-only
+          ApplicationName: ${spring.application.name:waqiti-service}-readonly
+          loginTimeout: 15
+          socketTimeout: 60                               # Longer socket timeout for analytics
+          tcpKeepAlive: true
+          
+        register-mbeans: true
+        pool-name: ${spring.application.name:waqiti}-replica-pool
+
+  # JPA Configuration Optimized for Performance
+  jpa:
+    hibernate:
+      ddl-auto: validate                                  # Never auto-update in production
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.SnakeCasePhysicalNamingStrategy
+      
+    properties:
+      hibernate:
+        # Performance Optimizations
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: false                                # Disable in production
+        show_sql: false                                 # Disable in production
+        use_sql_comments: false                         # Disable for performance
+        
+        # Connection and Transaction Optimizations
+        connection:
+          provider_disables_autocommit: true            # Optimize autocommit handling
+          autocommit: false                             # Explicit transaction control
+        
+        # Query Optimization
+        query:
+          in_clause_parameter_padding: true             # Optimize IN clause queries
+          fail_on_pagination_over_collection_fetch: true
+          plan_cache_max_size: 2048                     # Query plan cache
+          plan_parameter_metadata_max_size: 128
+          
+        # Batch Processing Optimization
+        jdbc:
+          batch_size: 50                                # Optimal batch size for financial data
+          batch_versioned_data: true                    # Optimize versioned entity batching
+          lob:
+            non_contextual_creation: true               # Optimize LOB handling
+          fetch_size: 100                               # Default fetch size
+          use_streams_for_binary: true                  # Optimize binary data
+          time_zone: UTC                                # Consistent timezone handling
+        
+        # Cache Configuration
+        cache:
+          use_second_level_cache: true                  # Enable L2 cache
+          use_query_cache: true                         # Enable query cache
+          region:
+            factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
+          default_cache_concurrency_strategy: read_write
+        
+        # Statistics and Monitoring
+        generate_statistics: true                       # Enable for monitoring
+        session:
+          events:
+            log:
+              LOG_QUERIES_SLOWER_THAN_MS: 1000         # Log slow queries
+        
+        # Connection Pool Integration
+        hikari:
+          connectionTestQuery: SELECT 1                 # Simple validation query
+
+# =====================================================================
+# DEVELOPMENT ENVIRONMENT CONFIGURATION
+# =====================================================================
+development:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/waqiti_dev
+    username: ${DB_USERNAME:waqiti_dev_user}
+    password: ${vault.database.password:VAULT_SECRET_REQUIRED}
+    driver-class-name: org.postgresql.Driver
+    
+    hikari:
+      # Smaller pool for development
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 20000
+      idle-timeout: 300000                             # 5 minutes
+      max-lifetime: 900000                            # 15 minutes
+      leak-detection-threshold: 30000                 # 30 seconds - more aggressive in dev
+      
+      data-source-properties:
+        cachePrepStmts: true
+        prepStmtCacheSize: 100
+        prepStmtCacheSqlLimit: 1024
+        useServerPrepStmts: true
+        ApplicationName: ${spring.application.name:waqiti-service}-dev
+        
+      pool-name: ${spring.application.name:waqiti}-dev-pool
+
+  jpa:
+    hibernate:
+      ddl-auto: update                                  # Allow schema updates in dev
+    properties:
+      hibernate:
+        format_sql: true                                # Enable for debugging
+        show_sql: true                                 # Enable for debugging
+        generate_statistics: true
+
+# =====================================================================
+# TEST ENVIRONMENT CONFIGURATION
+# =====================================================================
+test:
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password: 
+    driver-class-name: org.h2.Driver
+    
+    hikari:
+      # Minimal pool for testing
+      maximum-pool-size: 5
+      minimum-idle: 1
+      connection-timeout: 10000
+      idle-timeout: 60000                              # 1 minute
+      max-lifetime: 300000                            # 5 minutes
+      
+      pool-name: ${spring.application.name:waqiti}-test-pool
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop                            # Recreate schema for each test
+    properties:
+      hibernate:
+        show_sql: false                                # Usually disabled in tests
+        format_sql: false
+
+# =====================================================================
+# SERVICE-SPECIFIC OVERRIDES
+# =====================================================================
+
+# Core Banking Service - High Transaction Volume
+core-banking-service:
+  datasource:
+    hikari:
+      maximum-pool-size: 60                            # Higher for core banking
+      minimum-idle: 15
+      connection-timeout: 20000                        # Faster timeout for transactions
+      
+# Payment Service - Medium-High Volume
+payment-service:
+  datasource:
+    hikari:
+      maximum-pool-size: 40
+      minimum-idle: 10
+      
+# Analytics/Reporting Services - Read-Heavy
+reporting-service:
+  datasource:
+    hikari:
+      maximum-pool-size: 20                            # Smaller pool, longer-running queries
+      minimum-idle: 3
+      connection-timeout: 60000                        # Longer timeout for analytics
+      idle-timeout: 1800000                           # 30 minutes for long analytics
+      
+# Audit Service - Write-Heavy, Lower Priority
+audit-service:
+  datasource:
+    hikari:
+      maximum-pool-size: 15                            # Smaller pool for audit writes
+      minimum-idle: 3
+      
+# User Service - Moderate Volume
+user-service:
+  datasource:
+    hikari:
+      maximum-pool-size: 25
+      minimum-idle: 5
+
+# =====================================================================
+# MONITORING AND HEALTH CHECK CONFIGURATION
+# =====================================================================
+monitoring:
+  connection-pool:
+    # Health check thresholds
+    warning-threshold:
+      active-connections-percentage: 80                # Warn at 80% pool usage
+      wait-time-ms: 5000                              # Warn if waiting > 5 seconds
+      
+    critical-threshold:
+      active-connections-percentage: 95               # Critical at 95% pool usage
+      wait-time-ms: 15000                            # Critical if waiting > 15 seconds
+      
+    # Metrics collection
+    metrics:
+      enabled: true
+      include-histogram: true                         # Include timing histograms
+      export-interval: 30s                           # Export metrics every 30 seconds
+      
+    # Alerting configuration
+    alerts:
+      connection-leak-threshold: 5                    # Alert on 5+ leaked connections
+      slow-query-threshold: 10000                     # Alert on queries > 10 seconds
+      pool-exhaustion-alert: true                     # Alert when pool is exhausted
+
+# =====================================================================
+# BACKUP AND MAINTENANCE CONFIGURATION
+# =====================================================================
+maintenance:
+  connection-pool:
+    # Scheduled maintenance
+    health-check-interval: 300000                     # 5 minutes
+    statistics-reset-interval: 3600000                # 1 hour
+    
+    # Connection refresh strategy
+    connection-refresh:
+      enabled: true
+      interval: 21600000                              # 6 hours
+      percentage: 25                                  # Refresh 25% of connections
+      
+    # Pool resize strategy for traffic patterns
+    auto-scaling:
+      enabled: false                                  # Disabled by default
+      scale-up-threshold: 90                          # Scale up at 90% usage
+      scale-down-threshold: 30                        # Scale down at 30% usage
+      min-scale-interval: 300000                      # Minimum 5 minutes between scales

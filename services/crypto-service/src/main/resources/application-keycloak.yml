@@ -1,0 +1,122 @@
+# Keycloak Configuration for Crypto Service
+
+keycloak:
+  enabled: true
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  ssl-required: external
+  resource: crypto-service
+  bearer-only: true
+  credentials:
+    secret: ${CRYPTO_SERVICE_CLIENT_SECRET}
+  use-resource-role-mappings: true
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# Crypto Service Security Configuration
+crypto:
+  security:
+    # Public endpoints that don't require authentication
+    public-endpoints:
+      - /actuator/health
+      - /actuator/info
+      - /api/v1/crypto/prices/current
+      - /api/v1/crypto/currencies/supported
+      - /swagger-ui/**
+      - /v3/api-docs/**
+    
+    # Service-to-service endpoints
+    service-endpoints:
+      - /internal/crypto/**
+    
+    # Required roles for crypto operations
+    required-roles:
+      read:
+        - USER
+        - CRYPTO_USER
+      wallet-create:
+        - USER
+        - CRYPTO_USER
+      wallet-read:
+        - USER
+        - CRYPTO_USER
+      transaction-create:
+        - USER
+        - CRYPTO_USER
+        - CRYPTO_TRADER
+      transaction-read:
+        - USER
+        - CRYPTO_USER
+      exchange:
+        - USER
+        - CRYPTO_USER
+        - CRYPTO_TRADER
+      staking:
+        - USER
+        - CRYPTO_USER
+        - CRYPTO_STAKER
+      mining:
+        - CRYPTO_MINER
+        - CRYPTO_ADMIN
+      cold-storage:
+        - CRYPTO_CUSTODIAN
+        - CRYPTO_ADMIN
+      management:
+        - CRYPTO_MANAGER
+        - CRYPTO_OPERATOR
+      admin:
+        - CRYPTO_ADMIN
+        - SYSTEM_ADMIN
+    
+    # Required scopes for operations
+    required-scopes:
+      wallet-read: crypto:wallet:read
+      wallet-write: crypto:wallet:write
+      transaction-read: crypto:transaction:read
+      transaction-write: crypto:transaction:write
+      balance-read: crypto:balance:read
+      exchange: crypto:exchange
+      staking: crypto:staking
+      mining: crypto:mining
+      cold-storage: crypto:cold-storage
+      price-data: crypto:price:data
+      admin: crypto:admin
+      management: crypto:manage
+    
+    # Crypto security features
+    features:
+      multi-signature-enabled: true
+      cold-storage-enabled: true
+      transaction-signing-enabled: true
+      address-validation-enabled: true
+      fraud-detection-enabled: true
+      aml-compliance-enabled: true
+      
+    # Crypto limits and thresholds
+    limits:
+      max-wallet-addresses-per-user: 20
+      max-daily-transaction-amount: 100000.00
+      max-transaction-amount: 50000.00
+      hot-wallet-threshold: 10000.00
+      
+    # Security thresholds requiring additional verification
+    verification-thresholds:
+      high-value-transaction: 10000.00
+      suspicious-address-activity: 5
+      large-withdrawal: 25000.00
+      cross-chain-transaction: true
+      
+    # Advanced security features
+    advanced-security:
+      require-multi-sig-high-value: true
+      require-cold-storage-large-amounts: true
+      automatic-risk-assessment: true
+      real-time-blockchain-monitoring: true
+      address-blacklist-checking: true
+      compliance-screening-enabled: true

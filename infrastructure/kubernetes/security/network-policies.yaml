@@ -1,0 +1,677 @@
+# CRITICAL SECURITY: Comprehensive Network Policies for Zero-Trust Network Architecture
+# Implements strict network segmentation and access control
+
+---
+# Default deny all ingress and egress traffic
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: waqiti
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+
+---
+# Allow DNS for all pods
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-access
+  namespace: waqiti
+spec:
+  podSelector: {}
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    - podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+
+---
+# API Gateway Network Policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: api-gateway-netpol
+  namespace: waqiti
+spec:
+  podSelector:
+    matchLabels:
+      app: api-gateway
+  policyTypes:
+  - Ingress
+  - Egress
+  
+  ingress:
+  # Allow from ingress controller
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: istio-system
+    - podSelector:
+        matchLabels:
+          app: istio-ingressgateway
+    ports:
+    - protocol: TCP
+      port: 8080
+    - protocol: TCP
+      port: 443
+  
+  # Allow from load balancer
+  - from:
+    - ipBlock:
+        cidr: 10.0.0.0/8  # Internal network only
+    ports:
+    - protocol: TCP
+      port: 8080
+    - protocol: TCP
+      port: 443
+  
+  egress:
+  # Allow to all backend services
+  - to:
+    - podSelector:
+        matchLabels:
+          component: backend
+    ports:
+    - protocol: TCP
+      port: 8080
+  
+  # Allow to discovery service
+  - to:
+    - podSelector:
+        matchLabels:
+          app: discovery-service
+    ports:
+    - protocol: TCP
+      port: 8761
+
+---
+# Payment Service Network Policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: payment-service-detailed-netpol
+  namespace: waqiti
+spec:
+  podSelector:
+    matchLabels:
+      app: payment-service
+  policyTypes:
+  - Ingress
+  - Egress
+  
+  ingress:
+  # From API Gateway
+  - from:
+    - podSelector:
+        matchLabels:
+          app: api-gateway
+    ports:
+    - protocol: TCP
+      port: 8080
+  
+  # From Webhook endpoints (restricted IPs)
+  - from:
+    - ipBlock:
+        cidr: 0.0.0.0/0
+        except:
+        - 169.254.169.254/32  # Block metadata service
+        - 10.0.0.0/8  # Block internal except whitelisted
+    ports:
+    - protocol: TCP
+      port: 8443  # Webhook port
+  
+  # Metrics scraping
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    - podSelector:
+        matchLabels:
+          app: prometheus
+    ports:
+    - protocol: TCP
+      port: 9090
+  
+  egress:
+  # Database
+  - to:
+    - podSelector:
+        matchLabels:
+          app: postgres
+    ports:
+    - protocol: TCP
+      port: 5432
+  
+  # Wallet service
+  - to:
+    - podSelector:
+        matchLabels:
+          app: wallet-service
+    ports:
+    - protocol: TCP
+      port: 8080
+  
+  # Fraud detection
+  - to:
+    - podSelector:
+        matchLabels:
+          app: fraud-detection-service
+    ports:
+    - protocol: TCP
+      port: 8080
+  
+  # Kafka
+  - to:
+    - podSelector:
+        matchLabels:
+          app: kafka
+    ports:
+    - protocol: TCP
+      port: 9092
+  
+  # Redis
+  - to:
+    - podSelector:
+        matchLabels:
+          app: redis
+    ports:
+    - protocol: TCP
+      port: 6379
+  
+  # Vault
+  - to:
+    - podSelector:
+        matchLabels:
+          app: vault
+    ports:
+    - protocol: TCP
+      port: 8200
+  
+  # External payment providers (HTTPS only)
+  - to:
+    - ipBlock:
+        cidr: 0.0.0.0/0
+        except:
+        - 10.0.0.0/8
+        - 172.16.0.0/12
+        - 192.168.0.0/16
+        - 169.254.169.254/32
+    ports:
+    - protocol: TCP
+      port: 443
+
+---
+# Wallet Service Network Policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: wallet-service-detailed-netpol
+  namespace: waqiti
+spec:
+  podSelector:
+    matchLabels:
+      app: wallet-service
+  policyTypes:
+  - Ingress
+  - Egress
+  
+  ingress:
+  # From API Gateway
+  - from:
+    - podSelector:
+        matchLabels:
+          app: api-gateway
+    ports:
+    - protocol: TCP
+      port: 8080
+  
+  # From Payment Service
+  - from:
+    - podSelector:
+        matchLabels:
+          app: payment-service
+    ports:
+    - protocol: TCP
+      port: 8080
+  
+  # Metrics
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    ports:
+    - protocol: TCP
+      port: 9090
+  
+  egress:
+  # Database
+  - to:
+    - podSelector:
+        matchLabels:
+          app: postgres
+    ports:
+    - protocol: TCP
+      port: 5432
+  
+  # Redis for caching
+  - to:
+    - podSelector:
+        matchLabels:
+          app: redis
+    ports:
+    - protocol: TCP
+      port: 6379
+  
+  # Kafka for events
+  - to:
+    - podSelector:
+        matchLabels:
+          app: kafka
+    ports:
+    - protocol: TCP
+      port: 9092
+  
+  # Vault for secrets
+  - to:
+    - podSelector:
+        matchLabels:
+          app: vault
+    ports:
+    - protocol: TCP
+      port: 8200
+
+---
+# Fraud Detection Service Network Policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: fraud-detection-detailed-netpol
+  namespace: waqiti
+spec:
+  podSelector:
+    matchLabels:
+      app: fraud-detection-service
+  policyTypes:
+  - Ingress
+  - Egress
+  
+  ingress:
+  # From Payment Service
+  - from:
+    - podSelector:
+        matchLabels:
+          app: payment-service
+    ports:
+    - protocol: TCP
+      port: 8080
+  
+  # From Wallet Service
+  - from:
+    - podSelector:
+        matchLabels:
+          app: wallet-service
+    ports:
+    - protocol: TCP
+      port: 8080
+  
+  # From API Gateway (for admin endpoints)
+  - from:
+    - podSelector:
+        matchLabels:
+          app: api-gateway
+    ports:
+    - protocol: TCP
+      port: 8080
+  
+  # Metrics
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    ports:
+    - protocol: TCP
+      port: 9090
+  
+  egress:
+  # PostgreSQL
+  - to:
+    - podSelector:
+        matchLabels:
+          app: postgres
+    ports:
+    - protocol: TCP
+      port: 5432
+  
+  # Neo4j for graph analysis
+  - to:
+    - podSelector:
+        matchLabels:
+          app: neo4j
+    ports:
+    - protocol: TCP
+      port: 7687
+    - protocol: TCP
+      port: 7474
+  
+  # Kafka
+  - to:
+    - podSelector:
+        matchLabels:
+          app: kafka
+    ports:
+    - protocol: TCP
+      port: 9092
+  
+  # ML model registry (internal)
+  - to:
+    - podSelector:
+        matchLabels:
+          app: model-registry
+    ports:
+    - protocol: TCP
+      port: 8080
+
+---
+# Database Network Policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres-netpol
+  namespace: waqiti
+spec:
+  podSelector:
+    matchLabels:
+      app: postgres
+  policyTypes:
+  - Ingress
+  - Egress
+  
+  ingress:
+  # Only from specific services
+  - from:
+    - podSelector:
+        matchLabels:
+          app: payment-service
+    - podSelector:
+        matchLabels:
+          app: wallet-service
+    - podSelector:
+        matchLabels:
+          app: fraud-detection-service
+    - podSelector:
+        matchLabels:
+          app: user-service
+    - podSelector:
+        matchLabels:
+          app: notification-service
+    ports:
+    - protocol: TCP
+      port: 5432
+  
+  egress:
+  # Allow DNS only
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+
+---
+# Redis Network Policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: redis-netpol
+  namespace: waqiti
+spec:
+  podSelector:
+    matchLabels:
+      app: redis
+  policyTypes:
+  - Ingress
+  - Egress
+  
+  ingress:
+  # From authorized services only
+  - from:
+    - podSelector:
+        matchLabels:
+          app: payment-service
+    - podSelector:
+        matchLabels:
+          app: wallet-service
+    - podSelector:
+        matchLabels:
+          app: api-gateway
+    ports:
+    - protocol: TCP
+      port: 6379
+  
+  egress:
+  # DNS only
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+
+---
+# Kafka Network Policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kafka-netpol
+  namespace: waqiti
+spec:
+  podSelector:
+    matchLabels:
+      app: kafka
+  policyTypes:
+  - Ingress
+  - Egress
+  
+  ingress:
+  # From all backend services
+  - from:
+    - podSelector:
+        matchLabels:
+          component: backend
+    ports:
+    - protocol: TCP
+      port: 9092
+  
+  # Inter-broker communication
+  - from:
+    - podSelector:
+        matchLabels:
+          app: kafka
+    ports:
+    - protocol: TCP
+      port: 9093
+  
+  # From Zookeeper
+  - from:
+    - podSelector:
+        matchLabels:
+          app: zookeeper
+    ports:
+    - protocol: TCP
+      port: 2181
+  
+  egress:
+  # To Zookeeper
+  - to:
+    - podSelector:
+        matchLabels:
+          app: zookeeper
+    ports:
+    - protocol: TCP
+      port: 2181
+  
+  # Inter-broker
+  - to:
+    - podSelector:
+        matchLabels:
+          app: kafka
+    ports:
+    - protocol: TCP
+      port: 9093
+  
+  # DNS
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+
+---
+# Neo4j Network Policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: neo4j-netpol
+  namespace: waqiti
+spec:
+  podSelector:
+    matchLabels:
+      app: neo4j
+  policyTypes:
+  - Ingress
+  - Egress
+  
+  ingress:
+  # Only from fraud detection service
+  - from:
+    - podSelector:
+        matchLabels:
+          app: fraud-detection-service
+    ports:
+    - protocol: TCP
+      port: 7687  # Bolt
+    - protocol: TCP
+      port: 7474  # HTTP (admin)
+  
+  egress:
+  # DNS only
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+
+---
+# Vault Network Policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: vault-netpol
+  namespace: waqiti
+spec:
+  podSelector:
+    matchLabels:
+      app: vault
+  policyTypes:
+  - Ingress
+  - Egress
+  
+  ingress:
+  # From all services that need secrets
+  - from:
+    - podSelector:
+        matchLabels:
+          component: backend
+    ports:
+    - protocol: TCP
+      port: 8200
+  
+  # From init containers
+  - from:
+    - podSelector: {}
+    ports:
+    - protocol: TCP
+      port: 8200
+  
+  egress:
+  # DNS
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+  
+  # Storage backend (Consul/etcd)
+  - to:
+    - podSelector:
+        matchLabels:
+          app: consul
+    ports:
+    - protocol: TCP
+      port: 8500
+
+---
+# Monitoring Stack Network Policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: monitoring-netpol
+  namespace: monitoring
+spec:
+  podSelector:
+    matchLabels:
+      app: prometheus
+  policyTypes:
+  - Ingress
+  - Egress
+  
+  ingress:
+  # From Grafana
+  - from:
+    - podSelector:
+        matchLabels:
+          app: grafana
+    ports:
+    - protocol: TCP
+      port: 9090
+  
+  egress:
+  # To all services for metrics scraping
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: waqiti
+    ports:
+    - protocol: TCP
+      port: 9090
+  
+  # DNS
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53

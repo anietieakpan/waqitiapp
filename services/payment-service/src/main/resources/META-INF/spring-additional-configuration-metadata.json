@@ -1,0 +1,426 @@
+{
+  "properties": [
+    {
+      "name": "wallet-service.url",
+      "type": "java.lang.String",
+      "description": "Wallet service URL",
+      "defaultValue": "http://localhost:8082"
+    },
+    {
+      "name": "user-service.url",
+      "type": "java.lang.String",
+      "description": "User service URL",
+      "defaultValue": "http://localhost:8081"
+    },
+    {
+      "name": "compliance-service.url",
+      "type": "java.lang.String",
+      "description": "Compliance service URL",
+      "defaultValue": "http://localhost:8089"
+    },
+    {
+      "name": "ach.daily-limit",
+      "type": "java.math.BigDecimal",
+      "description": "Daily ACH transfer limit",
+      "defaultValue": "50000"
+    },
+    {
+      "name": "ach.single-transaction-limit",
+      "type": "java.math.BigDecimal",
+      "description": "Single ACH transaction limit",
+      "defaultValue": "10000"
+    },
+    {
+      "name": "ach.processing.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable ACH processing",
+      "defaultValue": true
+    },
+    {
+      "name": "ach.encryption.key",
+      "type": "java.lang.String",
+      "description": "ACH encryption key"
+    },
+    {
+      "name": "instant-deposit.fee-percentage",
+      "type": "java.math.BigDecimal",
+      "description": "Instant deposit fee percentage",
+      "defaultValue": "0.015"
+    },
+    {
+      "name": "instant-deposit.minimum-fee",
+      "type": "java.math.BigDecimal",
+      "description": "Minimum instant deposit fee",
+      "defaultValue": "0.25"
+    },
+    {
+      "name": "instant-deposit.maximum-fee",
+      "type": "java.math.BigDecimal",
+      "description": "Maximum instant deposit fee",
+      "defaultValue": "15.00"
+    },
+    {
+      "name": "instant-deposit.minimum-amount",
+      "type": "java.math.BigDecimal",
+      "description": "Minimum instant deposit amount",
+      "defaultValue": "1.00"
+    },
+    {
+      "name": "instant-deposit.maximum-amount",
+      "type": "java.math.BigDecimal",
+      "description": "Maximum instant deposit amount",
+      "defaultValue": "5000.00"
+    },
+    {
+      "name": "instant-deposit.daily-limit",
+      "type": "java.math.BigDecimal",
+      "description": "Daily instant deposit limit",
+      "defaultValue": "10000.00"
+    },
+    {
+      "name": "instant-deposit.processing-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable instant deposit processing",
+      "defaultValue": true
+    },
+    {
+      "name": "banking.api.base-url",
+      "type": "java.lang.String",
+      "description": "Banking API base URL",
+      "defaultValue": "https://api.banking-partner.com"
+    },
+    {
+      "name": "banking.api.client-id",
+      "type": "java.lang.String",
+      "description": "Banking API client ID"
+    },
+    {
+      "name": "banking.api.client-secret",
+      "type": "java.lang.String",
+      "description": "Banking API client secret"
+    },
+    {
+      "name": "banking.api.timeout",
+      "type": "java.lang.Integer",
+      "description": "Banking API timeout in seconds",
+      "defaultValue": 30
+    },
+    {
+      "name": "payment.method.max-per-user",
+      "type": "java.lang.Integer",
+      "description": "Maximum payment methods per user",
+      "defaultValue": 10
+    },
+    {
+      "name": "payment.encryption.key",
+      "type": "java.lang.String",
+      "description": "Payment data encryption key"
+    },
+    {
+      "name": "payment.event-sourcing.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable event sourcing for payments",
+      "defaultValue": true
+    },
+    {
+      "name": "payment.event-sourcing.async",
+      "type": "java.lang.Boolean",
+      "description": "Use async event sourcing",
+      "defaultValue": true
+    },
+    {
+      "name": "payment.stripe.api-key",
+      "type": "java.lang.String",
+      "description": "Stripe API key"
+    },
+    {
+      "name": "payment.stripe.webhook-secret",
+      "type": "java.lang.String",
+      "description": "Stripe webhook secret"
+    },
+    {
+      "name": "payment.paypal.client-id",
+      "type": "java.lang.String",
+      "description": "PayPal client ID"
+    },
+    {
+      "name": "payment.paypal.client-secret",
+      "type": "java.lang.String",
+      "description": "PayPal client secret"
+    },
+    {
+      "name": "security.jwt.token.secret-key",
+      "type": "java.lang.String",
+      "description": "JWT secret key"
+    },
+    {
+      "name": "security.jwt.token.expiration",
+      "type": "java.lang.Long",
+      "description": "JWT token expiration in milliseconds",
+      "defaultValue": 3600000
+    },
+    {
+      "name": "security.jwt.refresh.secret-key",
+      "type": "java.lang.String",
+      "description": "JWT refresh token secret key"
+    },
+    {
+      "name": "security.jwt.refresh.expiration",
+      "type": "java.lang.Long",
+      "description": "JWT refresh token expiration in milliseconds",
+      "defaultValue": 604800000
+    },
+    {
+      "name": "feign.client.config.default.connectTimeout",
+      "type": "java.lang.Integer",
+      "description": "Default Feign client connect timeout in milliseconds",
+      "defaultValue": 5000
+    },
+    {
+      "name": "feign.client.config.default.readTimeout",
+      "type": "java.lang.Integer",
+      "description": "Default Feign client read timeout in milliseconds",
+      "defaultValue": 10000
+    },
+    {
+      "name": "feign.client.config.default.loggerLevel",
+      "type": "java.lang.String",
+      "description": "Default Feign client logger level",
+      "defaultValue": "basic"
+    },
+    {
+      "name": "feign.client.config.wallet-service.connectTimeout",
+      "type": "java.lang.Integer",
+      "description": "Wallet service Feign client connect timeout in milliseconds",
+      "defaultValue": 5000
+    },
+    {
+      "name": "feign.client.config.wallet-service.readTimeout",
+      "type": "java.lang.Integer",
+      "description": "Wallet service Feign client read timeout in milliseconds",
+      "defaultValue": 15000
+    },
+    {
+      "name": "feign.client.config.wallet-service.loggerLevel",
+      "type": "java.lang.String",
+      "description": "Wallet service Feign client logger level",
+      "defaultValue": "basic"
+    },
+    {
+      "name": "feign.client.config.compliance-service.connectTimeout",
+      "type": "java.lang.Integer",
+      "description": "Compliance service Feign client connect timeout in milliseconds",
+      "defaultValue": 10000
+    },
+    {
+      "name": "feign.client.config.compliance-service.readTimeout",
+      "type": "java.lang.Integer",
+      "description": "Compliance service Feign client read timeout in milliseconds",
+      "defaultValue": 30000
+    },
+    {
+      "name": "feign.client.config.compliance-service.loggerLevel",
+      "type": "java.lang.String",
+      "description": "Compliance service Feign client logger level",
+      "defaultValue": "headers"
+    },
+    {
+      "name": "feign.circuitbreaker.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Feign circuit breaker",
+      "defaultValue": true
+    },
+    {
+      "name": "feign.circuitbreaker.failure-rate-threshold",
+      "type": "java.lang.Integer",
+      "description": "Circuit breaker failure rate threshold percentage",
+      "defaultValue": 50
+    },
+    {
+      "name": "feign.circuitbreaker.slow-call-rate-threshold",
+      "type": "java.lang.Integer",
+      "description": "Circuit breaker slow call rate threshold percentage",
+      "defaultValue": 50
+    },
+    {
+      "name": "feign.circuitbreaker.slow-call-duration-threshold",
+      "type": "java.lang.Integer",
+      "description": "Circuit breaker slow call duration threshold in milliseconds",
+      "defaultValue": 2000
+    },
+    {
+      "name": "feign.circuitbreaker.wait-duration-in-open-state",
+      "type": "java.lang.Integer",
+      "description": "Circuit breaker wait duration in open state in milliseconds",
+      "defaultValue": 30000
+    },
+    {
+      "name": "feign.circuitbreaker.sliding-window-size",
+      "type": "java.lang.Integer",
+      "description": "Circuit breaker sliding window size",
+      "defaultValue": 10
+    },
+    {
+      "name": "feign.circuitbreaker.minimum-number-of-calls",
+      "type": "java.lang.Integer",
+      "description": "Circuit breaker minimum number of calls",
+      "defaultValue": 5
+    },
+    {
+      "name": "feign.compression.request.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Feign request compression",
+      "defaultValue": true
+    },
+    {
+      "name": "feign.compression.request.mime-types",
+      "type": "java.lang.String",
+      "description": "Feign request compression MIME types",
+      "defaultValue": "application/json,text/xml"
+    },
+    {
+      "name": "feign.compression.request.min-request-size",
+      "type": "java.lang.Integer",
+      "description": "Feign request compression minimum request size in bytes",
+      "defaultValue": 2048
+    },
+    {
+      "name": "feign.compression.response.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Feign response compression",
+      "defaultValue": true
+    },
+    {
+      "name": "waqiti.clients.wallet.connect-timeout",
+      "type": "java.lang.Integer",
+      "description": "Waqiti wallet client connect timeout in milliseconds",
+      "defaultValue": 5000
+    },
+    {
+      "name": "waqiti.clients.wallet.read-timeout",
+      "type": "java.lang.Integer",
+      "description": "Waqiti wallet client read timeout in milliseconds",
+      "defaultValue": 15000
+    },
+    {
+      "name": "waqiti.clients.wallet.follow-redirects",
+      "type": "java.lang.Boolean",
+      "description": "Waqiti wallet client follow redirects",
+      "defaultValue": false
+    },
+    {
+      "name": "waqiti.clients.wallet.base-url",
+      "type": "java.lang.String",
+      "description": "Waqiti wallet client base URL",
+      "defaultValue": "http://wallet-service:8080"
+    },
+    {
+      "name": "waqiti.clients.wallet.max-retry-attempts",
+      "type": "java.lang.Integer",
+      "description": "Waqiti wallet client maximum retry attempts",
+      "defaultValue": 3
+    },
+    {
+      "name": "waqiti.clients.wallet.retry-delay-ms",
+      "type": "java.lang.Integer",
+      "description": "Waqiti wallet client retry delay in milliseconds",
+      "defaultValue": 1000
+    },
+    {
+      "name": "waqiti.clients.wallet.circuit-breaker.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Waqiti wallet client circuit breaker",
+      "defaultValue": true
+    },
+    {
+      "name": "waqiti.clients.wallet.circuit-breaker.failure-threshold",
+      "type": "java.lang.Integer",
+      "description": "Waqiti wallet client circuit breaker failure threshold",
+      "defaultValue": 5
+    },
+    {
+      "name": "waqiti.clients.wallet.circuit-breaker.recovery-timeout-ms",
+      "type": "java.lang.Integer",
+      "description": "Waqiti wallet client circuit breaker recovery timeout in milliseconds",
+      "defaultValue": 30000
+    },
+    {
+      "name": "waqiti.clients.wallet.rate-limit.requests-per-second",
+      "type": "java.lang.Integer",
+      "description": "Waqiti wallet client rate limit requests per second",
+      "defaultValue": 100
+    },
+    {
+      "name": "waqiti.clients.wallet.rate-limit.burst-capacity",
+      "type": "java.lang.Integer",
+      "description": "Waqiti wallet client rate limit burst capacity",
+      "defaultValue": 150
+    },
+    {
+      "name": "waqiti.clients.compliance.connect-timeout",
+      "type": "java.lang.Integer",
+      "description": "Waqiti compliance client connect timeout in milliseconds",
+      "defaultValue": 10000
+    },
+    {
+      "name": "waqiti.clients.compliance.read-timeout",
+      "type": "java.lang.Integer",
+      "description": "Waqiti compliance client read timeout in milliseconds",
+      "defaultValue": 30000
+    },
+    {
+      "name": "waqiti.clients.compliance.follow-redirects",
+      "type": "java.lang.Boolean",
+      "description": "Waqiti compliance client follow redirects",
+      "defaultValue": false
+    },
+    {
+      "name": "waqiti.clients.compliance.base-url",
+      "type": "java.lang.String",
+      "description": "Waqiti compliance client base URL",
+      "defaultValue": "http://compliance-service:8080"
+    },
+    {
+      "name": "waqiti.clients.compliance.max-retry-attempts",
+      "type": "java.lang.Integer",
+      "description": "Waqiti compliance client maximum retry attempts",
+      "defaultValue": 2
+    },
+    {
+      "name": "waqiti.clients.compliance.retry-delay-ms",
+      "type": "java.lang.Integer",
+      "description": "Waqiti compliance client retry delay in milliseconds",
+      "defaultValue": 2000
+    },
+    {
+      "name": "waqiti.clients.compliance.circuit-breaker.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Waqiti compliance client circuit breaker",
+      "defaultValue": true
+    },
+    {
+      "name": "waqiti.clients.compliance.circuit-breaker.failure-threshold",
+      "type": "java.lang.Integer",
+      "description": "Waqiti compliance client circuit breaker failure threshold",
+      "defaultValue": 3
+    },
+    {
+      "name": "waqiti.clients.compliance.circuit-breaker.recovery-timeout-ms",
+      "type": "java.lang.Integer",
+      "description": "Waqiti compliance client circuit breaker recovery timeout in milliseconds",
+      "defaultValue": 60000
+    },
+    {
+      "name": "waqiti.clients.compliance.rate-limit.requests-per-second",
+      "type": "java.lang.Integer",
+      "description": "Waqiti compliance client rate limit requests per second",
+      "defaultValue": 50
+    },
+    {
+      "name": "waqiti.clients.compliance.rate-limit.burst-capacity",
+      "type": "java.lang.Integer",
+      "description": "Waqiti compliance client rate limit burst capacity",
+      "defaultValue": 75
+    }
+  ]
+}

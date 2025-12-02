@@ -1,0 +1,142 @@
+spring:
+  application:
+    name: messaging-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:development}
+    include: keycloak
+  
+  datasource:
+    url: jdbc:postgresql://localhost:5432/waqiti_messaging
+    username: ${vault.database.username:waqiti}
+    password: ${DATABASE_PASSWORD:${vault.database.password}}
+    driver-class-name: org.postgresql.Driver
+    
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        show_sql: false
+        
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:${vault.redis.password}}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+        
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      group-id: messaging-service
+      enable-auto-commit: false  # Manual acknowledgment for DLQ support
+      max-poll-records: 50  # Batch size control
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.waqiti.messaging.dto"
+        
+server:
+  port: 8087
+  
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:https://discovery-service:8761/eureka}/
+  instance:
+    instance-id: ${spring.application.name}:${spring.application.instance-id:${random.value}}
+    
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+        
+logging:
+  level:
+    com.waqiti.messaging: DEBUG
+    org.springframework.web.socket: DEBUG
+    
+# Messaging configuration
+messaging:
+  encryption:
+    enabled: true
+    algorithm: AES-256-GCM
+    key-rotation-days: 30
+    
+  websocket:
+    max-sessions-per-user: 5
+    heartbeat-interval: 30000
+    session-timeout: 300000
+    
+  storage:
+    media:
+      bucket: ${AWS_S3_BUCKET:waqiti-messaging-media}
+      region: ${AWS_REGION:us-east-1}
+      expiry-days: 90
+      
+  limits:
+    max-message-size: 5000
+    max-attachment-size: 104857600 # 100MB
+    max-attachments-per-message: 10
+    ephemeral-message-max-duration: 604800 # 7 days in seconds
+    
+  cleanup:
+    deleted-messages-retention-days: 30
+    expired-ephemeral-check-interval: 60000 # 1 minute
+
+# Keycloak Configuration
+keycloak:
+  enabled: ${KEYCLOAK_ENABLED:true}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  resource: messaging-service
+  credentials:
+    secret: ${KEYCLOAK_CLIENT_SECRET:${vault.keycloak.messaging-service.secret}}
+  use-resource-role-mappings: true
+  bearer-only: true
+  ssl-required: external
+  confidential-port: 8443
+  
+# OAuth2 Resource Server (Keycloak)
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+      client:
+        registration:
+          messaging-service:
+            client-id: ${keycloak.resource}
+            client-secret: ${keycloak.credentials.secret}
+            authorization-grant-type: client_credentials
+            scope: openid
+        provider:
+          keycloak:
+            issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+            
+# Feature Flags for Dual-Mode Authentication
+feature:
+  flags:
+    dual-auth-mode:
+      enabled: ${DUAL_AUTH_MODE_ENABLED:false}
+    keycloak-only:
+      enabled: ${KEYCLOAK_ONLY_MODE:true}
+    legacy-jwt-deprecation-warning:
+      enabled: ${LEGACY_JWT_WARNING:true}

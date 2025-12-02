@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
+
+    <changeSet id="004-1" author="kyc-service">
+        <comment>Insert default KYC configuration metadata</comment>
+        <sql>
+            INSERT INTO kyc_metadata (id, verification_id, key, value, encrypted)
+            VALUES 
+            ('default-001', 'SYSTEM', 'kyc.config.version', '1.0.0', false),
+            ('default-002', 'SYSTEM', 'kyc.config.last_updated', NOW()::text, false),
+            ('default-003', 'SYSTEM', 'kyc.providers.enabled', '["ONFIDO", "JUMIO", "COMPLY_ADVANTAGE"]', false),
+            ('default-004', 'SYSTEM', 'kyc.levels.definitions', '{"BASIC": "Email and phone verification", "INTERMEDIATE": "ID document verification", "ADVANCED": "Enhanced due diligence"}', false);
+        </sql>
+    </changeSet>
+
+    <changeSet id="004-2" author="kyc-service">
+        <comment>Create sample compliance requirements</comment>
+        <sql>
+            INSERT INTO kyc_compliance_log (id, user_id, compliance_type, jurisdiction, requirement, status, details)
+            VALUES 
+            ('comp-001', 'SYSTEM', 'GDPR', 'EU', 'Data retention policy', 'COMPLIANT', '{"retention_days": 2555, "erasure_enabled": true}'),
+            ('comp-002', 'SYSTEM', 'PSD2', 'EU', 'Strong Customer Authentication', 'COMPLIANT', '{"sca_enabled": true, "exemptions": ["low_value", "trusted_beneficiary"]}'),
+            ('comp-003', 'SYSTEM', 'AML', 'GLOBAL', 'Anti-Money Laundering checks', 'COMPLIANT', '{"screening_enabled": true, "pep_check": true, "sanctions_check": true}');
+        </sql>
+    </changeSet>
+
+    <changeSet id="004-3" author="kyc-service">
+        <comment>Create database views for reporting</comment>
+        <sql>
+            CREATE OR REPLACE VIEW kyc_verification_summary AS
+            SELECT 
+                v.user_id,
+                v.status,
+                v.verification_level,
+                v.provider,
+                v.verified_at,
+                v.expires_at,
+                COUNT(DISTINCT d.id) as document_count,
+                COUNT(DISTINCT CASE WHEN d.status = 'VERIFIED' THEN d.id END) as verified_document_count,
+                COUNT(DISTINCT c.id) as check_count,
+                COUNT(DISTINCT CASE WHEN c.status = 'PASSED' THEN c.id END) as passed_check_count
+            FROM kyc_verifications v
+            LEFT JOIN verification_documents d ON v.id = d.verification_id
+            LEFT JOIN kyc_verification_checks c ON v.id = c.verification_id
+            GROUP BY v.user_id, v.status, v.verification_level, v.provider, v.verified_at, v.expires_at;
+        </sql>
+    </changeSet>
+
+    <changeSet id="004-4" author="kyc-service">
+        <comment>Create materialized view for analytics</comment>
+        <sql>
+            CREATE MATERIALIZED VIEW kyc_analytics_daily AS
+            SELECT 
+                DATE(created_at) as date,
+                COUNT(*) as total_verifications,
+                COUNT(CASE WHEN status = 'APPROVED' THEN 1 END) as approved_count,
+                COUNT(CASE WHEN status = 'REJECTED' THEN 1 END) as rejected_count,
+                COUNT(CASE WHEN status = 'PENDING' THEN 1 END) as pending_count,
+                AVG(EXTRACT(EPOCH FROM (updated_at - created_at))/60) as avg_processing_time_minutes,
+                COUNT(DISTINCT user_id) as unique_users,
+                COUNT(DISTINCT provider) as providers_used
+            FROM kyc_verifications
+            GROUP BY DATE(created_at);
+
+            CREATE INDEX idx_kyc_analytics_daily_date ON kyc_analytics_daily(date);
+        </sql>
+    </changeSet>
+
+    <changeSet id="004-5" author="kyc-service">
+        <comment>Create stored procedures for cleanup</comment>
+        <sql>
+            CREATE OR REPLACE FUNCTION cleanup_expired_verifications()
+            RETURNS INTEGER AS $$
+            DECLARE
+                deleted_count INTEGER;
+            BEGIN
+                DELETE FROM kyc_verifications
+                WHERE expires_at &lt; NOW()
+                AND status IN ('EXPIRED', 'CANCELLED')
+                AND created_at &lt; NOW() - INTERVAL '90 days';
+                
+                GET DIAGNOSTICS deleted_count = ROW_COUNT;
+                RETURN deleted_count;
+            END;
+            $$ LANGUAGE plpgsql;
+
+            CREATE OR REPLACE FUNCTION anonymize_old_kyc_data()
+            RETURNS INTEGER AS $$
+            DECLARE
+                updated_count INTEGER;
+            BEGIN
+                UPDATE kyc_verifications
+                SET 
+                    ip_address = 'ANONYMIZED',
+                    user_agent = 'ANONYMIZED',
+                    rejection_reason = CASE 
+                        WHEN rejection_reason IS NOT NULL THEN 'ANONYMIZED' 
+                        ELSE NULL 
+                    END
+                WHERE created_at &lt; NOW() - INTERVAL '7 years'
+                AND status IN ('APPROVED', 'REJECTED');
+                
+                GET DIAGNOSTICS updated_count = ROW_COUNT;
+                RETURN updated_count;
+            END;
+            $$ LANGUAGE plpgsql;
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

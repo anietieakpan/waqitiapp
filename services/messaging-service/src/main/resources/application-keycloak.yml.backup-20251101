@@ -1,0 +1,95 @@
+# Keycloak Configuration for Messaging Service
+
+keycloak:
+  enabled: true
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  ssl-required: external
+  resource: messaging-service
+  bearer-only: true
+  credentials:
+    secret: ${MESSAGING_SERVICE_CLIENT_SECRET:CHANGE_ME_SECURE_SECRET_REQUIRED}
+  use-resource-role-mappings: true
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# Messaging Service Security Configuration
+messaging:
+  security:
+    # Public endpoints that don't require authentication
+    public-endpoints:
+      - /actuator/health
+      - /actuator/info
+      - /api/v1/messaging/webhook/**
+      - /swagger-ui/**
+      - /v3/api-docs/**
+    
+    # Service-to-service endpoints
+    service-endpoints:
+      - /internal/messaging/**
+    
+    # Required roles for messaging operations
+    required-roles:
+      read:
+        - MESSAGING_USER
+        - MESSAGING_VIEWER
+      write:
+        - MESSAGING_USER
+        - MESSAGING_SENDER
+      management:
+        - MESSAGING_MANAGER
+        - MESSAGING_OPERATOR
+      admin:
+        - MESSAGING_ADMIN
+        - SYSTEM_ADMIN
+    
+    # Required scopes for operations
+    required-scopes:
+      read: messaging:read
+      write: messaging:write
+      send: messaging:send
+      receive: messaging:receive
+      broadcast: messaging:broadcast
+      template: messaging:template
+      channel: messaging:channel
+      contact: messaging:contact
+      group: messaging:group
+      attachment: messaging:attachment
+      history: messaging:history
+      search: messaging:search
+    
+    # Messaging security features
+    features:
+      end-to-end-encryption-enabled: true
+      content-moderation-enabled: true
+      spam-detection-enabled: true
+      rate-limiting-enabled: true
+      audit-logging-enabled: true
+      message-retention-enabled: true
+      
+    # Messaging limits and thresholds
+    limits:
+      max-message-length: 4096
+      max-attachment-size: 10485760  # 10MB
+      max-recipients-per-message: 100
+      max-messages-per-minute: 60
+      
+    # Security thresholds requiring additional verification
+    verification-thresholds:
+      bulk-message-threshold: 50
+      attachment-size-threshold: 5242880  # 5MB
+      suspicious-content-threshold: 3
+      
+    # Advanced security features
+    advanced-security:
+      require-sender-verification: true
+      automatic-content-scanning: true
+      phishing-detection: true
+      malware-scanning: true
+      compliance-archiving: true

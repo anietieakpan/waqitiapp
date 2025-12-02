@@ -1,0 +1,518 @@
+# Kubernetes SSL/TLS Configuration for Waqiti Financial Services
+# This file contains all SSL/TLS related Kubernetes resources
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: waqiti
+  labels:
+    name: waqiti
+    security.enforce: "strict"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: waqiti-ssl-certificates
+  namespace: waqiti
+  labels:
+    app: waqiti
+    type: ssl-certificates
+type: Opaque
+# IMPORTANT: These are placeholder values for demonstration purposes.
+# In production, generate real certificates and use secrets management.
+# Use cert-manager for automated certificate management in Kubernetes.
+stringData:
+  # Generate certificates using: ./scripts/generate-ssl-certs.sh
+  ca-cert.pem: "${SSL_CA_CERTIFICATE}"
+  keystore.p12: "${SSL_KEYSTORE}"
+  truststore.p12: "${SSL_TRUSTSTORE}"
+  keystore-password: "${SSL_KEYSTORE_PASSWORD}"
+  truststore-password: "${SSL_TRUSTSTORE_PASSWORD}"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: waqiti-ssl-config
+  namespace: waqiti
+  labels:
+    app: waqiti
+    type: ssl-config
+data:
+  application-ssl.yml: |
+    server:
+      port: 8443
+      ssl:
+        enabled: true
+        key-store: /ssl/keystore.p12
+        key-store-password: ${SSL_KEYSTORE_PASSWORD}
+        key-store-type: PKCS12
+        trust-store: /ssl/truststore.p12
+        trust-store-password: ${SSL_TRUSTSTORE_PASSWORD}
+        trust-store-type: PKCS12
+        client-auth: want
+        protocol: TLS
+        enabled-protocols: TLSv1.3,TLSv1.2
+        ciphers:
+          - TLS_AES_256_GCM_SHA384
+          - TLS_CHACHA20_POLY1305_SHA256
+          - TLS_AES_128_GCM_SHA256
+          - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+          - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+      http2:
+        enabled: true
+    
+    spring:
+      profiles:
+        active: ssl,production
+    
+    waqiti:
+      security:
+        tls:
+          enabled: true
+          enforce-https: true
+        headers:
+          enabled: true
+          hsts:
+            enabled: true
+            max-age-in-seconds: 31536000
+            include-subdomains: true
+            preload: true
+    
+    eureka:
+      client:
+        service-url:
+          defaultZone: https://eureka-server.example.svc.cluster.local:8761/eureka
+      instance:
+        secure-port-enabled: true
+        secure-port: 8443
+        non-secure-port-enabled: false
+        secure-virtual-host-name: ${spring.application.name}
+        status-page-url: https://${eureka.instance.hostname}:${server.port}/actuator/info
+        health-check-url: https://${eureka.instance.hostname}:${server.port}/actuator/health
+    
+    management:
+      server:
+        port: 8443
+        ssl:
+          enabled: true
+      endpoints:
+        web:
+          exposure:
+            include: health,info,prometheus,metrics
+      endpoint:
+        health:
+          show-details: when-authorized
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: waqiti-ssl-only
+  namespace: waqiti
+  labels:
+    app: waqiti
+    type: network-policy
+spec:
+  podSelector:
+    matchLabels:
+      app: waqiti
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: waqiti
+    - namespaceSelector:
+        matchLabels:
+          name: istio-system
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    ports:
+    - protocol: TCP
+      port: 8443  # HTTPS only
+    - protocol: TCP
+      port: 8761  # Eureka HTTPS
+    - protocol: TCP
+      port: 8888  # Config service HTTPS
+  egress:
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443   # HTTPS outbound
+    - protocol: TCP
+      port: 8443  # Service HTTPS
+    - protocol: TCP
+      port: 8761  # Eureka HTTPS
+    - protocol: TCP
+      port: 8888  # Config service HTTPS
+    - protocol: UDP
+      port: 53    # DNS
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-gateway-ssl
+  namespace: waqiti
+  labels:
+    app: api-gateway
+    version: v1
+    service: api-gateway
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-ssl-cert: "arn:aws:acm:region:account:certificate/cert-id"
+    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: https
+    service.beta.kubernetes.io/aws-load-balancer-ssl-ports: "https"
+spec:
+  type: LoadBalancer
+  ports:
+  - name: https
+    port: 443
+    targetPort: 8443
+    protocol: TCP
+  - name: http-redirect
+    port: 80
+    targetPort: 8080
+    protocol: TCP
+  selector:
+    app: api-gateway
+---
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: waqiti-ssl-gateway
+  namespace: waqiti
+  labels:
+    app: waqiti
+    type: istio-gateway
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  - port:
+      number: 443
+      name: https
+      protocol: HTTPS
+    tls:
+      mode: SIMPLE
+      credentialName: waqiti-tls-secret
+    hosts:
+    - "api.example.com"
+    - "app.example.com"
+    - "admin.example.com"
+    - "dashboard.example.com"
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "api.example.com"
+    - "app.example.com"
+    - "admin.example.com"
+    - "dashboard.example.com"
+    tls:
+      httpsRedirect: true
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: waqiti-ssl-vs
+  namespace: waqiti
+  labels:
+    app: waqiti
+    type: istio-virtual-service
+spec:
+  hosts:
+  - "api.example.com"
+  - "app.example.com"
+  - "admin.example.com"
+  - "dashboard.example.com"
+  gateways:
+  - waqiti-ssl-gateway
+  http:
+  - match:
+    - headers:
+        x-forwarded-proto:
+          exact: http
+    redirect:
+      scheme: https
+  - match:
+    - uri:
+        prefix: "/api/"
+    route:
+    - destination:
+        host: api-gateway.example.svc.cluster.local
+        port:
+          number: 8443
+  - match:
+    - uri:
+        prefix: "/"
+    route:
+    - destination:
+        host: web-app.example.svc.cluster.local
+        port:
+          number: 443
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: waqiti
+  labels:
+    app: waqiti
+    type: istio-peer-auth
+spec:
+  mtls:
+    mode: STRICT
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: waqiti-ssl-authz
+  namespace: waqiti
+  labels:
+    app: waqiti
+    type: istio-authz
+spec:
+  selector:
+    matchLabels:
+      app: waqiti
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/waqiti/sa/default"]
+    to:
+    - operation:
+        methods: ["GET", "POST", "PUT", "DELETE"]
+    when:
+    - key: source.mtls
+      values: ["true"]
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: waqiti-ssl-sa
+  namespace: waqiti
+  labels:
+    app: waqiti
+    type: service-account
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: waqiti
+  name: waqiti-ssl-role
+  labels:
+    app: waqiti
+    type: rbac-role
+rules:
+- apiGroups: [""]
+  resources: ["secrets", "configmaps"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: waqiti-ssl-rolebinding
+  namespace: waqiti
+  labels:
+    app: waqiti
+    type: rbac-rolebinding
+subjects:
+- kind: ServiceAccount
+  name: waqiti-ssl-sa
+  namespace: waqiti
+roleRef:
+  kind: Role
+  name: waqiti-ssl-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-ssl-config
+  namespace: waqiti
+  labels:
+    app: prometheus
+    type: ssl-config
+data:
+  web-config.yml: |
+    tls_server_config:
+      cert_file: /ssl/waqiti-ca-cert.pem
+      key_file: /ssl/waqiti-ca-key.pem
+      client_auth_type: RequireAndVerifyClientCert
+      client_ca_file: /ssl/waqiti-ca-cert.pem
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ssl-certificate-validator
+  namespace: waqiti
+  labels:
+    app: waqiti
+    type: ssl-validator
+spec:
+  template:
+    metadata:
+      labels:
+        app: ssl-validator
+    spec:
+      serviceAccountName: waqiti-ssl-sa
+      restartPolicy: OnFailure
+      initContainers:
+      - name: ssl-validator
+        image: alpine/openssl:latest
+        command:
+        - /bin/sh
+        - -c
+        - |
+          echo "Validating SSL certificates..."
+          
+          # Check if certificates exist
+          if [ ! -f /ssl/ca-cert.pem ]; then
+            echo "ERROR: CA certificate not found"
+            exit 1
+          fi
+          
+          if [ ! -f /ssl/keystore.p12 ]; then
+            echo "ERROR: Keystore not found"
+            exit 1
+          fi
+          
+          if [ ! -f /ssl/truststore.p12 ]; then
+            echo "ERROR: Truststore not found"
+            exit 1
+          fi
+          
+          # Validate CA certificate
+          openssl x509 -in /ssl/ca-cert.pem -text -noout
+          if [ $? -eq 0 ]; then
+            echo "CA certificate is valid"
+          else
+            echo "ERROR: CA certificate is invalid"
+            exit 1
+          fi
+          
+          # Check certificate expiry (warn if < 30 days)
+          EXPIRY=$(openssl x509 -in /ssl/ca-cert.pem -noout -enddate | cut -d= -f2)
+          EXPIRY_EPOCH=$(date -d "$EXPIRY" +%s)
+          CURRENT_EPOCH=$(date +%s)
+          DAYS_UNTIL_EXPIRY=$(( ($EXPIRY_EPOCH - $CURRENT_EPOCH) / 86400 ))
+          
+          if [ $DAYS_UNTIL_EXPIRY -lt 30 ]; then
+            echo "WARNING: Certificate expires in $DAYS_UNTIL_EXPIRY days"
+          else
+            echo "Certificate is valid for $DAYS_UNTIL_EXPIRY days"
+          fi
+          
+          echo "SSL certificate validation completed successfully"
+        volumeMounts:
+        - name: ssl-certs
+          mountPath: /ssl
+          readOnly: true
+      containers:
+      - name: completion-marker
+        image: busybox:latest
+        command: ["echo", "SSL validation completed"]
+      volumes:
+      - name: ssl-certs
+        secret:
+          secretName: waqiti-ssl-certificates
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ssl-monitoring-config
+  namespace: waqiti
+  labels:
+    app: ssl-monitoring
+    type: config
+data:
+  monitor.sh: |
+    #!/bin/bash
+    # SSL Certificate Monitoring Script
+    
+    while true; do
+      echo "$(date): Checking SSL certificate health..."
+      
+      # Check each service endpoint
+      for service in api-gateway user-service wallet-service payment-service; do
+        echo "Checking $service..."
+        
+        # Test SSL connection
+        echo | openssl s_client -connect $service.example.svc.cluster.local:8443 -servername $service 2>/dev/null | \
+        openssl x509 -noout -dates 2>/dev/null
+        
+        if [ $? -eq 0 ]; then
+          echo "$service SSL certificate is valid"
+        else
+          echo "WARNING: $service SSL certificate check failed"
+          # Send alert to monitoring system
+          curl -X POST http://alertmanager.monitoring.svc.cluster.local:9093/api/v1/alerts \
+            -H 'Content-Type: application/json' \
+            -d "[{
+              \"labels\": {
+                \"alertname\": \"SSLCertificateCheckFailed\",
+                \"service\": \"$service\",
+                \"severity\": \"warning\"
+              },
+              \"annotations\": {
+                \"summary\": \"SSL certificate check failed for $service\",
+                \"description\": \"SSL certificate validation failed for service $service\"
+              }
+            }]"
+        fi
+      done
+      
+      sleep 3600  # Check every hour
+    done
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ssl-monitor
+  namespace: waqiti
+  labels:
+    app: ssl-monitor
+    type: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ssl-monitor
+  template:
+    metadata:
+      labels:
+        app: ssl-monitor
+    spec:
+      serviceAccountName: waqiti-ssl-sa
+      containers:
+      - name: ssl-monitor
+        image: alpine/openssl:latest
+        command:
+        - /bin/sh
+        - /config/monitor.sh
+        volumeMounts:
+        - name: ssl-certs
+          mountPath: /ssl
+          readOnly: true
+        - name: monitor-config
+          mountPath: /config
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+      volumes:
+      - name: ssl-certs
+        secret:
+          secretName: waqiti-ssl-certificates
+      - name: monitor-config
+        configMap:
+          name: ssl-monitoring-config
+          defaultMode: 0755

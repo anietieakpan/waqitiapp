@@ -1,0 +1,123 @@
+{
+  "type": "record",
+  "name": "ComplianceAlertEvent",
+  "namespace": "com.waqiti.compliance.events",
+  "doc": "Event emitted for AML/KYC compliance alerts",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "Unique event identifier"
+    },
+    {
+      "name": "alertId",
+      "type": "string",
+      "doc": "Unique compliance alert identifier"
+    },
+    {
+      "name": "userId",
+      "type": "string",
+      "doc": "User ID subject to compliance check"
+    },
+    {
+      "name": "alertType",
+      "type": {
+        "type": "enum",
+        "name": "ComplianceAlertType",
+        "symbols": [
+          "AML_SUSPICIOUS_ACTIVITY",
+          "SANCTIONS_MATCH",
+          "PEP_MATCH",
+          "HIGH_RISK_JURISDICTION",
+          "STRUCTURING_DETECTED",
+          "CTR_THRESHOLD_EXCEEDED",
+          "SAR_FILING_REQUIRED",
+          "KYC_VERIFICATION_FAILED",
+          "ENHANCED_DUE_DILIGENCE_REQUIRED"
+        ]
+      },
+      "doc": "Type of compliance alert"
+    },
+    {
+      "name": "severity",
+      "type": {
+        "type": "enum",
+        "name": "ComplianceSeverity",
+        "symbols": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+      },
+      "doc": "Severity level"
+    },
+    {
+      "name": "riskScore",
+      "type": "double",
+      "doc": "Compliance risk score (0.0 to 1.0)"
+    },
+    {
+      "name": "transactionIds",
+      "type": {
+        "type": "array",
+        "items": "string"
+      },
+      "default": [],
+      "doc": "Related transaction IDs"
+    },
+    {
+      "name": "sanctionList",
+      "type": ["null", {
+        "type": "enum",
+        "name": "SanctionList",
+        "symbols": ["OFAC", "UN", "EU", "UK_HMT", "INTERPOL"]
+      }],
+      "default": null,
+      "doc": "Sanctions list matched (if applicable)"
+    },
+    {
+      "name": "matchConfidence",
+      "type": ["null", "double"],
+      "default": null,
+      "doc": "Confidence of match (0.0 to 1.0) for sanctions/PEP"
+    },
+    {
+      "name": "filingRequired",
+      "type": "boolean",
+      "default": false,
+      "doc": "Whether regulatory filing (SAR/CTR) is required"
+    },
+    {
+      "name": "actionTaken",
+      "type": {
+        "type": "enum",
+        "name": "ComplianceAction",
+        "symbols": ["NONE", "FLAGGED_FOR_REVIEW", "TRANSACTION_BLOCKED", "ACCOUNT_FROZEN", "CASE_CREATED"]
+      },
+      "default": "FLAGGED_FOR_REVIEW",
+      "doc": "Action taken as result of alert"
+    },
+    {
+      "name": "description",
+      "type": "string",
+      "doc": "Detailed description of the alert"
+    },
+    {
+      "name": "metadata",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "default": {},
+      "doc": "Additional compliance metadata"
+    },
+    {
+      "name": "timestamp",
+      "type": "long",
+      "logicalType": "timestamp-millis",
+      "doc": "Event timestamp"
+    },
+    {
+      "name": "version",
+      "type": "int",
+      "default": 1,
+      "doc": "Schema version"
+    }
+  ]
+}

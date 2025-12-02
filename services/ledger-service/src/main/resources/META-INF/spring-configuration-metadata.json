@@ -1,0 +1,203 @@
+{
+  "groups": [
+    {
+      "name": "ledger",
+      "type": "com.waqiti.ledger.config.LedgerProperties",
+      "sourceType": "com.waqiti.ledger.config.LedgerProperties"
+    },
+    {
+      "name": "ledger.audit",
+      "type": "com.waqiti.ledger.config.LedgerProperties$Audit",
+      "sourceType": "com.waqiti.ledger.config.LedgerProperties$Audit"
+    },
+    {
+      "name": "ledger.chart-of-accounts",
+      "type": "com.waqiti.ledger.config.LedgerProperties$ChartOfAccounts",
+      "sourceType": "com.waqiti.ledger.config.LedgerProperties$ChartOfAccounts"
+    },
+    {
+      "name": "ledger.journal-entry",
+      "type": "com.waqiti.ledger.config.LedgerProperties$JournalEntry",
+      "sourceType": "com.waqiti.ledger.config.LedgerProperties$JournalEntry"
+    },
+    {
+      "name": "ledger.reconciliation",
+      "type": "com.waqiti.ledger.config.LedgerProperties$Reconciliation",
+      "sourceType": "com.waqiti.ledger.config.LedgerProperties$Reconciliation"
+    },
+    {
+      "name": "ledger.accounting",
+      "type": "com.waqiti.ledger.config.LedgerProperties$Accounting",
+      "sourceType": "com.waqiti.ledger.config.LedgerProperties$Accounting"
+    },
+    {
+      "name": "ledger.accounting.currency",
+      "type": "com.waqiti.ledger.config.LedgerProperties$Accounting$Currency",
+      "sourceType": "com.waqiti.ledger.config.LedgerProperties$Accounting$Currency"
+    },
+    {
+      "name": "ledger.reports",
+      "type": "com.waqiti.ledger.config.LedgerProperties$Reports",
+      "sourceType": "com.waqiti.ledger.config.LedgerProperties$Reports"
+    }
+  ],
+  "properties": [
+    {
+      "name": "ledger.audit.log-all-changes",
+      "type": "java.lang.Boolean",
+      "description": "Enable logging of all audit changes.",
+      "sourceType": "com.waqiti.ledger.config.LedgerProperties$Audit",
+      "defaultValue": true
+    },
+    {
+      "name": "ledger.audit.retention-days",
+      "type": "java.lang.Integer",
+      "description": "Number of days to retain audit logs.",
+      "sourceType": "com.waqiti.ledger.config.LedgerProperties$Audit",
+      "defaultValue": 2555
+    },
+    {
+      "name": "ledger.chart-of-accounts.enforce-balance-types",
+      "type": "java.lang.Boolean",
+      "description": "Enforce balance types for chart of accounts.",
+      "sourceType": "com.waqiti.ledger.config.LedgerProperties$ChartOfAccounts",
+      "defaultValue": true
+    },
+    {
+      "name": "ledger.chart-of-accounts.max-depth",
+      "type": "java.lang.Integer",
+      "description": "Maximum depth for account hierarchy.",
+      "sourceType": "com.waqiti.ledger.config.LedgerProperties$ChartOfAccounts",
+      "defaultValue": 5
+    },
+    {
+      "name": "ledger.chart-of-accounts.account-number-format",
+      "type": "java.lang.String",
+      "description": "Format pattern for account numbers.",
+      "sourceType": "com.waqiti.ledger.config.LedgerProperties$ChartOfAccounts",
+      "defaultValue": "\\d{4}-\\d{3}-\\d{3}"
+    },
+    {
+      "name": "ledger.journal-entry.require-approval",
+      "type": "java.lang.Boolean",
+      "description": "Require approval for journal entries.",
+      "sourceType": "com.waqiti.ledger.config.LedgerProperties$JournalEntry",
+      "defaultValue": true
+    },
+    {
+      "name": "ledger.journal-entry.auto-reverse-days",
+      "type": "java.lang.Integer",
+      "description": "Days after which to auto-reverse journal entries.",
+      "sourceType": "com.waqiti.ledger.config.LedgerProperties$JournalEntry",
+      "defaultValue": 30
+    },
+    {
+      "name": "ledger.reconciliation.max-age-days",
+      "type": "java.lang.Integer",
+      "description": "Maximum age in days for reconciliation items.",
+      "sourceType": "com.waqiti.ledger.config.LedgerProperties$Reconciliation",
+      "defaultValue": 90
+    },
+    {
+      "name": "ledger.reconciliation.auto-match-threshold",
+      "type": "java.math.BigDecimal",
+      "description": "Threshold for automatic matching in reconciliation.",
+      "sourceType": "com.waqiti.ledger.config.LedgerProperties$Reconciliation",
+      "defaultValue": 0.01
+    },
+    {
+      "name": "ledger.accounting.currency.supported",
+      "type": "java.util.List",
+      "description": "List of supported currencies.",
+      "sourceType": "com.waqiti.ledger.config.LedgerProperties$Accounting$Currency"
+    },
+    {
+      "name": "ledger.accounting.currency.default",
+      "type": "java.lang.String",
+      "description": "Default currency for accounting.",
+      "sourceType": "com.waqiti.ledger.config.LedgerProperties$Accounting$Currency",
+      "defaultValue": "USD"
+    },
+    {
+      "name": "ledger.accounting.currency.exchange-rate-provider",
+      "type": "java.lang.String",
+      "description": "Provider for exchange rates.",
+      "sourceType": "com.waqiti.ledger.config.LedgerProperties$Accounting$Currency",
+      "defaultValue": "ECB"
+    },
+    {
+      "name": "ledger.reports.max-export-rows",
+      "type": "java.lang.Integer",
+      "description": "Maximum number of rows for report export.",
+      "sourceType": "com.waqiti.ledger.config.LedgerProperties$Reports",
+      "defaultValue": 100000
+    },
+    {
+      "name": "ledger.reports.async-generation",
+      "type": "java.lang.Boolean",
+      "description": "Enable asynchronous report generation.",
+      "sourceType": "com.waqiti.ledger.config.LedgerProperties$Reports",
+      "defaultValue": true
+    },
+    {
+      "name": "security.jwt.secret",
+      "type": "java.lang.String",
+      "description": "Secret key for JWT token generation and validation.",
+      "sourceType": "com.example.common.security.JwtProperties"
+    },
+    {
+      "name": "security.jwt.expiration",
+      "type": "java.lang.Long",
+      "description": "JWT token expiration time in milliseconds.",
+      "sourceType": "com.example.common.security.JwtProperties",
+      "defaultValue": 86400000
+    },
+    {
+      "name": "services.payment-service.timeout",
+      "type": "java.lang.Integer",
+      "description": "Timeout for payment service calls in milliseconds.",
+      "defaultValue": 30000
+    },
+    {
+      "name": "services.payment-service.url",
+      "type": "java.lang.String",
+      "description": "URL for payment service.",
+      "defaultValue": "http://payment-service"
+    },
+    {
+      "name": "services.transaction-service.timeout",
+      "type": "java.lang.Integer",
+      "description": "Timeout for transaction service calls in milliseconds.",
+      "defaultValue": 30000
+    },
+    {
+      "name": "services.transaction-service.url",
+      "type": "java.lang.String",
+      "description": "URL for transaction service.",
+      "defaultValue": "http://transaction-service"
+    },
+    {
+      "name": "services.auth-service.timeout",
+      "type": "java.lang.Integer",
+      "description": "Timeout for auth service calls in milliseconds.",
+      "defaultValue": 30000
+    },
+    {
+      "name": "services.auth-service.url",
+      "type": "java.lang.String",
+      "description": "URL for auth service.",
+      "defaultValue": "http://auth-service"
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "OAuth2 client ID for service authentication."
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "OAuth2 client secret for service authentication."
+    }
+  ],
+  "hints": []
+}

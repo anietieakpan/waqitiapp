@@ -1,0 +1,188 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: reporting-config
+  namespace: waqiti
+  labels:
+    app: reporting-service
+    component: reporting
+data:
+  application.yml: |
+    server:
+      port: 8080
+      shutdown: graceful
+    
+    management:
+      server:
+        port: 8090
+      endpoints:
+        web:
+          exposure:
+            include: health,info,metrics,prometheus
+      endpoint:
+        health:
+          probes:
+            enabled: true
+          show-details: always
+        metrics:
+          enabled: true
+        prometheus:
+          enabled: true
+      metrics:
+        export:
+          prometheus:
+            enabled: true
+    
+    spring:
+      application:
+        name: reporting-service
+      datasource:
+        url: ${DATABASE_URL}
+        username: ${DATABASE_USERNAME}
+        password: ${DATABASE_PASSWORD}
+        hikari:
+          maximum-pool-size: 20
+          minimum-idle: 5
+          idle-timeout: 300000
+          max-lifetime: 1200000
+          connection-timeout: 20000
+          validation-timeout: 5000
+          leak-detection-threshold: 60000
+      jpa:
+        hibernate:
+          ddl-auto: validate
+        properties:
+          hibernate:
+            dialect: org.hibernate.dialect.PostgreSQLDialect
+            format_sql: false
+            jdbc:
+              batch_size: 50
+              order_inserts: true
+              order_updates: true
+        show-sql: false
+      data:
+        redis:
+          url: ${REDIS_URL}
+          timeout: 5s
+          lettuce:
+            pool:
+              max-active: 20
+              max-idle: 8
+              min-idle: 3
+      kafka:
+        bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+        producer:
+          key-serializer: org.apache.kafka.common.serialization.StringSerializer
+          value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+          acks: all
+          retries: 3
+          properties:
+            enable.idempotence: true
+        consumer:
+          group-id: reporting-service
+          key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+          value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+          properties:
+            spring.json.trusted.packages: com.waqiti
+            auto.offset.reset: earliest
+      cloud:
+        vault:
+          enabled: true
+          host: ${VAULT_ENDPOINT}
+          port: 8200
+          scheme: https
+          authentication: token
+          token: ${VAULT_TOKEN}
+          kv:
+            enabled: true
+            backend: secret
+    
+    eureka:
+      client:
+        service-url:
+          defaultZone: ${EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE}
+        fetch-registry: true
+        register-with-eureka: true
+      instance:
+        prefer-ip-address: true
+        lease-renewal-interval-in-seconds: 30
+        lease-expiration-duration-in-seconds: 90
+    
+    logging:
+      level:
+        com.waqiti: INFO
+        org.springframework.kafka: WARN
+        org.hibernate.SQL: WARN
+      pattern:
+        console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+        file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+      file:
+        name: /logs/reporting-service.log
+    
+    # Reporting Configuration
+    reporting:
+      dashboard:
+        refresh-intervals:
+          executive-summary: 60  # minutes
+          operational: 15
+          risk-management: 30
+          compliance: 60
+          customer-analytics: 120
+        cache-ttl: 300  # seconds
+      generation:
+        thread-pool-size: 10
+        timeout: 300s  # 5 minutes
+        max-concurrent-reports: 50
+      storage:
+        base-path: /reports
+        retention-days: 365
+        compression: true
+      distribution:
+        email:
+          enabled: true
+          smtp-host: ${SMTP_HOST}
+          smtp-port: 587
+          username: ${SMTP_USERNAME}
+          password: ${SMTP_PASSWORD}
+        sftp:
+          enabled: false
+          host: ${SFTP_HOST}
+          username: ${SFTP_USERNAME}
+          private-key: ${SFTP_PRIVATE_KEY}
+      regulatory:
+        submission:
+          auto-submit: false
+          finCEN-endpoint: ${FINCEN_ENDPOINT}
+          ffiec-endpoint: ${FFIEC_ENDPOINT}
+          api-key: ${REGULATORY_API_KEY}
+      formats:
+        pdf:
+          enabled: true
+          engine: "jasper"
+        excel:
+          enabled: true
+          max-rows: 1000000
+        csv:
+          enabled: true
+          delimiter: ","
+    
+    # Circuit Breaker Configuration
+    resilience4j:
+      circuitbreaker:
+        instances:
+          database:
+            failure-rate-threshold: 50
+            wait-duration-in-open-state: 30s
+            sliding-window-size: 10
+          external-service:
+            failure-rate-threshold: 60
+            wait-duration-in-open-state: 60s
+            sliding-window-size: 20
+      retry:
+        instances:
+          database:
+            max-attempts: 3
+            wait-duration: 1s
+          external-service:
+            max-attempts: 2
+            wait-duration: 2s

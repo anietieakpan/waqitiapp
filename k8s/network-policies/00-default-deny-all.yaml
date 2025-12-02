@@ -1,0 +1,151 @@
+---
+# ============================================================================
+# DEFAULT DENY-ALL NETWORK POLICY
+# ============================================================================
+# This policy implements a default-deny baseline for ALL namespaces.
+# Individual services must have explicit ALLOW policies to communicate.
+#
+# Security Level: CRITICAL
+# Compliance: PCI-DSS Requirement 1.2.1, 1.3
+# ============================================================================
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all-ingress
+  namespace: example-production
+  labels:
+    app.kubernetes.io/name: network-policy
+    app.kubernetes.io/component: security
+    security.example.com/policy-type: default-deny
+    compliance: pci-dss
+spec:
+  podSelector: {}  # Applies to ALL pods in namespace
+  policyTypes:
+    - Ingress
+    - Egress
+  # No ingress or egress rules = DENY ALL
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all-ingress
+  namespace: waqiti-staging
+  labels:
+    app.kubernetes.io/name: network-policy
+    app.kubernetes.io/component: security
+    security.example.com/policy-type: default-deny
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all-ingress
+  namespace: waqiti-development
+  labels:
+    app.kubernetes.io/name: network-policy
+    app.kubernetes.io/component: security
+    security.example.com/policy-type: default-deny
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all-ingress
+  namespace: kube-system
+  labels:
+    app.kubernetes.io/name: network-policy
+    app.kubernetes.io/component: security
+    security.example.com/policy-type: default-deny
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+
+---
+# Allow DNS resolution for all pods (required for basic functionality)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-access
+  namespace: example-production
+  labels:
+    app.kubernetes.io/name: network-policy
+    app.kubernetes.io/component: dns
+    security.example.com/policy-type: infrastructure
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-access
+  namespace: waqiti-staging
+  labels:
+    app.kubernetes.io/name: network-policy
+    app.kubernetes.io/component: dns
+    security.example.com/policy-type: infrastructure
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-access
+  namespace: waqiti-development
+  labels:
+    app.kubernetes.io/name: network-policy
+    app.kubernetes.io/component: dns
+    security.example.com/policy-type: infrastructure
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53

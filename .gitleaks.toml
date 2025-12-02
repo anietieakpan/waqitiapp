@@ -1,0 +1,51 @@
+# Gitleaks configuration for Waqiti
+# https://github.com/gitleaks/gitleaks
+
+title = "Waqiti Gitleaks Configuration"
+
+[extend]
+useDefault = true
+
+# Additional rules for fintech-specific secrets
+[[rules]]
+id = "stripe-secret-key"
+description = "Stripe Secret Key"
+regex = '''sk_(live|test)_[0-9a-zA-Z]{24,}'''
+tags = ["payment", "stripe"]
+
+[[rules]]
+id = "stripe-restricted-key"
+description = "Stripe Restricted Key"
+regex = '''rk_(live|test)_[0-9a-zA-Z]{24,}'''
+tags = ["payment", "stripe"]
+
+[[rules]]
+id = "sendgrid-api-key"
+description = "SendGrid API Key"
+regex = '''SG\.[a-zA-Z0-9_-]{22}\.[a-zA-Z0-9_-]{43}'''
+tags = ["email", "sendgrid"]
+
+[[rules]]
+id = "vault-token"
+description = "Vault Token"
+regex = '''hvs\.[a-zA-Z0-9_-]{24,}|s\.[a-zA-Z0-9_-]{24,}'''
+tags = ["vault", "secrets"]
+
+# Allowlist - paths and patterns to ignore
+[allowlist]
+description = "Global Allowlist"
+paths = [
+    '''node_modules/''',
+    '''\.git/''',
+    '''target/''',
+    '''build/''',
+    '''dist/''',
+]
+regexes = [
+    '''CHANGE_ME''',
+    '''example\.com''',
+    '''placeholder''',
+    '''\$\{.*\}''',
+    '''sk_test_''',
+    '''pk_test_''',
+]

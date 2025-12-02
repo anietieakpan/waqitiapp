@@ -1,0 +1,408 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-service
+  namespace: waqiti-production
+  labels:
+    app: payment-service
+    tier: backend
+    version: v1.0.0
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: payment-service
+  template:
+    metadata:
+      labels:
+        app: payment-service
+        tier: backend
+        version: v1.0.0
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: payment-service-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      
+      # Anti-affinity for high availability
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - payment-service
+            topologyKey: kubernetes.io/hostname
+        
+        # Prefer spreading across zones
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - payment-service
+              topologyKey: topology.kubernetes.io/zone
+      
+      containers:
+      - name: payment-service
+        image: ghcr.io/waqiti/payment-service:1.0.0
+        imagePullPolicy: IfNotPresent
+        
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1000
+          capabilities:
+            drop:
+            - ALL
+        
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        - containerPort: 8081
+          name: metrics
+          protocol: TCP
+        
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "production"
+        - name: SERVER_PORT
+          value: "8080"
+        - name: MANAGEMENT_SERVER_PORT
+          value: "8081"
+        
+        # Database configuration
+        - name: SPRING_DATASOURCE_URL
+          valueFrom:
+            secretKeyRef:
+              name: database-credentials
+              key: url
+        - name: SPRING_DATASOURCE_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: database-credentials
+              key: username
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: database-credentials
+              key: password
+        
+        # Redis configuration
+        - name: SPRING_REDIS_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: redis-config
+              key: host
+        - name: SPRING_REDIS_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: redis-config
+              key: port
+        - name: SPRING_REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-credentials
+              key: password
+        
+        # Kafka configuration
+        - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+          valueFrom:
+            configMapKeyRef:
+              name: kafka-config
+              key: bootstrap-servers
+        
+        # Security configurations
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: jwt-secret
+              key: secret
+        - name: ENCRYPTION_KEY
+          valueFrom:
+            secretKeyRef:
+              name: encryption-keys
+              key: master-key
+        
+        # Payment provider credentials
+        - name: STRIPE_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: stripe-credentials
+              key: secret-key
+        - name: PAYPAL_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: paypal-credentials
+              key: client-id
+        - name: PAYPAL_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: paypal-credentials
+              key: client-secret
+        
+        # JVM options for production
+        - name: JAVA_OPTS
+          value: "-Xms1g -Xmx2g -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+ParallelRefProcEnabled -XX:MaxMetaspaceSize=256m -Djava.security.egd=file:/dev/./urandom"
+        
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8081
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8081
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        
+        startupProbe:
+          httpGet:
+            path: /actuator/health/startup
+            port: 8081
+          initialDelaySeconds: 0
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 30
+        
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        - name: app-logs
+          mountPath: /var/log/app
+        - name: config
+          mountPath: /app/config
+          readOnly: true
+      
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      - name: app-logs
+        emptyDir: {}
+      - name: config
+        configMap:
+          name: payment-service-config
+      
+      # Image pull secrets
+      imagePullSecrets:
+      - name: ghcr-credentials
+
+---
+# Service definition
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-service
+  namespace: waqiti-production
+  labels:
+    app: payment-service
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: "http"
+    service.beta.kubernetes.io/aws-load-balancer-ssl-cert: "arn:aws:acm:region:account-id:certificate/certificate-id"
+spec:
+  type: ClusterIP
+  selector:
+    app: payment-service
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+    protocol: TCP
+  - name: metrics
+    port: 8081
+    targetPort: 8081
+    protocol: TCP
+
+---
+# HorizontalPodAutoscaler
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: payment-service-hpa
+  namespace: waqiti-production
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: payment-service
+  minReplicas: 3
+  maxReplicas: 20
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  - type: Pods
+    pods:
+      metric:
+        name: http_requests_per_second
+      target:
+        type: AverageValue
+        averageValue: "1000"
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+      - type: Pods
+        value: 4
+        periodSeconds: 15
+      selectPolicy: Max
+
+---
+# PodDisruptionBudget for high availability
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: payment-service-pdb
+  namespace: waqiti-production
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: payment-service
+
+---
+# ServiceAccount with minimal permissions
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: payment-service-sa
+  namespace: waqiti-production
+  labels:
+    app: payment-service
+
+---
+# Role for service account
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: payment-service-role
+  namespace: waqiti-production
+rules:
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get"]
+
+---
+# RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: payment-service-rolebinding
+  namespace: waqiti-production
+subjects:
+- kind: ServiceAccount
+  name: payment-service-sa
+  namespace: waqiti-production
+roleRef:
+  kind: Role
+  name: payment-service-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# ConfigMap for application configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: payment-service-config
+  namespace: waqiti-production
+data:
+  application-production.yml: |
+    spring:
+      application:
+        name: payment-service
+      
+      # Actuator configuration
+      management:
+        endpoints:
+          web:
+            exposure:
+              include: health,info,metrics,prometheus
+        metrics:
+          export:
+            prometheus:
+              enabled: true
+      
+      # Logging configuration
+      logging:
+        level:
+          root: INFO
+          com.waqiti: INFO
+        pattern:
+          console: "%d{ISO8601} %5p [%15.15t] %-40.40logger{39} : %m%n%ex"
+      
+      # Security headers
+      server:
+        compression:
+          enabled: true
+        http2:
+          enabled: true
+        error:
+          include-message: never
+          include-stacktrace: never
+      
+      # Circuit breaker configuration
+      resilience4j:
+        circuitbreaker:
+          instances:
+            payment-provider:
+              slidingWindowSize: 100
+              permittedNumberOfCallsInHalfOpenState: 10
+              waitDurationInOpenState: 10s
+              failureRateThreshold: 50
+              eventConsumerBufferSize: 10

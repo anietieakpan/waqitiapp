@@ -1,0 +1,63 @@
+{
+  "properties": [
+    {
+      "name": "monitoring.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable monitoring functionality",
+      "defaultValue": true
+    },
+    {
+      "name": "monitoring.metrics.collection-interval-seconds",
+      "type": "java.lang.Integer",
+      "description": "Metrics collection interval in seconds",
+      "defaultValue": 30
+    },
+    {
+      "name": "monitoring.alerts.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable monitoring alerts",
+      "defaultValue": true
+    },
+    {
+      "name": "monitoring.alerts.thresholds.cpu-usage",
+      "type": "java.lang.Double",
+      "description": "CPU usage alert threshold",
+      "defaultValue": 80.0
+    },
+    {
+      "name": "monitoring.alerts.thresholds.memory-usage",
+      "type": "java.lang.Double",
+      "description": "Memory usage alert threshold",
+      "defaultValue": 85.0
+    },
+    {
+      "name": "monitoring.dashboards.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable monitoring dashboards",
+      "defaultValue": true
+    },
+    {
+      "name": "monitoring.retention.metrics-days",
+      "type": "java.lang.Integer",
+      "description": "Metrics retention period in days",
+      "defaultValue": 30
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "OAuth2 client ID for service",
+      "defaultValue": "monitoring-service"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "OAuth2 client secret for service"
+    }
+  ]
+}

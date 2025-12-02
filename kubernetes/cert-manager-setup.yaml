@@ -1,0 +1,285 @@
+# cert-manager Installation and Configuration for Waqiti Platform
+# Automates SSL/TLS certificate management with Let's Encrypt
+
+---
+# Install cert-manager CRDs and controller
+# kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.13.0/cert-manager.yaml
+
+---
+# ClusterIssuer for Let's Encrypt Production
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    # Let's Encrypt production endpoint
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: admin@example.com
+    
+    # Private key secret for ACME account
+    privateKeySecretRef:
+      name: letsencrypt-prod-account-key
+    
+    # DNS-01 challenge solver for wildcard certificates
+    solvers:
+    # Cloudflare DNS solver
+    - dns01:
+        cloudflare:
+          email: admin@example.com
+          apiTokenSecretRef:
+            name: cloudflare-api-token
+            key: api-token
+      selector:
+        dnsZones:
+          - example.com
+    
+    # Route53 DNS solver (alternative)
+    - dns01:
+        route53:
+          region: us-east-1
+          role: arn:aws:iam::ACCOUNT_ID:role/cert-manager-route53
+      selector:
+        dnsZones:
+          - example.com
+
+---
+# ClusterIssuer for Let's Encrypt Staging (Testing)
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-staging
+spec:
+  acme:
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    email: admin@example.com
+    privateKeySecretRef:
+      name: letsencrypt-staging-account-key
+    solvers:
+    - dns01:
+        cloudflare:
+          email: admin@example.com
+          apiTokenSecretRef:
+            name: cloudflare-api-token
+            key: api-token
+
+---
+# Cloudflare API Token Secret
+# Create this manually: kubectl create secret generic cloudflare-api-token --from-literal=api-token=YOUR_TOKEN -n cert-manager
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cloudflare-api-token
+  namespace: cert-manager
+type: Opaque
+stringData:
+  api-token: REPLACE_WITH_CLOUDFLARE_API_TOKEN
+
+---
+# Production Wildcard Certificate
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: waqiti-wildcard-tls
+  namespace: example-production
+spec:
+  secretName: waqiti-tls-secret
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+  - example.com
+  - '*.example.com'
+  privateKey:
+    algorithm: RSA
+    size: 4096
+    rotationPolicy: Always
+  duration: 2160h  # 90 days
+  renewBefore: 720h  # 30 days before expiration
+  
+---
+# Staging Environment Certificate
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: waqiti-staging-tls
+  namespace: waqiti-staging
+spec:
+  secretName: waqiti-staging-tls-secret
+  issuerRef:
+    name: letsencrypt-staging
+    kind: ClusterIssuer
+  dnsNames:
+  - staging.example.com
+  - '*.staging.example.com'
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  duration: 2160h
+  renewBefore: 720h
+
+---
+# Certificate for specific production services
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: waqiti-api-tls
+  namespace: example-production
+spec:
+  secretName: waqiti-api-tls-secret
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+  - api.example.com
+  - app.example.com
+  - admin.example.com
+  privateKey:
+    algorithm: RSA
+    size: 4096
+
+---
+# Certificate for internal services
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: waqiti-internal-tls
+  namespace: example-production
+spec:
+  secretName: waqiti-internal-tls-secret
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+  - vault.example.com
+  - monitoring.example.com
+  - grafana.example.com
+  - kibana.example.com
+  - prometheus.example.com
+  privateKey:
+    algorithm: RSA
+    size: 4096
+
+---
+# Ingress with automatic TLS
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: waqiti-ingress
+  namespace: example-production
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/hsts: "true"
+    nginx.ingress.kubernetes.io/hsts-max-age: "63072000"
+    nginx.ingress.kubernetes.io/hsts-include-subdomains: "true"
+    nginx.ingress.kubernetes.io/hsts-preload: "true"
+    nginx.ingress.kubernetes.io/ssl-protocols: "TLSv1.2 TLSv1.3"
+    nginx.ingress.kubernetes.io/ssl-ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - example.com
+    - app.example.com
+    - admin.example.com
+    - api.example.com
+    - mobile.example.com
+    secretName: waqiti-tls-secret
+  rules:
+  - host: app.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: api-gateway
+            port:
+              number: 8080
+  - host: api.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: api-gateway
+            port:
+              number: 8080
+  - host: admin.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: admin-portal
+            port:
+              number: 8080
+  - host: mobile.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: mobile-api
+            port:
+              number: 8080
+
+---
+# Certificate Expiry Monitoring with Prometheus
+apiVersion: v1
+kind: ServiceMonitor
+metadata:
+  name: cert-manager-metrics
+  namespace: cert-manager
+spec:
+  selector:
+    matchLabels:
+      app: cert-manager
+  endpoints:
+  - port: metrics
+    interval: 60s
+    scrapeTimeout: 30s
+
+---
+# PrometheusRule for Certificate Expiry Alerts
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: certificate-expiry-alerts
+  namespace: example-production
+spec:
+  groups:
+  - name: ssl_certificates
+    interval: 1h
+    rules:
+    - alert: CertificateExpiringSoon
+      expr: certmanager_certificate_expiration_timestamp_seconds - time() < 2592000
+      for: 1h
+      labels:
+        severity: warning
+      annotations:
+        summary: "SSL certificate {{ $labels.name }} expiring soon"
+        description: "Certificate {{ $labels.name }} in namespace {{ $labels.namespace }} expires in {{ $value | humanizeDuration }}"
+    
+    - alert: CertificateExpiryUrgent
+      expr: certmanager_certificate_expiration_timestamp_seconds - time() < 604800
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        summary: "SSL certificate {{ $labels.name }} expires very soon"
+        description: "Certificate {{ $labels.name }} in namespace {{ $labels.namespace }} expires in {{ $value | humanizeDuration }}"
+    
+    - alert: CertificateRenewalFailed
+      expr: certmanager_certificate_ready_status{condition="False"} == 1
+      for: 1h
+      labels:
+        severity: critical
+      annotations:
+        summary: "Certificate renewal failed for {{ $labels.name }}"
+        description: "Certificate {{ $labels.name }} in namespace {{ $labels.namespace }} failed to renew"

@@ -1,0 +1,83 @@
+# Keycloak Configuration for Wallet Service
+
+keycloak:
+  enabled: true
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  ssl-required: external
+  resource: wallet-service
+  bearer-only: true
+  credentials:
+    secret: ${WALLET_SERVICE_CLIENT_SECRET}
+  use-resource-role-mappings: true
+  
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# Wallet Service Security Configuration
+wallet:
+  security:
+    # Public endpoints that don't require authentication
+    public-endpoints:
+      - /actuator/health
+      - /actuator/info
+      - /api/v1/wallets/public/**
+      - /swagger-ui/**
+      - /v3/api-docs/**
+    
+    # Service-to-service endpoints
+    service-endpoints:
+      - /internal/wallets/**
+    
+    # Required roles for wallet operations
+    required-roles:
+      read: 
+        - WALLET_USER
+        - WALLET_VIEWER
+      write:
+        - WALLET_USER
+        - WALLET_OPERATOR
+      admin:
+        - WALLET_ADMIN
+        - SYSTEM_ADMIN
+    
+    # Required scopes for operations
+    required-scopes:
+      balance: wallet:read
+      transactions: wallet:read
+      deposit: wallet:deposit
+      withdraw: wallet:withdraw
+      transfer: wallet:transfer
+      freeze: wallet:freeze
+      limits: wallet:limits
+      settings: wallet:settings
+      virtual: wallet:virtual
+      currency: wallet:currency
+    
+    # Transaction limits based on user verification level
+    transaction-limits:
+      unverified:
+        daily: 1000.00
+        per-transaction: 100.00
+      verified:
+        daily: 10000.00
+        per-transaction: 2000.00
+      kyc-approved:
+        daily: 50000.00
+        per-transaction: 10000.00
+      premium:
+        daily: 100000.00
+        per-transaction: 25000.00
+    
+    # Additional security features
+    features:
+      multi-factor-required-above: 5000.00
+      biometric-required-for-withdrawal: true
+      fraud-detection-enabled: true
+      real-time-balance-validation: true
+      duplicate-transaction-check: true

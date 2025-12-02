@@ -1,0 +1,114 @@
+# Keycloak Configuration for Security Service
+
+keycloak:
+  enabled: true
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  ssl-required: external
+  resource: security-service
+  bearer-only: true
+  credentials:
+    secret: ${SECURITY_SERVICE_CLIENT_SECRET}
+  use-resource-role-mappings: true
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# Security Service Security Configuration
+security:
+  service:
+    # Public endpoints that don't require authentication
+    public-endpoints:
+      - /actuator/health
+      - /actuator/info
+      - /api/security/public/**
+      - /swagger-ui/**
+      - /v3/api-docs/**
+    
+    # Service-to-service endpoints
+    service-endpoints:
+      - /internal/security/**
+    
+    # Required roles for security operations
+    required-roles:
+      security-analyst:
+        - SECURITY_ANALYST
+        - FRAUD_ANALYST
+      security-admin:
+        - SECURITY_ADMIN
+        - FRAUD_ADMIN
+      compliance-officer:
+        - COMPLIANCE_OFFICER
+        - AML_OFFICER
+      risk-manager:
+        - RISK_MANAGER
+        - SECURITY_MANAGER
+      auditor:
+        - AUDITOR
+        - COMPLIANCE_AUDITOR
+    
+    # Required scopes for operations
+    required-scopes:
+      fraud-read: security:fraud:read
+      fraud-write: security:fraud:write
+      fraud-score: security:fraud:score
+      fraud-report: security:fraud:report
+      fraud-investigate: security:fraud:investigate
+      aml-read: security:aml:read
+      aml-write: security:aml:write
+      aml-report: security:aml:report
+      kyc-read: security:kyc:read
+      kyc-write: security:kyc:write
+      kyc-verify: security:kyc:verify
+      risk-read: security:risk:read
+      risk-write: security:risk:write
+      compliance-read: security:compliance:read
+      compliance-write: security:compliance:write
+      audit-read: security:audit:read
+      behavioral-read: security:behavioral:read
+      behavioral-write: security:behavioral:write
+      device-read: security:device:read
+      device-write: security:device:write
+      geolocation-read: security:geolocation:read
+      monitoring-read: security:monitoring:read
+      alert-read: security:alert:read
+      alert-write: security:alert:write
+    
+    # Security features
+    features:
+      fraud-detection-enabled: true
+      aml-screening-enabled: true
+      kyc-verification-enabled: true
+      behavioral-analysis-enabled: true
+      device-fingerprinting-enabled: true
+      geo-blocking-enabled: true
+      rate-limiting-enabled: true
+      audit-logging-enabled: true
+      encryption-enabled: true
+      
+    # Security limits and thresholds
+    limits:
+      max-fraud-checks-per-minute: 1000
+      max-risk-score-requests-per-minute: 500
+      max-aml-checks-per-minute: 200
+      max-kyc-verifications-per-hour: 100
+      
+    # Security thresholds requiring escalation
+    escalation-thresholds:
+      critical-fraud-score: 90
+      high-risk-transaction-count: 10
+      suspicious-pattern-count: 5
+      
+    # Advanced security features
+    advanced-security:
+      real-time-monitoring: true
+      automatic-blocking: true
+      ml-fraud-detection: true
+      behavioral-profiling: true
+      threat-intelligence: true
+      continuous-monitoring: true

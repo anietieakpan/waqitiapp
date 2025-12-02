@@ -1,0 +1,98 @@
+# Keycloak Configuration for Group Payment Service
+
+keycloak:
+  enabled: true
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  ssl-required: external
+  resource: group-payment-service
+  bearer-only: true
+  credentials:
+    secret: ${GROUP_PAYMENT_SERVICE_CLIENT_SECRET:CHANGE_ME_SECURE_SECRET_REQUIRED}
+  use-resource-role-mappings: true
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# Group Payment Service Security Configuration
+group-payment:
+  security:
+    # Public endpoints that don't require authentication
+    public-endpoints:
+      - /actuator/health
+      - /actuator/info
+      - /api/v1/group-payments/public/**
+      - /swagger-ui/**
+      - /v3/api-docs/**
+    
+    # Service-to-service endpoints
+    service-endpoints:
+      - /internal/group-payments/**
+    
+    # Required roles for group payment operations
+    required-roles:
+      read:
+        - GROUP_PAYMENT_USER
+        - GROUP_PAYMENT_VIEWER
+      write:
+        - GROUP_PAYMENT_USER
+        - GROUP_PAYMENT_ORGANIZER
+      management:
+        - GROUP_PAYMENT_MANAGER
+        - GROUP_PAYMENT_OPERATOR
+      admin:
+        - GROUP_PAYMENT_ADMIN
+        - SYSTEM_ADMIN
+    
+    # Required scopes for operations
+    required-scopes:
+      read: group-payment:read
+      write: group-payment:write
+      create: group-payment:create
+      organize: group-payment:organize
+      join: group-payment:join
+      contribute: group-payment:contribute
+      settle: group-payment:settle
+      split: group-payment:split
+      invite: group-payment:invite
+      manage: group-payment:manage
+      analytics: group-payment:analytics
+      history: group-payment:history
+      notifications: group-payment:notifications
+    
+    # Group payment security features
+    features:
+      participant-verification-enabled: true
+      contribution-tracking-enabled: true
+      settlement-verification-enabled: true
+      fraud-detection-enabled: true
+      audit-logging-enabled: true
+      encryption-enabled: true
+      
+    # Group payment limits and thresholds
+    limits:
+      max-group-size: 50
+      max-contribution-amount: 10000.00
+      max-groups-per-user: 20
+      max-pending-invitations: 100
+      
+    # Security thresholds requiring additional verification
+    verification-thresholds:
+      large-group-size: 20
+      high-value-contribution: 5000.00
+      frequent-organizer-threshold: 10
+      bulk-invitation-threshold: 10
+      
+    # Advanced security features
+    advanced-security:
+      require-organizer-verification: true
+      require-contribution-approval: false
+      automatic-settlement-detection: true
+      participant-identity-verification: true
+      suspicious-activity-monitoring: true
+      group-integrity-validation: true

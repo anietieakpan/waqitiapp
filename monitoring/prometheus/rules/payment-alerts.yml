@@ -1,0 +1,351 @@
+groups:
+  - name: payment-service-alerts
+    interval: 30s
+    rules:
+      # Payment Service Health
+      - alert: PaymentServiceDown
+        expr: up{job="waqiti-payment-service"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          service: payment-service
+        annotations:
+          summary: "Payment service is down"
+          description: "Payment service has been down for more than 30 seconds"
+
+      # High Error Rate
+      - alert: PaymentHighErrorRate
+        expr: rate(http_requests_total{job="waqiti-payment-service",status=~"5.."}[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: critical
+          service: payment-service
+        annotations:
+          summary: "High error rate in payment service"
+          description: "Payment service error rate is {{ $value }} errors per second"
+
+      # High Response Time
+      - alert: PaymentHighLatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job="waqiti-payment-service"}[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+          service: payment-service
+        annotations:
+          summary: "High latency in payment service"
+          description: "95th percentile latency is {{ $value }}s"
+
+      # Failed Payments
+      - alert: PaymentFailureRateHigh
+        expr: rate(payment_transactions_total{status="failed"}[5m]) / rate(payment_transactions_total[5m]) > 0.05
+        for: 3m
+        labels:
+          severity: critical
+          service: payment-service
+        annotations:
+          summary: "High payment failure rate"
+          description: "Payment failure rate is {{ $value | humanizePercentage }}"
+
+      # Database Connection Issues
+      - alert: PaymentDatabaseConnectionHigh
+        expr: hikaricp_connections_active{job="waqiti-payment-service"} / hikaricp_connections_max{job="waqiti-payment-service"} > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          service: payment-service
+        annotations:
+          summary: "Payment service database connection pool usage high"
+          description: "Database connection pool usage is {{ $value | humanizePercentage }}"
+
+      # Memory Usage
+      - alert: PaymentHighMemoryUsage
+        expr: jvm_memory_used_bytes{job="waqiti-payment-service",area="heap"} / jvm_memory_max_bytes{job="waqiti-payment-service",area="heap"} > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          service: payment-service
+        annotations:
+          summary: "Payment service high memory usage"
+          description: "JVM heap memory usage is {{ $value | humanizePercentage }}"
+
+      # CPU Usage
+      - alert: PaymentHighCpuUsage
+        expr: process_cpu_usage{job="waqiti-payment-service"} > 0.8
+        for: 10m
+        labels:
+          severity: warning
+          service: payment-service
+        annotations:
+          summary: "Payment service high CPU usage"
+          description: "CPU usage is {{ $value | humanizePercentage }}"
+
+  - name: transaction-service-alerts
+    interval: 30s
+    rules:
+      # Transaction Service Health
+      - alert: TransactionServiceDown
+        expr: up{job="waqiti-transaction-service"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          service: transaction-service
+        annotations:
+          summary: "Transaction service is down"
+          description: "Transaction service has been down for more than 30 seconds"
+
+      # Transaction Processing Delays
+      - alert: TransactionProcessingDelay
+        expr: histogram_quantile(0.95, rate(transaction_processing_duration_seconds_bucket[5m])) > 5
+        for: 5m
+        labels:
+          severity: warning
+          service: transaction-service
+        annotations:
+          summary: "Transaction processing delays"
+          description: "95th percentile transaction processing time is {{ $value }}s"
+
+      # Failed Transactions
+      - alert: TransactionFailureRateHigh
+        expr: rate(transaction_status_total{status="failed"}[5m]) / rate(transaction_status_total[5m]) > 0.02
+        for: 2m
+        labels:
+          severity: critical
+          service: transaction-service
+        annotations:
+          summary: "High transaction failure rate"
+          description: "Transaction failure rate is {{ $value | humanizePercentage }}"
+
+  - name: fraud-service-alerts
+    interval: 30s
+    rules:
+      # Fraud Service Health
+      - alert: FraudServiceDown
+        expr: up{job="waqiti-fraud-service"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          service: fraud-service
+        annotations:
+          summary: "Fraud service is down"
+          description: "Fraud service has been down for more than 30 seconds"
+
+      # High Fraud Detection Rate
+      - alert: FraudDetectionRateHigh
+        expr: rate(fraud_detections_total[5m]) / rate(fraud_checks_total[5m]) > 0.1
+        for: 10m
+        labels:
+          severity: warning
+          service: fraud-service
+        annotations:
+          summary: "High fraud detection rate"
+          description: "Fraud detection rate is {{ $value | humanizePercentage }}"
+
+      # ML Model Performance Degradation
+      - alert: FraudModelPerformanceLow
+        expr: fraud_model_accuracy < 0.85
+        for: 15m
+        labels:
+          severity: warning
+          service: fraud-service
+        annotations:
+          summary: "Fraud detection model performance degraded"
+          description: "Model accuracy is {{ $value | humanizePercentage }}"
+
+  - name: security-service-alerts
+    interval: 30s
+    rules:
+      # Security Service Health
+      - alert: SecurityServiceDown
+        expr: up{job="waqiti-security-service"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          service: security-service
+        annotations:
+          summary: "Security service is down"
+          description: "Security service has been down for more than 30 seconds"
+
+      # Failed Authentication Attempts
+      - alert: HighFailedAuthAttempts
+        expr: rate(auth_attempts_total{status="failed"}[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          service: security-service
+        annotations:
+          summary: "High failed authentication attempts"
+          description: "Failed authentication rate is {{ $value }} per second"
+
+      # Suspicious Login Activity
+      - alert: SuspiciousLoginActivity
+        expr: increase(suspicious_login_attempts_total[10m]) > 50
+        for: 5m
+        labels:
+          severity: critical
+          service: security-service
+        annotations:
+          summary: "Suspicious login activity detected"
+          description: "{{ $value }} suspicious login attempts in the last 10 minutes"
+
+  - name: gateway-service-alerts
+    interval: 30s
+    rules:
+      # API Gateway Health
+      - alert: GatewayServiceDown
+        expr: up{job="waqiti-gateway-service"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          service: gateway-service
+        annotations:
+          summary: "API Gateway is down"
+          description: "API Gateway has been down for more than 30 seconds"
+
+      # High Request Rate
+      - alert: GatewayHighRequestRate
+        expr: rate(http_requests_total{job="waqiti-gateway-service"}[5m]) > 1000
+        for: 5m
+        labels:
+          severity: warning
+          service: gateway-service
+        annotations:
+          summary: "High request rate on API Gateway"
+          description: "Request rate is {{ $value }} requests per second"
+
+      # Rate Limiting Active
+      - alert: GatewayRateLimitingActive
+        expr: rate(rate_limit_exceeded_total{job="waqiti-gateway-service"}[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          service: gateway-service
+        annotations:
+          summary: "Rate limiting is actively triggered"
+          description: "Rate limit exceeded {{ $value }} times per second"
+
+  - name: infrastructure-alerts
+    interval: 60s
+    rules:
+      # Database Alerts
+      - alert: PostgreSQLDown
+        expr: up{job="postgres-exporter"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: postgresql
+        annotations:
+          summary: "PostgreSQL is down"
+          description: "PostgreSQL database has been down for more than 1 minute"
+
+      - alert: PostgreSQLHighConnections
+        expr: pg_stat_database_numbackends / pg_settings_max_connections > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          service: postgresql
+        annotations:
+          summary: "PostgreSQL high connection usage"
+          description: "PostgreSQL connection usage is {{ $value | humanizePercentage }}"
+
+      # Redis Alerts
+      - alert: RedisDown
+        expr: up{job="redis-exporter"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: redis
+        annotations:
+          summary: "Redis is down"
+          description: "Redis has been down for more than 1 minute"
+
+      - alert: RedisHighMemoryUsage
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          service: redis
+        annotations:
+          summary: "Redis high memory usage"
+          description: "Redis memory usage is {{ $value | humanizePercentage }}"
+
+      # Kafka Alerts
+      - alert: KafkaDown
+        expr: up{job="kafka-exporter"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: kafka
+        annotations:
+          summary: "Kafka is down"
+          description: "Kafka has been down for more than 1 minute"
+
+      - alert: KafkaHighLag
+        expr: kafka_consumer_lag_max > 1000
+        for: 5m
+        labels:
+          severity: warning
+          service: kafka
+        annotations:
+          summary: "Kafka consumer lag is high"
+          description: "Maximum consumer lag is {{ $value }} messages"
+
+  - name: external-service-alerts
+    interval: 60s
+    rules:
+      # Website Availability
+      - alert: WebsiteDown
+        expr: probe_success{job="blackbox-http"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: website
+        annotations:
+          summary: "Website {{ $labels.instance }} is down"
+          description: "Website has been down for more than 2 minutes"
+
+      # SSL Certificate Expiration
+      - alert: SSLCertificateExpiringSoon
+        expr: probe_ssl_earliest_cert_expiry{job="blackbox-ssl"} - time() < 86400 * 7
+        for: 1h
+        labels:
+          severity: warning
+          service: ssl
+        annotations:
+          summary: "SSL certificate expiring soon"
+          description: "SSL certificate for {{ $labels.instance }} expires in {{ $value | humanizeDuration }}"
+
+      # External API Availability
+      - alert: ExternalAPIDown
+        expr: probe_success{job="external-apis"} == 0
+        for: 3m
+        labels:
+          severity: warning
+          service: external-api
+        annotations:
+          summary: "External API {{ $labels.instance }} is down"
+          description: "External API has been down for more than 3 minutes"
+
+  - name: business-metrics-alerts
+    interval: 60s
+    rules:
+      # Revenue Impact Alerts
+      - alert: DailyRevenueDropSignificant
+        expr: (sum(rate(payment_amount_total[1h])) - sum(rate(payment_amount_total[1h] offset 24h))) / sum(rate(payment_amount_total[1h] offset 24h)) < -0.2
+        for: 30m
+        labels:
+          severity: critical
+          service: business
+        annotations:
+          summary: "Significant daily revenue drop detected"
+          description: "Revenue has dropped by {{ $value | humanizePercentage }} compared to the same time yesterday"
+
+      # Transaction Volume Drop
+      - alert: TransactionVolumeDropSignificant
+        expr: (sum(rate(payment_transactions_total[1h])) - sum(rate(payment_transactions_total[1h] offset 24h))) / sum(rate(payment_transactions_total[1h] offset 24h)) < -0.3
+        for: 30m
+        labels:
+          severity: warning
+          service: business
+        annotations:
+          summary: "Significant transaction volume drop detected"
+          description: "Transaction volume has dropped by {{ $value | humanizePercentage }} compared to the same time yesterday"

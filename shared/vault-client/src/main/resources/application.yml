@@ -1,0 +1,212 @@
+# Vault Client Configuration
+
+server:
+  port: 8090
+  servlet:
+    context-path: /vault-client
+
+spring:
+  application:
+    name: vault-client
+  
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  
+  # Spring Cloud Vault Configuration
+  cloud:
+    vault:
+      enabled: true
+      uri: ${VAULT_URI:https://vault.example.internal:8200}
+      connection-timeout: 5000
+      read-timeout: 15000
+      config:
+        lifecycle:
+          enabled: true
+          min-renewal: 10s
+          expiry-threshold: 1m
+      
+      # Authentication configuration
+      authentication: ${VAULT_AUTH_METHOD:kubernetes}
+      kubernetes:
+        role: ${VAULT_ROLE:waqiti-app}
+        kubernetes-path: kubernetes
+        service-account-token-file: /var/run/secrets/kubernetes.io/serviceaccount/token
+      
+      aws-iam:
+        role: ${VAULT_AWS_ROLE:}
+        aws-path: aws
+        server-id: ${VAULT_AWS_SERVER_ID:}
+      
+      # KV configuration
+      kv:
+        enabled: true
+        backend: secret
+        profile-separator: '/'
+        default-context: application
+        application-name: waqiti
+      
+      # Database configuration
+      database:
+        enabled: true
+        role: waqiti-app
+        backend: database
+        username-property: spring.datasource.username
+        password-property: spring.datasource.password
+  
+  # Cache configuration
+  cache:
+    type: caffeine
+    caffeine:
+      spec: maximumSize=1000,expireAfterWrite=300s
+    cache-names:
+      - databaseCredentials
+      - vaultSecrets
+
+  # Security configuration
+  security:
+    user:
+      name: ${VAULT_ADMIN_USER}
+      password: ${VAULT_ADMIN_PASSWORD}
+      roles: ADMIN
+
+# Vault-specific configuration
+vault:
+  uri: ${VAULT_URI:https://vault.example.internal:8200}
+  authentication:
+    method: ${VAULT_AUTH_METHOD:kubernetes}
+    role: ${VAULT_ROLE:waqiti-app}
+    jwt-path: /var/run/secrets/kubernetes.io/serviceaccount/token
+  
+  ssl:
+    trust-store: ${VAULT_TRUST_STORE:}
+    trust-store-password: ${VAULT_TRUST_STORE_PASSWORD:}
+  
+  connection-timeout: 5000
+  read-timeout: 15000
+  
+  # Database credentials configuration
+  database:
+    roles:
+      - waqiti-app
+      - waqiti-readonly
+    renewal-threshold: 300 # 5 minutes
+  
+  # Encryption configuration
+  encryption:
+    default-key: waqiti-encryption-key
+    
+  # Cache configuration
+  cache:
+    enabled: true
+    ttl: 300 # 5 minutes
+    max-size: 1000
+
+# Management and monitoring
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,vault
+  endpoint:
+    health:
+      show-details: when-authorized
+      vault:
+        enabled: true
+    vault:
+      enabled: true
+  
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: ${spring.application.name}
+      environment: ${ENVIRONMENT:development}
+
+# Logging configuration
+logging:
+  level:
+    com.waqiti.vault: ${VAULT_LOG_LEVEL:INFO}
+    org.springframework.vault: WARN
+    org.springframework.web: WARN
+    org.springframework.security: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# Retry configuration
+spring.retry:
+  policy:
+    max-attempts: 3
+    backoff:
+      delay: 1000
+      multiplier: 2
+      max-delay: 10000
+
+---
+# Development profile
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+vault:
+  uri: http://localhost:8200
+  authentication:
+    method: kubernetes
+
+logging:
+  level:
+    com.waqiti.vault: DEBUG
+    org.springframework.vault: DEBUG
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+
+---
+# Production profile
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+vault:
+  uri: ${VAULT_URI:https://vault.example.internal:8200}
+  authentication:
+    method: ${VAULT_AUTH_METHOD:kubernetes}
+  ssl:
+    trust-store: ${VAULT_TRUST_STORE:/etc/ssl/vault/truststore.jks}
+    trust-store-password: ${VAULT_TRUST_STORE_PASSWORD}
+
+logging:
+  level:
+    com.waqiti.vault: INFO
+    org.springframework.vault: WARN
+  file:
+    name: /var/log/vault-client/application.log
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+
+---
+# Testing profile
+spring:
+  config:
+    activate:
+      on-profile: test
+
+vault:
+  uri: http://localhost:18200
+  authentication:
+    method: kubernetes
+
+logging:
+  level:
+    com.waqiti.vault: DEBUG
+    org.springframework.vault: DEBUG

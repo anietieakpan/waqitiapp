@@ -1,0 +1,663 @@
+---
+# Waqiti Financial Platform - Kubernetes RBAC Least Privilege Configuration
+# Comprehensive RBAC policies following the principle of least privilege
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: waqiti
+  labels:
+    name: waqiti
+    security.example.com/level: high
+    compliance.example.com/pci-dss: required
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: example-monitoring
+  labels:
+    name: example-monitoring
+    security.example.com/level: medium
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/audit: baseline
+    pod-security.kubernetes.io/warn: baseline
+
+---
+# ============================================================================
+# 1. PAYMENT SERVICE RBAC - Highly Restrictive for Financial Operations
+# ============================================================================
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: payment-service
+  namespace: waqiti
+  labels:
+    app.kubernetes.io/name: payment-service
+    security.example.com/level: critical
+    compliance.example.com/pci-dss: required
+  annotations:
+    # IRSA annotation for AWS IAM role
+    eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT_ID:role/waqiti-payment-service-irsa-production
+automountServiceAccountToken: true
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: payment-service-role
+  namespace: waqiti
+  labels:
+    app.kubernetes.io/name: payment-service
+    security.example.com/component: rbac
+rules:
+# ConfigMap access for payment configuration only
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "list"]
+  resourceNames: 
+    - "payment-config"
+    - "payment-providers-config"
+    - "currency-config"
+# Secret access for payment provider credentials only
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get"]
+  resourceNames:
+    - "stripe-credentials"
+    - "paypal-credentials"
+    - "square-credentials"
+    - "payment-encryption-keys"
+# Service discovery within namespace
+- apiGroups: [""]
+  resources: ["services"]
+  verbs: ["get", "list"]
+  resourceNames:
+    - "wallet-service"
+    - "fraud-detection-service"
+    - "compliance-service"
+# Pod logs for debugging (own pods only)
+- apiGroups: [""]
+  resources: ["pods/log"]
+  verbs: ["get", "list"]
+  resourceNames: [] # Will be restricted by label selector
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: payment-service-binding
+  namespace: waqiti
+  labels:
+    app.kubernetes.io/name: payment-service
+subjects:
+- kind: ServiceAccount
+  name: payment-service
+  namespace: waqiti
+roleRef:
+  kind: Role
+  name: payment-service-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# ============================================================================
+# 2. WALLET SERVICE RBAC - Balance and Account Management
+# ============================================================================
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: wallet-service
+  namespace: waqiti
+  labels:
+    app.kubernetes.io/name: wallet-service
+    security.example.com/level: high
+    compliance.example.com/pci-dss: required
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT_ID:role/waqiti-wallet-service-irsa-production
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: wallet-service-role
+  namespace: waqiti
+rules:
+# ConfigMap access for wallet configuration
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "list"]
+  resourceNames:
+    - "wallet-config"
+    - "currency-rates-config"
+    - "wallet-limits-config"
+# Secret access for wallet encryption keys
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get"]
+  resourceNames:
+    - "wallet-encryption-keys"
+    - "database-credentials"
+# Service discovery for payment and user services
+- apiGroups: [""]
+  resources: ["services"]
+  verbs: ["get", "list"]
+  resourceNames:
+    - "payment-service"
+    - "user-service"
+    - "notification-service"
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: wallet-service-binding
+  namespace: waqiti
+subjects:
+- kind: ServiceAccount
+  name: wallet-service
+  namespace: waqiti
+roleRef:
+  kind: Role
+  name: wallet-service-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# ============================================================================
+# 3. USER SERVICE RBAC - Identity and Authentication
+# ============================================================================
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: user-service
+  namespace: waqiti
+  labels:
+    app.kubernetes.io/name: user-service
+    security.example.com/level: high
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT_ID:role/waqiti-user-service-irsa-production
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: user-service-role
+  namespace: waqiti
+rules:
+# ConfigMap access for user service configuration
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "list"]
+  resourceNames:
+    - "user-config"
+    - "authentication-config"
+    - "kyc-config"
+# Secret access for authentication providers
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get"]
+  resourceNames:
+    - "cognito-credentials"
+    - "jwt-signing-keys"
+    - "oauth-credentials"
+# Service discovery for wallet and notification services
+- apiGroups: [""]
+  resources: ["services"]
+  verbs: ["get", "list"]
+  resourceNames:
+    - "wallet-service"
+    - "notification-service"
+    - "kyc-service"
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: user-service-binding
+  namespace: waqiti
+subjects:
+- kind: ServiceAccount
+  name: user-service
+  namespace: waqiti
+roleRef:
+  kind: Role
+  name: user-service-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# ============================================================================
+# 4. FRAUD DETECTION SERVICE RBAC - Security and Risk
+# ============================================================================
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: fraud-detection-service
+  namespace: waqiti
+  labels:
+    app.kubernetes.io/name: fraud-detection-service
+    security.example.com/level: critical
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT_ID:role/waqiti-fraud-detection-irsa-production
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: fraud-detection-role
+  namespace: waqiti
+rules:
+# ConfigMap access for fraud detection configuration
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "list"]
+  resourceNames:
+    - "fraud-detection-config"
+    - "ml-model-config"
+    - "risk-scoring-config"
+# Secret access for ML model endpoints and API keys
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get"]
+  resourceNames:
+    - "sagemaker-credentials"
+    - "fraud-api-keys"
+# Service discovery for payment and user services
+- apiGroups: [""]
+  resources: ["services"]
+  verbs: ["get", "list"]
+  resourceNames:
+    - "payment-service"
+    - "user-service"
+    - "notification-service"
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: fraud-detection-binding
+  namespace: waqiti
+subjects:
+- kind: ServiceAccount
+  name: fraud-detection-service
+  namespace: waqiti
+roleRef:
+  kind: Role
+  name: fraud-detection-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# ============================================================================
+# 5. COMPLIANCE SERVICE RBAC - Audit and Regulatory
+# ============================================================================
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: compliance-service
+  namespace: waqiti
+  labels:
+    app.kubernetes.io/name: compliance-service
+    security.example.com/level: critical
+    compliance.example.com/sox: required
+    compliance.example.com/pci-dss: required
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT_ID:role/waqiti-compliance-service-irsa-production
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: compliance-service-role
+  namespace: waqiti
+rules:
+# ConfigMap access for compliance configuration
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "list"]
+  resourceNames:
+    - "compliance-config"
+    - "audit-config"
+    - "regulatory-config"
+# Secret access for audit and compliance tools
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get"]
+  resourceNames:
+    - "audit-tool-credentials"
+    - "compliance-api-keys"
+# Special permission to read audit logs from all services
+- apiGroups: [""]
+  resources: ["pods/log"]
+  verbs: ["get", "list"]
+# Service discovery for all services (for compliance monitoring)
+- apiGroups: [""]
+  resources: ["services"]
+  verbs: ["get", "list"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: compliance-service-binding
+  namespace: waqiti
+subjects:
+- kind: ServiceAccount
+  name: compliance-service
+  namespace: waqiti
+roleRef:
+  kind: Role
+  name: compliance-service-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# ============================================================================
+# 6. MONITORING SERVICE RBAC - Observability
+# ============================================================================
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: monitoring-service
+  namespace: example-monitoring
+  labels:
+    app.kubernetes.io/name: monitoring-service
+    security.example.com/level: medium
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT_ID:role/example-monitoring-service-irsa-production
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: monitoring-service-cluster-role
+  labels:
+    app.kubernetes.io/name: monitoring-service
+rules:
+# Read-only access to pods and services for monitoring
+- apiGroups: [""]
+  resources: 
+    - "pods"
+    - "services"
+    - "endpoints"
+    - "nodes"
+  verbs: ["get", "list", "watch"]
+# Read access to deployments and replicasets
+- apiGroups: ["apps"]
+  resources:
+    - "deployments"
+    - "replicasets"
+    - "statefulsets"
+  verbs: ["get", "list", "watch"]
+# Access to metrics endpoints
+- nonResourceURLs: ["/metrics", "/metrics/*"]
+  verbs: ["get"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: monitoring-service-cluster-binding
+  labels:
+    app.kubernetes.io/name: monitoring-service
+subjects:
+- kind: ServiceAccount
+  name: monitoring-service
+  namespace: example-monitoring
+roleRef:
+  kind: ClusterRole
+  name: monitoring-service-cluster-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# ============================================================================
+# 7. ADMIN ROLES - Limited Administrative Access
+# ============================================================================
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: waqiti-admin
+  namespace: waqiti
+  labels:
+    app.kubernetes.io/name: waqiti-admin
+    security.example.com/level: critical
+    role: admin
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: waqiti-admin-role
+  namespace: waqiti
+rules:
+# Full access to ConfigMaps for configuration management
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["*"]
+# Read-only access to secrets (no create/update)
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get", "list"]
+# Full access to deployments for application management
+- apiGroups: ["apps"]
+  resources: ["deployments", "replicasets"]
+  verbs: ["*"]
+# Service management
+- apiGroups: [""]
+  resources: ["services"]
+  verbs: ["*"]
+# Pod management (restart, scale, etc.)
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "delete"]
+# Access to logs for debugging
+- apiGroups: [""]
+  resources: ["pods/log"]
+  verbs: ["get", "list"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: waqiti-admin-binding
+  namespace: waqiti
+subjects:
+- kind: ServiceAccount
+  name: waqiti-admin
+  namespace: waqiti
+roleRef:
+  kind: Role
+  name: waqiti-admin-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# ============================================================================
+# 8. DEVELOPER ROLES - Limited Development Access
+# ============================================================================
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: waqiti-developer
+  namespace: waqiti
+  labels:
+    app.kubernetes.io/name: waqiti-developer
+    security.example.com/level: low
+    role: developer
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: waqiti-developer-role
+  namespace: waqiti
+rules:
+# Read-only access to ConfigMaps
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "list"]
+# No access to secrets
+# Read-only access to deployments
+- apiGroups: ["apps"]
+  resources: ["deployments", "replicasets"]
+  verbs: ["get", "list"]
+# Read-only access to services
+- apiGroups: [""]
+  resources: ["services"]
+  verbs: ["get", "list"]
+# Read-only access to pods
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list"]
+# Access to logs for debugging
+- apiGroups: [""]
+  resources: ["pods/log"]
+  verbs: ["get", "list"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: waqiti-developer-binding
+  namespace: waqiti
+subjects:
+- kind: ServiceAccount
+  name: waqiti-developer
+  namespace: waqiti
+roleRef:
+  kind: Role
+  name: waqiti-developer-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# ============================================================================
+# 9. SECURITY CONSTRAINTS - Pod Security Standards
+# ============================================================================
+
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: waqiti-security-limits
+  namespace: waqiti
+  labels:
+    security.example.com/component: limits
+spec:
+  limits:
+  - type: Container
+    default:
+      memory: "512Mi"
+      cpu: "250m"
+      ephemeral-storage: "1Gi"
+    defaultRequest:
+      memory: "256Mi"
+      cpu: "100m"
+      ephemeral-storage: "512Mi"
+    max:
+      memory: "2Gi"
+      cpu: "1000m"
+      ephemeral-storage: "5Gi"
+    min:
+      memory: "128Mi"
+      cpu: "50m"
+      ephemeral-storage: "256Mi"
+  - type: Pod
+    max:
+      memory: "4Gi"
+      cpu: "2000m"
+
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: waqiti-security-quota
+  namespace: waqiti
+  labels:
+    security.example.com/component: quota
+spec:
+  hard:
+    requests.cpu: "5"
+    requests.memory: 10Gi
+    limits.cpu: "10"
+    limits.memory: 20Gi
+    persistentvolumeclaims: "10"
+    pods: "20"
+    secrets: "20"
+    configmaps: "20"
+    services: "10"
+
+---
+# ============================================================================
+# 10. NETWORK POLICIES - Micro-segmentation
+# ============================================================================
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: payment-service-netpol
+  namespace: waqiti
+  labels:
+    app.kubernetes.io/name: payment-service
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: payment-service
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Allow traffic from API Gateway and other financial services
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: istio-system
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: wallet-service
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: fraud-detection-service
+    ports:
+    - protocol: TCP
+      port: 8080
+  egress:
+  # Allow traffic to wallet and compliance services
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: wallet-service
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: compliance-service
+    ports:
+    - protocol: TCP
+      port: 8080
+  # DNS resolution
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+  # HTTPS for external payment providers
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: waqiti
+  labels:
+    security.example.com/component: network-policy
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress

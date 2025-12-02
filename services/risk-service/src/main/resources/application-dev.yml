@@ -1,0 +1,59 @@
+spring:
+  # MongoDB Configuration (Development)
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/waqiti-risk-dev
+
+  # Redis Configuration (Development)
+  redis:
+    host: localhost
+    port: 6379
+
+  # Kafka Configuration (Development)
+  kafka:
+    bootstrap-servers: localhost:9092
+
+# Server Configuration (Development)
+server:
+  port: 8090
+
+# Eureka Configuration (Development)
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    enabled: false # Disable for local development
+
+# Risk Service Configuration (Development)
+risk:
+  scoring:
+    ml:
+      enabled: false # Disable ML in dev for faster startup
+    cache:
+      ttl: 60 # Shorter cache in dev
+  rules:
+    reload:
+      interval: 60000 # 1 minute for faster rule updates in dev
+
+# Logging Configuration (Development)
+logging:
+  level:
+    root: INFO
+    com.waqiti.risk: DEBUG
+    org.springframework.kafka: DEBUG
+    org.springframework.data.mongodb: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %highlight(%-5level) %logger{36} - %msg%n"
+
+# Actuator (Development)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
+
+# Development-specific settings
+debug: false

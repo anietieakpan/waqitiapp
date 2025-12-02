@@ -1,0 +1,75 @@
+{
+  "properties": [
+    {
+      "name": "gamification.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable gamification features",
+      "defaultValue": true
+    },
+    {
+      "name": "gamification.points.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable points system",
+      "defaultValue": true
+    },
+    {
+      "name": "gamification.points.transaction-reward",
+      "type": "java.lang.Integer",
+      "description": "Points awarded per transaction",
+      "defaultValue": 10
+    },
+    {
+      "name": "gamification.points.referral-bonus",
+      "type": "java.lang.Integer",
+      "description": "Points awarded for referrals",
+      "defaultValue": 500
+    },
+    {
+      "name": "gamification.badges.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable badge system",
+      "defaultValue": true
+    },
+    {
+      "name": "gamification.leaderboard.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable leaderboard",
+      "defaultValue": true
+    },
+    {
+      "name": "gamification.challenges.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable challenge system",
+      "defaultValue": true
+    },
+    {
+      "name": "gamification.rewards.catalog-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable rewards catalog",
+      "defaultValue": true
+    },
+    {
+      "name": "gamification.notifications.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable gamification notifications",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "OAuth2 client ID for service",
+      "defaultValue": "gamification-service"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "OAuth2 client secret for service"
+    }
+  ]
+}

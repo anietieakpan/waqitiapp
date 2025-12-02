@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  audit-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: waqiti/audit-service:latest
+    container_name: audit-service
+    ports:
+      - "8090:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=development
+      - SERVER_PORT=8080
+    env_file:
+      - .env
+    networks:
+      - waqiti-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 60s
+
+networks:
+  waqiti-network:
+    external: true

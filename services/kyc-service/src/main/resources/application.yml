@@ -1,0 +1,247 @@
+spring:
+  application:
+    name: kyc-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:development}
+  
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/waqiti_kyc}
+    username: ${DATABASE_USERNAME:waqiti}
+    password: ${DATABASE_PASSWORD:${VAULT_KYC_DB_PASSWORD}}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        use_sql_comments: true
+        jdbc:
+          batch_size: 25
+        order_inserts: true
+        order_updates: true
+    show-sql: false
+    
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.xml
+    enabled: true
+    
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false
+    consumer:
+      group-id: kyc-service-group
+      enable-auto-commit: false  # Manual acknowledgment for DLQ support
+      max-poll-records: 50  # Batch size control
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.waqiti.kyc.event,com.example.common.event"
+        
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+      jedis:
+        pool:
+          max-active: 10
+          max-idle: 5
+          min-idle: 2
+        
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB
+      max-request-size: 25MB
+      
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:${EUREKA_SERVER_URL:https://discovery-service:8761/eureka}/}
+    enabled: true
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+    
+server:
+  port: ${SERVER_PORT:8090}
+  error:
+    include-message: always
+    include-binding-errors: always
+    
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+    tags:
+      application: ${spring.application.name}
+      
+logging:
+  level:
+    com.waqiti.kyc: DEBUG
+    org.springframework.web: INFO
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: ${LOG_LEVEL_SQL:WARN}  # WARN for production
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    
+kyc:
+  providers:
+    onfido:
+      api-key: ${ONFIDO_API_KEY:${VAULT_ONFIDO_API_KEY}}
+      api-url: ${ONFIDO_API_URL:https://api.onfido.com/v3}
+      webhook-secret: ${ONFIDO_WEBHOOK_SECRET:}
+      enabled: true
+      timeout-seconds: 30
+    jumio:
+      api-key: ${JUMIO_API_KEY:${vault.api-keys.jumio.api-key}}
+      api-secret: ${JUMIO_API_SECRET:${vault.api-keys.jumio.api-secret}}
+      api-url: ${JUMIO_API_URL:https://netverify.com/api/v4}
+      webhook-secret: ${JUMIO_WEBHOOK_SECRET:${vault.api-keys.jumio.webhook-secret}}
+      enabled: true
+      timeout-seconds: 30
+    comply-advantage:
+      api-key: ${COMPLY_ADVANTAGE_API_KEY:${vault.api-keys.comply-advantage.api-key}}
+      api-url: ${COMPLY_ADVANTAGE_API_URL:https://api.complyadvantage.com}
+      enabled: true
+      timeout-seconds: 30
+    veriff:
+      api-key: ${VERIFF_API_KEY:${vault.api-keys.veriff.api-key}}
+      api-secret: ${VERIFF_API_SECRET:${vault.api-keys.veriff.api-secret}}
+      api-url: ${VERIFF_API_URL:https://stationapi.veriff.com/v1}
+      enabled: true
+      timeout-seconds: 30
+    persona:
+      api-key: ${PERSONA_API_KEY:${vault.api-keys.persona.api-key}}
+      api-url: ${PERSONA_API_URL:https://withpersona.com/api/v1}
+      enabled: true
+      timeout-seconds: 30
+    default-provider: ONFIDO
+
+  dowjones:
+    api-key: ${DOW_JONES_API_KEY:${vault.api-keys.dowjones.api-key}}
+    api-url: ${DOW_JONES_API_URL:https://api.dowjones.com/risk}
+    customer-id: ${DOW_JONES_CUSTOMER_ID:${vault.api-keys.dowjones.customer-id}}
+    timeout-ms: 10000
+    enabled: true
+    circuit-breaker:
+      enabled: true
+      failure-rate-threshold: 50
+      wait-duration-in-open-state: 60000
+    retry:
+      max-attempts: 3
+      wait-duration: 1000
+    cache:
+      enabled: true
+      ttl-hours: 24
+    
+  storage:
+    type: ${KYC_STORAGE_TYPE:S3}
+    bucket-name: ${KYC_BUCKET_NAME:waqiti-kyc-documents}
+    region: ${AWS_REGION:us-east-1}
+    encryption-key: ${KYC_ENCRYPTION_KEY:}
+    max-file-size-bytes: 10485760
+    allowed-file-types:
+      - image/jpeg
+      - image/png
+      - application/pdf
+      
+  verification:
+    max-attempts-per-user: 3
+    session-timeout-minutes: 30
+    document-expiry-days: 365
+    verification-expiry-days: 365
+    auto-approve-enabled: false
+    auto-approve-threshold: 0.95
+    level-requirements:
+      BASIC: 1
+      INTERMEDIATE: 2
+      ADVANCED: 3
+      
+  security:
+    encrypt-documents: true
+    watermark-documents: true
+    watermark-text: "WAQITI KYC VERIFIED"
+    audit-log-enabled: true
+    download-url-expiry-minutes: 15
+    ip-whitelist-enabled: false
+    whitelisted-ips: []
+    
+  compliance:
+    gdpr-enabled: true
+    data-retention-days: 2555
+    right-to-erasure-enabled: true
+    restricted-countries:
+      - IR
+      - KP
+      - SY
+    pii-encryption-enabled: true
+    audit-trail-enabled: true
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 5000
+        readTimeout: 5000
+        loggerLevel: full
+# OAuth2 Resource Server Configuration for Keycloak
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# Keycloak Configuration
+keycloak:
+  enabled: ${KEYCLOAK_ENABLED:true}
+  auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8180}
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  resource: kyc-service
+  bearer-only: true
+  ssl-required: ${KEYCLOAK_SSL_REQUIRED:external}
+  use-resource-role-mappings: true
+  principal-attribute: preferred_username
+  credentials:
+    secret: ${KEYCLOAK_CLIENT_SECRET:${vault.keycloak.kyc-service.client-secret}}
+  public-client: false
+  verify-token-audience: true
+
+# Feature Flags for Authentication Migration
+features:
+  auth:
+    mode: ${AUTH_MODE:KEYCLOAK}  # KEYCLOAK only - Legacy JWT retired
+    keycloak:
+      enabled: ${KEYCLOAK_ENABLED:true}
+    legacy:
+      enabled: ${LEGACY_AUTH_ENABLED:false}

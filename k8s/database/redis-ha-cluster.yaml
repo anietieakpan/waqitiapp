@@ -1,0 +1,218 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-cluster
+  namespace: database
+  labels:
+    app: redis
+    component: cache
+spec:
+  serviceName: redis-cluster-headless
+  replicas: 6
+  selector:
+    matchLabels:
+      app: redis
+      component: cache
+  template:
+    metadata:
+      labels:
+        app: redis
+        component: cache
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - redis
+            topologyKey: kubernetes.io/hostname
+      containers:
+      - name: redis
+        image: redis:7-alpine
+        ports:
+        - containerPort: 6379
+          name: client
+        - containerPort: 16379
+          name: gossip
+        command:
+        - redis-server
+        args:
+        - /etc/redis/redis.conf
+        - --cluster-enabled
+        - "yes"
+        - --cluster-config-file
+        - /data/nodes.conf
+        - --cluster-node-timeout
+        - "5000"
+        - --appendonly
+        - "yes"
+        - --appendfsync
+        - everysec
+        - --save
+        - "900 1"
+        - --save
+        - "300 10"
+        - --save
+        - "60 10000"
+        - --maxmemory
+        - 1gb
+        - --maxmemory-policy
+        - allkeys-lru
+        - --requirepass
+        - $(REDIS_PASSWORD)
+        - --masterauth
+        - $(REDIS_PASSWORD)
+        env:
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-credentials
+              key: password
+        volumeMounts:
+        - name: redis-data
+          mountPath: /data
+        - name: redis-config
+          mountPath: /etc/redis
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          exec:
+            command:
+            - redis-cli
+            - --no-auth-warning
+            - -a
+            - $(REDIS_PASSWORD)
+            - ping
+          initialDelaySeconds: 30
+          timeoutSeconds: 5
+          periodSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - redis-cli
+            - --no-auth-warning
+            - -a
+            - $(REDIS_PASSWORD)
+            - ping
+          initialDelaySeconds: 5
+          timeoutSeconds: 1
+          periodSeconds: 5
+      volumes:
+      - name: redis-config
+        configMap:
+          name: redis-config
+  volumeClaimTemplates:
+  - metadata:
+      name: redis-data
+      labels:
+        app: redis
+        component: cache
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      storageClassName: "fast-ssd"
+      resources:
+        requests:
+          storage: 20Gi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-config
+  namespace: database
+data:
+  redis.conf: |
+    # Network and Security
+    bind 0.0.0.0
+    protected-mode yes
+    port 6379
+    
+    # Memory Management
+    maxmemory 1gb
+    maxmemory-policy allkeys-lru
+    
+    # Persistence
+    save 900 1
+    save 300 10
+    save 60 10000
+    appendonly yes
+    appendfsync everysec
+    auto-aof-rewrite-percentage 100
+    auto-aof-rewrite-min-size 64mb
+    
+    # Cluster Configuration
+    cluster-enabled yes
+    cluster-node-timeout 5000
+    cluster-announce-ip ""
+    cluster-announce-port 6379
+    cluster-announce-bus-port 16379
+    
+    # Logging
+    loglevel notice
+    logfile ""
+    
+    # Security
+    rename-command FLUSHDB ""
+    rename-command FLUSHALL ""
+    rename-command DEBUG ""
+    rename-command CONFIG ""
+    
+    # Performance
+    tcp-keepalive 300
+    timeout 0
+    tcp-backlog 511
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-cluster-headless
+  namespace: database
+  labels:
+    app: redis
+    component: cache
+spec:
+  clusterIP: None
+  ports:
+  - port: 6379
+    targetPort: 6379
+    name: client
+  - port: 16379
+    targetPort: 16379
+    name: gossip
+  selector:
+    app: redis
+    component: cache
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-cluster
+  namespace: database
+  labels:
+    app: redis
+    component: cache
+spec:
+  type: ClusterIP
+  ports:
+  - port: 6379
+    targetPort: 6379
+    name: client
+  selector:
+    app: redis
+    component: cache
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: redis-credentials
+  namespace: database
+type: Opaque
+stringData:
+  password: "${vault.redis.password:VAULT_SECRET_REQUIRED}"

@@ -1,0 +1,57 @@
+{
+  "properties": [
+    {
+      "name": "social.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable social functionality",
+      "defaultValue": true
+    },
+    {
+      "name": "social.friends.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable friend connections",
+      "defaultValue": true
+    },
+    {
+      "name": "social.sharing.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable social sharing",
+      "defaultValue": true
+    },
+    {
+      "name": "social.activity-feed.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable activity feed",
+      "defaultValue": true
+    },
+    {
+      "name": "social.privacy.default-level",
+      "type": "java.lang.String",
+      "description": "Default privacy level",
+      "defaultValue": "PRIVATE"
+    },
+    {
+      "name": "social.notifications.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable social notifications",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "OAuth2 client ID for service",
+      "defaultValue": "social-service"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "OAuth2 client secret for service"
+    }
+  ]
+}

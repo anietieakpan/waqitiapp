@@ -1,0 +1,405 @@
+# ============================================================================
+# Centralized Timeout Configuration for All External API Calls
+# ============================================================================
+#
+# CRITICAL: Timeouts prevent thread starvation and cascading failures
+#
+# TIMEOUT PRINCIPLES:
+# 1. Connect Timeout: Time to establish TCP connection
+# 2. Read Timeout: Time waiting for response data
+# 3. Write Timeout: Time to send request data
+# 4. Connection Request Timeout: Time waiting for connection from pool
+#
+# TIMEOUT GUIDELINES:
+# - Internal Services: 5-10s (fast, reliable network)
+# - External APIs: 30-60s (variable latency, network conditions)
+# - Payment Processors: 45-90s (regulatory compliance, 3DS verification)
+# - ML/Analytics: 60-120s (complex computations)
+# - Health Checks: 3-5s (fail fast for monitoring)
+#
+# ============================================================================
+
+# Default HTTP Client Timeouts (applies to all RestTemplate/WebClient)
+http:
+  client:
+    connection:
+      timeout: ${HTTP_CONNECTION_TIMEOUT:10000}  # 10s default
+    read:
+      timeout: ${HTTP_READ_TIMEOUT:30000}        # 30s default
+    write:
+      timeout: ${HTTP_WRITE_TIMEOUT:10000}       # 10s default
+    connection-request:
+      timeout: ${HTTP_CONNECTION_REQUEST_TIMEOUT:5000}  # 5s default
+    max:
+      connections: ${HTTP_MAX_CONNECTIONS:200}
+      per-route: ${HTTP_MAX_PER_ROUTE:50}
+
+# ============================================================================
+# Feign Client Timeouts (service-to-service communication)
+# ============================================================================
+
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 10000    # 10 seconds
+        readTimeout: 30000       # 30 seconds
+        loggerLevel: basic
+
+      # Internal Service Clients (fast network, predictable latency)
+      user-service:
+        connectTimeout: 5000     # 5 seconds
+        readTimeout: 15000       # 15 seconds
+
+      wallet-service:
+        connectTimeout: 5000
+        readTimeout: 15000
+
+      payment-service:
+        connectTimeout: 10000    # Payments may take longer
+        readTimeout: 45000       # 45 seconds for 3DS, fraud checks
+
+      ledger-service:
+        connectTimeout: 5000
+        readTimeout: 20000       # Ledger writes can be slow
+
+      compliance-service:
+        connectTimeout: 10000    # OFAC screening
+        readTimeout: 60000       # 60 seconds (sanctions screening)
+
+      fraud-detection-service:
+        connectTimeout: 10000
+        readTimeout: 30000       # ML model inference
+
+      notification-service:
+        connectTimeout: 5000
+        readTimeout: 10000       # Fire and forget
+
+      transaction-service:
+        connectTimeout: 5000
+        readTimeout: 20000
+
+      account-service:
+        connectTimeout: 5000
+        readTimeout: 15000
+
+      kyc-service:
+        connectTimeout: 10000
+        readTimeout: 90000       # 90s for document verification
+
+      tax-service:
+        connectTimeout: 10000
+        readTimeout: 45000       # Avalara API calls
+
+      reconciliation-service:
+        connectTimeout: 10000
+        readTimeout: 120000      # 2 minutes for large reconciliation
+
+      reporting-service:
+        connectTimeout: 10000
+        readTimeout: 120000      # 2 minutes for complex reports
+
+      analytics-service:
+        connectTimeout: 10000
+        readTimeout: 120000      # 2 minutes for analytics queries
+
+      audit-service:
+        connectTimeout: 5000
+        readTimeout: 15000
+
+      security-service:
+        connectTimeout: 5000
+        readTimeout: 15000
+
+# ============================================================================
+# External API Timeouts (third-party services)
+# ============================================================================
+
+external:
+  api:
+    # Payment Processors
+    stripe:
+      connectTimeout: 30000     # 30 seconds
+      readTimeout: 90000        # 90 seconds (3D Secure can take time)
+
+    paypal:
+      connectTimeout: 30000
+      readTimeout: 90000
+
+    square:
+      connectTimeout: 30000
+      readTimeout: 60000
+
+    adyen:
+      connectTimeout: 30000
+      readTimeout: 90000
+
+    dwolla:
+      connectTimeout: 30000
+      readTimeout: 60000
+
+    wise:
+      connectTimeout: 30000
+      readTimeout: 120000       # International transfers
+
+    plaid:
+      connectTimeout: 30000
+      readTimeout: 60000
+
+    # Tax Services
+    avalara:
+      connectTimeout: 15000     # 15 seconds
+      readTimeout: 30000        # 30 seconds
+
+    # KYC/Compliance
+    onfido:
+      connectTimeout: 30000
+      readTimeout: 120000       # 2 min for document verification
+
+    jumio:
+      connectTimeout: 30000
+      readTimeout: 120000
+
+    shufti-pro:
+      connectTimeout: 30000
+      readTimeout: 120000
+
+    # Sanctions Screening
+    ofac:
+      connectTimeout: 15000
+      readTimeout: 45000
+
+    dow-jones:
+      connectTimeout: 15000
+      readTimeout: 60000
+
+    refinitiv:
+      connectTimeout: 15000
+      readTimeout: 60000
+
+    # Credit Bureaus
+    equifax:
+      connectTimeout: 20000
+      readTimeout: 60000
+
+    experian:
+      connectTimeout: 20000
+      readTimeout: 60000
+
+    transunion:
+      connectTimeout: 20000
+      readTimeout: 60000
+
+    # Banking/ACH
+    nacha:
+      connectTimeout: 30000
+      readTimeout: 60000
+
+    federal-reserve:
+      connectTimeout: 30000
+      readTimeout: 120000
+
+    # Crypto/Blockchain
+    bitcoin-rpc:
+      connectTimeout: 30000
+      readTimeout: 120000       # Blockchain confirmations
+
+    ethereum-rpc:
+      connectTimeout: 30000
+      readTimeout: 120000
+
+    # Address Verification
+    usps:
+      connectTimeout: 15000
+      readTimeout: 30000
+
+    google-maps:
+      connectTimeout: 15000
+      readTimeout: 30000
+
+    # Email/Phone Verification
+    twilio:
+      connectTimeout: 15000
+      readTimeout: 30000
+
+    sendgrid:
+      connectTimeout: 15000
+      readTimeout: 30000
+
+    # Threat Intelligence
+    abuseipdb:
+      connectTimeout: 10000
+      readTimeout: 30000
+
+    ipqualityscore:
+      connectTimeout: 10000
+      readTimeout: 30000
+
+    # Currency Exchange
+    fixer-io:
+      connectTimeout: 15000
+      readTimeout: 30000
+
+    currency-layer:
+      connectTimeout: 15000
+      readTimeout: 30000
+
+    openexchangerates:
+      connectTimeout: 15000
+      readTimeout: 30000
+
+    # FinCEN
+    fincen:
+      connectTimeout: 30000
+      readTimeout: 120000       # SAR filing
+
+    # IRS
+    irs-fire:
+      connectTimeout: 30000
+      readTimeout: 120000       # Tax form filing
+
+# ============================================================================
+# Resilience4j Circuit Breaker Timeouts (works with @CircuitBreaker)
+# ============================================================================
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        slidingWindowSize: 100
+        minimumNumberOfCalls: 10
+        permittedNumberOfCallsInHalfOpenState: 5
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 60s
+        failureRateThreshold: 50
+        slowCallRateThreshold: 50
+        slowCallDurationThreshold: 30s    # Calls slower than 30s = slow
+
+  timelimiter:
+    configs:
+      default:
+        timeoutDuration: 30s               # Global timeout for @TimeLimiter
+        cancelRunningFuture: true
+
+    instances:
+      # Payment Processors
+      stripe:
+        timeoutDuration: 90s
+
+      paypal:
+        timeoutDuration: 90s
+
+      square:
+        timeoutDuration: 60s
+
+      # Tax Services
+      avalara:
+        timeoutDuration: 30s
+
+      # KYC
+      onfido:
+        timeoutDuration: 120s
+
+      jumio:
+        timeoutDuration: 120s
+
+      # Sanctions Screening
+      ofac:
+        timeoutDuration: 45s
+
+      dow-jones:
+        timeoutDuration: 60s
+
+      # Compliance
+      fincen:
+        timeoutDuration: 120s
+
+  retry:
+    configs:
+      default:
+        maxAttempts: 3
+        waitDuration: 1000ms
+        retryExceptions:
+          - java.net.SocketTimeoutException
+          - java.net.ConnectException
+          - org.springframework.web.client.ResourceAccessException
+        ignoreExceptions:
+          - java.lang.IllegalArgumentException
+          - com.example.common.exception.ValidationException
+
+# ============================================================================
+# WebClient Timeouts (reactive clients)
+# ============================================================================
+
+webclient:
+  connection-timeout: 10000      # 10 seconds
+  read-timeout: 30000            # 30 seconds
+  write-timeout: 10000           # 10 seconds
+  response-timeout: 30000        # 30 seconds
+  handshake-timeout: 30000       # SSL handshake
+  max-in-memory-size: 10485760   # 10MB buffer
+
+# ============================================================================
+# Health Check Timeouts (fail fast for monitoring)
+# ============================================================================
+
+management:
+  health:
+    timeout: 5s                   # Health checks must respond within 5s
+
+  endpoint:
+    health:
+      show-details: when-authorized
+
+# ============================================================================
+# Database Connection Pool Timeouts
+# ============================================================================
+
+spring:
+  datasource:
+    hikari:
+      connection-timeout: 30000   # 30s to get connection from pool
+      validation-timeout: 5000    # 5s to validate connection
+      idle-timeout: 600000        # 10 min idle before eviction
+      max-lifetime: 1800000       # 30 min max connection lifetime
+      leak-detection-threshold: 60000  # Warn if connection held > 60s
+
+# ============================================================================
+# Kafka Consumer Timeouts
+# ============================================================================
+
+spring:
+  kafka:
+    consumer:
+      properties:
+        request.timeout.ms: 30000          # 30s request timeout
+        session.timeout.ms: 30000          # 30s session timeout
+        heartbeat.interval.ms: 3000        # 3s heartbeat
+        max.poll.interval.ms: 300000       # 5 min max poll interval
+        connections.max.idle.ms: 540000    # 9 min idle timeout
+
+# ============================================================================
+# NOTES:
+# ============================================================================
+#
+# 1. ALWAYS SET TIMEOUTS
+#    - Prevents thread starvation
+#    - Enables circuit breakers to work properly
+#    - Improves system resilience
+#
+# 2. TIMEOUT HIERARCHY
+#    - Connection timeout < Read timeout
+#    - Circuit breaker timeout ≥ Read timeout
+#    - Retry total time < Circuit breaker timeout
+#
+# 3. PRODUCTION TUNING
+#    - Monitor P95/P99 latencies
+#    - Set timeouts to P99 + buffer
+#    - Adjust based on SLA requirements
+#
+# 4. TESTING
+#    - Test timeout behavior under load
+#    - Verify circuit breakers trip correctly
+#    - Ensure graceful degradation
+#
+# ============================================================================

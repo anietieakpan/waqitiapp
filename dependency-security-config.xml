@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+    Waqiti Dependency Security Configuration
+    This file defines security exclusions and overrides for vulnerable dependencies
+-->
+<project>
+    <modelVersion>4.0.0</modelVersion>
+    
+    <!-- Security Exclusions for Known Vulnerable Dependencies -->
+    <build>
+        <plugins>
+            <!-- OWASP Dependency Check Plugin for vulnerability scanning -->
+            <plugin>
+                <groupId>org.owasp</groupId>
+                <artifactId>dependency-check-maven</artifactId>
+                <version>10.0.4</version>
+                <configuration>
+                    <failBuildOnCVSS>7</failBuildOnCVSS>
+                    <suppressionFiles>
+                        <suppressionFile>dependency-check-suppressions.xml</suppressionFile>
+                    </suppressionFiles>
+                    <excludes>
+                        <!-- Exclude log4j 1.x -->
+                        <exclude>log4j:log4j:*</exclude>
+                        <exclude>org.apache.logging.log4j:log4j-core:2.14.*</exclude>
+                        <exclude>org.apache.logging.log4j:log4j-core:2.15.*</exclude>
+                        <exclude>org.apache.logging.log4j:log4j-core:2.16.*</exclude>
+                    </excludes>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            
+            <!-- Maven Enforcer Plugin for dependency convergence -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>3.5.0</version>
+                <executions>
+                    <execution>
+                        <id>enforce-banned-dependencies</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <bannedDependencies>
+                                    <excludes>
+                                        <!-- Ban vulnerable log4j versions -->
+                                        <exclude>log4j:log4j</exclude>
+                                        <exclude>org.apache.logging.log4j:log4j-core:[2.0,2.17.0)</exclude>
+                                        
+                                        <!-- Ban vulnerable Spring versions -->
+                                        <exclude>org.springframework:spring-core:[0,5.3.20)</exclude>
+                                        <exclude>org.springframework.boot:spring-boot:[0,2.7.0)</exclude>
+                                        
+                                        <!-- Ban vulnerable Jackson versions -->
+                                        <exclude>com.fasterxml.jackson.core:jackson-databind:[0,2.13.4.2)</exclude>
+                                        
+                                        <!-- Ban vulnerable Commons Text -->
+                                        <exclude>org.apache.commons:commons-text:[0,1.10.0)</exclude>
+                                        
+                                        <!-- Ban vulnerable Tomcat -->
+                                        <exclude>org.apache.tomcat.embed:tomcat-embed-core:[0,9.0.65)</exclude>
+                                        
+                                        <!-- Ban vulnerable Netty -->
+                                        <exclude>io.netty:netty-codec-http2:[0,4.1.86.Final)</exclude>
+                                        
+                                        <!-- Ban vulnerable SnakeYAML -->
+                                        <exclude>org.yaml:snakeyaml:[0,1.33)</exclude>
+                                        
+                                        <!-- Ban vulnerable H2 Database -->
+                                        <exclude>com.h2database:h2:[0,2.2.220)</exclude>
+                                        
+                                        <!-- Ban vulnerable PostgreSQL JDBC -->
+                                        <exclude>org.postgresql:postgresql:[0,42.5.1)</exclude>
+                                        
+                                        <!-- Ban vulnerable Guava -->
+                                        <exclude>com.google.guava:guava:[0,32.0.0-jre)</exclude>
+                                    </excludes>
+                                </bannedDependencies>
+                                
+                                <!-- Require minimum Maven version -->
+                                <requireMavenVersion>
+                                    <version>3.8.1</version>
+                                </requireMavenVersion>
+                                
+                                <!-- Require minimum Java version -->
+                                <requireJavaVersion>
+                                    <version>17</version>
+                                </requireJavaVersion>
+                                
+                                <!-- Ensure no duplicate classes -->
+                                <banDuplicateClasses>
+                                    <findAllDuplicates>true</findAllDuplicates>
+                                </banDuplicateClasses>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+    
+    <!-- Global Dependency Exclusions -->
+    <dependencies>
+        <!-- Force newer versions for security -->
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-core</artifactId>
+            <version>2.23.1</version>
+        </dependency>
+        
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-api</artifactId>
+            <version>2.23.1</version>
+        </dependency>
+        
+        <dependency>
+            <groupId>org.yaml</groupId>
+            <artifactId>snakeyaml</artifactId>
+            <version>2.3</version>
+        </dependency>
+        
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-text</artifactId>
+            <version>1.12.0</version>
+        </dependency>
+        
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <version>2.3.232</version>
+        </dependency>
+    </dependencies>
+</project>

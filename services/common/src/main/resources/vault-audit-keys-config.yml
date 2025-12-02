@@ -1,0 +1,62 @@
+# HashiCorp Vault Configuration for Audit RSA Keys
+# Production-grade key management for audit log signing
+
+vault:
+  enabled: true
+  
+  # Vault connection settings
+  uri: ${VAULT_URI:https://vault.example.com:8200}
+  namespace: ${VAULT_NAMESPACE:waqiti}
+  
+  # Authentication method
+  authentication: APPROLE  # APPROLE for production, TOKEN for development
+  
+  # AppRole authentication (recommended for production)
+  app-role:
+    role-id: ${VAULT_ROLE_ID}
+    secret-id: ${VAULT_SECRET_ID}
+    path: approle
+  
+  # Token authentication (development only)
+  token: ${VAULT_TOKEN:}
+  
+  # Audit key configuration
+  audit:
+    keys:
+      path: secret/audit/rsa-keys
+      version: current
+      rotation-enabled: false  # Set to true for automatic rotation
+      rotation-days: 90
+  
+  # Connection settings
+  connection-timeout: 5000  # 5 seconds
+  read-timeout: 15000       # 15 seconds
+  
+  # SSL/TLS settings
+  ssl:
+    trust-store: ${VAULT_TRUSTSTORE:}
+    trust-store-password: ${VAULT_TRUSTSTORE_PASSWORD:}
+
+# Spring Vault configuration
+spring:
+  cloud:
+    vault:
+      enabled: true
+      uri: ${VAULT_URI:https://vault.example.com:8200}
+      namespace: ${VAULT_NAMESPACE:waqiti}
+      authentication: APPROLE
+      app-role:
+        role-id: ${VAULT_ROLE_ID}
+        secret-id: ${VAULT_SECRET_ID}
+        role: waqiti-audit-service
+        app-role-path: approle
+      connection-timeout: 5000
+      read-timeout: 15000
+      fail-fast: true  # Fail on startup if Vault unavailable (production)
+      
+      # KV v2 secrets engine configuration
+      kv:
+        enabled: true
+        backend: secret
+        default-context: audit
+        application-name: waqiti-platform

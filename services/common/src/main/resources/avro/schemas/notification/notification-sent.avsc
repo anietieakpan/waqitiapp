@@ -1,0 +1,100 @@
+{
+  "type": "record",
+  "name": "NotificationSentEvent",
+  "namespace": "com.waqiti.events.v1",
+  "doc": "Event published when a notification is sent",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "Unique event identifier (UUID)"
+    },
+    {
+      "name": "eventType",
+      "type": "string",
+      "default": "notification-sent",
+      "doc": "Type of event"
+    },
+    {
+      "name": "timestamp",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "Event timestamp in epoch milliseconds"
+    },
+    {
+      "name": "correlationId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Correlation ID for distributed tracing"
+    },
+    {
+      "name": "version",
+      "type": "string",
+      "default": "1.0",
+      "doc": "Schema version"
+    },
+    {
+      "name": "notificationId",
+      "type": "string",
+      "doc": "Unique notification identifier (UUID)"
+    },
+    {
+      "name": "userId",
+      "type": "string",
+      "doc": "User ID (UUID)"
+    },
+    {
+      "name": "notificationType",
+      "type": {
+        "type": "enum",
+        "name": "NotificationType",
+        "symbols": ["EMAIL", "SMS", "PUSH", "IN_APP", "WEBHOOK"]
+      },
+      "doc": "Type of notification"
+    },
+    {
+      "name": "channel",
+      "type": "string",
+      "doc": "Notification channel"
+    },
+    {
+      "name": "subject",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Notification subject or title"
+    },
+    {
+      "name": "template",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Template name used"
+    },
+    {
+      "name": "status",
+      "type": {
+        "type": "enum",
+        "name": "NotificationStatus",
+        "symbols": ["SENT", "DELIVERED", "FAILED", "PENDING"]
+      },
+      "default": "SENT",
+      "doc": "Notification status"
+    },
+    {
+      "name": "provider",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Third-party provider used"
+    },
+    {
+      "name": "metadata",
+      "type": ["null", {
+        "type": "map",
+        "values": "string"
+      }],
+      "default": null,
+      "doc": "Additional metadata"
+    }
+  ]
+}

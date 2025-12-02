@@ -1,0 +1,91 @@
+# Keycloak Configuration for API Gateway
+
+keycloak:
+  enabled: true
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  ssl-required: external
+  resource: api-gateway
+  bearer-only: true
+  credentials:
+    # SECURITY: No default value - gateway will fail to start if secret is missing
+    # This is intentional - better to fail fast than run with insecure default
+    secret: ${API_GATEWAY_CLIENT_SECRET:#{null}}
+  use-resource-role-mappings: true
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# API Gateway Security Configuration
+gateway:
+  security:
+    # Public endpoints that don't require authentication
+    public-endpoints:
+      - /actuator/health
+      - /actuator/info
+      - /api/public/**
+      - /swagger-ui/**
+      - /v3/api-docs/**
+    
+    # Service-to-service endpoints
+    service-endpoints:
+      - /internal/**
+    
+    # Required roles for gateway operations
+    required-roles:
+      gateway-admin:
+        - GATEWAY_ADMIN
+        - SYSTEM_ADMIN
+      route-manager:
+        - ROUTE_MANAGER
+        - GATEWAY_ADMIN
+      monitoring:
+        - MONITORING_USER
+        - GATEWAY_ADMIN
+    
+    # Required scopes for operations
+    required-scopes:
+      route-read: gateway:route:read
+      route-write: gateway:route:write
+      config-read: gateway:config:read
+      config-write: gateway:config:write
+      metrics-read: gateway:metrics:read
+      health-read: gateway:health:read
+      rate-limit-read: gateway:rate-limit:read
+      rate-limit-write: gateway:rate-limit:write
+      circuit-breaker-read: gateway:circuit-breaker:read
+      circuit-breaker-write: gateway:circuit-breaker:write
+    
+    # Gateway security features
+    features:
+      rate-limiting-enabled: true
+      circuit-breaker-enabled: true
+      request-logging-enabled: true
+      audit-logging-enabled: true
+      encryption-enabled: true
+      
+    # Gateway limits and thresholds
+    limits:
+      max-requests-per-second: 10000
+      max-concurrent-requests: 5000
+      max-route-configurations: 1000
+      
+    # Security thresholds requiring admin intervention
+    admin-thresholds:
+      high-error-rate: 0.1
+      circuit-breaker-open-count: 5
+      rate-limit-exceeded-count: 100
+      
+    # Advanced security features
+    advanced-security:
+      ddos-protection: true
+      ip-whitelisting: true
+      geo-blocking: true
+      bot-detection: true
+      request-validation: true
+      response-filtering: true

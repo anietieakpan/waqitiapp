@@ -1,0 +1,342 @@
+{
+  "groups": [
+    {
+      "name": "waqiti.user",
+      "type": "com.waqiti.user.config.WaqitiUserProperties",
+      "description": "Waqiti user service configuration"
+    },
+    {
+      "name": "waqiti.user.kyc",
+      "type": "com.waqiti.user.config.WaqitiUserProperties$Kyc",
+      "sourceType": "com.waqiti.user.config.WaqitiUserProperties"
+    },
+    {
+      "name": "waqiti.user.security",
+      "type": "com.waqiti.user.config.WaqitiUserProperties$Security",
+      "sourceType": "com.waqiti.user.config.WaqitiUserProperties"
+    },
+    {
+      "name": "waqiti.user.rate-limiting",
+      "type": "com.waqiti.user.config.WaqitiUserProperties$RateLimiting",
+      "sourceType": "com.waqiti.user.config.WaqitiUserProperties"
+    },
+    {
+      "name": "logging.rate-limiting",
+      "type": "com.waqiti.user.config.LoggingRateLimitingProperties",
+      "description": "Logging rate limiting configuration"
+    },
+    {
+      "name": "logging.waqiti.user",
+      "type": "com.waqiti.user.config.LoggingWaqitiUserProperties",
+      "description": "Logging-specific user configuration"
+    },
+    {
+      "name": "keycloak",
+      "type": "com.waqiti.user.config.KeycloakProperties",
+      "description": "Keycloak configuration properties"
+    },
+    {
+      "name": "services",
+      "type": "com.waqiti.user.config.ExternalServicesProperties",
+      "description": "External services configuration"
+    },
+    {
+      "name": "service.auth",
+      "type": "com.waqiti.user.config.ServiceAuthProperties",
+      "description": "Service-to-service authentication"
+    }
+  ],
+  "properties": [
+    {
+      "name": "waqiti.user.kyc.auto-verification-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable automatic KYC verification",
+      "sourceType": "com.waqiti.user.config.WaqitiUserProperties$Kyc",
+      "defaultValue": false
+    },
+    {
+      "name": "waqiti.user.kyc.verification-timeout",
+      "type": "java.lang.String",
+      "description": "Timeout for KYC verification process",
+      "sourceType": "com.waqiti.user.config.WaqitiUserProperties$Kyc",
+      "defaultValue": "24h"
+    },
+    {
+      "name": "waqiti.user.security.password.min-length",
+      "type": "java.lang.Integer",
+      "description": "Minimum password length",
+      "sourceType": "com.waqiti.user.config.WaqitiUserProperties$Security$Password",
+      "defaultValue": 8
+    },
+    {
+      "name": "waqiti.user.security.password.require-special-chars",
+      "type": "java.lang.Boolean",
+      "description": "Require special characters in passwords",
+      "sourceType": "com.waqiti.user.config.WaqitiUserProperties$Security$Password",
+      "defaultValue": true
+    },
+    {
+      "name": "waqiti.user.security.mfa.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable multi-factor authentication",
+      "sourceType": "com.waqiti.user.config.WaqitiUserProperties$Security$Mfa",
+      "defaultValue": true
+    },
+    {
+      "name": "waqiti.user.security.mfa.totp-window",
+      "type": "java.lang.Integer",
+      "description": "TOTP window in seconds",
+      "sourceType": "com.waqiti.user.config.WaqitiUserProperties$Security$Mfa",
+      "defaultValue": 30
+    },
+    {
+      "name": "waqiti.user.security.mfa.backup-codes-count",
+      "type": "java.lang.Integer",
+      "description": "Number of backup codes to generate",
+      "sourceType": "com.waqiti.user.config.WaqitiUserProperties$Security$Mfa",
+      "defaultValue": 10
+    },
+    {
+      "name": "waqiti.user.security.device-fingerprinting.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable device fingerprinting",
+      "sourceType": "com.waqiti.user.config.WaqitiUserProperties$Security$DeviceFingerprinting",
+      "defaultValue": true
+    },
+    {
+      "name": "waqiti.user.rate-limiting.login-attempts",
+      "type": "java.lang.Integer",
+      "description": "Maximum login attempts per time window",
+      "sourceType": "com.waqiti.user.config.WaqitiUserProperties$RateLimiting",
+      "defaultValue": 5
+    },
+    {
+      "name": "waqiti.user.rate-limiting.registration-attempts",
+      "type": "java.lang.Integer",
+      "description": "Maximum registration attempts per time window",
+      "sourceType": "com.waqiti.user.config.WaqitiUserProperties$RateLimiting",
+      "defaultValue": 3
+    },
+    {
+      "name": "logging.rate-limiting.key-prefix",
+      "type": "java.lang.String",
+      "description": "Redis key prefix for rate limiting",
+      "sourceType": "com.waqiti.user.config.LoggingRateLimitingProperties",
+      "defaultValue": "waqiti:user:rate-limit:"
+    },
+    {
+      "name": "logging.rate-limiting.bucket-expiration-minutes",
+      "type": "java.lang.Integer",
+      "description": "Rate limiting bucket expiration in minutes",
+      "sourceType": "com.waqiti.user.config.LoggingRateLimitingProperties",
+      "defaultValue": 60
+    },
+    {
+      "name": "logging.rate-limiting.default.capacity",
+      "type": "java.lang.Integer",
+      "description": "Default rate limiting capacity",
+      "sourceType": "com.waqiti.user.config.LoggingRateLimitingProperties$DefaultConfig",
+      "defaultValue": 200
+    },
+    {
+      "name": "logging.rate-limiting.services.user-service.capacity",
+      "type": "java.lang.Integer",
+      "description": "User service rate limiting capacity",
+      "sourceType": "com.waqiti.user.config.LoggingRateLimitingProperties$ServiceConfig",
+      "defaultValue": 200
+    },
+    {
+      "name": "logging.rate-limiting.services.user-service.refill-tokens",
+      "type": "java.lang.Integer",
+      "description": "User service rate limiting refill tokens",
+      "sourceType": "com.waqiti.user.config.LoggingRateLimitingProperties$ServiceConfig",
+      "defaultValue": 200
+    },
+    {
+      "name": "logging.rate-limiting.services.user-service.refill-period-minutes",
+      "type": "java.lang.Integer",
+      "description": "User service rate limiting refill period in minutes",
+      "sourceType": "com.waqiti.user.config.LoggingRateLimitingProperties$ServiceConfig",
+      "defaultValue": 1
+    },
+    {
+      "name": "logging.rate-limiting.services.user-service.endpoints./api/v1/auth/login.capacity",
+      "type": "java.lang.Integer",
+      "description": "Login endpoint rate limiting capacity",
+      "sourceType": "com.waqiti.user.config.LoggingRateLimitingProperties$EndpointConfig"
+    },
+    {
+      "name": "logging.rate-limiting.services.user-service.endpoints./api/v1/auth/login.tokens",
+      "type": "java.lang.Integer",
+      "description": "Login endpoint rate limiting tokens",
+      "sourceType": "com.waqiti.user.config.LoggingRateLimitingProperties$EndpointConfig",
+      "defaultValue": 1
+    },
+    {
+      "name": "logging.rate-limiting.services.user-service.endpoints./api/v1/auth/login.refill-tokens",
+      "type": "java.lang.Integer",
+      "description": "Login endpoint rate limiting refill tokens",
+      "sourceType": "com.waqiti.user.config.LoggingRateLimitingProperties$EndpointConfig"
+    },
+    {
+      "name": "logging.rate-limiting.services.user-service.endpoints./api/v1/auth/login.refill-period-minutes",
+      "type": "java.lang.Integer",
+      "description": "Login endpoint rate limiting refill period in minutes",
+      "sourceType": "com.waqiti.user.config.LoggingRateLimitingProperties$EndpointConfig"
+    },
+    {
+      "name": "logging.rate-limiting.services.user-service.endpoints./api/v1/auth/register.capacity",
+      "type": "java.lang.Integer",
+      "description": "Register endpoint rate limiting capacity",
+      "sourceType": "com.waqiti.user.config.LoggingRateLimitingProperties$EndpointConfig"
+    },
+    {
+      "name": "logging.rate-limiting.services.user-service.endpoints./api/v1/auth/register.tokens",
+      "type": "java.lang.Integer",
+      "description": "Register endpoint rate limiting tokens",
+      "sourceType": "com.waqiti.user.config.LoggingRateLimitingProperties$EndpointConfig",
+      "defaultValue": 1
+    },
+    {
+      "name": "logging.rate-limiting.services.user-service.endpoints./api/v1/auth/register.refill-tokens",
+      "type": "java.lang.Integer",
+      "description": "Register endpoint rate limiting refill tokens",
+      "sourceType": "com.waqiti.user.config.LoggingRateLimitingProperties$EndpointConfig"
+    },
+    {
+      "name": "logging.rate-limiting.services.user-service.endpoints./api/v1/auth/register.refill-period-minutes",
+      "type": "java.lang.Integer",
+      "description": "Register endpoint rate limiting refill period in minutes",
+      "sourceType": "com.waqiti.user.config.LoggingRateLimitingProperties$EndpointConfig"
+    },
+    {
+      "name": "logging.rate-limiting.services.user-service.endpoints./api/v1/biometric/register.capacity",
+      "type": "java.lang.Integer",
+      "description": "Biometric register endpoint rate limiting capacity",
+      "sourceType": "com.waqiti.user.config.LoggingRateLimitingProperties$EndpointConfig"
+    },
+    {
+      "name": "logging.rate-limiting.services.user-service.endpoints./api/v1/biometric/register.tokens",
+      "type": "java.lang.Integer",
+      "description": "Biometric register endpoint rate limiting tokens",
+      "sourceType": "com.waqiti.user.config.LoggingRateLimitingProperties$EndpointConfig",
+      "defaultValue": 1
+    },
+    {
+      "name": "logging.rate-limiting.services.user-service.endpoints./api/v1/biometric/register.refill-tokens",
+      "type": "java.lang.Integer",
+      "description": "Biometric register endpoint rate limiting refill tokens",
+      "sourceType": "com.waqiti.user.config.LoggingRateLimitingProperties$EndpointConfig"
+    },
+    {
+      "name": "logging.rate-limiting.services.user-service.endpoints./api/v1/biometric/register.refill-period-minutes",
+      "type": "java.lang.Integer",
+      "description": "Biometric register endpoint rate limiting refill period in minutes",
+      "sourceType": "com.waqiti.user.config.LoggingRateLimitingProperties$EndpointConfig"
+    },
+    {
+      "name": "logging.rate-limiting.services.user-service.endpoints./api/v1/users/profile.capacity",
+      "type": "java.lang.Integer",
+      "description": "User profile endpoint rate limiting capacity",
+      "sourceType": "com.waqiti.user.config.LoggingRateLimitingProperties$EndpointConfig"
+    },
+    {
+      "name": "logging.rate-limiting.services.user-service.endpoints./api/v1/users/profile.refill-tokens",
+      "type": "java.lang.Integer",
+      "description": "User profile endpoint rate limiting refill tokens",
+      "sourceType": "com.waqiti.user.config.LoggingRateLimitingProperties$EndpointConfig"
+    },
+    {
+      "name": "logging.waqiti.user.security.device-fingerprinting.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable device fingerprinting logging",
+      "sourceType": "com.waqiti.user.config.LoggingWaqitiUserProperties$Security$DeviceFingerprinting",
+      "defaultValue": true
+    },
+    {
+      "name": "logging.waqiti.user.security.mfa.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable MFA logging",
+      "sourceType": "com.waqiti.user.config.LoggingWaqitiUserProperties$Security$Mfa",
+      "defaultValue": true
+    },
+    {
+      "name": "keycloak.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Keycloak authentication",
+      "sourceType": "com.waqiti.user.config.KeycloakProperties",
+      "defaultValue": true
+    },
+    {
+      "name": "keycloak.bearer-only",
+      "type": "java.lang.Boolean",
+      "description": "Keycloak bearer-only mode",
+      "sourceType": "com.waqiti.user.config.KeycloakProperties",
+      "defaultValue": true
+    },
+    {
+      "name": "keycloak.use-resource-role-mappings",
+      "type": "java.lang.Boolean",
+      "description": "Use resource role mappings in Keycloak",
+      "sourceType": "com.waqiti.user.config.KeycloakProperties",
+      "defaultValue": true
+    },
+    {
+      "name": "keycloak.cors",
+      "type": "java.lang.Boolean",
+      "description": "Enable CORS for Keycloak",
+      "sourceType": "com.waqiti.user.config.KeycloakProperties",
+      "defaultValue": true
+    },
+    {
+      "name": "keycloak.cors-allowed-methods",
+      "type": "java.lang.String",
+      "description": "Allowed CORS methods for Keycloak",
+      "sourceType": "com.waqiti.user.config.KeycloakProperties"
+    },
+    {
+      "name": "keycloak.cors-allowed-headers",
+      "type": "java.lang.String",
+      "description": "Allowed CORS headers for Keycloak",
+      "sourceType": "com.waqiti.user.config.KeycloakProperties"
+    },
+    {
+      "name": "keycloak.cors-max-age",
+      "type": "java.lang.Integer",
+      "description": "CORS max age for Keycloak",
+      "sourceType": "com.waqiti.user.config.KeycloakProperties"
+    },
+    {
+      "name": "keycloak.public-client",
+      "type": "java.lang.Boolean",
+      "description": "Keycloak public client mode",
+      "sourceType": "com.waqiti.user.config.KeycloakProperties",
+      "defaultValue": false
+    },
+    {
+      "name": "keycloak.credentials.secret",
+      "type": "java.lang.String",
+      "description": "Keycloak client secret",
+      "sourceType": "com.waqiti.user.config.KeycloakProperties$Credentials"
+    },
+    {
+      "name": "services.integration-service.url",
+      "type": "java.lang.String",
+      "description": "Integration service URL",
+      "sourceType": "com.waqiti.user.config.ExternalServicesProperties$IntegrationService"
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "sourceType": "com.waqiti.user.config.ServiceAuthProperties",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "Service authentication client secret",
+      "sourceType": "com.waqiti.user.config.ServiceAuthProperties"
+    }
+  ]
+}

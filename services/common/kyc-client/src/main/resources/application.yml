@@ -1,0 +1,52 @@
+kyc:
+  client:
+    enabled: true
+    cache:
+      enabled: true
+      ttl: PT5M
+      max-size: 1000
+    circuit-breaker:
+      failure-rate-threshold: 50
+      wait-duration-in-open-state: PT30S
+      sliding-window-size: 10
+      minimum-number-of-calls: 5
+    retry:
+      max-attempts: 3
+      wait-duration: PT1S
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      kyc-service:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 30s
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10
+        
+  retry:
+    instances:
+      kyc-service:
+        maxAttempts: 3
+        waitDuration: 1000ms
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - org.springframework.web.client.HttpServerErrorException
+          - java.util.concurrent.TimeoutException
+          - java.io.IOException
+        ignoreExceptions:
+          - com.example.common.kyc.exception.KYCServiceUnavailableException
+
+feign:
+  client:
+    config:
+      kyc-service:
+        connectTimeout: 5000
+        readTimeout: 10000
+        loggerLevel: full
+  circuitbreaker:
+    enabled: true

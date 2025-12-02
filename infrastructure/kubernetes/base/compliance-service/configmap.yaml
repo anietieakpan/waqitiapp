@@ -1,0 +1,177 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: compliance-config
+  namespace: waqiti
+  labels:
+    app: compliance-service
+    component: compliance
+data:
+  application.yml: |
+    server:
+      port: 8080
+      shutdown: graceful
+    
+    management:
+      server:
+        port: 8090
+      endpoints:
+        web:
+          exposure:
+            include: health,info,metrics,prometheus
+      endpoint:
+        health:
+          probes:
+            enabled: true
+          show-details: always
+        metrics:
+          enabled: true
+        prometheus:
+          enabled: true
+      metrics:
+        export:
+          prometheus:
+            enabled: true
+    
+    spring:
+      application:
+        name: compliance-service
+      datasource:
+        url: ${DATABASE_URL}
+        username: ${DATABASE_USERNAME}
+        password: ${DATABASE_PASSWORD}
+        hikari:
+          maximum-pool-size: 15
+          minimum-idle: 3
+          idle-timeout: 300000
+          max-lifetime: 1200000
+          connection-timeout: 20000
+          validation-timeout: 5000
+          leak-detection-threshold: 60000
+      jpa:
+        hibernate:
+          ddl-auto: validate
+        properties:
+          hibernate:
+            dialect: org.hibernate.dialect.PostgreSQLDialect
+            format_sql: false
+            jdbc:
+              batch_size: 20
+              order_inserts: true
+              order_updates: true
+        show-sql: false
+      data:
+        redis:
+          url: ${REDIS_URL}
+          timeout: 2s
+          lettuce:
+            pool:
+              max-active: 15
+              max-idle: 6
+              min-idle: 2
+      kafka:
+        bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+        producer:
+          key-serializer: org.apache.kafka.common.serialization.StringSerializer
+          value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+          acks: all
+          retries: 3
+          properties:
+            enable.idempotence: true
+        consumer:
+          group-id: compliance-service
+          key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+          value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+          properties:
+            spring.json.trusted.packages: com.waqiti
+            auto.offset.reset: earliest
+      cloud:
+        vault:
+          enabled: true
+          host: ${VAULT_ENDPOINT}
+          port: 8200
+          scheme: https
+          authentication: token
+          token: ${VAULT_TOKEN}
+          kv:
+            enabled: true
+            backend: secret
+    
+    eureka:
+      client:
+        service-url:
+          defaultZone: ${EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE}
+        fetch-registry: true
+        register-with-eureka: true
+      instance:
+        prefer-ip-address: true
+        lease-renewal-interval-in-seconds: 30
+        lease-expiration-duration-in-seconds: 90
+    
+    logging:
+      level:
+        com.waqiti: INFO
+        org.springframework.kafka: WARN
+        org.hibernate.SQL: WARN
+      pattern:
+        console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+        file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+      file:
+        name: /logs/compliance-service.log
+    
+    # Compliance Configuration
+    compliance:
+      ofac-screening:
+        enabled: true
+        endpoint: ${OFAC_SCREENING_ENDPOINT:https://api.ofac.treasury.gov}
+        api-key: ${OFAC_API_KEY}
+        timeout: 30s
+      pep-screening:
+        enabled: true
+        endpoint: ${PEP_SCREENING_ENDPOINT}
+        api-key: ${PEP_API_KEY}
+        timeout: 30s
+      aml:
+        transaction-monitoring:
+          enabled: true
+          threshold-amount: 10000.00
+          velocity-rules:
+            daily-transaction-count: 50
+            daily-volume-limit: 100000.00
+            monthly-volume-limit: 1000000.00
+        suspicious-activity:
+          auto-sar-generation: true
+          investigation-timeout: 72h
+          manual-review-threshold: 0.8
+      kyc:
+        enhanced-due-diligence:
+          trigger-amount: 50000.00
+          pep-required: true
+        identity-verification:
+          document-types: ["PASSPORT", "DRIVERS_LICENSE", "NATIONAL_ID"]
+          liveness-check: true
+      reporting:
+        ctr-threshold: 10000.00
+        sar-filing-deadline: 30d
+        record-retention: 7y
+    
+    # Circuit Breaker Configuration
+    resilience4j:
+      circuitbreaker:
+        instances:
+          database:
+            failure-rate-threshold: 50
+            wait-duration-in-open-state: 30s
+            sliding-window-size: 10
+          external-screening:
+            failure-rate-threshold: 60
+            wait-duration-in-open-state: 60s
+            sliding-window-size: 20
+      retry:
+        instances:
+          database:
+            max-attempts: 3
+            wait-duration: 1s
+          external-screening:
+            max-attempts: 2
+            wait-duration: 2s

@@ -1,0 +1,97 @@
+# Keycloak Configuration for Transaction Service
+
+keycloak:
+  enabled: true
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  ssl-required: external
+  resource: transaction-service
+  bearer-only: true
+  credentials:
+    secret: ${TRANSACTION_SERVICE_CLIENT_SECRET:CHANGE_ME_SECURE_SECRET_REQUIRED}
+  use-resource-role-mappings: true
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# Transaction Service Security Configuration
+transaction:
+  security:
+    # Public endpoints that don't require authentication
+    public-endpoints:
+      - /actuator/health
+      - /actuator/info
+      - /api/v1/transactions/public/**
+      - /swagger-ui/**
+      - /v3/api-docs/**
+    
+    # Service-to-service endpoints
+    service-endpoints:
+      - /internal/transactions/**
+    
+    # Required roles for transaction operations
+    required-roles:
+      read:
+        - TRANSACTION_USER
+        - TRANSACTION_VIEWER
+      write:
+        - TRANSACTION_USER
+        - TRANSACTION_CREATOR
+      management:
+        - TRANSACTION_MANAGER
+        - TRANSACTION_OPERATOR
+      admin:
+        - TRANSACTION_ADMIN
+        - SYSTEM_ADMIN
+    
+    # Required scopes for operations
+    required-scopes:
+      read: transaction:read
+      write: transaction:write
+      transfer: transaction:transfer
+      batch: transaction:batch
+      cancel: transaction:cancel
+      reverse: transaction:reverse
+      dispute: transaction:dispute
+      status: transaction:status
+      validate: transaction:validate
+      verify: transaction:verify
+      analytics: transaction:analytics
+      export: transaction:export
+    
+    # Transaction security features
+    features:
+      fraud-detection-enabled: true
+      duplicate-check-enabled: true
+      amount-validation-enabled: true
+      rate-limiting-enabled: true
+      audit-logging-enabled: true
+      encryption-enabled: true
+      
+    # Transaction limits and thresholds
+    limits:
+      max-transaction-amount: 100000.00
+      max-daily-amount: 500000.00
+      max-hourly-transactions: 100
+      max-daily-transactions: 1000
+      
+    # Security thresholds requiring additional verification
+    verification-thresholds:
+      high-value-amount: 10000.00
+      suspicious-pattern-count: 10
+      rapid-transaction-count: 20
+      cross-border-amount: 5000.00
+      
+    # Advanced security features
+    advanced-security:
+      require-mfa-above: 25000.00
+      require-manager-approval-above: 50000.00
+      require-admin-approval-above: 100000.00
+      automatic-freeze-suspicious: true
+      real-time-monitoring: true
+      behavioral-analysis: true

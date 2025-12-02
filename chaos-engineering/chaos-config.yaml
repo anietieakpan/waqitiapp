@@ -1,0 +1,282 @@
+# Chaos Engineering Configuration for Waqiti P2P Payment Application
+# This configuration defines chaos experiments using Litmus Chaos
+
+# Global configuration
+global:
+  # Namespace where chaos experiments will run
+  namespace: waqiti-chaos
+  # Duration for each experiment
+  experimentDuration: 300 # 5 minutes
+  # Chaos interval
+  chaosInterval: 60 # 1 minute
+  # Monitoring enabled
+  monitoring:
+    enabled: true
+    prometheus:
+      endpoint: http://prometheus.monitoring.svc.cluster.local:9090
+    grafana:
+      endpoint: http://grafana.monitoring.svc.cluster.local:3000
+
+# Service mesh configuration
+serviceMesh:
+  provider: istio
+  namespace: istio-system
+  enabled: true
+
+# Chaos experiments configuration
+experiments:
+  # Pod-level chaos experiments
+  pod-chaos:
+    - name: payment-service-pod-kill
+      description: "Kill payment service pods to test resilience"
+      target:
+        appLabel: payment-service
+        namespace: waqiti
+      experiment:
+        type: pod-kill
+        parameters:
+          chaos-duration: 60
+          interval: 10
+          force: false
+      schedule:
+        cron: "0 */4 * * *" # Every 4 hours
+      
+    - name: transaction-service-pod-cpu-hog
+      description: "Inject CPU stress on transaction service"
+      target:
+        appLabel: transaction-service
+        namespace: waqiti
+      experiment:
+        type: pod-cpu-hog
+        parameters:
+          cpu-cores: 1
+          cpu-load: 80 # 80% CPU load
+          chaos-duration: 180
+      schedule:
+        cron: "0 */6 * * *" # Every 6 hours
+
+    - name: user-service-pod-memory-hog
+      description: "Inject memory stress on user service"
+      target:
+        appLabel: user-service
+        namespace: waqiti
+      experiment:
+        type: pod-memory-hog
+        parameters:
+          memory-consumption: 500 # MB
+          chaos-duration: 120
+      schedule:
+        cron: "0 */8 * * *" # Every 8 hours
+
+  # Network chaos experiments
+  network-chaos:
+    - name: payment-service-network-latency
+      description: "Add network latency to payment service"
+      target:
+        appLabel: payment-service
+        namespace: waqiti
+      experiment:
+        type: pod-network-latency
+        parameters:
+          network-interface: eth0
+          latency: 2000 # 2 seconds
+          jitter: 500 # 500ms jitter
+          chaos-duration: 300
+      schedule:
+        cron: "30 */4 * * *"
+
+    - name: transaction-service-network-loss
+      description: "Simulate packet loss for transaction service"
+      target:
+        appLabel: transaction-service
+        namespace: waqiti
+      experiment:
+        type: pod-network-loss
+        parameters:
+          network-interface: eth0
+          loss-percentage: 25 # 25% packet loss
+          chaos-duration: 180
+      schedule:
+        cron: "0 */12 * * *"
+
+    - name: api-gateway-network-partition
+      description: "Simulate network partition for API gateway"
+      target:
+        appLabel: api-gateway
+        namespace: waqiti
+      experiment:
+        type: pod-network-partition
+        parameters:
+          destination-ips: "10.0.0.0/16" # Internal service network
+          chaos-duration: 120
+      schedule:
+        cron: "0 2 * * *" # Daily at 2 AM
+
+  # Application-level chaos experiments
+  application-chaos:
+    - name: kafka-broker-failure
+      description: "Simulate Kafka broker failure"
+      target:
+        appLabel: kafka
+        namespace: waqiti
+      experiment:
+        type: kafka-broker-pod-failure
+        parameters:
+          kafka-kind: statefulset
+          kafka-replicas: 3
+          chaos-duration: 300
+      schedule:
+        cron: "0 */8 * * *"
+
+    - name: redis-cache-flush
+      description: "Flush Redis cache to test cache resilience"
+      target:
+        appLabel: redis
+        namespace: waqiti
+      experiment:
+        type: redis-cache-expire
+        parameters:
+          redis-key-pattern: "*"
+          chaos-duration: 60
+      schedule:
+        cron: "0 */6 * * *"
+
+    - name: database-connection-pool-exhaustion
+      description: "Exhaust database connection pool"
+      target:
+        appLabel: postgres-primary
+        namespace: waqiti
+      experiment:
+        type: db-connection-drain
+        parameters:
+          connections: 100
+          chaos-duration: 120
+      schedule:
+        cron: "0 */12 * * *"
+
+  # Infrastructure chaos experiments
+  infrastructure-chaos:
+    - name: node-cpu-hog
+      description: "Stress test node CPU"
+      target:
+        nodeLabel: node-role.kubernetes.io/worker=true
+      experiment:
+        type: node-cpu-hog
+        parameters:
+          cpu-cores: 2
+          cpu-load: 90
+          nodes-affected-percentage: 30
+          chaos-duration: 300
+      schedule:
+        cron: "0 4 * * *" # Daily at 4 AM
+
+    - name: node-memory-hog
+      description: "Stress test node memory"
+      target:
+        nodeLabel: node-role.kubernetes.io/worker=true
+      experiment:
+        type: node-memory-hog
+        parameters:
+          memory-percentage: 80
+          nodes-affected-percentage: 30
+          chaos-duration: 300
+      schedule:
+        cron: "0 5 * * *" # Daily at 5 AM
+
+    - name: disk-fill
+      description: "Fill disk to test disk pressure handling"
+      target:
+        appLabel: payment-service
+        namespace: waqiti
+      experiment:
+        type: disk-fill
+        parameters:
+          fill-percentage: 80
+          ephemeral-storage: true
+          chaos-duration: 180
+      schedule:
+        cron: "0 3 * * *" # Daily at 3 AM
+
+# Steady state hypothesis
+steadyStateHypothesis:
+  - name: payment-success-rate
+    description: "Payment success rate should be above 95%"
+    metric:
+      source: prometheus
+      query: |
+        (sum(rate(payment_service_payments_successful_total[5m])) / 
+         sum(rate(payment_service_payments_total[5m]))) * 100
+      threshold: 95
+      comparison: ">="
+  
+  - name: api-latency-p99
+    description: "API latency P99 should be below 1 second"
+    metric:
+      source: prometheus
+      query: |
+        histogram_quantile(0.99, 
+          sum(rate(http_request_duration_seconds_bucket[5m])) by (le))
+      threshold: 1.0
+      comparison: "<="
+  
+  - name: error-rate
+    description: "Overall error rate should be below 1%"
+    metric:
+      source: prometheus
+      query: |
+        (sum(rate(http_requests_total{status=~"5.."}[5m])) / 
+         sum(rate(http_requests_total[5m]))) * 100
+      threshold: 1.0
+      comparison: "<="
+
+# Rollback configuration
+rollback:
+  enabled: true
+  criteria:
+    - metric: payment-success-rate
+      threshold: 90 # Rollback if payment success rate drops below 90%
+    - metric: error-rate
+      threshold: 5 # Rollback if error rate exceeds 5%
+  
+# Notification configuration
+notifications:
+  slack:
+    enabled: true
+    webhook: "${SLACK_WEBHOOK_URL}"
+    channel: "#chaos-engineering"
+  
+  pagerduty:
+    enabled: true
+    integrationKey: "${PAGERDUTY_INTEGRATION_KEY}"
+    severity: "warning"
+
+# Game days configuration
+gameDays:
+  - name: "Payment System Resilience Test"
+    description: "Comprehensive test of payment system under various failure scenarios"
+    date: "first-friday-of-month"
+    experiments:
+      - payment-service-pod-kill
+      - payment-service-network-latency
+      - kafka-broker-failure
+      - redis-cache-flush
+    duration: 7200 # 2 hours
+    
+  - name: "Black Friday Simulation"
+    description: "Simulate Black Friday traffic and failures"
+    date: "2024-11-15" # Pre-Black Friday test
+    experiments:
+      - node-cpu-hog
+      - node-memory-hog
+      - database-connection-pool-exhaustion
+      - api-gateway-network-partition
+    duration: 14400 # 4 hours
+    traffic-multiplier: 10 # 10x normal traffic
+
+# Experiment result storage
+results:
+  storage:
+    type: s3
+    bucket: waqiti-chaos-results
+    prefix: chaos-experiments/
+  retention: 90 # days

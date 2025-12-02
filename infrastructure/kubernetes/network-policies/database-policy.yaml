@@ -1,0 +1,48 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: database-network-policy
+  namespace: waqiti
+spec:
+  podSelector:
+    matchLabels:
+      tier: database
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Only allow traffic from microservices
+  - from:
+    - podSelector:
+        matchLabels:
+          tier: microservice
+    ports:
+    - protocol: TCP
+      port: 5432  # PostgreSQL
+    - protocol: TCP
+      port: 6379  # Redis
+  # Allow backup jobs
+  - from:
+    - podSelector:
+        matchLabels:
+          job-type: backup
+    ports:
+    - protocol: TCP
+      port: 5432
+    - protocol: TCP
+      port: 6379
+  egress:
+  # Allow DNS
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+  # Allow backup to S3
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: TCP
+      port: 443

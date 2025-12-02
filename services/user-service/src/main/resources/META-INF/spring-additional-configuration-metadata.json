@@ -1,0 +1,259 @@
+{
+  "properties": [
+    {
+      "name": "waqiti.user.kyc.auto-verification-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable automatic KYC verification",
+      "defaultValue": false
+    },
+    {
+      "name": "waqiti.user.kyc.verification-timeout",
+      "type": "java.lang.String",
+      "description": "KYC verification timeout",
+      "defaultValue": "24h"
+    },
+    {
+      "name": "waqiti.user.security.password.min-length",
+      "type": "java.lang.Integer",
+      "description": "Minimum password length",
+      "defaultValue": 8
+    },
+    {
+      "name": "waqiti.user.security.password.require-special-chars",
+      "type": "java.lang.Boolean",
+      "description": "Require special characters in password",
+      "defaultValue": true
+    },
+    {
+      "name": "waqiti.user.security.mfa.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable multi-factor authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "waqiti.user.security.mfa.totp-window",
+      "type": "java.lang.Integer",
+      "description": "TOTP window in seconds",
+      "defaultValue": 30
+    },
+    {
+      "name": "waqiti.user.security.mfa.backup-codes-count",
+      "type": "java.lang.Integer",
+      "description": "Number of backup codes",
+      "defaultValue": 10
+    },
+    {
+      "name": "waqiti.user.security.device-fingerprinting.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable device fingerprinting",
+      "defaultValue": true
+    },
+    {
+      "name": "waqiti.user.security.device-fingerprinting.max-devices",
+      "type": "java.lang.Integer",
+      "description": "Maximum devices per user",
+      "defaultValue": 5
+    },
+    {
+      "name": "waqiti.user.rate-limiting.login-attempts",
+      "type": "java.lang.Integer",
+      "description": "Login attempt rate limit",
+      "defaultValue": 5
+    },
+    {
+      "name": "waqiti.user.rate-limiting.registration-attempts",
+      "type": "java.lang.Integer",
+      "description": "Registration attempt rate limit",
+      "defaultValue": 3
+    },
+    {
+      "name": "keycloak.admin.username",
+      "type": "java.lang.String",
+      "description": "Keycloak admin username"
+    },
+    {
+      "name": "keycloak.admin.password",
+      "type": "java.lang.String",
+      "description": "Keycloak admin password"
+    },
+    {
+      "name": "keycloak.admin.client-id",
+      "type": "java.lang.String",
+      "description": "Keycloak admin client ID",
+      "defaultValue": "admin-cli"
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "OAuth2 client ID for service",
+      "defaultValue": "user-service"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "OAuth2 client secret for service"
+    },
+    {
+      "name": "services.integration-service.url",
+      "type": "java.lang.String",
+      "description": "Integration service URL",
+      "defaultValue": "http://integration-service:8085"
+    },
+    {
+      "name": "services.notification-service.url",
+      "type": "java.lang.String",
+      "description": "Notification service URL",
+      "defaultValue": "http://notification-service:8084"
+    },
+    {
+      "name": "rate-limiting.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable rate limiting",
+      "defaultValue": true
+    },
+    {
+      "name": "rate-limiting.key-prefix",
+      "type": "java.lang.String",
+      "description": "Rate limiting key prefix",
+      "defaultValue": "waqiti:user:rate-limit:"
+    },
+    {
+      "name": "rate-limiting.bucket-expiration-minutes",
+      "type": "java.lang.Integer",
+      "description": "Rate limit bucket expiration in minutes",
+      "defaultValue": 60
+    },
+    {
+      "name": "rate-limiting.default.capacity",
+      "type": "java.lang.Integer",
+      "description": "Default rate limit capacity",
+      "defaultValue": 200
+    },
+    {
+      "name": "rate-limiting.default.refill-tokens",
+      "type": "java.lang.Integer",
+      "description": "Default refill tokens",
+      "defaultValue": 200
+    },
+    {
+      "name": "rate-limiting.default.refill-period-minutes",
+      "type": "java.lang.Integer",
+      "description": "Default refill period in minutes",
+      "defaultValue": 1
+    },
+    {
+      "name": "rate-limiting.services.user-service.capacity",
+      "type": "java.lang.Integer",
+      "description": "User service rate limit capacity",
+      "defaultValue": 200
+    },
+    {
+      "name": "rate-limiting.services.user-service.refill-tokens",
+      "type": "java.lang.Integer",
+      "description": "User service refill tokens",
+      "defaultValue": 200
+    },
+    {
+      "name": "rate-limiting.services.user-service.refill-period-minutes",
+      "type": "java.lang.Integer",
+      "description": "User service refill period in minutes",
+      "defaultValue": 1
+    },
+    {
+      "name": "rate-limiting.services.user-service.endpoints./api/v1/auth/login.capacity",
+      "type": "java.lang.Integer",
+      "description": "Login endpoint rate limit capacity",
+      "defaultValue": 5
+    },
+    {
+      "name": "rate-limiting.services.user-service.endpoints./api/v1/auth/login.refill-tokens",
+      "type": "java.lang.Integer",
+      "description": "Login endpoint refill tokens",
+      "defaultValue": 5
+    },
+    {
+      "name": "rate-limiting.services.user-service.endpoints./api/v1/auth/login.refill-period-minutes",
+      "type": "java.lang.Integer",
+      "description": "Login endpoint refill period in minutes",
+      "defaultValue": 15
+    },
+    {
+      "name": "rate-limiting.services.user-service.endpoints./api/v1/auth/login.tokens",
+      "type": "java.lang.Integer",
+      "description": "Login endpoint tokens consumed per request",
+      "defaultValue": 1
+    },
+    {
+      "name": "rate-limiting.services.user-service.endpoints./api/v1/auth/register.capacity",
+      "type": "java.lang.Integer",
+      "description": "Register endpoint rate limit capacity",
+      "defaultValue": 3
+    },
+    {
+      "name": "rate-limiting.services.user-service.endpoints./api/v1/auth/register.refill-tokens",
+      "type": "java.lang.Integer",
+      "description": "Register endpoint refill tokens",
+      "defaultValue": 3
+    },
+    {
+      "name": "rate-limiting.services.user-service.endpoints./api/v1/auth/register.refill-period-minutes",
+      "type": "java.lang.Integer",
+      "description": "Register endpoint refill period in minutes",
+      "defaultValue": 60
+    },
+    {
+      "name": "rate-limiting.services.user-service.endpoints./api/v1/auth/register.tokens",
+      "type": "java.lang.Integer",
+      "description": "Register endpoint tokens consumed per request",
+      "defaultValue": 1
+    },
+    {
+      "name": "rate-limiting.services.user-service.endpoints./api/v1/biometric/register.capacity",
+      "type": "java.lang.Integer",
+      "description": "Biometric register endpoint rate limit capacity",
+      "defaultValue": 3
+    },
+    {
+      "name": "rate-limiting.services.user-service.endpoints./api/v1/biometric/register.refill-tokens",
+      "type": "java.lang.Integer",
+      "description": "Biometric register endpoint refill tokens",
+      "defaultValue": 3
+    },
+    {
+      "name": "rate-limiting.services.user-service.endpoints./api/v1/biometric/register.refill-period-minutes",
+      "type": "java.lang.Integer",
+      "description": "Biometric register endpoint refill period in minutes",
+      "defaultValue": 60
+    },
+    {
+      "name": "rate-limiting.services.user-service.endpoints./api/v1/biometric/register.tokens",
+      "type": "java.lang.Integer",
+      "description": "Biometric register endpoint tokens consumed per request",
+      "defaultValue": 1
+    },
+    {
+      "name": "rate-limiting.services.user-service.endpoints./api/v1/users/profile.capacity",
+      "type": "java.lang.Integer",
+      "description": "Profile endpoint rate limit capacity",
+      "defaultValue": 50
+    },
+    {
+      "name": "rate-limiting.services.user-service.endpoints./api/v1/users/profile.refill-tokens",
+      "type": "java.lang.Integer",
+      "description": "Profile endpoint refill tokens",
+      "defaultValue": 50
+    },
+    {
+      "name": "rate-limiting.services.user-service.endpoints./api/v1/users/profile.refill-period-minutes",
+      "type": "java.lang.Integer",
+      "description": "Profile endpoint refill period in minutes",
+      "defaultValue": 1
+    }
+  ]
+}

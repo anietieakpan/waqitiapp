@@ -1,0 +1,117 @@
+# Keycloak Configuration for Tax Service
+
+keycloak:
+  enabled: true
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  ssl-required: external
+  resource: tax-service
+  bearer-only: true
+  credentials:
+    secret: ${TAX_SERVICE_CLIENT_SECRET:CHANGE_ME_SECURE_SECRET_REQUIRED}
+  use-resource-role-mappings: true
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# Tax Service Security Configuration
+tax:
+  security:
+    # Public endpoints that don't require authentication
+    public-endpoints:
+      - /actuator/health
+      - /actuator/info
+      - /api/v1/tax/rates/public
+      - /api/v1/tax/jurisdictions/public
+      - /swagger-ui/**
+      - /v3/api-docs/**
+    
+    # Service-to-service endpoints
+    service-endpoints:
+      - /internal/tax/**
+    
+    # Required roles for tax operations
+    required-roles:
+      read:
+        - USER
+        - TAX_USER
+      tax-calculation:
+        - USER
+        - TAX_USER
+        - TAX_CALCULATOR
+      tax-report-generation:
+        - USER
+        - TAX_USER
+        - TAX_REPORTER
+      tax-filing:
+        - USER
+        - TAX_USER
+        - TAX_FILER
+      compliance-check:
+        - TAX_COMPLIANCE_OFFICER
+        - REGULATORY_OFFICER
+      audit-support:
+        - TAX_AUDITOR
+        - INTERNAL_AUDITOR
+      jurisdiction-management:
+        - TAX_ADMINISTRATOR
+        - TAX_MANAGER
+      rate-management:
+        - TAX_ADMINISTRATOR
+        - TAX_MANAGER
+      management:
+        - TAX_MANAGER
+        - TAX_OPERATOR
+      admin:
+        - TAX_ADMIN
+        - SYSTEM_ADMIN
+    
+    # Required scopes for operations
+    required-scopes:
+      tax-calculation: tax:calculation
+      tax-report: tax:report
+      tax-filing: tax:filing
+      compliance-check: tax:compliance:check
+      audit-support: tax:audit:support
+      jurisdiction-management: tax:jurisdiction:manage
+      rate-management: tax:rate:manage
+      regulatory-reporting: tax:regulatory:reporting
+      admin: tax:admin
+      management: tax:manage
+    
+    # Tax service security features
+    features:
+      multi-jurisdiction-support: true
+      real-time-calculation-enabled: true
+      compliance-monitoring-enabled: true
+      audit-trail-enabled: true
+      regulatory-reporting-enabled: true
+      encryption-enabled: true
+      
+    # Tax service limits and thresholds
+    limits:
+      max-calculations-per-minute: 1000
+      max-jurisdictions-per-user: 50
+      tax-report-retention-years: 7
+      batch-calculation-limit: 10000
+      
+    # Security thresholds requiring review
+    review-thresholds:
+      high-tax-liability: 100000.00
+      complex-jurisdiction-calculation: 10
+      unusual-deduction-pattern: 5
+      audit-flag-triggers: 3
+      
+    # Advanced security features
+    advanced-security:
+      require-multi-jurisdiction-verification: true
+      automated-compliance-checking: true
+      real-time-regulatory-updates: true
+      secure-document-handling: true
+      audit-trail-immutability: true
+      tax-authority-integration-security: true

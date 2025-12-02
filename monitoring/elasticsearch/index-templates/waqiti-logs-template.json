@@ -1,0 +1,214 @@
+{
+  "index_patterns": ["waqiti-*"],
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "index.refresh_interval": "30s",
+      "index.lifecycle.name": "waqiti-logs-policy",
+      "index.lifecycle.rollover_alias": "waqiti-logs",
+      "analysis": {
+        "analyzer": {
+          "waqiti_analyzer": {
+            "type": "custom",
+            "tokenizer": "standard",
+            "filter": ["lowercase", "stop"]
+          }
+        }
+      }
+    },
+    "mappings": {
+      "properties": {
+        "@timestamp": {
+          "type": "date",
+          "format": "strict_date_optional_time||epoch_millis"
+        },
+        "service_name": {
+          "type": "keyword",
+          "fields": {
+            "text": {
+              "type": "text",
+              "analyzer": "waqiti_analyzer"
+            }
+          }
+        },
+        "log_level": {
+          "type": "keyword"
+        },
+        "log_message": {
+          "type": "text",
+          "analyzer": "waqiti_analyzer",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "thread": {
+          "type": "keyword"
+        },
+        "logger": {
+          "type": "keyword"
+        },
+        "user_id": {
+          "type": "keyword"
+        },
+        "payment_amount": {
+          "type": "float"
+        },
+        "payment_action": {
+          "type": "keyword"
+        },
+        "payment_status": {
+          "type": "keyword"
+        },
+        "fraud_type": {
+          "type": "keyword"
+        },
+        "risk_score": {
+          "type": "float"
+        },
+        "auth_action": {
+          "type": "keyword"
+        },
+        "auth_result": {
+          "type": "keyword"
+        },
+        "client_ip": {
+          "type": "ip"
+        },
+        "geoip": {
+          "properties": {
+            "continent_name": {
+              "type": "keyword"
+            },
+            "country_iso_code": {
+              "type": "keyword"
+            },
+            "country_name": {
+              "type": "keyword"
+            },
+            "region_name": {
+              "type": "keyword"
+            },
+            "city_name": {
+              "type": "keyword"
+            },
+            "location": {
+              "type": "geo_point"
+            }
+          }
+        },
+        "http_method": {
+          "type": "keyword"
+        },
+        "request_path": {
+          "type": "keyword",
+          "fields": {
+            "text": {
+              "type": "text",
+              "analyzer": "waqiti_analyzer"
+            }
+          }
+        },
+        "response_code": {
+          "type": "integer"
+        },
+        "response_size": {
+          "type": "integer"
+        },
+        "response_time": {
+          "type": "float"
+        },
+        "query_time": {
+          "type": "float"
+        },
+        "sql_query": {
+          "type": "text",
+          "analyzer": "waqiti_analyzer",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 512
+            }
+          }
+        },
+        "exception_class": {
+          "type": "keyword"
+        },
+        "exception_message": {
+          "type": "text",
+          "analyzer": "waqiti_analyzer"
+        },
+        "severity": {
+          "type": "keyword"
+        },
+        "environment": {
+          "type": "keyword"
+        },
+        "platform": {
+          "type": "keyword"
+        },
+        "container_id": {
+          "type": "keyword"
+        },
+        "docker": {
+          "properties": {
+            "container": {
+              "properties": {
+                "id": {
+                  "type": "keyword"
+                },
+                "name": {
+                  "type": "keyword"
+                },
+                "image": {
+                  "type": "keyword"
+                },
+                "labels": {
+                  "type": "object",
+                  "dynamic": true
+                }
+              }
+            }
+          }
+        },
+        "host": {
+          "properties": {
+            "name": {
+              "type": "keyword"
+            },
+            "hostname": {
+              "type": "keyword"
+            },
+            "architecture": {
+              "type": "keyword"
+            },
+            "os": {
+              "properties": {
+                "platform": {
+                  "type": "keyword"
+                },
+                "version": {
+                  "type": "keyword"
+                },
+                "family": {
+                  "type": "keyword"
+                }
+              }
+            }
+          }
+        },
+        "tags": {
+          "type": "keyword"
+        }
+      }
+    }
+  },
+  "priority": 200,
+  "version": 1,
+  "_meta": {
+    "description": "Template for Waqiti application logs with enhanced field mappings for payment platform monitoring"
+  }
+}

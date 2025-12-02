@@ -1,0 +1,92 @@
+# Keycloak Configuration for Merchant Service
+
+keycloak:
+  enabled: true
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  ssl-required: external
+  resource: merchant-service
+  bearer-only: true
+  credentials:
+    secret: ${MERCHANT_SERVICE_CLIENT_SECRET:CHANGE_ME_SECURE_SECRET_REQUIRED}
+  use-resource-role-mappings: true
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# Merchant Service Security Configuration
+merchant:
+  security:
+    # Public endpoints that don't require authentication
+    public-endpoints:
+      - /actuator/health
+      - /actuator/info
+      - /api/v1/merchants/public/**
+      - /swagger-ui/**
+      - /v3/api-docs/**
+    
+    # Service-to-service endpoints
+    service-endpoints:
+      - /internal/merchants/**
+    
+    # Required roles for merchant operations
+    required-roles:
+      read:
+        - MERCHANT_USER
+        - MERCHANT_VIEWER
+      write:
+        - MERCHANT_USER
+        - MERCHANT_MANAGER
+      management:
+        - MERCHANT_MANAGER
+        - MERCHANT_OPERATOR
+      admin:
+        - MERCHANT_ADMIN
+        - SYSTEM_ADMIN
+    
+    # Required scopes for operations
+    required-scopes:
+      read: merchant:read
+      write: merchant:write
+      onboard: merchant:onboard
+      verify: merchant:verify
+      manage: merchant:manage
+      payments: merchant:payments
+      analytics: merchant:analytics
+      compliance: merchant:compliance
+      settlements: merchant:settlements
+      disputes: merchant:disputes
+      documents: merchant:documents
+    
+    # Merchant security features
+    features:
+      kyc-verification-enabled: true
+      document-verification-enabled: true
+      risk-assessment-enabled: true
+      compliance-monitoring-enabled: true
+      fraud-detection-enabled: true
+      audit-logging-enabled: true
+      
+    # Merchant limits and thresholds
+    limits:
+      max-transaction-amount: 100000.00
+      max-daily-volume: 500000.00
+      max-monthly-volume: 10000000.00
+      
+    # Security thresholds requiring additional verification
+    verification-thresholds:
+      high-risk-merchant-score: 70
+      large-transaction-amount: 50000.00
+      suspicious-activity-threshold: 5
+      
+    # Advanced security features
+    advanced-security:
+      require-enhanced-due-diligence: true
+      continuous-monitoring: true
+      real-time-compliance-checking: true
+      automated-risk-scoring: true

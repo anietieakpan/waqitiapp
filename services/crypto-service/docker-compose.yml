@@ -1,0 +1,172 @@
+version: '3.8'
+
+services:
+  crypto-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: waqiti-crypto-service
+    ports:
+      - "8087:8087"
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      - DB_HOST=postgres-crypto
+      - DB_PORT=5432
+      - DB_NAME=waqiti_crypto
+      - DB_USERNAME=waqiti_crypto
+      - DB_PASSWORD=${CRYPTO_DB_PASSWORD:?Database password must be provided via CRYPTO_DB_PASSWORD environment variable}
+      - REDIS_HOST=redis-crypto
+      - REDIS_PORT=6379
+      - KAFKA_BROKERS=kafka:9092
+      - EUREKA_URL=http://eureka-server:8761/eureka/
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_KMS_MASTER_KEY_ID=${AWS_KMS_MASTER_KEY_ID}
+      - BITCOIN_NETWORK=regtest
+      - BITCOIN_RPC_URL=http://bitcoin-node:18332
+      - BITCOIN_RPC_USER=bitcoin
+      - BITCOIN_RPC_PASSWORD=${BITCOIN_RPC_PASSWORD:?Bitcoin RPC password must be provided via BITCOIN_RPC_PASSWORD environment variable}
+      - ETHEREUM_NETWORK=ganache
+      - ETHEREUM_RPC_URL=http://ganache:8545
+      - LITECOIN_NETWORK=regtest
+      - LITECOIN_RPC_URL=http://litecoin-node:19332
+      - LITECOIN_RPC_USER=litecoin
+      - LITECOIN_RPC_PASSWORD=${LITECOIN_RPC_PASSWORD:?Litecoin RPC password must be provided via LITECOIN_RPC_PASSWORD environment variable}
+      - CMC_API_KEY=${CMC_API_KEY}
+      - COINGECKO_API_KEY=${COINGECKO_API_KEY}
+      - CHAINALYSIS_ENABLED=false
+      - ELLIPTIC_ENABLED=false
+    depends_on:
+      - postgres-crypto
+      - redis-crypto
+      - kafka
+      - bitcoin-node
+      - ganache
+      - litecoin-node
+    networks:
+      - waqiti-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8087/api/v1/crypto/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  postgres-crypto:
+    image: postgres:15-alpine
+    container_name: waqiti-postgres-crypto
+    environment:
+      - POSTGRES_DB=waqiti_crypto
+      - POSTGRES_USER=waqiti_crypto
+      - POSTGRES_PASSWORD=${CRYPTO_DB_PASSWORD:?Database password must be provided via CRYPTO_DB_PASSWORD environment variable}
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_crypto_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - waqiti-network
+    restart: unless-stopped
+
+  redis-crypto:
+    image: redis:7-alpine
+    container_name: waqiti-redis-crypto
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_crypto_data:/data
+    networks:
+      - waqiti-network
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+
+  bitcoin-node:
+    image: lncm/bitcoind:v25.0
+    container_name: waqiti-bitcoin-node
+    ports:
+      - "18332:18332"
+      - "18444:18444"
+    volumes:
+      - bitcoin_data:/data/.bitcoin
+      - ./docker/bitcoin/bitcoin.conf:/data/.bitcoin/bitcoin.conf
+    networks:
+      - waqiti-network
+    restart: unless-stopped
+    command: ["bitcoind", "-datadir=/data/.bitcoin", "-conf=/data/.bitcoin/bitcoin.conf"]
+
+  litecoin-node:
+    image: litecoinfoundation/litecoind:0.21.2
+    container_name: waqiti-litecoin-node
+    ports:
+      - "19332:19332"
+      - "19444:19444"
+    volumes:
+      - litecoin_data:/data/.litecoin
+      - ./docker/litecoin/litecoin.conf:/data/.litecoin/litecoin.conf
+    networks:
+      - waqiti-network
+    restart: unless-stopped
+    command: ["litecoind", "-datadir=/data/.litecoin", "-conf=/data/.litecoin/litecoin.conf"]
+
+  ganache:
+    image: trufflesuite/ganache:latest
+    container_name: waqiti-ganache
+    ports:
+      - "8545:8545"
+    environment:
+      # SECURITY: Mnemonic should be provided via environment variable
+      - GANACHE_MNEMONIC=${GANACHE_MNEMONIC:?Ganache mnemonic must be provided via GANACHE_MNEMONIC environment variable}
+    command: [
+      "--host", "0.0.0.0",
+      "--port", "8545",
+      "--accounts", "10",
+      "--deterministic",
+      "--mnemonic", "${GANACHE_MNEMONIC}",
+      "--networkId", "1337",
+      "--chainId", "1337",
+      "--gasLimit", "10000000",
+      "--gasPrice", "20000000000"
+    ]
+    networks:
+      - waqiti-network
+    restart: unless-stopped
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    container_name: waqiti-kafka-crypto
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: true
+    ports:
+      - "9092:9092"
+    depends_on:
+      - zookeeper
+    networks:
+      - waqiti-network
+    restart: unless-stopped
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    container_name: waqiti-zookeeper-crypto
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    networks:
+      - waqiti-network
+    restart: unless-stopped
+
+volumes:
+  postgres_crypto_data:
+  redis_crypto_data:
+  bitcoin_data:
+  litecoin_data:
+
+networks:
+  waqiti-network:
+    external: true

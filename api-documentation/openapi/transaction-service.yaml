@@ -1,0 +1,2032 @@
+openapi: 3.0.3
+info:
+  title: Waqiti Transaction Service API
+  description: |
+    The Transaction Service handles transaction processing, monitoring, reporting,
+    and analysis for the Waqiti platform. It provides comprehensive transaction
+    management capabilities across all payment types and channels.
+    
+    ## Features
+    - Real-time transaction processing
+    - Transaction monitoring and tracking
+    - Advanced filtering and search
+    - Transaction analytics and reporting
+    - Dispute and reversal handling
+    - Compliance and audit trails
+    
+    ## Authentication
+    All endpoints require Bearer token authentication.
+    
+    ## Rate Limiting
+    - Transaction queries: 200 requests per minute
+    - Analytics endpoints: 50 requests per minute
+    - Export operations: 10 requests per minute
+    
+    ## Transaction Types
+    - P2P transfers
+    - Merchant payments
+    - Card transactions
+    - Bank transfers
+    - Cryptocurrency transactions
+    - International transfers
+  version: 1.0.0
+  contact:
+    name: Waqiti API Support
+    email: api-support@example.com
+    url: https://developers.example.com/support
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+
+servers:
+  - url: https://api.example.com/v1/transactions
+    description: Production
+  - url: https://staging-api.example.com/v1/transactions
+    description: Staging
+  - url: https://sandbox-api.example.com/v1/transactions
+    description: Sandbox
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Transactions
+    description: Core transaction operations
+  - name: Search
+    description: Transaction search and filtering
+  - name: Analytics
+    description: Transaction analytics and insights
+  - name: Reports
+    description: Transaction reporting and exports
+  - name: Disputes
+    description: Dispute and chargeback handling
+  - name: Monitoring
+    description: Real-time transaction monitoring
+
+paths:
+  /:
+    get:
+      tags:
+        - Transactions
+      summary: List transactions
+      description: |
+        Returns a paginated list of transactions for the authenticated user.
+        Supports advanced filtering, sorting, and search capabilities.
+      operationId: listTransactions
+      parameters:
+        - name: status
+          in: query
+          description: Filter by transaction status
+          schema:
+            type: string
+            enum: [pending, processing, completed, failed, cancelled, reversed]
+        - name: type
+          in: query
+          description: Filter by transaction type
+          schema:
+            type: string
+            enum: [p2p, merchant, card, bank_transfer, crypto, international]
+        - name: direction
+          in: query
+          description: Filter by transaction direction
+          schema:
+            type: string
+            enum: [incoming, outgoing, internal]
+        - name: from_date
+          in: query
+          description: Start date (ISO 8601)
+          schema:
+            type: string
+            format: date-time
+        - name: to_date
+          in: query
+          description: End date (ISO 8601)
+          schema:
+            type: string
+            format: date-time
+        - name: min_amount
+          in: query
+          description: Minimum amount in cents
+          schema:
+            type: integer
+            minimum: 0
+        - name: max_amount
+          in: query
+          description: Maximum amount in cents
+          schema:
+            type: integer
+            minimum: 0
+        - name: currency
+          in: query
+          description: Filter by currency
+          schema:
+            type: string
+            pattern: '^[A-Z]{3}$'
+        - name: category
+          in: query
+          description: Filter by category
+          schema:
+            type: string
+        - name: merchant
+          in: query
+          description: Filter by merchant name
+          schema:
+            type: string
+        - name: reference
+          in: query
+          description: Filter by reference number
+          schema:
+            type: string
+        - name: wallet_id
+          in: query
+          description: Filter by wallet ID
+          schema:
+            type: string
+            pattern: '^wal_[a-zA-Z0-9]{20}$'
+        - name: page
+          in: query
+          description: Page number
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: per_page
+          in: query
+          description: Items per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: sort
+          in: query
+          description: Sort field and order
+          schema:
+            type: string
+            enum: [created_at, -created_at, amount, -amount, status, type]
+            default: -created_at
+        - name: include
+          in: query
+          description: Include related data
+          schema:
+            type: array
+            items:
+              type: string
+              enum: [payment, wallet, user, merchant, fees]
+          style: form
+          explode: false
+      responses:
+        '200':
+          description: List of transactions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /{transactionId}:
+    get:
+      tags:
+        - Transactions
+      summary: Get transaction details
+      description: |
+        Returns detailed information about a specific transaction including
+        related data, audit trail, and processing history.
+      operationId: getTransaction
+      parameters:
+        - name: transactionId
+          in: path
+          required: true
+          description: Transaction ID
+          schema:
+            type: string
+            pattern: '^txn_[a-zA-Z0-9]{20}$'
+        - name: include
+          in: query
+          description: Include related data
+          schema:
+            type: array
+            items:
+              type: string
+              enum: [payment, wallet, user, merchant, fees, audit_trail, related_transactions]
+          style: form
+          explode: false
+      responses:
+        '200':
+          description: Transaction details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /{transactionId}/receipt:
+    get:
+      tags:
+        - Transactions
+      summary: Get transaction receipt
+      description: |
+        Generates and returns a transaction receipt in the specified format.
+        Receipts include transaction details, fees, and compliance information.
+      operationId: getTransactionReceipt
+      parameters:
+        - name: transactionId
+          in: path
+          required: true
+          description: Transaction ID
+          schema:
+            type: string
+            pattern: '^txn_[a-zA-Z0-9]{20}$'
+        - name: format
+          in: query
+          description: Receipt format
+          schema:
+            type: string
+            enum: [pdf, json, html]
+            default: pdf
+        - name: template
+          in: query
+          description: Receipt template
+          schema:
+            type: string
+            enum: [standard, detailed, minimal]
+            default: standard
+      responses:
+        '200':
+          description: Transaction receipt
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionReceipt'
+            text/html:
+              schema:
+                type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /{transactionId}/reverse:
+    post:
+      tags:
+        - Transactions
+      summary: Reverse transaction
+      description: |
+        Initiates a transaction reversal. Only certain transaction types
+        and statuses are eligible for reversal. Requires appropriate permissions.
+      operationId: reverseTransaction
+      parameters:
+        - name: transactionId
+          in: path
+          required: true
+          description: Transaction ID
+          schema:
+            type: string
+            pattern: '^txn_[a-zA-Z0-9]{20}$'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReverseTransactionRequest'
+      responses:
+        '200':
+          description: Reversal initiated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionReversal'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Transaction not eligible for reversal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: reversal_not_allowed
+                  message: This transaction cannot be reversed
+                  details:
+                    reason: Transaction too old
+                    eligibleUntil: "2024-01-20T10:30:00Z"
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /search:
+    post:
+      tags:
+        - Search
+      summary: Advanced transaction search
+      description: |
+        Performs advanced search across transactions using flexible criteria.
+        Supports text search, complex filters, and semantic matching.
+      operationId: searchTransactions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransactionSearchRequest'
+            examples:
+              textSearch:
+                summary: Text Search
+                value:
+                  query: "coffee shop payment"
+                  filters:
+                    dateRange:
+                      from: "2024-01-01T00:00:00Z"
+                      to: "2024-01-31T23:59:59Z"
+                    amountRange:
+                      min: 500
+                      max: 5000
+                  sort:
+                    field: "relevance"
+                    order: "desc"
+                  pagination:
+                    page: 1
+                    perPage: 20
+              complexFilter:
+                summary: Complex Filter
+                value:
+                  filters:
+                    status: ["completed", "processing"]
+                    type: ["merchant", "p2p"]
+                    categories: ["food", "entertainment"]
+                    merchants: ["Starbucks", "McDonald's"]
+                    hasDispute: false
+                  aggregations:
+                    - "byCategory"
+                    - "byMerchant"
+                    - "byMonth"
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionSearchResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /analytics/summary:
+    get:
+      tags:
+        - Analytics
+      summary: Get transaction summary
+      description: |
+        Returns transaction summary analytics for a specified period.
+        Includes spending patterns, categories, and trends.
+      operationId: getTransactionSummary
+      parameters:
+        - name: period
+          in: query
+          description: Analysis period
+          schema:
+            type: string
+            enum: [daily, weekly, monthly, quarterly, yearly]
+            default: monthly
+        - name: from_date
+          in: query
+          description: Start date (ISO 8601)
+          schema:
+            type: string
+            format: date-time
+        - name: to_date
+          in: query
+          description: End date (ISO 8601)
+          schema:
+            type: string
+            format: date-time
+        - name: currency
+          in: query
+          description: Base currency for analysis
+          schema:
+            type: string
+            pattern: '^[A-Z]{3}$'
+            default: USD
+        - name: wallet_id
+          in: query
+          description: Analyze specific wallet
+          schema:
+            type: string
+            pattern: '^wal_[a-zA-Z0-9]{20}$'
+        - name: include_forecasting
+          in: query
+          description: Include spending forecasting
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Transaction summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionSummary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /analytics/categories:
+    get:
+      tags:
+        - Analytics
+      summary: Get category analytics
+      description: |
+        Returns detailed analytics on transaction categories including
+        spending breakdown, trends, and comparisons.
+      operationId: getCategoryAnalytics
+      parameters:
+        - name: period
+          in: query
+          description: Analysis period
+          schema:
+            type: string
+            enum: [monthly, quarterly, yearly]
+            default: monthly
+        - name: from_date
+          in: query
+          description: Start date
+          schema:
+            type: string
+            format: date-time
+        - name: to_date
+          in: query
+          description: End date
+          schema:
+            type: string
+            format: date-time
+        - name: compare_to_previous
+          in: query
+          description: Compare to previous period
+          schema:
+            type: boolean
+            default: true
+        - name: min_amount
+          in: query
+          description: Minimum transaction amount to include
+          schema:
+            type: integer
+            minimum: 0
+      responses:
+        '200':
+          description: Category analytics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryAnalytics'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /analytics/merchants:
+    get:
+      tags:
+        - Analytics
+      summary: Get merchant analytics
+      description: |
+        Returns analytics on merchant transactions including top merchants,
+        spending patterns, and frequency analysis.
+      operationId: getMerchantAnalytics
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [monthly, quarterly, yearly]
+            default: monthly
+        - name: from_date
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to_date
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: top_count
+          in: query
+          description: Number of top merchants to return
+          schema:
+            type: integer
+            minimum: 5
+            maximum: 50
+            default: 10
+      responses:
+        '200':
+          description: Merchant analytics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MerchantAnalytics'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /analytics/trends:
+    get:
+      tags:
+        - Analytics
+      summary: Get spending trends
+      description: |
+        Returns spending trend analysis including seasonal patterns,
+        growth rates, and anomaly detection.
+      operationId: getSpendingTrends
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [daily, weekly, monthly]
+            default: monthly
+        - name: lookback_months
+          in: query
+          description: Number of months to analyze
+          schema:
+            type: integer
+            minimum: 3
+            maximum: 24
+            default: 12
+        - name: include_forecast
+          in: query
+          description: Include future spending forecast
+          schema:
+            type: boolean
+            default: false
+        - name: forecast_months
+          in: query
+          description: Months to forecast (if include_forecast=true)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 12
+            default: 3
+      responses:
+        '200':
+          description: Spending trends
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpendingTrends'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /reports/export:
+    post:
+      tags:
+        - Reports
+      summary: Export transaction report
+      description: |
+        Generates and exports transaction reports in various formats.
+        Supports custom filters, date ranges, and export options.
+      operationId: exportTransactionReport
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportReportRequest'
+            examples:
+              monthlyPDF:
+                summary: Monthly PDF Report
+                value:
+                  format: "pdf"
+                  type: "detailed"
+                  dateRange:
+                    from: "2024-01-01T00:00:00Z"
+                    to: "2024-01-31T23:59:59Z"
+                  filters:
+                    status: ["completed"]
+                  includeCharts: true
+                  includeSummary: true
+              csvExport:
+                summary: CSV Data Export
+                value:
+                  format: "csv"
+                  type: "transactions"
+                  dateRange:
+                    from: "2024-01-01T00:00:00Z"
+                    to: "2024-03-31T23:59:59Z"
+                  filters:
+                    type: ["merchant", "p2p"]
+                  columns:
+                    - "id"
+                    - "date"
+                    - "amount"
+                    - "currency"
+                    - "description"
+                    - "category"
+                    - "status"
+      responses:
+        '200':
+          description: Export completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportResponse'
+        '202':
+          description: Export queued for processing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportQueueResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          description: Export limit reached
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /reports/exports/{exportId}:
+    get:
+      tags:
+        - Reports
+      summary: Get export status
+      description: Returns the status and download link for an export job
+      operationId: getExportStatus
+      parameters:
+        - name: exportId
+          in: path
+          required: true
+          description: Export job ID
+          schema:
+            type: string
+            pattern: '^exp_[a-zA-Z0-9]{20}$'
+      responses:
+        '200':
+          description: Export status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportStatus'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /disputes:
+    get:
+      tags:
+        - Disputes
+      summary: List transaction disputes
+      description: |
+        Returns a list of transaction disputes and chargebacks
+        for the authenticated user.
+      operationId: listDisputes
+      parameters:
+        - name: status
+          in: query
+          description: Filter by dispute status
+          schema:
+            type: string
+            enum: [open, under_review, resolved, closed]
+        - name: type
+          in: query
+          description: Filter by dispute type
+          schema:
+            type: string
+            enum: [chargeback, fraud, service_dispute, billing_error]
+        - name: from_date
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to_date
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        '200':
+          description: List of disputes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DisputeList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - Disputes
+      summary: Create dispute
+      description: |
+        Creates a new dispute for a transaction. Users can dispute
+        unauthorized transactions, billing errors, or service issues.
+      operationId: createDispute
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDisputeRequest'
+      responses:
+        '201':
+          description: Dispute created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dispute'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          description: Transaction not eligible for dispute
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /disputes/{disputeId}:
+    get:
+      tags:
+        - Disputes
+      summary: Get dispute details
+      description: Returns detailed information about a specific dispute
+      operationId: getDispute
+      parameters:
+        - name: disputeId
+          in: path
+          required: true
+          description: Dispute ID
+          schema:
+            type: string
+            pattern: '^disp_[a-zA-Z0-9]{20}$'
+      responses:
+        '200':
+          description: Dispute details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DisputeDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /disputes/{disputeId}/evidence:
+    post:
+      tags:
+        - Disputes
+      summary: Submit dispute evidence
+      description: |
+        Submits additional evidence for a dispute including
+        documents, receipts, and supporting information.
+      operationId: submitDisputeEvidence
+      parameters:
+        - name: disputeId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^disp_[a-zA-Z0-9]{20}$'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                evidenceType:
+                  type: string
+                  enum: [receipt, communication, proof_of_service, refund_policy]
+                description:
+                  type: string
+                  maxLength: 1000
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  maxItems: 5
+      responses:
+        '200':
+          description: Evidence submitted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Evidence submitted successfully
+                  evidenceId:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /monitoring/real-time:
+    get:
+      tags:
+        - Monitoring
+      summary: Real-time transaction monitoring
+      description: |
+        Returns real-time transaction monitoring data including
+        current transaction volume, success rates, and alerts.
+      operationId: getRealTimeMonitoring
+      parameters:
+        - name: window
+          in: query
+          description: Time window for monitoring
+          schema:
+            type: string
+            enum: [1m, 5m, 15m, 1h]
+            default: 5m
+        - name: include_alerts
+          in: query
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: Real-time monitoring data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RealTimeMonitoring'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Transaction:
+      type: object
+      properties:
+        id:
+          type: string
+          pattern: '^txn_[a-zA-Z0-9]{20}$'
+        status:
+          type: string
+          enum: [pending, processing, completed, failed, cancelled, reversed]
+        type:
+          type: string
+          enum: [p2p, merchant, card, bank_transfer, crypto, international]
+        direction:
+          type: string
+          enum: [incoming, outgoing, internal]
+        amount:
+          type: integer
+          description: Transaction amount in smallest currency unit
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+        description:
+          type: string
+        category:
+          type: string
+        reference:
+          type: string
+        externalReference:
+          type: string
+        walletId:
+          type: string
+          pattern: '^wal_[a-zA-Z0-9]{20}$'
+        paymentId:
+          type: string
+          pattern: '^pay_[a-zA-Z0-9]{20}$'
+        merchantInfo:
+          type: object
+          properties:
+            name:
+              type: string
+            category:
+              type: string
+            location:
+              type: string
+            mcc:
+              type: string
+              description: Merchant Category Code
+        fees:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                enum: [platform, processing, network, regulatory]
+              amount:
+                type: integer
+              description:
+                type: string
+        metadata:
+          type: object
+          additionalProperties: true
+        createdAt:
+          type: string
+          format: date-time
+        processedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+        failedAt:
+          type: string
+          format: date-time
+        failureReason:
+          type: string
+
+    TransactionDetail:
+      allOf:
+        - $ref: '#/components/schemas/Transaction'
+        - type: object
+          properties:
+            auditTrail:
+              type: array
+              items:
+                type: object
+                properties:
+                  action:
+                    type: string
+                  actor:
+                    type: string
+                  timestamp:
+                    type: string
+                    format: date-time
+                  details:
+                    type: object
+                    additionalProperties: true
+            relatedTransactions:
+              type: array
+              items:
+                $ref: '#/components/schemas/Transaction'
+            riskScore:
+              type: number
+              format: double
+              minimum: 0
+              maximum: 1
+            complianceFlags:
+              type: array
+              items:
+                type: string
+            disputeInfo:
+              type: object
+              properties:
+                hasDispute:
+                  type: boolean
+                disputeId:
+                  type: string
+                disputeStatus:
+                  type: string
+                disputeCreatedAt:
+                  type: string
+                  format: date-time
+
+    TransactionList:
+      type: object
+      properties:
+        transactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Transaction'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+        summary:
+          type: object
+          properties:
+            totalAmount:
+              type: integer
+            totalCount:
+              type: integer
+            averageAmount:
+              type: number
+              format: double
+            successRate:
+              type: number
+              format: double
+        filters:
+          type: object
+          description: Applied filters
+          additionalProperties: true
+
+    TransactionReceipt:
+      type: object
+      properties:
+        transactionId:
+          type: string
+        receiptNumber:
+          type: string
+        generatedAt:
+          type: string
+          format: date-time
+        transaction:
+          $ref: '#/components/schemas/Transaction'
+        formattedAmount:
+          type: string
+          description: Human-readable amount with currency symbol
+        qrCode:
+          type: string
+          format: uri
+          description: QR code for receipt verification
+        digitalSignature:
+          type: string
+          description: Digital signature for receipt authenticity
+
+    ReverseTransactionRequest:
+      type: object
+      required:
+        - reason
+      properties:
+        reason:
+          type: string
+          enum: [customer_request, fraud, system_error, duplicate, compliance]
+          description: Reason for reversal
+        description:
+          type: string
+          maxLength: 500
+          description: Detailed explanation
+        partialAmount:
+          type: integer
+          description: Amount to reverse (for partial reversals)
+        notifyUser:
+          type: boolean
+          default: true
+          description: Send notification to user
+
+    TransactionReversal:
+      type: object
+      properties:
+        id:
+          type: string
+          pattern: '^rev_[a-zA-Z0-9]{20}$'
+        originalTransactionId:
+          type: string
+          pattern: '^txn_[a-zA-Z0-9]{20}$'
+        reversalTransactionId:
+          type: string
+          pattern: '^txn_[a-zA-Z0-9]{20}$'
+        status:
+          type: string
+          enum: [pending, processing, completed, failed]
+        amount:
+          type: integer
+          description: Reversed amount
+        reason:
+          type: string
+        description:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+
+    TransactionSearchRequest:
+      type: object
+      properties:
+        query:
+          type: string
+          maxLength: 200
+          description: Text search query
+        filters:
+          type: object
+          properties:
+            status:
+              type: array
+              items:
+                type: string
+            type:
+              type: array
+              items:
+                type: string
+            direction:
+              type: array
+              items:
+                type: string
+            dateRange:
+              type: object
+              properties:
+                from:
+                  type: string
+                  format: date-time
+                to:
+                  type: string
+                  format: date-time
+            amountRange:
+              type: object
+              properties:
+                min:
+                  type: integer
+                max:
+                  type: integer
+            currencies:
+              type: array
+              items:
+                type: string
+            categories:
+              type: array
+              items:
+                type: string
+            merchants:
+              type: array
+              items:
+                type: string
+            walletIds:
+              type: array
+              items:
+                type: string
+            hasDispute:
+              type: boolean
+            riskScoreRange:
+              type: object
+              properties:
+                min:
+                  type: number
+                max:
+                  type: number
+        sort:
+          type: object
+          properties:
+            field:
+              type: string
+              enum: [relevance, created_at, amount, status]
+            order:
+              type: string
+              enum: [asc, desc]
+        pagination:
+          type: object
+          properties:
+            page:
+              type: integer
+              minimum: 1
+            perPage:
+              type: integer
+              minimum: 1
+              maximum: 100
+        aggregations:
+          type: array
+          items:
+            type: string
+            enum: [byCategory, byMerchant, byStatus, byAmount, byMonth, byDay]
+
+    TransactionSearchResponse:
+      type: object
+      properties:
+        transactions:
+          type: array
+          items:
+            allOf:
+              - $ref: '#/components/schemas/Transaction'
+              - type: object
+                properties:
+                  relevanceScore:
+                    type: number
+                    format: double
+                  matchedFields:
+                    type: array
+                    items:
+                      type: string
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+        aggregations:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: object
+              properties:
+                key:
+                  type: string
+                count:
+                  type: integer
+                amount:
+                  type: integer
+        searchMetadata:
+          type: object
+          properties:
+            searchTime:
+              type: number
+              format: double
+              description: Search execution time in seconds
+            totalMatches:
+              type: integer
+            queryProcessed:
+              type: string
+
+    TransactionSummary:
+      type: object
+      properties:
+        period:
+          type: object
+          properties:
+            from:
+              type: string
+              format: date-time
+            to:
+              type: string
+              format: date-time
+            type:
+              type: string
+        totalTransactions:
+          type: integer
+        totalAmount:
+          type: integer
+        averageAmount:
+          type: number
+          format: double
+        medianAmount:
+          type: integer
+        totalIncoming:
+          type: integer
+        totalOutgoing:
+          type: integer
+        netFlow:
+          type: integer
+        successRate:
+          type: number
+          format: double
+        byStatus:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              count:
+                type: integer
+              amount:
+                type: integer
+        byType:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              count:
+                type: integer
+              amount:
+                type: integer
+        byCategory:
+          type: array
+          items:
+            type: object
+            properties:
+              category:
+                type: string
+              count:
+                type: integer
+              amount:
+                type: integer
+              percentage:
+                type: number
+                format: double
+        trends:
+          type: object
+          properties:
+            periodOverPeriod:
+              type: number
+              format: double
+              description: Change compared to previous period
+            dailyAverage:
+              type: number
+              format: double
+            peakDay:
+              type: object
+              properties:
+                date:
+                  type: string
+                  format: date
+                amount:
+                  type: integer
+        forecasting:
+          type: object
+          properties:
+            nextPeriodPrediction:
+              type: integer
+            confidence:
+              type: number
+              format: double
+            factors:
+              type: array
+              items:
+                type: string
+
+    CategoryAnalytics:
+      type: object
+      properties:
+        period:
+          type: object
+          properties:
+            from:
+              type: string
+              format: date-time
+            to:
+              type: string
+              format: date-time
+        categories:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              amount:
+                type: integer
+              count:
+                type: integer
+              percentage:
+                type: number
+                format: double
+              averageAmount:
+                type: number
+                format: double
+              trend:
+                type: object
+                properties:
+                  change:
+                    type: number
+                    format: double
+                  direction:
+                    type: string
+                    enum: [up, down, stable]
+              subcategories:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    amount:
+                      type: integer
+                    count:
+                      type: integer
+        comparison:
+          type: object
+          properties:
+            previousPeriod:
+              type: array
+              items:
+                type: object
+                properties:
+                  category:
+                    type: string
+                  change:
+                    type: number
+                    format: double
+                  significance:
+                    type: string
+                    enum: [high, medium, low]
+
+    MerchantAnalytics:
+      type: object
+      properties:
+        period:
+          type: object
+          properties:
+            from:
+              type: string
+              format: date-time
+            to:
+              type: string
+              format: date-time
+        topMerchants:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              category:
+                type: string
+              amount:
+                type: integer
+              count:
+                type: integer
+              averageAmount:
+                type: number
+                format: double
+              frequency:
+                type: string
+                enum: [daily, weekly, monthly, occasional]
+              lastTransaction:
+                type: string
+                format: date-time
+        merchantCategories:
+          type: array
+          items:
+            type: object
+            properties:
+              category:
+                type: string
+              amount:
+                type: integer
+              merchantCount:
+                type: integer
+              transactionCount:
+                type: integer
+        loyaltyAnalysis:
+          type: object
+          properties:
+            regularMerchants:
+              type: integer
+              description: Merchants with 3+ transactions
+            newMerchants:
+              type: integer
+              description: New merchants this period
+            churnedMerchants:
+              type: integer
+              description: Previously active merchants with no recent activity
+
+    SpendingTrends:
+      type: object
+      properties:
+        period:
+          type: string
+        timeSeriesData:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+                format: date
+              amount:
+                type: integer
+              transactionCount:
+                type: integer
+              averageAmount:
+                type: number
+                format: double
+        seasonalPatterns:
+          type: object
+          properties:
+            weeklyPattern:
+              type: array
+              items:
+                type: object
+                properties:
+                  dayOfWeek:
+                    type: string
+                  averageAmount:
+                    type: number
+                  relativeIntensity:
+                    type: number
+            monthlyPattern:
+              type: array
+              items:
+                type: object
+                properties:
+                  month:
+                    type: string
+                  averageAmount:
+                    type: number
+                  relativeIntensity:
+                    type: number
+        trendAnalysis:
+          type: object
+          properties:
+            overallTrend:
+              type: string
+              enum: [increasing, decreasing, stable]
+            growthRate:
+              type: number
+              format: double
+            volatility:
+              type: number
+              format: double
+            anomalies:
+              type: array
+              items:
+                type: object
+                properties:
+                  date:
+                    type: string
+                    format: date
+                  amount:
+                    type: integer
+                  expectedAmount:
+                    type: integer
+                  deviation:
+                    type: number
+                  type:
+                    type: string
+                    enum: [spike, dip]
+        forecast:
+          type: object
+          properties:
+            predictions:
+              type: array
+              items:
+                type: object
+                properties:
+                  date:
+                    type: string
+                    format: date
+                  predictedAmount:
+                    type: integer
+                  confidence:
+                    type: number
+                    format: double
+                  lowerBound:
+                    type: integer
+                  upperBound:
+                    type: integer
+
+    ExportReportRequest:
+      type: object
+      required:
+        - format
+        - type
+        - dateRange
+      properties:
+        format:
+          type: string
+          enum: [pdf, csv, excel, json]
+        type:
+          type: string
+          enum: [transactions, summary, detailed, analytics]
+        dateRange:
+          type: object
+          required:
+            - from
+            - to
+          properties:
+            from:
+              type: string
+              format: date-time
+            to:
+              type: string
+              format: date-time
+        filters:
+          type: object
+          properties:
+            status:
+              type: array
+              items:
+                type: string
+            type:
+              type: array
+              items:
+                type: string
+            currency:
+              type: string
+            minAmount:
+              type: integer
+            maxAmount:
+              type: integer
+            categories:
+              type: array
+              items:
+                type: string
+        options:
+          type: object
+          properties:
+            includeCharts:
+              type: boolean
+              default: false
+            includeSummary:
+              type: boolean
+              default: true
+            includeAnalytics:
+              type: boolean
+              default: false
+            groupBy:
+              type: string
+              enum: [day, week, month, category, merchant]
+            columns:
+              type: array
+              items:
+                type: string
+        delivery:
+          type: object
+          properties:
+            method:
+              type: string
+              enum: [download, email]
+              default: download
+            email:
+              type: string
+              format: email
+              description: Email address for delivery (if method=email)
+
+    ExportResponse:
+      type: object
+      properties:
+        exportId:
+          type: string
+          pattern: '^exp_[a-zA-Z0-9]{20}$'
+        downloadUrl:
+          type: string
+          format: uri
+        fileName:
+          type: string
+        fileSize:
+          type: integer
+        expiresAt:
+          type: string
+          format: date-time
+        format:
+          type: string
+
+    ExportQueueResponse:
+      type: object
+      properties:
+        exportId:
+          type: string
+          pattern: '^exp_[a-zA-Z0-9]{20}$'
+        status:
+          type: string
+          enum: [queued, processing]
+        estimatedCompletion:
+          type: string
+          format: date-time
+        queuePosition:
+          type: integer
+
+    ExportStatus:
+      type: object
+      properties:
+        id:
+          type: string
+          pattern: '^exp_[a-zA-Z0-9]{20}$'
+        status:
+          type: string
+          enum: [queued, processing, completed, failed, expired]
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+        downloadUrl:
+          type: string
+          format: uri
+        fileName:
+          type: string
+        fileSize:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        error:
+          type: string
+          description: Error message if status is failed
+
+    Dispute:
+      type: object
+      properties:
+        id:
+          type: string
+          pattern: '^disp_[a-zA-Z0-9]{20}$'
+        transactionId:
+          type: string
+          pattern: '^txn_[a-zA-Z0-9]{20}$'
+        status:
+          type: string
+          enum: [open, under_review, resolved, closed]
+        type:
+          type: string
+          enum: [chargeback, fraud, service_dispute, billing_error]
+        amount:
+          type: integer
+        currency:
+          type: string
+        reason:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        dueDate:
+          type: string
+          format: date-time
+        resolution:
+          type: object
+          properties:
+            outcome:
+              type: string
+              enum: [accepted, rejected, partial]
+            amount:
+              type: integer
+            reason:
+              type: string
+            resolvedAt:
+              type: string
+              format: date-time
+
+    DisputeDetail:
+      allOf:
+        - $ref: '#/components/schemas/Dispute'
+        - type: object
+          properties:
+            transaction:
+              $ref: '#/components/schemas/Transaction'
+            evidence:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  type:
+                    type: string
+                  description:
+                    type: string
+                  files:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          type: string
+                        url:
+                          type: string
+                        size:
+                          type: integer
+                  submittedAt:
+                    type: string
+                    format: date-time
+            timeline:
+              type: array
+              items:
+                type: object
+                properties:
+                  action:
+                    type: string
+                  actor:
+                    type: string
+                  description:
+                    type: string
+                  timestamp:
+                    type: string
+                    format: date-time
+
+    DisputeList:
+      type: object
+      properties:
+        disputes:
+          type: array
+          items:
+            $ref: '#/components/schemas/Dispute'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+        summary:
+          type: object
+          properties:
+            totalAmount:
+              type: integer
+            totalCount:
+              type: integer
+            byStatus:
+              type: object
+              additionalProperties:
+                type: integer
+
+    CreateDisputeRequest:
+      type: object
+      required:
+        - transactionId
+        - type
+        - reason
+      properties:
+        transactionId:
+          type: string
+          pattern: '^txn_[a-zA-Z0-9]{20}$'
+        type:
+          type: string
+          enum: [chargeback, fraud, service_dispute, billing_error]
+        reason:
+          type: string
+          enum: [unauthorized, duplicate, service_not_received, defective_product, cancelled_subscription, incorrect_amount]
+        description:
+          type: string
+          maxLength: 1000
+        amount:
+          type: integer
+          description: Disputed amount (for partial disputes)
+        category:
+          type: string
+          description: Specific dispute category
+
+    RealTimeMonitoring:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        window:
+          type: string
+        metrics:
+          type: object
+          properties:
+            totalTransactions:
+              type: integer
+            totalAmount:
+              type: integer
+            successRate:
+              type: number
+              format: double
+            averageProcessingTime:
+              type: number
+              format: double
+              description: Average processing time in seconds
+            peakTPS:
+              type: number
+              format: double
+              description: Peak transactions per second
+        statusBreakdown:
+          type: object
+          additionalProperties:
+            type: integer
+        typeBreakdown:
+          type: object
+          additionalProperties:
+            type: integer
+        alerts:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              severity:
+                type: string
+                enum: [low, medium, high, critical]
+              type:
+                type: string
+                enum: [high_failure_rate, unusual_volume, processing_delay, fraud_spike]
+              message:
+                type: string
+              triggeredAt:
+                type: string
+                format: date-time
+              acknowledged:
+                type: boolean
+        performance:
+          type: object
+          properties:
+            currentTPS:
+              type: number
+              format: double
+            averageResponseTime:
+              type: number
+              format: double
+            p95ResponseTime:
+              type: number
+              format: double
+            p99ResponseTime:
+              type: number
+              format: double
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        perPage:
+          type: integer
+        total:
+          type: integer
+        totalPages:
+          type: integer
+        hasNext:
+          type: boolean
+        hasPrev:
+          type: boolean
+
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            field:
+              type: string
+            details:
+              type: object
+              additionalProperties: true
+            requestId:
+              type: string
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: invalid_request
+              message: The request contains invalid parameters
+              requestId: req_abc123
+
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: unauthorized
+              message: Invalid or missing authentication token
+              requestId: req_abc123
+
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: not_found
+              message: The requested transaction was not found
+              requestId: req_abc123
+
+    TooManyRequests:
+      description: Too many requests
+      headers:
+        X-RateLimit-Limit:
+          description: Request limit per minute
+          schema:
+            type: integer
+        X-RateLimit-Remaining:
+          description: Remaining requests
+          schema:
+            type: integer
+        X-RateLimit-Reset:
+          description: Time when limit resets (Unix timestamp)
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: rate_limit_exceeded
+              message: Too many requests. Please retry after some time
+              requestId: req_abc123

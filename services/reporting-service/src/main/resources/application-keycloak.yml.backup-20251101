@@ -1,0 +1,94 @@
+# Keycloak Configuration for Reporting Service
+
+keycloak:
+  enabled: true
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  ssl-required: external
+  resource: reporting-service
+  bearer-only: true
+  credentials:
+    secret: ${REPORTING_SERVICE_CLIENT_SECRET:CHANGE_ME_SECURE_SECRET_REQUIRED}
+  use-resource-role-mappings: true
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# Reporting Service Security Configuration
+reporting:
+  security:
+    # Public endpoints that don't require authentication
+    public-endpoints:
+      - /actuator/health
+      - /actuator/info
+      - /swagger-ui/**
+      - /v3/api-docs/**
+    
+    # Service-to-service endpoints
+    service-endpoints:
+      - /internal/reporting/**
+    
+    # Required roles for reporting operations
+    required-roles:
+      read:
+        - REPORTING_USER
+        - REPORTING_VIEWER
+      write:
+        - REPORTING_USER
+        - REPORTING_ANALYST
+      management:
+        - REPORTING_MANAGER
+        - REPORTING_OPERATOR
+      admin:
+        - REPORTING_ADMIN
+        - SYSTEM_ADMIN
+    
+    # Required scopes for operations
+    required-scopes:
+      read: reporting:read
+      write: reporting:write
+      generate: reporting:generate
+      schedule: reporting:schedule
+      export: reporting:export
+      dashboard: reporting:dashboard
+      analytics: reporting:analytics
+      compliance: reporting:compliance
+      financial: reporting:financial
+      operational: reporting:operational
+      executive: reporting:executive
+      custom: reporting:custom
+    
+    # Reporting security features
+    features:
+      data-masking-enabled: true
+      access-control-enabled: true
+      audit-trail-enabled: true
+      encryption-enabled: true
+      watermarking-enabled: true
+      retention-policy-enabled: true
+      
+    # Reporting limits and thresholds
+    limits:
+      max-report-size: 104857600  # 100MB
+      max-data-export-rows: 1000000
+      max-concurrent-reports: 5
+      max-scheduled-reports: 50
+      
+    # Security thresholds requiring additional verification
+    verification-thresholds:
+      sensitive-data-threshold: 10000
+      large-export-threshold: 100000
+      financial-report-threshold: 1000000
+      
+    # Advanced security features
+    advanced-security:
+      require-approval-sensitive-reports: true
+      automatic-pii-detection: true
+      role-based-data-filtering: true
+      report-access-logging: true
+      digital-signatures: true

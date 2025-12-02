@@ -1,0 +1,328 @@
+groups:
+  - name: critical_alerts
+    interval: 30s
+    rules:
+      # Service Availability
+      - alert: ServiceDown
+        expr: up{job=~".*service.*"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Service {{ $labels.instance }} is down"
+          description: "{{ $labels.job }} has been down for more than 2 minutes."
+          runbook_url: "https://wiki.example.com/runbooks/service-down"
+
+      # API Gateway Health
+      - alert: APIGatewayHighErrorRate
+        expr: |
+          (
+            sum(rate(spring_cloud_gateway_requests_seconds_count{status=~"5.."}[5m])) 
+            / 
+            sum(rate(spring_cloud_gateway_requests_seconds_count[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "API Gateway error rate is above 5%"
+          description: "API Gateway is returning {{ $value | humanizePercentage }} errors"
+          dashboard_url: "https://grafana.example.com/d/api-gateway"
+
+      # Payment Service Critical
+      - alert: PaymentServiceFailureRate
+        expr: |
+          (
+            sum(rate(waqiti_payment_transactions_total{status="failed"}[5m]))
+            /
+            sum(rate(waqiti_payment_transactions_total[5m]))
+          ) > 0.01
+        for: 3m
+        labels:
+          severity: critical
+          team: payments
+          pagerduty: true
+        annotations:
+          summary: "High payment failure rate detected"
+          description: "Payment failure rate is {{ $value | humanizePercentage }} (threshold: 1%)"
+          impact: "Users are unable to complete payments"
+          
+      # Database Connection Pool
+      - alert: DatabaseConnectionPoolExhausted
+        expr: |
+          (
+            hikaricp_connections_active / hikaricp_connections_max
+          ) > 0.9
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Database connection pool nearly exhausted"
+          description: "{{ $labels.pool_name }} is using {{ $value | humanizePercentage }} of connections"
+          
+      # Fraud Detection Service
+      - alert: FraudDetectionServiceDown
+        expr: up{job="fraud-detection-service"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: security
+          pagerduty: true
+        annotations:
+          summary: "Fraud detection service is down"
+          description: "Fraud detection is offline - all transactions are at risk"
+          action: "Immediately failover to rule-based fraud detection"
+
+  - name: performance_alerts
+    interval: 30s
+    rules:
+      # API Response Time
+      - alert: APIHighResponseTime
+        expr: |
+          histogram_quantile(0.95, 
+            sum(rate(http_server_requests_seconds_bucket{app="api-gateway"}[5m])) 
+            by (le, uri)
+          ) > 1
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High API response time on {{ $labels.uri }}"
+          description: "95th percentile response time is {{ $value }}s (threshold: 1s)"
+
+      # Payment Processing Time
+      - alert: PaymentProcessingDelay
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(waqiti_payment_processing_duration_bucket[5m]))
+            by (le, payment_type)
+          ) > 5
+        for: 5m
+        labels:
+          severity: critical
+          team: payments
+        annotations:
+          summary: "Payment processing taking too long"
+          description: "{{ $labels.payment_type }} payments taking {{ $value }}s at p99"
+
+  - name: security_alerts
+    interval: 30s
+    rules:
+      # Authentication Failures
+      - alert: HighAuthenticationFailureRate
+        expr: |
+          sum(rate(spring_security_authentication_events_total{result="failure"}[5m])) > 100
+        for: 2m
+        labels:
+          severity: warning
+          team: security
+        annotations:
+          summary: "High rate of authentication failures"
+          description: "{{ $value }} authentication failures per second detected"
+          
+      # Suspicious Payment Activity
+      - alert: SuspiciousPaymentPattern
+        expr: |
+          (
+            sum(rate(waqiti_fraud_score_high_total[5m])) > 10
+          ) OR (
+            sum(waqiti_payment_velocity_exceeded_total) > 50
+          )
+        for: 1m
+        labels:
+          severity: critical
+          team: security
+          pagerduty: true
+        annotations:
+          summary: "Suspicious payment activity detected"
+          description: "Multiple high-risk transactions detected"
+          action: "Review fraud detection dashboard immediately"
+
+      # API Rate Limit Breaches
+      - alert: RateLimitBreaches
+        expr: |
+          sum(rate(rate_limit_exceeded_total[5m])) by (client_ip) > 10
+        for: 2m
+        labels:
+          severity: warning
+          team: security
+        annotations:
+          summary: "Client {{ $labels.client_ip }} exceeding rate limits"
+          description: "{{ $value }} rate limit breaches per second"
+
+  - name: infrastructure_alerts
+    interval: 30s
+    rules:
+      # Kubernetes Pod Issues
+      - alert: PodCrashLooping
+        expr: |
+          rate(kube_pod_container_status_restarts_total[15m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Pod {{ $labels.pod }} is crash looping"
+          description: "Pod has restarted {{ $value }} times in the last 15 minutes"
+          
+      # High Memory Usage
+      - alert: HighMemoryUsage
+        expr: |
+          (
+            container_memory_working_set_bytes{pod!=""}
+            / 
+            container_spec_memory_limit_bytes{pod!=""}
+          ) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High memory usage in {{ $labels.pod }}"
+          description: "Memory usage is at {{ $value | humanizePercentage }}"
+          
+      # Disk Space
+      - alert: DiskSpaceLow
+        expr: |
+          (
+            node_filesystem_avail_bytes{mountpoint="/"}
+            /
+            node_filesystem_size_bytes{mountpoint="/"}
+          ) < 0.1
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+          pagerduty: true
+        annotations:
+          summary: "Low disk space on {{ $labels.instance }}"
+          description: "Only {{ $value | humanizePercentage }} disk space remaining"
+
+  - name: business_alerts
+    interval: 1m
+    rules:
+      # Transaction Volume Drop
+      - alert: TransactionVolumeDropped
+        expr: |
+          (
+            sum(rate(waqiti_payment_transactions_total[5m]))
+            < 
+            sum(rate(waqiti_payment_transactions_total[5m] offset 1h)) * 0.5
+          )
+        for: 10m
+        labels:
+          severity: warning
+          team: business
+        annotations:
+          summary: "Transaction volume dropped by 50%"
+          description: "Current rate: {{ $value }} transactions/sec"
+          
+      # Revenue Impact
+      - alert: RevenueImpact
+        expr: |
+          sum(increase(waqiti_payment_amount_total[1h])) < 10000
+        for: 30m
+        labels:
+          severity: critical
+          team: business
+          executive: true
+        annotations:
+          summary: "Low transaction volume impacting revenue"
+          description: "Only ${{ $value }} processed in the last hour"
+          
+      # User Registration Drop
+      - alert: UserRegistrationDropped
+        expr: |
+          sum(rate(waqiti_user_registrations_total[1h])) < 10
+        for: 2h
+        labels:
+          severity: warning
+          team: product
+        annotations:
+          summary: "User registration rate is very low"
+          description: "Only {{ $value }} registrations per hour"
+
+  - name: compliance_alerts
+    interval: 5m
+    rules:
+      # PCI Compliance
+      - alert: PCIComplianceViolation
+        expr: |
+          waqiti_pci_compliance_violations_total > 0
+        for: 1m
+        labels:
+          severity: critical
+          team: compliance
+          pagerduty: true
+          regulatory: true
+        annotations:
+          summary: "PCI compliance violation detected"
+          description: "{{ $value }} PCI compliance violations detected"
+          action: "Immediate investigation required for regulatory compliance"
+          
+      # Data Retention Policy
+      - alert: DataRetentionPolicyViolation
+        expr: |
+          waqiti_data_retention_overdue_total > 0
+        for: 24h
+        labels:
+          severity: warning
+          team: compliance
+        annotations:
+          summary: "Data retention policy violation"
+          description: "{{ $value }} records exceed retention policy"
+          
+      # Audit Log Failures
+      - alert: AuditLogFailure
+        expr: |
+          sum(rate(waqiti_audit_log_failures_total[5m])) > 0
+        for: 5m
+        labels:
+          severity: critical
+          team: compliance
+          regulatory: true
+        annotations:
+          summary: "Audit logging is failing"
+          description: "Audit logs are not being recorded - regulatory requirement"
+
+  - name: sla_alerts
+    interval: 30s
+    rules:
+      # Uptime SLA
+      - alert: UptimeSLAViolation
+        expr: |
+          (
+            1 - (
+              sum(up{job=~".*service.*"}) 
+              / 
+              count(up{job=~".*service.*"})
+            )
+          ) > 0.001  # 99.9% SLA
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+          sla: true
+        annotations:
+          summary: "Uptime SLA violation"
+          description: "System availability is below 99.9% SLA"
+          
+      # Response Time SLA
+      - alert: ResponseTimeSLAViolation
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(http_server_requests_seconds_bucket{app="api-gateway"}[5m]))
+            by (le)
+          ) > 2
+        for: 10m
+        labels:
+          severity: critical
+          team: platform
+          sla: true
+        annotations:
+          summary: "Response time SLA violation"
+          description: "99th percentile response time is {{ $value }}s (SLA: 2s)"

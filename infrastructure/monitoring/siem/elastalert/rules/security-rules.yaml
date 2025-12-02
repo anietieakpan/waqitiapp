@@ -1,0 +1,528 @@
+# ElastAlert Security Rules for Waqiti SIEM
+# Automated alerting for security incidents
+
+---
+# Rule: Brute Force Attack Detection
+name: brute_force_detection
+type: frequency
+index: logstash-*
+num_events: 5
+timeframe:
+  minutes: 5
+filter:
+- terms:
+    event_type: ["authentication_failure", "login_failed"]
+query_key: user_id
+alert:
+- "email"
+- "slack"
+- "pagerduty"
+email:
+- "security@example.com"
+slack:
+  slack_webhook_url: "${SLACK_WEBHOOK_URL}"
+  slack_channel_override: "#security-alerts"
+pagerduty_service_key: "${PAGERDUTY_KEY}"
+alert_text: |
+  Brute force attack detected!
+  User: {0}
+  Failed attempts: {1}
+  Time window: 5 minutes
+  Source IPs: {2}
+alert_text_args:
+- user_id
+- num_matches
+- client_ip
+include:
+- user_id
+- client_ip
+- timestamp
+- geo.country_name
+
+---
+# Rule: SQL Injection Detection
+name: sql_injection_detection
+type: any
+index: logstash-*
+filter:
+- terms:
+    tags: ["sql_injection_attempt"]
+alert:
+- "email"
+- "slack"
+- "webhook"
+email:
+- "security@example.com"
+- "incident-response@example.com"
+webhook:
+  webhook_url: "${INCIDENT_RESPONSE_WEBHOOK}"
+alert_text: |
+  CRITICAL: SQL Injection attempt detected!
+  Service: {0}
+  Source IP: {1}
+  Query: {2}
+  User: {3}
+  Timestamp: {4}
+alert_text_args:
+- service_name
+- client_ip
+- query
+- user_id
+- timestamp
+alert_severity: critical
+
+---
+# Rule: Impossible Travel Detection
+name: impossible_travel
+type: any
+index: logstash-*
+filter:
+- terms:
+    alert_type: ["IMPOSSIBLE_TRAVEL"]
+alert:
+- "email"
+- "slack"
+email:
+- "security@example.com"
+alert_text: |
+  Geographic anomaly detected - Impossible travel!
+  User: {0}
+  Previous location: {1}
+  Current location: {2}
+  Time difference: {3} minutes
+alert_text_args:
+- user_id
+- previous_country
+- geo.country_name
+- time_diff
+
+---
+# Rule: High-Value Transaction Monitoring
+name: high_value_transaction
+type: any
+index: payment-events-*
+filter:
+- range:
+    payment_amount:
+      gt: 10000
+alert:
+- "email"
+email:
+- "fraud@example.com"
+- "compliance@example.com"
+alert_text: |
+  High-value transaction detected:
+  Amount: {0} {1}
+  Sender: {2}
+  Recipient: {3}
+  Transaction ID: {4}
+  Risk Score: {5}
+alert_text_args:
+- payment_amount
+- payment_currency
+- sender_id
+- recipient_id
+- transaction_id
+- risk_score
+
+---
+# Rule: Velocity Check - Rapid Transactions
+name: velocity_check
+type: frequency
+index: payment-events-*
+num_events: 20
+timeframe:
+  hours: 1
+query_key: sender_id
+alert:
+- "email"
+- "slack"
+alert_text: |
+  Unusual transaction velocity detected:
+  User: {0}
+  Transactions in last hour: {1}
+  Total amount: {2}
+  Risk level: HIGH
+alert_text_args:
+- sender_id
+- num_matches
+- total_recent_amount
+
+---
+# Rule: Malicious IP Detection
+name: malicious_ip_detection
+type: any
+index: logstash-*
+filter:
+- terms:
+    threat_intel: ["malicious", "suspicious", "blacklisted"]
+alert:
+- "email"
+- "slack"
+- "webhook"
+webhook:
+  webhook_url: "${FIREWALL_BLOCK_WEBHOOK}"
+alert_text: |
+  CRITICAL: Malicious IP detected!
+  IP Address: {0}
+  Threat Type: {1}
+  Service Accessed: {2}
+  Action Required: Block immediately
+alert_text_args:
+- client_ip
+- threat_intel
+- service_name
+alert_severity: critical
+
+---
+# Rule: Account Takeover Detection
+name: account_takeover
+type: cardinality
+index: logstash-*
+cardinality_field: client_ip
+max_cardinality: 3
+timeframe:
+  hours: 1
+query_key: user_id
+filter:
+- terms:
+    event_type: ["login_success"]
+alert:
+- "email"
+- "slack"
+alert_text: |
+  Potential account takeover detected!
+  User: {0}
+  Number of different IPs: {1}
+  IPs: {2}
+  Countries: {3}
+alert_text_args:
+- user_id
+- cardinality
+- client_ip
+- geo.country_name
+
+---
+# Rule: XSS Attack Detection
+name: xss_detection
+type: any
+index: logstash-*
+filter:
+- terms:
+    tags: ["xss_attempt"]
+alert:
+- "email"
+email:
+- "security@example.com"
+alert_text: |
+  XSS attack attempt detected!
+  Source IP: {0}
+  Target URL: {1}
+  Payload: {2}
+  User Agent: {3}
+alert_text_args:
+- client_ip
+- request_url
+- request_body
+- user_agent
+
+---
+# Rule: Data Exfiltration Detection
+name: data_exfiltration
+type: frequency
+index: logstash-*
+num_events: 100
+timeframe:
+  minutes: 10
+filter:
+- terms:
+    event_type: ["data_export", "bulk_download", "api_fetch"]
+query_key: user_id
+alert:
+- "email"
+- "pagerduty"
+alert_text: |
+  Potential data exfiltration detected!
+  User: {0}
+  Number of exports: {1}
+  Data volume: {2} MB
+  Time window: 10 minutes
+alert_text_args:
+- user_id
+- num_matches
+- total_data_size
+
+---
+# Rule: Privilege Escalation Detection
+name: privilege_escalation
+type: any
+index: logstash-*
+filter:
+- terms:
+    event_type: ["permission_change", "role_elevation"]
+- terms:
+    new_role: ["admin", "super_admin", "root"]
+alert:
+- "email"
+- "slack"
+alert_text: |
+  Privilege escalation detected!
+  User: {0}
+  Previous Role: {1}
+  New Role: {2}
+  Authorized By: {3}
+  Timestamp: {4}
+alert_text_args:
+- user_id
+- previous_role
+- new_role
+- authorized_by
+- timestamp
+
+---
+# Rule: Cryptocurrency Address Change
+name: crypto_address_change
+type: change
+index: wallet-events-*
+compare_key: wallet_address
+ignore_null: true
+query_key: user_id
+timeframe:
+  days: 1
+alert:
+- "email"
+alert_text: |
+  Wallet address change detected!
+  User: {0}
+  Old Address: {1}
+  New Address: {2}
+  Changed At: {3}
+  IP Address: {4}
+alert_text_args:
+- user_id
+- old_value
+- new_value
+- timestamp
+- client_ip
+
+---
+# Rule: API Rate Limit Abuse
+name: api_rate_limit_abuse
+type: frequency
+index: api-gateway-*
+num_events: 1000
+timeframe:
+  minutes: 1
+query_key: client_ip
+alert:
+- "email"
+- "webhook"
+webhook:
+  webhook_url: "${RATE_LIMIT_WEBHOOK}"
+alert_text: |
+  API rate limit abuse detected!
+  IP Address: {0}
+  Requests per minute: {1}
+  User Agent: {2}
+  Endpoints accessed: {3}
+alert_text_args:
+- client_ip
+- num_matches
+- user_agent
+- request_path
+
+---
+# Rule: Failed Payment Pattern
+name: failed_payment_pattern
+type: frequency
+index: payment-events-*
+num_events: 5
+timeframe:
+  hours: 1
+filter:
+- terms:
+    payment_status: ["failed", "declined", "error"]
+query_key: user_id
+alert:
+- "email"
+alert_text: |
+  Multiple failed payments detected!
+  User: {0}
+  Failed attempts: {1}
+  Reasons: {2}
+  Total amount attempted: {3}
+alert_text_args:
+- user_id
+- num_matches
+- failure_reason
+- total_amount
+
+---
+# Rule: Suspicious Time-based Activity
+name: off_hours_activity
+type: frequency
+index: logstash-*
+num_events: 10
+timeframe:
+  minutes: 30
+filter:
+- script:
+    script: "def hour = doc['@timestamp'].value.hour; return hour < 6 || hour > 22"
+- terms:
+    event_category: ["financial", "administrative"]
+alert:
+- "email"
+alert_text: |
+  Suspicious off-hours activity detected!
+  Time: {0}
+  User: {1}
+  Activities: {2}
+  Source IP: {3}
+alert_text_args:
+- timestamp
+- user_id
+- event_type
+- client_ip
+
+---
+# Rule: Critical System File Access
+name: critical_file_access
+type: any
+index: auditbeat-*
+filter:
+- terms:
+    file.path: ["/etc/passwd", "/etc/shadow", "/root/.ssh/", "/var/lib/vault/"]
+- terms:
+    event.action: ["read", "write", "execute"]
+alert:
+- "email"
+- "pagerduty"
+alert_text: |
+  CRITICAL: Sensitive file access detected!
+  File: {0}
+  Action: {1}
+  User: {2}
+  Process: {3}
+  Timestamp: {4}
+alert_text_args:
+- file.path
+- event.action
+- user.name
+- process.name
+- timestamp
+alert_severity: critical
+
+---
+# Rule: Compliance Violation - PCI DSS
+name: pci_dss_violation
+type: any
+index: pci-dss-audit-*
+filter:
+- terms:
+    violation_type: ["unencrypted_pan", "missing_audit", "weak_crypto", "excessive_retention"]
+alert:
+- "email"
+email:
+- "compliance@example.com"
+- "security@example.com"
+alert_text: |
+  PCI DSS Compliance Violation!
+  Violation Type: {0}
+  Requirement: {1}
+  Service: {2}
+  Details: {3}
+  Remediation: {4}
+alert_text_args:
+- violation_type
+- pci_requirement
+- service_name
+- violation_details
+- remediation_steps
+
+---
+# Rule: Service Health Degradation
+name: service_health_alert
+type: frequency
+index: heartbeat-*
+num_events: 3
+timeframe:
+  minutes: 5
+filter:
+- terms:
+    monitor.status: ["down", "error"]
+query_key: monitor.name
+alert:
+- "email"
+- "slack"
+- "pagerduty"
+alert_text: |
+  Service health issue detected!
+  Service: {0}
+  Status: {1}
+  Consecutive failures: {2}
+  Last check: {3}
+  Error: {4}
+alert_text_args:
+- monitor.name
+- monitor.status
+- num_matches
+- timestamp
+- error.message
+
+---
+# Rule: Memory/Resource Exhaustion
+name: resource_exhaustion
+type: any
+index: metricbeat-*
+filter:
+- range:
+    system.memory.used.pct:
+      gt: 0.95
+- range:
+    system.cpu.total.pct:
+      gt: 0.95
+alert:
+- "email"
+- "pagerduty"
+alert_text: |
+  Resource exhaustion detected!
+  Host: {0}
+  Memory Usage: {1}%
+  CPU Usage: {2}%
+  Load Average: {3}
+  Action Required: Immediate investigation
+alert_text_args:
+- host.name
+- system.memory.used.pct
+- system.cpu.total.pct
+- system.load.1
+
+---
+# Rule: Distributed Attack Pattern
+name: distributed_attack
+type: frequency
+index: logstash-*
+num_events: 50
+timeframe:
+  minutes: 5
+filter:
+- terms:
+    tags: ["security_threat", "malicious_ip", "sql_injection_attempt", "xss_attempt"]
+use_count_query: true
+doc_type: _doc
+alert:
+- "email"
+- "slack"
+- "pagerduty"
+alert_text: |
+  CRITICAL: Distributed attack in progress!
+  Attack signatures detected: {0}
+  Unique source IPs: {1}
+  Affected services: {2}
+  Time window: 5 minutes
+  Recommended action: Activate incident response
+alert_text_args:
+- num_matches
+- unique_ips
+- affected_services
+alert_severity: critical

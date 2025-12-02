@@ -1,0 +1,70 @@
+# Alerting Configuration
+# Copy these settings to your service's application.yml and configure with your keys
+
+alerting:
+  # PagerDuty Configuration
+  pagerduty:
+    enabled: ${PAGERDUTY_ENABLED:false}
+    integration-key: ${PAGERDUTY_INTEGRATION_KEY:}
+
+  # Slack Configuration
+  slack:
+    enabled: ${SLACK_ALERTS_ENABLED:false}
+    webhook-url: ${SLACK_WEBHOOK_URL:}
+    channel: ${SLACK_ALERT_CHANNEL:#alerts}
+
+  # Environment name for alert context
+  environment: ${ENVIRONMENT:development}
+
+# Example production configuration:
+---
+spring:
+  config:
+    activate:
+      on-profile: production
+
+alerting:
+  pagerduty:
+    enabled: true
+    integration-key: ${PAGERDUTY_INTEGRATION_KEY} # Set via environment variable or secrets manager
+
+  slack:
+    enabled: true
+    webhook-url: ${SLACK_WEBHOOK_URL} # Set via environment variable or secrets manager
+    channel: "#production-alerts"
+
+  environment: production
+
+---
+spring:
+  config:
+    activate:
+      on-profile: staging
+
+alerting:
+  pagerduty:
+    enabled: false
+
+  slack:
+    enabled: true
+    webhook-url: ${SLACK_WEBHOOK_URL}
+    channel: "#staging-alerts"
+
+  environment: staging
+
+---
+spring:
+  config:
+    activate:
+      on-profile: development
+
+alerting:
+  pagerduty:
+    enabled: false
+
+  slack:
+    enabled: true
+    webhook-url: ${SLACK_WEBHOOK_URL}
+    channel: "#dev-alerts"
+
+  environment: development

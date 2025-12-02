@@ -1,0 +1,63 @@
+{
+  "properties": [
+    {
+      "name": "websocket.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable WebSocket functionality",
+      "defaultValue": true
+    },
+    {
+      "name": "websocket.max-connections",
+      "type": "java.lang.Integer",
+      "description": "Maximum WebSocket connections",
+      "defaultValue": 10000
+    },
+    {
+      "name": "websocket.heartbeat.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable WebSocket heartbeat",
+      "defaultValue": true
+    },
+    {
+      "name": "websocket.heartbeat.interval-ms",
+      "type": "java.lang.Long",
+      "description": "Heartbeat interval in milliseconds",
+      "defaultValue": 30000
+    },
+    {
+      "name": "websocket.authentication.required",
+      "type": "java.lang.Boolean",
+      "description": "Require authentication for WebSocket connections",
+      "defaultValue": true
+    },
+    {
+      "name": "websocket.compression.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable WebSocket message compression",
+      "defaultValue": true
+    },
+    {
+      "name": "websocket.rate-limiting.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable WebSocket rate limiting",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "OAuth2 client ID for service",
+      "defaultValue": "websocket-service"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "OAuth2 client secret for service"
+    }
+  ]
+}

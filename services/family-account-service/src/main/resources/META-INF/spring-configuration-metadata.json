@@ -1,0 +1,217 @@
+{
+  "properties": [
+    {
+      "name": "family.account.max-family-size",
+      "type": "java.lang.Integer",
+      "description": "Maximum number of members in a family account",
+      "defaultValue": 10
+    },
+    {
+      "name": "family.account.max-children-per-family",
+      "type": "java.lang.Integer",
+      "description": "Maximum number of children per family",
+      "defaultValue": 8
+    },
+    {
+      "name": "family.account.min-parent-age",
+      "type": "java.lang.Integer",
+      "description": "Minimum age requirement for parent accounts",
+      "defaultValue": 18
+    },
+    {
+      "name": "family.account.min-child-age",
+      "type": "java.lang.Integer",
+      "description": "Minimum age for child accounts",
+      "defaultValue": 6
+    },
+    {
+      "name": "family.account.max-child-age",
+      "type": "java.lang.Integer",
+      "description": "Maximum age for child accounts",
+      "defaultValue": 17
+    },
+    {
+      "name": "family.account.allowance.min-amount",
+      "type": "java.math.BigDecimal",
+      "description": "Minimum allowance amount",
+      "defaultValue": 1.00
+    },
+    {
+      "name": "family.account.allowance.max-amount",
+      "type": "java.math.BigDecimal",
+      "description": "Maximum allowance amount",
+      "defaultValue": 1000.00
+    },
+    {
+      "name": "family.account.allowance.processing-time",
+      "type": "java.lang.String",
+      "description": "Daily processing time for allowances",
+      "defaultValue": "09:00"
+    },
+    {
+      "name": "family.account.spending-limits.child-daily-max",
+      "type": "java.math.BigDecimal",
+      "description": "Maximum daily spending for child accounts",
+      "defaultValue": 50.00
+    },
+    {
+      "name": "family.account.spending-limits.child-transaction-max",
+      "type": "java.math.BigDecimal",
+      "description": "Maximum transaction amount for child accounts",
+      "defaultValue": 20.00
+    },
+    {
+      "name": "family.account.spending-limits.teen-daily-max",
+      "type": "java.math.BigDecimal",
+      "description": "Maximum daily spending for teen accounts",
+      "defaultValue": 200.00
+    },
+    {
+      "name": "family.account.spending-limits.teen-transaction-max",
+      "type": "java.math.BigDecimal",
+      "description": "Maximum transaction amount for teen accounts",
+      "defaultValue": 100.00
+    },
+    {
+      "name": "family.account.approval.timeout-hours",
+      "type": "java.lang.Integer",
+      "description": "Timeout for pending approval requests in hours",
+      "defaultValue": 24
+    },
+    {
+      "name": "family.account.approval.auto-approve-threshold",
+      "type": "java.math.BigDecimal",
+      "description": "Transaction amount threshold for auto-approval",
+      "defaultValue": 5.00
+    },
+    {
+      "name": "family.account.educational.quiz-required-frequency",
+      "type": "java.lang.Integer",
+      "description": "Frequency of required educational quizzes in days",
+      "defaultValue": 7
+    },
+    {
+      "name": "family.account.educational.financial-literacy-threshold",
+      "type": "java.lang.Integer",
+      "description": "Minimum score threshold for financial literacy",
+      "defaultValue": 70
+    },
+    {
+      "name": "family.account.notifications.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable family account notifications",
+      "defaultValue": true
+    },
+    {
+      "name": "family.account.notifications.transaction-threshold",
+      "type": "java.math.BigDecimal",
+      "description": "Transaction amount threshold for notifications",
+      "defaultValue": 25.00
+    },
+    {
+      "name": "family.account.notifications.daily-summary-time",
+      "type": "java.lang.String",
+      "description": "Time for daily summary notifications",
+      "defaultValue": "18:00"
+    },
+    {
+      "name": "family.account.notifications.weekly-summary-day",
+      "type": "java.lang.String",
+      "description": "Day of week for weekly summary",
+      "defaultValue": "SUNDAY"
+    },
+    {
+      "name": "vault.addr",
+      "type": "java.lang.String",
+      "description": "HashiCorp Vault address"
+    },
+    {
+      "name": "vault.token",
+      "type": "java.lang.String",
+      "description": "HashiCorp Vault authentication token"
+    },
+    {
+      "name": "vault.secrets.database.path",
+      "type": "java.lang.String",
+      "description": "Vault path for database secrets",
+      "defaultValue": "secret/family-service/database"
+    },
+    {
+      "name": "vault.secrets.redis.path",
+      "type": "java.lang.String",
+      "description": "Vault path for Redis secrets",
+      "defaultValue": "secret/family-service/redis"
+    },
+    {
+      "name": "vault.secrets.external-apis.path",
+      "type": "java.lang.String",
+      "description": "Vault path for external API secrets",
+      "defaultValue": "secret/family-service/external-apis"
+    },
+    {
+      "name": "security.jwt.secret-key",
+      "type": "java.lang.String",
+      "description": "JWT secret key for token signing"
+    },
+    {
+      "name": "security.jwt.expiration",
+      "type": "java.lang.Long",
+      "description": "JWT token expiration time in milliseconds",
+      "defaultValue": 86400000
+    },
+    {
+      "name": "security.cors.allowed-origins",
+      "type": "java.lang.String",
+      "description": "Comma-separated list of allowed CORS origins"
+    },
+    {
+      "name": "security.cors.allowed-methods",
+      "type": "java.lang.String",
+      "description": "Comma-separated list of allowed HTTP methods",
+      "defaultValue": "GET,POST,PUT,DELETE,OPTIONS"
+    },
+    {
+      "name": "security.cors.allowed-headers",
+      "type": "java.lang.String",
+      "description": "Comma-separated list of allowed headers",
+      "defaultValue": "*"
+    },
+    {
+      "name": "security.cors.allow-credentials",
+      "type": "java.lang.Boolean",
+      "description": "Allow credentials in CORS requests",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "Client ID for service authentication",
+      "defaultValue": "family-account-service"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "Client secret for service authentication"
+    }
+  ],
+  "hints": [
+    {
+      "name": "family.account.notifications.weekly-summary-day",
+      "values": [
+        {"value": "MONDAY", "description": "Monday"},
+        {"value": "TUESDAY", "description": "Tuesday"},
+        {"value": "WEDNESDAY", "description": "Wednesday"},
+        {"value": "THURSDAY", "description": "Thursday"},
+        {"value": "FRIDAY", "description": "Friday"},
+        {"value": "SATURDAY", "description": "Saturday"},
+        {"value": "SUNDAY", "description": "Sunday"}
+      ]
+    }
+  ]
+}

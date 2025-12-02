@@ -1,0 +1,187 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wallet-service-config
+  namespace: waqiti
+  labels:
+    app: wallet-service
+    component: backend
+data:
+  application.yaml: |
+    spring:
+      application:
+        name: wallet-service
+      datasource:
+        hikari:
+          connection-timeout: 30000
+          maximum-pool-size: 20
+          minimum-idle: 5
+          idle-timeout: 600000
+          max-lifetime: 1800000
+      jpa:
+        hibernate:
+          ddl-auto: validate
+        properties:
+          hibernate:
+            dialect: org.hibernate.dialect.PostgreSQL10Dialect
+            format_sql: true
+            use_sql_comments: true
+            generate_statistics: true
+            cache:
+              use_second_level_cache: true
+              use_query_cache: true
+              region.factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
+      cache:
+        type: redis
+        redis:
+          time-to-live: 3600000
+          cache-null-values: false
+      kafka:
+        producer:
+          key-serializer: org.apache.kafka.common.serialization.StringSerializer
+          value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+          properties:
+            spring.json.type.mapping: wallet:com.waqiti.wallet.event.WalletEvent
+        consumer:
+          group-id: wallet-service
+          auto-offset-reset: earliest
+          key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+          value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+          properties:
+            spring.json.trusted.packages: "*"
+    
+    wallet:
+      configuration:
+        default-currency: USD
+        supported-currencies:
+          - USD
+          - EUR
+          - GBP
+          - CAD
+          - AUD
+          - JPY
+        initial-balance: 0
+        minimum-balance: 0
+        maximum-balance: 1000000
+      security:
+        encryption-enabled: true
+        audit-enabled: true
+        balance-check-on-startup: true
+      operations:
+        allow-negative-balance: false
+        require-2fa-amount: 1000
+        daily-limit: 10000
+        monthly-limit: 50000
+        max-transaction-amount: 5000
+      multi-currency:
+        enabled: true
+        auto-conversion: false
+        preferred-exchange-provider: "exchange-rate-service"
+      features:
+        virtual-wallets: true
+        savings-wallets: true
+        crypto-wallets: true
+        shared-wallets: true
+    
+    resilience4j:
+      circuitbreaker:
+        instances:
+          ledger-service:
+            sliding-window-size: 10
+            minimum-number-of-calls: 5
+            permitted-number-of-calls-in-half-open-state: 3
+            automatic-transition-from-open-to-half-open-enabled: true
+            wait-duration-in-open-state: 30s
+            failure-rate-threshold: 50
+      retry:
+        instances:
+          balance-update:
+            max-attempts: 3
+            wait-duration: 1s
+            retry-exceptions:
+              - org.springframework.dao.OptimisticLockingFailureException
+      bulkhead:
+        instances:
+          wallet-operations:
+            max-concurrent-calls: 100
+            max-wait-duration: 10s
+    
+    management:
+      endpoints:
+        web:
+          exposure:
+            include: health,info,metrics,prometheus,circuitbreakers
+      endpoint:
+        health:
+          show-details: always
+          probes:
+            enabled: true
+      metrics:
+        export:
+          prometheus:
+            enabled: true
+        distribution:
+          percentiles-histogram:
+            http.server.requests: true
+        tags:
+          application: ${spring.application.name}
+    
+    logging:
+      level:
+        com.waqiti.wallet: DEBUG
+        org.springframework.web: INFO
+        org.hibernate.SQL: DEBUG
+        org.hibernate.type: TRACE
+      pattern:
+        console: "%d{yyyy-MM-dd HH:mm:ss} - %logger{36} - %msg%n"
+    
+  wallet-types.yaml: |
+    wallet-types:
+      personal:
+        code: "PERSONAL"
+        name: "Personal Wallet"
+        features:
+          - p2p-transfers
+          - bill-payments
+          - direct-deposit
+          - card-linking
+        limits:
+          daily: 10000
+          monthly: 50000
+          per-transaction: 5000
+      business:
+        code: "BUSINESS"
+        name: "Business Wallet"
+        features:
+          - bulk-payments
+          - invoicing
+          - payroll
+          - merchant-services
+        limits:
+          daily: 100000
+          monthly: 1000000
+          per-transaction: 50000
+      savings:
+        code: "SAVINGS"
+        name: "Savings Wallet"
+        features:
+          - interest-earning
+          - goal-tracking
+          - auto-save
+          - round-up
+        limits:
+          daily: 5000
+          monthly: 25000
+          per-transaction: 5000
+      crypto:
+        code: "CRYPTO"
+        name: "Crypto Wallet"
+        features:
+          - multi-chain
+          - defi-integration
+          - staking
+          - swaps
+        limits:
+          daily: 50000
+          monthly: 500000
+          per-transaction: 50000

@@ -1,0 +1,63 @@
+{
+  "properties": [
+    {
+      "name": "sms-banking.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable SMS banking functionality",
+      "defaultValue": true
+    },
+    {
+      "name": "sms-banking.provider",
+      "type": "java.lang.String",
+      "description": "SMS provider",
+      "defaultValue": "TWILIO"
+    },
+    {
+      "name": "sms-banking.commands.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable SMS command processing",
+      "defaultValue": true
+    },
+    {
+      "name": "sms-banking.balance-inquiry.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable balance inquiry via SMS",
+      "defaultValue": true
+    },
+    {
+      "name": "sms-banking.transfer.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable transfers via SMS",
+      "defaultValue": false
+    },
+    {
+      "name": "sms-banking.security.pin-required",
+      "type": "java.lang.Boolean",
+      "description": "Require PIN for SMS banking",
+      "defaultValue": true
+    },
+    {
+      "name": "sms-banking.rate-limiting.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable SMS rate limiting",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "OAuth2 client ID for service",
+      "defaultValue": "sms-banking-service"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "OAuth2 client secret for service"
+    }
+  ]
+}

@@ -1,0 +1,124 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: waqiti-base
+  namespace: waqiti-system
+
+resources:
+  # Namespaces
+  - namespaces/waqiti-system.yaml
+  
+  # Security
+  - security/rbac.yaml
+  - security/network-policies.yaml
+  - security/secrets.yaml
+  
+  # ML Service
+  - ml-service/deployment.yaml
+  - ml-service/service.yaml
+  - ml-service/configmap.yaml
+  - ml-service/hpa.yaml
+  - ml-service/pvc.yaml
+  
+  # Event Sourcing Service
+  - event-sourcing-service/deployment.yaml
+  - event-sourcing-service/service.yaml
+  - event-sourcing-service/configmap.yaml
+  - event-sourcing-service/hpa.yaml
+  - event-sourcing-service/pvc.yaml
+  
+  # Recurring Payment Service
+  - recurring-payment-service/deployment.yaml
+  - recurring-payment-service/service.yaml
+  - recurring-payment-service/configmap.yaml
+  - recurring-payment-service/hpa.yaml
+  
+  # Existing services
+  - audit-service/deployment.yaml
+  - audit-service/service.yaml
+  - audit-service/configmap.yaml
+  
+  - compliance-service/deployment.yaml
+  - compliance-service/service.yaml
+  - compliance-service/configmap.yaml
+  - compliance-service/hpa.yaml
+  
+  - core-banking-service/deployment.yaml
+  - core-banking-service/service.yaml
+  - core-banking-service/configmap.yaml
+  - core-banking-service/hpa.yaml
+  
+  - reconciliation-service/deployment.yaml
+  - reconciliation-service/service.yaml
+  - reconciliation-service/configmap.yaml
+  
+  - reporting-service/deployment.yaml
+  - reporting-service/service.yaml
+  - reporting-service/configmap.yaml
+  
+  - user-service/deployment.yaml
+  - user-service/service.yaml
+  - user-service/hpa.yaml
+
+commonLabels:
+  app.kubernetes.io/name: waqiti
+  app.kubernetes.io/version: v1.0.0
+  app.kubernetes.io/managed-by: kustomize
+
+images:
+  - name: waqiti/ml-service
+    newTag: v1.0.0
+  - name: waqiti/event-sourcing-service
+    newTag: v1.0.0
+  - name: waqiti/recurring-payment-service
+    newTag: v1.0.0
+
+configMapGenerator:
+  - name: fluent-bit-config
+    files:
+      - fluent-bit.conf=logging/fluent-bit.conf
+    options:
+      disableNameSuffixHash: true
+
+secretGenerator:
+  - name: waqiti-system-secrets
+    literals:
+      - database-password=changeme
+      - redis-password=changeme
+      - jwt-secret=changeme
+    options:
+      disableNameSuffixHash: true
+
+replicas:
+  - name: ml-service
+    count: 3
+  - name: event-sourcing-service
+    count: 3
+  - name: recurring-payment-service
+    count: 3
+
+patches:
+  - target:
+      kind: Deployment
+      name: ml-service
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: 4Gi
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: 1Gi
+  
+  - target:
+      kind: Deployment
+      name: event-sourcing-service
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: 4Gi
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: 1Gi
+
+namespace: waqiti-system

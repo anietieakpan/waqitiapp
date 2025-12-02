@@ -1,0 +1,170 @@
+server:
+  port: ${PORT:8080}
+
+spring:
+  # Redis for rate limiting - Production config
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD}
+      ssl: true
+      lettuce:
+        pool:
+          max-active: 20
+          max-idle: 10
+          min-idle: 5
+
+  # Cloud Gateway configuration for production
+  cloud:
+    gateway:
+      # Global timeout settings
+      httpclient:
+        connect-timeout: 10000
+        response-timeout: 30s
+        pool:
+          max-connections: 500
+          acquire-timeout: 10000
+      
+      # Route specific timeouts
+      routes:
+        - id: payment-service-timeout
+          uri: lb://payment-service
+          predicates:
+            - Path=/api/v1/payments/**
+          metadata:
+            response-timeout: 60000
+            connect-timeout: 5000
+
+# Eureka client configuration for production
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URI}
+    register-with-eureka: true
+    fetch-registry: true
+    registry-fetch-interval-seconds: 10
+  instance:
+    hostname: ${HOSTNAME}
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 15
+    lease-expiration-duration-in-seconds: 45
+    metadata-map:
+      zone: ${ZONE:default}
+      version: ${VERSION:1.0.0}
+
+# Security - Production settings
+security:
+  require-ssl: true
+  cors:
+    allowed-origins: 
+      - https://app.example.com
+      - https://admin.example.com
+    allowed-headers:
+      - Authorization
+      - Content-Type
+      - X-Requested-With
+      - X-Correlation-Id
+      - X-Device-Id
+      - X-Session-Id
+
+# Enhanced rate limiting for production
+rate-limiter:
+  # Default rate limits
+  default:
+    limit: 100
+    refresh-period: 1s
+    burst-capacity: 200
+  # IP-based rate limits
+  ip:
+    limit: 1000
+    refresh-period: 1s
+    burst-capacity: 2000
+  # User-based rate limits
+  user:
+    limit: 500
+    refresh-period: 1s
+    burst-capacity: 1000
+  # Admin rate limits
+  admin:
+    limit: 2000
+    refresh-period: 1s
+    burst-capacity: 4000
+
+# Circuit breaker configuration for production
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        registerHealthIndicator: true
+        slidingWindowType: TIME_BASED
+        slidingWindowSize: 60
+        minimumNumberOfCalls: 20
+        failureRateThreshold: 50
+        waitDurationInOpenState: 30s
+        permittedNumberOfCallsInHalfOpenState: 10
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        eventConsumerBufferSize: 100
+    instances:
+      paymentServiceCircuitBreaker:
+        baseConfig: default
+        failureRateThreshold: 30
+        waitDurationInOpenState: 60s
+      walletServiceCircuitBreaker:
+        baseConfig: default
+        failureRateThreshold: 40
+      userServiceCircuitBreaker:
+        baseConfig: default
+
+# Management endpoints with enhanced security
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,circuitbreakers
+      base-path: /management
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+      cloudwatch:
+        enabled: true
+        namespace: WaqitiGateway
+    tags:
+      application: ${spring.application.name}
+      environment: production
+      region: ${AWS_REGION:us-east-1}
+
+# Logging configuration for production
+logging:
+  level:
+    root: WARN
+    com.waqiti: INFO
+    org.springframework.cloud.gateway: INFO
+    org.springframework.security: WARN
+    io.github.resilience4j: INFO
+  pattern:
+    console: "%d{ISO8601} [%thread] %-5level %logger{36} [%X{correlationId}] - %msg%n"
+  file:
+    name: /var/log/waqiti/api-gateway.log
+    max-size: 100MB
+    max-history: 30
+
+# OpenTelemetry configuration
+otel:
+  exporter:
+    otlp:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT}
+      headers: ${OTEL_EXPORTER_OTLP_HEADERS}
+  service:
+    name: api-gateway
+  resource:
+    attributes:
+      service.name: api-gateway
+      service.version: ${VERSION:1.0.0}
+      deployment.environment: production

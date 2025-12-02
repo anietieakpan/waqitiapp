@@ -1,0 +1,336 @@
+# Default Validation Configuration
+# This file contains comprehensive validation rules for financial operations
+
+waqiti:
+  validation:
+    # General validation settings
+    general:
+      enableStrictValidation: true
+      enableCrossCurrencyValidation: true
+      enableBusinessRuleValidation: true
+      maxDescriptionLength: 500
+      maxReferenceLength: 100
+      logValidationFailures: true
+      logSuspiciousActivity: true
+      absoluteMaxAmount: 999999999999.99
+      absoluteMinAmount: 0.00000001
+      maxPrecision: 20
+      defaultScale: 2
+      cryptoScale: 8
+
+    # Fraud detection configuration
+    fraudDetection:
+      suspiciousAmountThreshold: 10000.00
+      highRiskAmountThreshold: 50000.00
+      velocityCheckThreshold: 25000.00
+      maxTransactionsPerHour: 10
+      maxTransactionsPerDay: 100
+      enableRealTimeScreening: true
+      enableVelocityChecks: true
+      enableAmountPatternAnalysis: true
+      highRiskCountries: ["AF", "IR", "KP", "SY", "VE"]
+      blockedCountries: ["KP", "IR"]
+
+    # Currency configurations
+    currencies:
+      USD:
+        code: "USD"
+        name: "US Dollar"
+        scale: 2
+        minAmount: 0.01
+        maxAmount: 1000000.00
+        supported: true
+        active: true
+        crypto: false
+        stablecoin: false
+        allowedRegions: ["US", "GLOBAL"]
+        allowedTransactionTypes: ["PAYMENT", "TRANSFER", "WITHDRAWAL", "DEPOSIT"]
+      
+      EUR:
+        code: "EUR"
+        name: "Euro"
+        scale: 2
+        minAmount: 0.01
+        maxAmount: 1000000.00
+        supported: true
+        active: true
+        crypto: false
+        stablecoin: false
+        allowedRegions: ["EU", "GLOBAL"]
+        allowedTransactionTypes: ["PAYMENT", "TRANSFER", "WITHDRAWAL", "DEPOSIT"]
+      
+      GBP:
+        code: "GBP"
+        name: "British Pound"
+        scale: 2
+        minAmount: 0.01
+        maxAmount: 1000000.00
+        supported: true
+        active: true
+        crypto: false
+        stablecoin: false
+        allowedRegions: ["UK", "GLOBAL"]
+        allowedTransactionTypes: ["PAYMENT", "TRANSFER", "WITHDRAWAL", "DEPOSIT"]
+      
+      JPY:
+        code: "JPY"
+        name: "Japanese Yen"
+        scale: 0
+        minAmount: 1.00
+        maxAmount: 100000000.00
+        supported: true
+        active: true
+        crypto: false
+        stablecoin: false
+        allowedRegions: ["ASIA_PACIFIC", "GLOBAL"]
+        allowedTransactionTypes: ["PAYMENT", "TRANSFER", "WITHDRAWAL", "DEPOSIT"]
+      
+      BTC:
+        code: "BTC"
+        name: "Bitcoin"
+        scale: 8
+        minAmount: 0.00000001
+        maxAmount: 100.00
+        supported: true
+        active: true
+        crypto: true
+        stablecoin: false
+        allowedRegions: ["GLOBAL"]
+        allowedTransactionTypes: ["CRYPTO_BUY", "CRYPTO_SELL", "CRYPTO_SWAP", "TRANSFER"]
+      
+      ETH:
+        code: "ETH"
+        name: "Ethereum"
+        scale: 18
+        minAmount: 0.000000000000000001
+        maxAmount: 1000.00
+        supported: true
+        active: true
+        crypto: true
+        stablecoin: false
+        allowedRegions: ["GLOBAL"]
+        allowedTransactionTypes: ["CRYPTO_BUY", "CRYPTO_SELL", "CRYPTO_SWAP", "TRANSFER"]
+      
+      USDC:
+        code: "USDC"
+        name: "USD Coin"
+        scale: 6
+        minAmount: 0.000001
+        maxAmount: 1000000.00
+        supported: true
+        active: true
+        crypto: true
+        stablecoin: true
+        allowedRegions: ["GLOBAL"]
+        allowedTransactionTypes: ["CRYPTO_BUY", "CRYPTO_SELL", "CRYPTO_SWAP", "TRANSFER", "PAYMENT"]
+      
+      USDT:
+        code: "USDT"
+        name: "Tether"
+        scale: 6
+        minAmount: 0.000001
+        maxAmount: 1000000.00
+        supported: true
+        active: true
+        crypto: true
+        stablecoin: true
+        allowedRegions: ["GLOBAL"]
+        allowedTransactionTypes: ["CRYPTO_BUY", "CRYPTO_SELL", "CRYPTO_SWAP", "TRANSFER", "PAYMENT"]
+
+    # Transaction type limits
+    transactionLimits:
+      PAYMENT:
+        transactionType: "PAYMENT"
+        minAmount: 0.01
+        maxAmount: 100000.00
+        dailyLimit: 50000.00
+        monthlyLimit: 500000.00
+        requiresKyc: false
+        requiresTwoFactor: false
+        highValueThreshold: false
+        allowedCurrencies: ["USD", "EUR", "GBP", "JPY", "CAD", "AUD"]
+        allowedPaymentMethods: ["WALLET", "BANK_ACCOUNT", "DEBIT_CARD", "CREDIT_CARD"]
+      
+      TRANSFER:
+        transactionType: "TRANSFER"
+        minAmount: 0.01
+        maxAmount: 500000.00
+        dailyLimit: 100000.00
+        monthlyLimit: 1000000.00
+        requiresKyc: true
+        requiresTwoFactor: true
+        highValueThreshold: true
+        allowedCurrencies: ["USD", "EUR", "GBP", "JPY", "CAD", "AUD", "BTC", "ETH", "USDC", "USDT"]
+        allowedPaymentMethods: ["WALLET", "BANK_ACCOUNT", "WIRE"]
+      
+      WITHDRAWAL:
+        transactionType: "WITHDRAWAL"
+        minAmount: 1.00
+        maxAmount: 100000.00
+        dailyLimit: 25000.00
+        monthlyLimit: 250000.00
+        requiresKyc: true
+        requiresTwoFactor: true
+        highValueThreshold: true
+        allowedCurrencies: ["USD", "EUR", "GBP", "JPY", "CAD", "AUD"]
+        allowedPaymentMethods: ["BANK_ACCOUNT", "WIRE", "ACH"]
+      
+      DEPOSIT:
+        transactionType: "DEPOSIT"
+        minAmount: 1.00
+        maxAmount: 1000000.00
+        dailyLimit: 100000.00
+        monthlyLimit: 1000000.00
+        requiresKyc: false
+        requiresTwoFactor: false
+        highValueThreshold: false
+        allowedCurrencies: ["USD", "EUR", "GBP", "JPY", "CAD", "AUD"]
+        allowedPaymentMethods: ["BANK_ACCOUNT", "WIRE", "ACH", "DEBIT_CARD"]
+      
+      CRYPTO_BUY:
+        transactionType: "CRYPTO_BUY"
+        minAmount: 1.00
+        maxAmount: 100000.00
+        dailyLimit: 50000.00
+        monthlyLimit: 500000.00
+        requiresKyc: true
+        requiresTwoFactor: true
+        highValueThreshold: true
+        allowedCurrencies: ["USD", "EUR", "GBP"]
+        allowedPaymentMethods: ["WALLET", "BANK_ACCOUNT", "DEBIT_CARD"]
+      
+      CRYPTO_SELL:
+        transactionType: "CRYPTO_SELL"
+        minAmount: 0.00000001
+        maxAmount: 100000.00
+        dailyLimit: 50000.00
+        monthlyLimit: 500000.00
+        requiresKyc: true
+        requiresTwoFactor: true
+        highValueThreshold: true
+        allowedCurrencies: ["BTC", "ETH", "USDC", "USDT"]
+        allowedPaymentMethods: ["WALLET"]
+      
+      INTERNATIONAL:
+        transactionType: "INTERNATIONAL"
+        minAmount: 1.00
+        maxAmount: 50000.00
+        dailyLimit: 25000.00
+        monthlyLimit: 250000.00
+        requiresKyc: true
+        requiresTwoFactor: true
+        highValueThreshold: true
+        allowedCurrencies: ["USD", "EUR", "GBP", "JPY", "CAD", "AUD"]
+        allowedPaymentMethods: ["WIRE", "BANK_ACCOUNT"]
+
+    # User tier limits
+    userTierLimits:
+      BASIC:
+        tierName: "BASIC"
+        dailyLimit: 1000.00
+        monthlyLimit: 5000.00
+        yearlyLimit: 50000.00
+        perTransactionLimit: 500.00
+        requiresKyc: false
+        requiresEnhancedDueDiligence: false
+        maxTransactionsPerDay: 10
+        maxTransactionsPerMonth: 100
+        currencySpecificLimits:
+          USD: 1000.00
+          EUR: 900.00
+          GBP: 800.00
+        transactionTypeLimit:
+          PAYMENT: 500.00
+          TRANSFER: 250.00
+          WITHDRAWAL: 100.00
+      
+      STANDARD:
+        tierName: "STANDARD"
+        dailyLimit: 10000.00
+        monthlyLimit: 50000.00
+        yearlyLimit: 500000.00
+        perTransactionLimit: 5000.00
+        requiresKyc: true
+        requiresEnhancedDueDiligence: false
+        maxTransactionsPerDay: 50
+        maxTransactionsPerMonth: 500
+        currencySpecificLimits:
+          USD: 10000.00
+          EUR: 9000.00
+          GBP: 8000.00
+          BTC: 0.5
+          ETH: 10.0
+        transactionTypeLimit:
+          PAYMENT: 5000.00
+          TRANSFER: 10000.00
+          WITHDRAWAL: 5000.00
+          CRYPTO_BUY: 2500.00
+      
+      PREMIUM:
+        tierName: "PREMIUM"
+        dailyLimit: 50000.00
+        monthlyLimit: 250000.00
+        yearlyLimit: 2500000.00
+        perTransactionLimit: 25000.00
+        requiresKyc: true
+        requiresEnhancedDueDiligence: false
+        maxTransactionsPerDay: 100
+        maxTransactionsPerMonth: 1000
+        currencySpecificLimits:
+          USD: 50000.00
+          EUR: 45000.00
+          GBP: 40000.00
+          BTC: 2.0
+          ETH: 50.0
+        transactionTypeLimit:
+          PAYMENT: 25000.00
+          TRANSFER: 50000.00
+          WITHDRAWAL: 25000.00
+          CRYPTO_BUY: 15000.00
+          INTERNATIONAL: 10000.00
+      
+      VIP:
+        tierName: "VIP"
+        dailyLimit: 100000.00
+        monthlyLimit: 500000.00
+        yearlyLimit: 5000000.00
+        perTransactionLimit: 50000.00
+        requiresKyc: true
+        requiresEnhancedDueDiligence: true
+        maxTransactionsPerDay: 200
+        maxTransactionsPerMonth: 2000
+        currencySpecificLimits:
+          USD: 100000.00
+          EUR: 90000.00
+          GBP: 80000.00
+          BTC: 5.0
+          ETH: 100.0
+        transactionTypeLimit:
+          PAYMENT: 50000.00
+          TRANSFER: 100000.00
+          WITHDRAWAL: 50000.00
+          CRYPTO_BUY: 30000.00
+          INTERNATIONAL: 25000.00
+      
+      ENTERPRISE:
+        tierName: "ENTERPRISE"
+        dailyLimit: 1000000.00
+        monthlyLimit: 5000000.00
+        yearlyLimit: 50000000.00
+        perTransactionLimit: 500000.00
+        requiresKyc: true
+        requiresEnhancedDueDiligence: true
+        maxTransactionsPerDay: 1000
+        maxTransactionsPerMonth: 10000
+        currencySpecificLimits:
+          USD: 1000000.00
+          EUR: 900000.00
+          GBP: 800000.00
+          BTC: 50.0
+          ETH: 1000.0
+        transactionTypeLimit:
+          PAYMENT: 500000.00
+          TRANSFER: 1000000.00
+          WITHDRAWAL: 500000.00
+          CRYPTO_BUY: 250000.00
+          INTERNATIONAL: 100000.00

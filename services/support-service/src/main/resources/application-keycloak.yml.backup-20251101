@@ -1,0 +1,115 @@
+# Keycloak Configuration for Support Service
+
+keycloak:
+  enabled: true
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  ssl-required: external
+  resource: support-service
+  bearer-only: true
+  credentials:
+    secret: ${SUPPORT_SERVICE_CLIENT_SECRET:CHANGE_ME_SECURE_SECRET_REQUIRED}
+  use-resource-role-mappings: true
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# Support Service Security Configuration
+support:
+  security:
+    # Public endpoints that don't require authentication
+    public-endpoints:
+      - /actuator/health
+      - /actuator/info
+      - /api/v1/support/faq/public
+      - /api/v1/support/contact/public
+      - /swagger-ui/**
+      - /v3/api-docs/**
+    
+    # Service-to-service endpoints
+    service-endpoints:
+      - /internal/support/**
+    
+    # Required roles for support operations
+    required-roles:
+      read:
+        - USER
+        - SUPPORT_USER
+      ticket-create:
+        - USER
+        - SUPPORT_USER
+      ticket-read:
+        - USER
+        - SUPPORT_USER
+        - SUPPORT_AGENT
+      ticket-assignment:
+        - SUPPORT_AGENT
+        - SUPPORT_SUPERVISOR
+      ticket-resolution:
+        - SUPPORT_AGENT
+        - SUPPORT_SPECIALIST
+      escalation:
+        - SUPPORT_SUPERVISOR
+        - SUPPORT_MANAGER
+      knowledge-base:
+        - SUPPORT_AGENT
+        - KNOWLEDGE_MANAGER
+      chat-support:
+        - SUPPORT_AGENT
+        - CHAT_AGENT
+      management:
+        - SUPPORT_MANAGER
+        - SUPPORT_OPERATOR
+      admin:
+        - SUPPORT_ADMIN
+        - SYSTEM_ADMIN
+    
+    # Required scopes for operations
+    required-scopes:
+      ticket-read: support:ticket:read
+      ticket-write: support:ticket:write
+      ticket-assignment: support:ticket:assign
+      escalation: support:escalation
+      knowledge-base: support:knowledge:base
+      chat-support: support:chat
+      customer-communication: support:customer:communicate
+      analytics: support:analytics
+      admin: support:admin
+      management: support:manage
+    
+    # Support service security features
+    features:
+      ticket-encryption-enabled: true
+      customer-data-protection-enabled: true
+      agent-authentication-required: true
+      escalation-rules-enabled: true
+      knowledge-base-access-controlled: true
+      chat-monitoring-enabled: true
+      
+    # Support service limits and thresholds
+    limits:
+      max-tickets-per-customer-per-day: 10
+      max-concurrent-chats-per-agent: 5
+      ticket-auto-close-days: 30
+      escalation-timeout-hours: 24
+      
+    # Security thresholds requiring escalation
+    escalation-thresholds:
+      high-priority-ticket: true
+      customer-complaint-escalation: 2
+      agent-overload-threshold: 20
+      unresolved-ticket-age-hours: 48
+      
+    # Advanced security features
+    advanced-security:
+      require-customer-verification: true
+      pii-data-masking-enabled: true
+      agent-activity-monitoring: true
+      customer-sentiment-analysis: true
+      fraud-ticket-detection: true
+      gdpr-compliance-enabled: true

@@ -1,0 +1,103 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: discovery-service
+  namespace: waqiti
+  labels:
+    app: discovery-service
+    version: v1
+    component: infrastructure
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: discovery-service
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: discovery-service
+        version: v1
+        component: infrastructure
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8761"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      serviceAccountName: discovery-service
+      containers:
+      - name: discovery-service
+        image: waqiti/discovery-service:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8761
+          name: http
+          protocol: TCP
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "kubernetes"
+        - name: JAVA_OPTS
+          value: "-Xms512m -Xmx1g -XX:+UseG1GC"
+        - name: SERVER_PORT
+          value: "8761"
+        - name: EUREKA_INSTANCE_HOSTNAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: EUREKA_CLIENT_REGISTER_WITH_EUREKA
+          value: "true"
+        - name: EUREKA_CLIENT_FETCH_REGISTRY
+          value: "true"
+        - name: EUREKA_CLIENT_SERVICE_URL_DEFAULT_ZONE
+          value: "http://discovery-service-0.discovery-service:8761/eureka/,http://discovery-service-1.discovery-service:8761/eureka/,http://discovery-service-2.discovery-service:8761/eureka/"
+        - name: EUREKA_SERVER_ENABLE_SELF_PRESERVATION
+          value: "true"
+        - name: EUREKA_SERVER_EVICTION_INTERVAL_TIMER_IN_MS
+          value: "30000"
+        - name: EUREKA_SERVER_RENEWAL_PERCENT_THRESHOLD
+          value: "0.85"
+        - name: EUREKA_INSTANCE_PREFER_IP_ADDRESS
+          value: "true"
+        - name: SPRING_CLOUD_CONFIG_URI
+          value: "http://config-service:8888"
+        resources:
+          requests:
+            memory: "768Mi"
+            cpu: "500m"
+          limits:
+            memory: "1.5Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8761
+          initialDelaySeconds: 90
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8761
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        volumeMounts:
+        - name: config
+          mountPath: /app/config
+          readOnly: true
+      volumes:
+      - name: config
+        configMap:
+          name: discovery-service-config
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - discovery-service
+            topologyKey: kubernetes.io/hostname

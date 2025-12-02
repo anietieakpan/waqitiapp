@@ -1,0 +1,186 @@
+---
+# ============================================================================
+# API GATEWAY NETWORK POLICY
+# ============================================================================
+# Controls ingress/egress for the API Gateway service
+#
+# Ingress: Internet (Load Balancer), Internal Services
+# Egress: All Backend Services, External APIs, Redis, Discovery Service
+# ============================================================================
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: api-gateway-policy
+  namespace: example-production
+  labels:
+    app.kubernetes.io/name: network-policy
+    app.kubernetes.io/component: api-gateway
+    security.example.com/tier: edge
+    compliance: pci-dss
+  annotations:
+    description: "Network policy for API Gateway - allows internet ingress and backend service egress"
+    security.example.com/last-reviewed: "2025-10-25"
+    security.example.com/reviewed-by: "security-team"
+spec:
+  podSelector:
+    matchLabels:
+      app: api-gateway
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress:
+    # Allow ingress from Internet via Load Balancer
+    - from:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 8080  # HTTP
+        - protocol: TCP
+          port: 8443  # HTTPS
+
+    # Allow ingress from Prometheus for metrics
+    - from:
+        - podSelector:
+            matchLabels:
+              app: prometheus
+      ports:
+        - protocol: TCP
+          port: 9090  # Metrics
+
+  egress:
+    # DNS resolution (inherited from default allow-dns policy)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+    # User Service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: user-service
+      ports:
+        - protocol: TCP
+          port: 8081
+
+    # Wallet Service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: wallet-service
+      ports:
+        - protocol: TCP
+          port: 8082
+
+    # Payment Service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: payment-service
+      ports:
+        - protocol: TCP
+          port: 8083
+
+    # Notification Service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: notification-service
+      ports:
+        - protocol: TCP
+          port: 8084
+
+    # Integration Service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: integration-service
+      ports:
+        - protocol: TCP
+          port: 8085
+
+    # Transaction Service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: transaction-service
+      ports:
+        - protocol: TCP
+          port: 8086
+
+    # KYC Service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: kyc-service
+      ports:
+        - protocol: TCP
+          port: 8087
+
+    # Fraud Detection Service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: fraud-detection-service
+      ports:
+        - protocol: TCP
+          port: 8088
+
+    # Compliance Service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: compliance-service
+      ports:
+        - protocol: TCP
+          port: 8089
+
+    # Redis for caching
+    - to:
+        - podSelector:
+            matchLabels:
+              app: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+
+    # Discovery Service (Eureka)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: discovery-service
+      ports:
+        - protocol: TCP
+          port: 8761
+
+    # Config Service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: config-service
+      ports:
+        - protocol: TCP
+          port: 8888
+
+    # Zipkin for distributed tracing
+    - to:
+        - podSelector:
+            matchLabels:
+              app: zipkin
+      ports:
+        - protocol: TCP
+          port: 9411
+
+    # Allow egress to external HTTPS endpoints (for external APIs)
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443

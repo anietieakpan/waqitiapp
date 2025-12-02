@@ -1,0 +1,329 @@
+version: '3.8'
+
+services:
+  # Core Infrastructure
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: waqiti
+      POSTGRES_USER: app_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD_REQUIRED}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app_user -d waqiti"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+    healthcheck:
+      test: ["CMD-SHELL", "echo ruok | nc localhost 2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Microservices
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    ports:
+      - "8080:8080"
+    depends_on:
+      - redis
+      - user-service
+      - wallet-service
+      - payment-service
+      - notification-service
+      - integration-service
+      - discovery-service
+      - config-service
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_ZIPKIN_BASE_URL: http://zipkin:9411
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka/
+      SERVICES_USER_SERVICE_URL: http://user-service:8081
+      SPRING_CLOUD_CONFIG_URI: http://config-service:8888
+      SERVICES_WALLET_SERVICE_URL: http://wallet-service:8082
+      SERVICES_PAYMENT_SERVICE_URL: http://payment-service:8083
+      SERVICES_NOTIFICATION_SERVICE_URL: http://notification-service:8084
+      SERVICES_INTEGRATION_SERVICE_URL: http://integration-service:8085
+      JWT_SECRET: ${VAULT_JWT_SECRET:?JWT_SECRET_REQUIRED}
+    restart: on-failure
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  user-service:
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
+    container_name: user-service
+    ports:
+      - "8081:8081"
+    depends_on:
+      - postgres
+      - kafka
+      - redis
+      - integration-service
+      - discovery-service
+      - config-service
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/waqiti
+      SPRING_DATASOURCE_USERNAME: app_user
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka/
+      SPRING_DATASOURCE_PASSWORD: ${VAULT_DB_PASSWORD:?DB_PASSWORD_REQUIRED}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_CLOUD_CONFIG_URI: http://config-service:8888
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_ZIPKIN_BASE_URL: http://zipkin:9411
+      INTEGRATION_SERVICE_URL: http://integration-service:8085
+      JWT_SECRET: ${VAULT_JWT_SECRET:?JWT_SECRET_REQUIRED}
+    restart: on-failure
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  wallet-service:
+    build:
+      context: ./wallet-service
+      dockerfile: Dockerfile
+    container_name: wallet-service
+    ports:
+      - "8082:8082"
+    depends_on:
+      - postgres
+      - kafka
+      - redis
+      - integration-service
+      - discovery-service
+      - config-service
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/waqiti
+      SPRING_DATASOURCE_USERNAME: app_user
+      SPRING_DATASOURCE_PASSWORD: ${VAULT_DB_PASSWORD:?DB_PASSWORD_REQUIRED}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_DATA_REDIS_HOST: redis
+      INTEGRATION_SERVICE_URL: http://integration-service:8085
+      JWT_SECRET: ${VAULT_JWT_SECRET:?JWT_SECRET_REQUIRED}
+      SPRING_ZIPKIN_BASE_URL: http://zipkin:9411
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka/
+      SPRING_CLOUD_CONFIG_URI: http://config-service:8888
+    restart: on-failure
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  payment-service:
+    build:
+      context: ./payment-service
+      dockerfile: Dockerfile
+    container_name: payment-service
+    ports:
+      - "8083:8083"
+    depends_on:
+      - postgres
+      - kafka
+      - redis
+      - user-service
+      - wallet-service
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/waqiti
+      SPRING_DATASOURCE_USERNAME: app_user
+      SPRING_DATASOURCE_PASSWORD: ${VAULT_DB_PASSWORD:?DB_PASSWORD_REQUIRED}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_DATA_REDIS_HOST: redis
+      USER_SERVICE_URL: http://user-service:8081
+      WALLET_SERVICE_URL: http://wallet-service:8082
+      JWT_SECRET: ${VAULT_JWT_SECRET:?JWT_SECRET_REQUIRED}
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka/
+      SPRING_CLOUD_CONFIG_URI: http://config-service:8888
+      SPRING_ZIPKIN_BASE_URL: http://zipkin:9411
+    restart: on-failure
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  notification-service:
+    build:
+      context: ./notification-service
+      dockerfile: Dockerfile
+    container_name: notification-service
+    ports:
+      - "8084:8084"
+    depends_on:
+      - postgres
+      - kafka
+      - redis
+      - user-service
+      - config-service
+      - discovery-service
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/waqiti
+      SPRING_DATASOURCE_USERNAME: app_user
+      SPRING_DATASOURCE_PASSWORD: ${VAULT_DB_PASSWORD:?DB_PASSWORD_REQUIRED}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_DATA_REDIS_HOST: redis
+      USER_SERVICE_URL: http://user-service:8081
+      JWT_SECRET: ${VAULT_JWT_SECRET:?JWT_SECRET_REQUIRED}
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka/
+      SPRING_CLOUD_CONFIG_URI: http://config-service:8888
+      SPRING_ZIPKIN_BASE_URL: http://zipkin:9411
+    restart: on-failure
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8084/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  integration-service:
+    build:
+      context: ./integration-service
+      dockerfile: Dockerfile
+    container_name: integration-service
+    ports:
+      - "8085:8085"
+    depends_on:
+      - postgres
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/waqiti
+      SPRING_DATASOURCE_USERNAME: app_user
+      SPRING_DATASOURCE_PASSWORD: ${VAULT_DB_PASSWORD:?DB_PASSWORD_REQUIRED}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+    restart: on-failure
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8085/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  discovery-service:
+    build:
+      context: services/discovery-service
+      dockerfile: Dockerfile
+    container_name: discovery-service
+    ports:
+      - "8761:8761"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+    healthcheck:
+      test: [ "CMD", "wget", "-q", "-O", "-", "http://localhost:8761/actuator/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  config-service:
+    build:
+      context: .
+      dockerfile: services/config-service/Dockerfile
+    container_name: config-service
+    ports:
+      - "8888:8888"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery-service:8761/eureka/
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "wget", "-q", "-O", "-", "http://localhost:8888/actuator/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+
+
+
+  # Monitoring
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus:/etc/prometheus
+      - prometheus_data:/prometheus
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  grafana:
+    image: grafana/grafana:10.0.0
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:?GRAFANA_PASSWORD_REQUIRED}
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel,grafana-worldmap-panel
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - prometheus
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  postgres_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:

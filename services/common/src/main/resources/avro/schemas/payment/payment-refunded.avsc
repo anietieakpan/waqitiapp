@@ -1,0 +1,113 @@
+{
+  "type": "record",
+  "name": "PaymentRefundedEvent",
+  "namespace": "com.waqiti.events.v1",
+  "doc": "Event published when a payment is refunded",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "Unique event identifier (UUID)"
+    },
+    {
+      "name": "eventType",
+      "type": "string",
+      "default": "payment-refunded",
+      "doc": "Type of event"
+    },
+    {
+      "name": "timestamp",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "Event timestamp in epoch milliseconds"
+    },
+    {
+      "name": "correlationId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Correlation ID for distributed tracing"
+    },
+    {
+      "name": "version",
+      "type": "string",
+      "default": "1.0",
+      "doc": "Schema version"
+    },
+    {
+      "name": "originalTransactionId",
+      "type": "string",
+      "doc": "Original transaction ID being refunded (UUID)"
+    },
+    {
+      "name": "refundTransactionId",
+      "type": "string",
+      "doc": "Refund transaction ID (UUID)"
+    },
+    {
+      "name": "refundAmount",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 19,
+        "scale": 4
+      },
+      "doc": "Refund amount"
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "default": "USD",
+      "doc": "Currency code (ISO 4217)"
+    },
+    {
+      "name": "userId",
+      "type": "string",
+      "doc": "User ID receiving the refund (UUID)"
+    },
+    {
+      "name": "walletId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Wallet ID receiving the refund (UUID)"
+    },
+    {
+      "name": "refundType",
+      "type": {
+        "type": "enum",
+        "name": "RefundType",
+        "symbols": ["FULL", "PARTIAL", "CHARGEBACK"]
+      },
+      "default": "FULL",
+      "doc": "Type of refund"
+    },
+    {
+      "name": "reason",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Reason for refund"
+    },
+    {
+      "name": "initiatedBy",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "ID of user or system that initiated refund"
+    },
+    {
+      "name": "merchantId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Merchant ID if applicable (UUID)"
+    },
+    {
+      "name": "metadata",
+      "type": ["null", {
+        "type": "map",
+        "values": "string"
+      }],
+      "default": null,
+      "doc": "Additional metadata"
+    }
+  ]
+}

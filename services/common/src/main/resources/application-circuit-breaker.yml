@@ -1,0 +1,308 @@
+# Circuit Breaker Configuration for All Services
+# This configuration automatically applies circuit breakers to all external API calls
+
+resilience4j:
+  # Enable circuit breaker aspect
+  circuitbreaker:
+    aspect:
+      enabled: true
+    configs:
+      # Default configuration for all services
+      default:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 100
+        minimumNumberOfCalls: 10
+        permittedNumberOfCallsInHalfOpenState: 10
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 60s
+        failureRateThreshold: 50
+        slowCallRateThreshold: 80
+        slowCallDurationThreshold: 5s
+        recordExceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
+          - org.springframework.web.client.ResourceAccessException
+          - org.springframework.web.client.HttpServerErrorException
+        ignoreExceptions:
+          - java.lang.IllegalArgumentException
+          - java.lang.IllegalStateException
+          - org.springframework.web.client.HttpClientErrorException
+          
+      # Payment services - more conservative (critical for financial operations)
+      payment-service:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 50
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 5
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 120s
+        failureRateThreshold: 30
+        slowCallRateThreshold: 70
+        slowCallDurationThreshold: 10s
+        
+      # Wallet services - critical for fund operations
+      wallet-service:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 50
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 5
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 90s
+        failureRateThreshold: 35
+        slowCallRateThreshold: 75
+        slowCallDurationThreshold: 8s
+        
+      # KYC services - important but can tolerate some delays
+      kyc-service:
+        registerHealthIndicator: true
+        slidingWindowType: TIME_BASED
+        slidingWindowSize: 60
+        minimumNumberOfCalls: 8
+        permittedNumberOfCallsInHalfOpenState: 8
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 90s
+        failureRateThreshold: 40
+        slowCallRateThreshold: 80
+        slowCallDurationThreshold: 15s
+        
+      # Fraud detection - critical for security
+      fraud-detection:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 100
+        minimumNumberOfCalls: 10
+        permittedNumberOfCallsInHalfOpenState: 10
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 60s
+        failureRateThreshold: 45
+        slowCallRateThreshold: 85
+        slowCallDurationThreshold: 3s
+        
+      # Notification services - non-critical, more lenient
+      notification-service:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 200
+        minimumNumberOfCalls: 20
+        permittedNumberOfCallsInHalfOpenState: 20
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 30s
+        failureRateThreshold: 70
+        slowCallRateThreshold: 90
+        slowCallDurationThreshold: 10s
+        
+      # Bank integration - external service, conservative settings
+      bank-integration:
+        registerHealthIndicator: true
+        slidingWindowType: TIME_BASED
+        slidingWindowSize: 120
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 300s # 5 minutes for bank systems
+        failureRateThreshold: 25
+        slowCallRateThreshold: 60
+        slowCallDurationThreshold: 30s
+        
+    instances:
+      # Specific service instances
+      payment-gateway:
+        baseConfig: payment-service
+      stripe-api:
+        baseConfig: payment-service
+      paypal-api:
+        baseConfig: payment-service
+      bank-transfer-api:
+        baseConfig: bank-integration
+      identity-verification:
+        baseConfig: kyc-service
+      document-verification:
+        baseConfig: kyc-service
+      risk-engine:
+        baseConfig: fraud-detection
+      ml-fraud-detection:
+        baseConfig: fraud-detection
+      email-service:
+        baseConfig: notification-service
+      sms-service:
+        baseConfig: notification-service
+      push-notification:
+        baseConfig: notification-service
+      core-banking:
+        baseConfig: bank-integration
+      mambu-api:
+        baseConfig: bank-integration
+        
+  # Retry configuration
+  retry:
+    configs:
+      default:
+        maxAttempts: 3
+        waitDuration: 1s
+        exponentialBackoffMultiplier: 2
+        maxWaitDuration: 10s
+        retryExceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+          - java.net.ConnectException
+        ignoreExceptions:
+          - java.lang.IllegalArgumentException
+          
+      payment-retry:
+        maxAttempts: 5
+        waitDuration: 2s
+        exponentialBackoffMultiplier: 1.5
+        maxWaitDuration: 30s
+        
+      notification-retry:
+        maxAttempts: 2
+        waitDuration: 500ms
+        exponentialBackoffMultiplier: 1.2
+        maxWaitDuration: 5s
+        
+    instances:
+      payment-gateway: 
+        baseConfig: payment-retry
+      wallet-service:
+        baseConfig: payment-retry
+      kyc-service:
+        baseConfig: default
+      fraud-detection:
+        baseConfig: default
+      notification-service:
+        baseConfig: notification-retry
+      bank-integration:
+        baseConfig: payment-retry
+        
+  # Bulkhead configuration for resource isolation
+  bulkhead:
+    configs:
+      default:
+        maxConcurrentCalls: 25
+        maxWaitDuration: 5s
+        
+      payment-bulkhead:
+        maxConcurrentCalls: 10
+        maxWaitDuration: 10s
+        
+      notification-bulkhead:
+        maxConcurrentCalls: 50
+        maxWaitDuration: 2s
+        
+    instances:
+      payment-gateway:
+        baseConfig: payment-bulkhead
+      wallet-service:
+        baseConfig: payment-bulkhead
+      kyc-service:
+        baseConfig: default
+      fraud-detection:
+        baseConfig: default
+      notification-service:
+        baseConfig: notification-bulkhead
+      bank-integration:
+        baseConfig: payment-bulkhead
+        
+  # Rate limiter configuration
+  ratelimiter:
+    configs:
+      default:
+        limitForPeriod: 100
+        limitRefreshPeriod: 1s
+        timeoutDuration: 5s
+        
+      public-api:
+        limitForPeriod: 60
+        limitRefreshPeriod: 1m
+        timeoutDuration: 10s
+        
+      payment-api:
+        limitForPeriod: 50
+        limitRefreshPeriod: 1s
+        timeoutDuration: 10s
+        
+    instances:
+      payment-gateway:
+        baseConfig: payment-api
+      wallet-service:
+        baseConfig: payment-api
+      kyc-service:
+        baseConfig: default
+      fraud-detection:
+        baseConfig: default
+      notification-service:
+        baseConfig: public-api
+      bank-integration:
+        baseConfig: payment-api
+        
+  # Time limiter configuration
+  timelimiter:
+    configs:
+      default:
+        timeoutDuration: 10s
+        cancelRunningFuture: true
+        
+      payment-timeout:
+        timeoutDuration: 30s
+        cancelRunningFuture: false # Don't cancel payment operations
+        
+      notification-timeout:
+        timeoutDuration: 5s
+        cancelRunningFuture: true
+        
+      bank-timeout:
+        timeoutDuration: 60s
+        cancelRunningFuture: false
+        
+    instances:
+      payment-gateway:
+        baseConfig: payment-timeout
+      wallet-service:
+        baseConfig: payment-timeout
+      kyc-service:
+        baseConfig: default
+      fraud-detection:
+        baseConfig: default
+      notification-service:
+        baseConfig: notification-timeout
+      bank-integration:
+        baseConfig: bank-timeout
+
+# Management endpoint configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,circuitbreakers,circuitbreakerevents,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+    circuitbreakers:
+      enabled: true
+    circuitbreakerevents:
+      enabled: true
+  health:
+    circuitbreakers:
+      enabled: true
+      
+# Logging configuration for circuit breakers
+logging:
+  level:
+    io.github.resilience4j.circuitbreaker: INFO
+    io.github.resilience4j.retry: INFO
+    com.example.common.resilience: DEBUG
+    
+# Application-specific circuit breaker settings
+waqiti:
+  circuit-breaker:
+    enabled: true
+    health-check-interval: 30s
+    metrics-enabled: true
+    alerts-enabled: true
+    fallback-enabled: true
+    aspect-enabled: true

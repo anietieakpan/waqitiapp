@@ -1,0 +1,88 @@
+Waqiti - Peer-to-Peer Payment and E-Wallet Platform
+Copyright 2024-2025 Waqiti Contributors
+
+This product includes software developed by the Waqiti project
+(https://github.com/waqiti/waqiti-app).
+
+============================================================================
+IMPORTANT NOTICES
+============================================================================
+
+FINANCIAL SOFTWARE DISCLAIMER
+-----------------------------
+This software is designed for financial transactions and payment processing.
+It is provided "AS IS" without warranty of any kind. Users are solely
+responsible for:
+
+- Ensuring compliance with all applicable financial regulations
+- Proper security configuration and hardening
+- Conducting security audits before production deployment
+- Implementing appropriate fraud detection and prevention measures
+- Maintaining PCI DSS, GDPR, and other regulatory compliance
+- Any financial losses resulting from use of this software
+
+The maintainers and contributors assume NO LIABILITY for any financial
+losses, data breaches, regulatory violations, or other damages arising
+from the use of this software.
+
+TRADEMARK NOTICE
+----------------
+"Waqiti" and the Waqiti logo are trademarks of [Your Organization].
+Use of these trademarks must comply with our trademark policy.
+The Apache 2.0 license does not grant permission to use these trademarks.
+
+============================================================================
+THIRD-PARTY COMPONENTS
+============================================================================
+
+This software includes the following third-party components:
+
+Spring Framework (https://spring.io/)
+- License: Apache License 2.0
+- Copyright: Pivotal Software, Inc.
+
+Spring Boot (https://spring.io/projects/spring-boot)
+- License: Apache License 2.0
+- Copyright: Pivotal Software, Inc.
+
+Apache Kafka (https://kafka.apache.org/)
+- License: Apache License 2.0
+- Copyright: The Apache Software Foundation
+
+Keycloak (https://www.keycloak.org/)
+- License: Apache License 2.0
+- Copyright: Red Hat, Inc.
+
+React (https://reactjs.org/)
+- License: MIT License
+- Copyright: Facebook, Inc.
+
+React Native (https://reactnative.dev/)
+- License: MIT License
+- Copyright: Facebook, Inc.
+
+PostgreSQL (https://www.postgresql.org/)
+- License: PostgreSQL License
+- Copyright: The PostgreSQL Global Development Group
+
+Redis (https://redis.io/)
+- License: BSD 3-Clause License
+- Copyright: Redis Ltd.
+
+HashiCorp Vault (https://www.vaultproject.io/)
+- License: Mozilla Public License 2.0
+- Copyright: HashiCorp, Inc.
+
+Prometheus (https://prometheus.io/)
+- License: Apache License 2.0
+- Copyright: The Prometheus Authors
+
+Grafana (https://grafana.com/)
+- License: Apache License 2.0 / AGPL 3.0
+- Copyright: Grafana Labs
+
+For a complete list of dependencies and their licenses, see the
+pom.xml files in each service directory and package.json files
+in frontend directories.
+
+============================================================================

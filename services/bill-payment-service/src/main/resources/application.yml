@@ -1,0 +1,271 @@
+spring:
+  application:
+    name: bill-payment-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:development}
+    include: keycloak
+  
+  # Database configuration
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/bill_payments}
+    username: ${DB_USERNAME:bill_payment_user}
+    password: ${DB_PASSWORD:}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      leak-detection-threshold: 60000
+  
+  # JPA configuration
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:validate}
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        use_sql_comments: true
+        jdbc:
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
+    show-sql: ${JPA_SHOW_SQL:false}
+  
+  # Liquibase configuration
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+    default-schema: public
+  
+  # Redis configuration
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 20
+          max-idle: 10
+          min-idle: 5
+  
+  # Kafka configuration
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}}
+    consumer:
+      group-id: bill-payment-service
+      enable-auto-commit: false  # Manual acknowledgment for DLQ support
+      max-poll-records: 50  # Batch size control
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.waqiti.*"
+
+    listener:
+      ack-mode: record  # Acknowledge each record individually for better error handling
+      missing-topics-fatal: false  # Don't fail on missing topics
+      type: batch  # Support batch processing
+      concurrency: 3  # Number of concurrent consumer threads
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+
+server:
+  port: ${BILL_PAYMENT_SERVICE_PORT:8096}
+  servlet:
+    context-path: /
+
+# Keycloak Configuration
+keycloak:
+  enabled: true
+  realm: waqiti-fintech
+  auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}
+  ssl-required: external
+  resource: bill-payment-service
+  bearer-only: true
+  use-resource-role-mappings: true
+  cors: true
+  cors-allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+  cors-allowed-headers: Authorization,Content-Type,X-Requested-With
+  cors-max-age: 3600
+  public-client: false
+  credentials:
+    secret: ${KEYCLOAK_CLIENT_SECRET:}
+
+  # Spring Security OAuth2 Configuration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti
+          jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/certs
+      client:
+        registration:
+          keycloak:
+            client-id: bill-payment-service
+            client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+            authorization-grant-type: client_credentials
+            scope: openid,profile,email
+        provider:
+          keycloak:
+            issuer-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti
+            token-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/token
+            authorization-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/auth
+            userinfo-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/userinfo
+            jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/certs
+
+# Service-to-Service Authentication
+service:
+  auth:
+    enabled: true
+    client-id: bill-payment-service
+    client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+
+# Eureka client configuration
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:${EUREKA_SERVER_URL:https://discovery-service:8761/eureka}/}
+    registry-fetch-interval-seconds: 5
+  instance:
+    hostname: ${HOSTNAME:localhost}
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 10
+    lease-expiration-duration-in-seconds: 30
+    metadata-map:
+      startup: ${random.int}
+
+# OpenFeign Configuration
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 5000
+        readTimeout: 10000
+        loggerLevel: BASIC
+  circuitbreaker:
+    enabled: true
+
+# Management endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,loggers
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  health:
+    livenessState:
+      enabled: true
+    readinessState:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: ${spring.application.name}
+      environment: ${ENVIRONMENT:development}
+
+# Logging configuration
+logging:
+  level:
+    root: INFO
+    com.waqiti.billpayment: ${LOG_LEVEL_APP:INFO}
+    org.springframework.security: ${LOG_LEVEL_SECURITY:WARN}
+    org.springframework.web: INFO
+    org.hibernate.SQL: ${LOG_LEVEL_SQL:WARN}
+    org.hibernate.type.descriptor.sql.BasicBinder: ${LOG_LEVEL_SQL_BINDER:WARN}
+    org.springframework.kafka: INFO
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level [%X{traceId},%X{spanId}] %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId},%X{spanId}] %logger{36} - %msg%n"
+
+# Resilience4j configuration
+resilience4j:
+  circuitbreaker:
+    instances:
+      bill-payment:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+      biller-api:
+        sliding-window-size: 20
+        minimum-number-of-calls: 10
+        failure-rate-threshold: 60
+        wait-duration-in-open-state: 60s
+  retry:
+    instances:
+      bill-payment:
+        max-attempts: 3
+        wait-duration: 1s
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+      biller-api:
+        max-attempts: 5
+        wait-duration: 2s
+  ratelimiter:
+    instances:
+      bill-payment:
+        limit-for-period: 100
+        limit-refresh-period: 1s
+        timeout-duration: 10s
+
+# Bill Payment Service Configuration
+bill-payment:
+  validation:
+    enabled: true
+    timeout: 30s
+  inquiry:
+    enabled: true
+    cache-duration: 5m
+  payment:
+    max-retry-attempts: 3
+    retry-delay: 5s
+    timeout: 60s
+  biller:
+    api:
+      base-url: ${BILLER_API_BASE_URL:http://biller-api.internal}
+      api-key: ${BILLER_API_KEY:}
+      timeout: 30s
+  notification:
+    enabled: true
+    channels:
+      - EMAIL
+      - SMS
+      - PUSH
+  limits:
+    daily-limit: 100000
+    transaction-limit: 50000
+    monthly-limit: 1000000
+
+# API Documentation
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    operationsSorter: method
+
+  # Distributed Tracing
+  sleuth:
+    enabled: true
+    sampler:
+      probability: ${TRACING_SAMPLE_RATE:0.1}
+    zipkin:
+      base-url: ${ZIPKIN_URL:http://localhost:9411}
+      enabled: ${ZIPKIN_ENABLED:false}

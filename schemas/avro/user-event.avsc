@@ -1,0 +1,160 @@
+{
+  "namespace": "com.waqiti.user.events",
+  "type": "record",
+  "name": "UserEvent",
+  "doc": "User event schema for Waqiti user management",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "Unique event identifier"
+    },
+    {
+      "name": "eventType",
+      "type": {
+        "name": "UserEventType",
+        "type": "enum",
+        "symbols": [
+          "USER_REGISTERED",
+          "USER_VERIFIED",
+          "USER_LOGIN",
+          "USER_LOGOUT",
+          "USER_PROFILE_UPDATED",
+          "USER_SUSPENDED",
+          "USER_REACTIVATED",
+          "USER_DELETED",
+          "PASSWORD_CHANGED",
+          "MFA_ENABLED",
+          "MFA_DISABLED",
+          "KYC_STARTED",
+          "KYC_COMPLETED",
+          "KYC_FAILED"
+        ]
+      },
+      "doc": "Type of user event"
+    },
+    {
+      "name": "userId",
+      "type": "string",
+      "doc": "User identifier"
+    },
+    {
+      "name": "email",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "User email address"
+    },
+    {
+      "name": "phoneNumber",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "User phone number"
+    },
+    {
+      "name": "deviceInfo",
+      "type": ["null", {
+        "type": "record",
+        "name": "DeviceInfo",
+        "fields": [
+          {
+            "name": "deviceId",
+            "type": "string",
+            "doc": "Device identifier"
+          },
+          {
+            "name": "platform",
+            "type": "string",
+            "doc": "Device platform (iOS, Android, Web)"
+          },
+          {
+            "name": "version",
+            "type": ["null", "string"],
+            "default": null,
+            "doc": "App version"
+          },
+          {
+            "name": "ipAddress",
+            "type": ["null", "string"],
+            "default": null,
+            "doc": "IP address"
+          }
+        ]
+      }],
+      "default": null,
+      "doc": "Device information"
+    },
+    {
+      "name": "location",
+      "type": ["null", {
+        "type": "record",
+        "name": "Location",
+        "fields": [
+          {
+            "name": "country",
+            "type": "string",
+            "doc": "Country code"
+          },
+          {
+            "name": "city",
+            "type": ["null", "string"],
+            "default": null,
+            "doc": "City name"
+          },
+          {
+            "name": "coordinates",
+            "type": ["null", {
+              "type": "record",
+              "name": "Coordinates",
+              "fields": [
+                {
+                  "name": "latitude",
+                  "type": "double",
+                  "doc": "Latitude coordinate"
+                },
+                {
+                  "name": "longitude",
+                  "type": "double",
+                  "doc": "Longitude coordinate"
+                }
+              ]
+            }],
+            "default": null,
+            "doc": "Geographic coordinates"
+          }
+        ]
+      }],
+      "default": null,
+      "doc": "User location information"
+    },
+    {
+      "name": "changes",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "default": {},
+      "doc": "Changed fields (for update events)"
+    },
+    {
+      "name": "metadata",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "default": {},
+      "doc": "Additional metadata"
+    },
+    {
+      "name": "timestamp",
+      "type": "long",
+      "logicalType": "timestamp-millis",
+      "doc": "Event timestamp in milliseconds"
+    },
+    {
+      "name": "version",
+      "type": "string",
+      "default": "1.0",
+      "doc": "Event schema version"
+    }
+  ]
+}

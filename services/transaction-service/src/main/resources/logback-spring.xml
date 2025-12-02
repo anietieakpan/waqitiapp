@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- Register PII Masking Converter -->
+    <conversionRule conversionWord="maskedMsg"
+                    converterClass="com.waqiti.transaction.security.PiiMaskingConverter" />
+
+    <!-- Property definitions -->
+    <property name="LOG_PATH" value="${LOG_PATH:-./logs}" />
+    <property name="SERVICE_NAME" value="transaction-service" />
+
+    <!-- Console Appender with PII Masking -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{correlationId}] %-5level %logger{36} - %maskedMsg%n%ex</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- File Appender with PII Masking -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/${SERVICE_NAME}.log</file>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{correlationId}] %-5level %logger{36} - %maskedMsg%n%ex</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/${SERVICE_NAME}.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+                <maxFileSize>100MB</maxFileSize>
+            </timeBasedFileNamingAndTriggeringPolicy>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>10GB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
+    <!-- Audit Log Appender (Separate file for audit trails) -->
+    <appender name="AUDIT" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/${SERVICE_NAME}-audit.log</file>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%X{userId}] [%X{correlationId}] - %maskedMsg%n</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/${SERVICE_NAME}-audit.%d{yyyy-MM-dd}.log.gz</fileNamePattern>
+            <maxHistory>365</maxHistory> <!-- Keep audit logs for 1 year -->
+            <totalSizeCap>50GB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
+    <!-- Security Event Appender (Separate file for security events) -->
+    <appender name="SECURITY" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/${SERVICE_NAME}-security.log</file>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%X{userId}] [%X{correlationId}] SECURITY - %maskedMsg%n%ex</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/${SERVICE_NAME}-security.%d{yyyy-MM-dd}.log.gz</fileNamePattern>
+            <maxHistory>365</maxHistory> <!-- Keep security logs for 1 year -->
+            <totalSizeCap>20GB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
+    <!-- Async Appenders for Performance -->
+    <appender name="ASYNC_CONSOLE" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="CONSOLE" />
+        <queueSize>512</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+        <includeCallerData>false</includeCallerData>
+    </appender>
+
+    <appender name="ASYNC_FILE" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="FILE" />
+        <queueSize>1024</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+        <includeCallerData>false</includeCallerData>
+    </appender>
+
+    <!-- Logger for Audit Events -->
+    <logger name="com.waqiti.transaction.security.SecurityAuditService" level="INFO" additivity="false">
+        <appender-ref ref="AUDIT" />
+        <appender-ref ref="ASYNC_CONSOLE" />
+    </logger>
+
+    <!-- Logger for Security Events -->
+    <logger name="SECURITY" level="INFO" additivity="false">
+        <appender-ref ref="SECURITY" />
+        <appender-ref ref="ASYNC_CONSOLE" />
+    </logger>
+
+    <!-- Spring Boot logging levels -->
+    <logger name="org.springframework" level="INFO" />
+    <logger name="org.springframework.web" level="INFO" />
+    <logger name="org.springframework.security" level="INFO" />
+    <logger name="org.hibernate" level="INFO" />
+    <logger name="org.hibernate.SQL" level="${SQL_LOG_LEVEL:-INFO}" />
+    <logger name="org.hibernate.type.descriptor.sql.BasicBinder" level="INFO" />
+
+    <!-- Kafka logging -->
+    <logger name="org.apache.kafka" level="WARN" />
+    <logger name="org.springframework.kafka" level="INFO" />
+
+    <!-- Application logging -->
+    <logger name="com.waqiti.transaction" level="${APP_LOG_LEVEL:-INFO}" />
+
+    <!-- Profile-specific configurations -->
+    <springProfile name="dev,local">
+        <root level="DEBUG">
+            <appender-ref ref="ASYNC_CONSOLE" />
+            <appender-ref ref="ASYNC_FILE" />
+        </root>
+    </springProfile>
+
+    <springProfile name="test">
+        <root level="INFO">
+            <appender-ref ref="ASYNC_CONSOLE" />
+        </root>
+    </springProfile>
+
+    <springProfile name="staging,production">
+        <root level="INFO">
+            <appender-ref ref="ASYNC_CONSOLE" />
+            <appender-ref ref="ASYNC_FILE" />
+        </root>
+
+        <!-- More restrictive logging in production -->
+        <logger name="org.springframework" level="WARN" />
+        <logger name="org.hibernate" level="WARN" />
+        <logger name="com.waqiti.transaction" level="INFO" />
+    </springProfile>
+
+    <!-- Default root logger -->
+    <root level="INFO">
+        <appender-ref ref="ASYNC_CONSOLE" />
+        <appender-ref ref="ASYNC_FILE" />
+    </root>
+</configuration>

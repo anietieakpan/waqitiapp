@@ -1,0 +1,549 @@
+---
+# ============================================================================
+# NOTIFICATION SERVICE NETWORK POLICY
+# ============================================================================
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: notification-service-policy
+  namespace: example-production
+  labels:
+    app.kubernetes.io/name: network-policy
+    app.kubernetes.io/component: notification-service
+    security.example.com/tier: application
+  annotations:
+    description: "Notification Service - email, SMS, push notifications"
+    security.example.com/last-reviewed: "2025-10-25"
+spec:
+  podSelector:
+    matchLabels:
+      app: notification-service
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress:
+    # Allow ingress from API Gateway
+    - from:
+        - podSelector:
+            matchLabels:
+              app: api-gateway
+      ports:
+        - protocol: TCP
+          port: 8084
+
+    # Allow ingress from all services (for sending notifications)
+    - from:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 8084
+
+    # Allow ingress from Prometheus for metrics
+    - from:
+        - podSelector:
+            matchLabels:
+              app: prometheus
+      ports:
+        - protocol: TCP
+          port: 9090
+
+  egress:
+    # DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+    # PostgreSQL database
+    - to:
+        - podSelector:
+            matchLabels:
+              app: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+
+    # Kafka for notification events
+    - to:
+        - podSelector:
+            matchLabels:
+              app: kafka
+      ports:
+        - protocol: TCP
+          port: 9092
+        - protocol: TCP
+          port: 29092
+
+    # Redis for caching
+    - to:
+        - podSelector:
+            matchLabels:
+              app: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+
+    # User Service (for user preferences)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: user-service
+      ports:
+        - protocol: TCP
+          port: 8081
+
+    # Discovery Service (Eureka)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: discovery-service
+      ports:
+        - protocol: TCP
+          port: 8761
+
+    # Config Service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: config-service
+      ports:
+        - protocol: TCP
+          port: 8888
+
+    # Zipkin for tracing
+    - to:
+        - podSelector:
+            matchLabels:
+              app: zipkin
+      ports:
+        - protocol: TCP
+          port: 9411
+
+    # External SMTP servers
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 587  # SMTP TLS
+        - protocol: TCP
+          port: 465  # SMTP SSL
+
+    # External SMS gateways (Twilio, etc.) - HTTPS
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443
+
+    # Firebase Cloud Messaging for push notifications
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443
+
+---
+# ============================================================================
+# INTEGRATION SERVICE NETWORK POLICY
+# ============================================================================
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: integration-service-policy
+  namespace: example-production
+  labels:
+    app.kubernetes.io/name: network-policy
+    app.kubernetes.io/component: integration-service
+    security.example.com/tier: application
+  annotations:
+    description: "Integration Service - third-party API integrations"
+    security.example.com/last-reviewed: "2025-10-25"
+spec:
+  podSelector:
+    matchLabels:
+      app: integration-service
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress:
+    # Allow ingress from API Gateway
+    - from:
+        - podSelector:
+            matchLabels:
+              app: api-gateway
+      ports:
+        - protocol: TCP
+          port: 8085
+
+    # Allow ingress from all services (for integration calls)
+    - from:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 8085
+
+    # Allow ingress from Prometheus for metrics
+    - from:
+        - podSelector:
+            matchLabels:
+              app: prometheus
+      ports:
+        - protocol: TCP
+          port: 9090
+
+  egress:
+    # DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+    # PostgreSQL database
+    - to:
+        - podSelector:
+            matchLabels:
+              app: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+
+    # Kafka for integration events
+    - to:
+        - podSelector:
+            matchLabels:
+              app: kafka
+      ports:
+        - protocol: TCP
+          port: 9092
+        - protocol: TCP
+          port: 29092
+
+    # Redis for caching API responses
+    - to:
+        - podSelector:
+            matchLabels:
+              app: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+
+    # Discovery Service (Eureka)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: discovery-service
+      ports:
+        - protocol: TCP
+          port: 8761
+
+    # Config Service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: config-service
+      ports:
+        - protocol: TCP
+          port: 8888
+
+    # Zipkin for tracing
+    - to:
+        - podSelector:
+            matchLabels:
+              app: zipkin
+      ports:
+        - protocol: TCP
+          port: 9411
+
+    # All external APIs - HTTPS only
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443
+
+---
+# ============================================================================
+# DISCOVERY SERVICE (EUREKA) NETWORK POLICY
+# ============================================================================
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: discovery-service-policy
+  namespace: example-production
+  labels:
+    app.kubernetes.io/name: network-policy
+    app.kubernetes.io/component: discovery-service
+    security.example.com/tier: infrastructure
+  annotations:
+    description: "Discovery Service (Eureka) - service registry and discovery"
+    security.example.com/last-reviewed: "2025-10-25"
+spec:
+  podSelector:
+    matchLabels:
+      app: discovery-service
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress:
+    # Allow ingress from all application services (for registration/discovery)
+    - from:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 8761
+
+    # Allow ingress from Prometheus for metrics
+    - from:
+        - podSelector:
+            matchLabels:
+              app: prometheus
+      ports:
+        - protocol: TCP
+          port: 9090
+
+  egress:
+    # DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+    # Eureka peer-to-peer communication (if using Eureka cluster)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: discovery-service
+      ports:
+        - protocol: TCP
+          port: 8761
+
+---
+# ============================================================================
+# CONFIG SERVICE NETWORK POLICY
+# ============================================================================
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: config-service-policy
+  namespace: example-production
+  labels:
+    app.kubernetes.io/name: network-policy
+    app.kubernetes.io/component: config-service
+    security.example.com/tier: infrastructure
+  annotations:
+    description: "Config Service - centralized configuration management"
+    security.example.com/last-reviewed: "2025-10-25"
+spec:
+  podSelector:
+    matchLabels:
+      app: config-service
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress:
+    # Allow ingress from all application services (for config retrieval)
+    - from:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 8888
+
+    # Allow ingress from Prometheus for metrics
+    - from:
+        - podSelector:
+            matchLabels:
+              app: prometheus
+      ports:
+        - protocol: TCP
+          port: 9090
+
+  egress:
+    # DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+    # Discovery Service (Eureka)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: discovery-service
+      ports:
+        - protocol: TCP
+          port: 8761
+
+    # Git repository for config (if using Git backend) - HTTPS
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 22  # SSH for Git
+
+---
+# ============================================================================
+# AUDIT SERVICE NETWORK POLICY
+# ============================================================================
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: audit-service-policy
+  namespace: example-production
+  labels:
+    app.kubernetes.io/name: network-policy
+    app.kubernetes.io/component: audit-service
+    security.example.com/tier: critical
+    compliance: pci-dss,sox,gdpr
+  annotations:
+    description: "Audit Service - comprehensive audit logging and compliance"
+    security.example.com/last-reviewed: "2025-10-25"
+spec:
+  podSelector:
+    matchLabels:
+      app: audit-service
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress:
+    # Allow ingress from API Gateway
+    - from:
+        - podSelector:
+            matchLabels:
+              app: api-gateway
+      ports:
+        - protocol: TCP
+          port: 8090
+
+    # Allow ingress from all services (for audit event submission)
+    - from:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 8090
+
+    # Allow ingress from Prometheus for metrics
+    - from:
+        - podSelector:
+            matchLabels:
+              app: prometheus
+      ports:
+        - protocol: TCP
+          port: 9090
+
+  egress:
+    # DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+    # PostgreSQL database (audit log storage - immutable)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+
+    # Kafka for audit event streaming
+    - to:
+        - podSelector:
+            matchLabels:
+              app: kafka
+      ports:
+        - protocol: TCP
+          port: 9092
+        - protocol: TCP
+          port: 29092
+
+    # ClickHouse for audit analytics
+    - to:
+        - podSelector:
+            matchLabels:
+              app: clickhouse
+      ports:
+        - protocol: TCP
+          port: 9000
+        - protocol: TCP
+          port: 8123
+
+    # Elasticsearch for audit log search
+    - to:
+        - podSelector:
+            matchLabels:
+              app: elasticsearch
+      ports:
+        - protocol: TCP
+          port: 9200
+
+    # Discovery Service (Eureka)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: discovery-service
+      ports:
+        - protocol: TCP
+          port: 8761
+
+    # Config Service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: config-service
+      ports:
+        - protocol: TCP
+          port: 8888
+
+    # Zipkin for tracing
+    - to:
+        - podSelector:
+            matchLabels:
+              app: zipkin
+      ports:
+        - protocol: TCP
+          port: 9411
+
+    # External SIEM systems (Splunk, etc.) - HTTPS
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443

@@ -1,0 +1,591 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+  labels:
+    name: monitoring
+    environment: production
+    
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: monitoring
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+      external_labels:
+        cluster: 'example-prod'
+        environment: 'production'
+    
+    rule_files:
+      - "/etc/prometheus/rules/*.yml"
+    
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets:
+              - alertmanager:9093
+    
+    scrape_configs:
+      # Kubernetes API Server
+      - job_name: 'kubernetes-apiservers'
+        kubernetes_sd_configs:
+        - role: endpoints
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        relabel_configs:
+        - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+          action: keep
+          regex: default;kubernetes;https
+      
+      # Kubernetes Nodes
+      - job_name: 'kubernetes-nodes'
+        kubernetes_sd_configs:
+        - role: node
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        relabel_configs:
+        - action: labelmap
+          regex: __meta_kubernetes_node_label_(.+)
+        - target_label: __address__
+          replacement: kubernetes.default.svc:443
+        - source_labels: [__meta_kubernetes_node_name]
+          regex: (.+)
+          target_label: __metrics_path__
+          replacement: /api/v1/nodes/${1}/proxy/metrics
+      
+      # Kubernetes Pods
+      - job_name: 'kubernetes-pods'
+        kubernetes_sd_configs:
+        - role: pod
+        relabel_configs:
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+          action: keep
+          regex: true
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+          action: replace
+          target_label: __metrics_path__
+          regex: (.+)
+        - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+          action: replace
+          regex: ([^:]+)(?::\d+)?;(\d+)
+          replacement: $1:$2
+          target_label: __address__
+        - action: labelmap
+          regex: __meta_kubernetes_pod_label_(.+)
+        - source_labels: [__meta_kubernetes_namespace]
+          action: replace
+          target_label: kubernetes_namespace
+        - source_labels: [__meta_kubernetes_pod_name]
+          action: replace
+          target_label: kubernetes_pod_name
+      
+      # Waqiti Services
+      - job_name: 'waqiti-services'
+        kubernetes_sd_configs:
+        - role: pod
+          namespaces:
+            names:
+            - example-prod
+        relabel_configs:
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+          action: keep
+          regex: true
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port]
+          action: replace
+          target_label: __address__
+          regex: ([^:]+)(?::\d+)?;(\d+)
+          replacement: $1:$2
+        - source_labels: [__meta_kubernetes_pod_label_app]
+          action: replace
+          target_label: service
+        - source_labels: [__meta_kubernetes_pod_label_version]
+          action: replace
+          target_label: version
+      
+      # Database Monitoring
+      - job_name: 'postgres-exporter'
+        static_configs:
+        - targets: ['postgres-exporter.database:9187']
+        scrape_interval: 30s
+        metrics_path: /metrics
+        relabel_configs:
+        - source_labels: [__address__]
+          target_label: database_type
+          replacement: postgresql
+      
+      # Redis Monitoring
+      - job_name: 'redis-exporter'
+        static_configs:
+        - targets: ['redis-exporter.redis:9121']
+        scrape_interval: 30s
+        
+      # Kafka Monitoring
+      - job_name: 'kafka-exporter'
+        static_configs:
+        - targets: ['kafka-exporter.kafka:9308']
+        scrape_interval: 30s
+        
+      # Node Exporter
+      - job_name: 'node-exporter'
+        kubernetes_sd_configs:
+        - role: endpoints
+          namespaces:
+            names:
+            - monitoring
+        relabel_configs:
+        - source_labels: [__meta_kubernetes_endpoints_name]
+          action: keep
+          regex: node-exporter
+        - source_labels: [__meta_kubernetes_endpoint_address_target_name]
+          action: replace
+          target_label: node
+      
+      # Blackbox Exporter for endpoint monitoring
+      - job_name: 'blackbox'
+        metrics_path: /probe
+        params:
+          module: [http_2xx]
+        static_configs:
+        - targets:
+          - https://api.example.com/health
+          - https://app.example.com/health
+          - https://admin.example.com/health
+        relabel_configs:
+        - source_labels: [__address__]
+          target_label: __param_target
+        - source_labels: [__param_target]
+          target_label: instance
+        - target_label: __address__
+          replacement: blackbox-exporter:9115
+
+  alerts.yml: |
+    groups:
+    - name: waqiti.financial.critical
+      rules:
+      # Payment Service Critical Alerts
+      - alert: PaymentServiceDown
+        expr: up{job="waqiti-services", service="payment-service"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: payment
+          team: payments
+        annotations:
+          summary: "Payment service is down"
+          description: "Payment service has been down for more than 1 minute"
+          runbook: "https://runbooks.example.com/payment-service-down"
+          
+      - alert: HighPaymentFailureRate
+        expr: rate(payment_failures_total[5m]) / rate(payment_requests_total[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+          service: payment
+          team: payments
+        annotations:
+          summary: "High payment failure rate detected"
+          description: "Payment failure rate is {{ $value | humanizePercentage }} over the last 5 minutes"
+          
+      # Transaction Service Alerts
+      - alert: TransactionServiceHighLatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{service="transaction-service"}[5m])) > 2
+        for: 3m
+        labels:
+          severity: warning
+          service: transaction
+          team: core
+        annotations:
+          summary: "Transaction service high latency"
+          description: "95th percentile latency is {{ $value }}s"
+          
+      # Database Alerts
+      - alert: DatabaseConnectionsHigh
+        expr: pg_stat_database_numbackends / pg_settings_max_connections > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          service: database
+          team: platform
+        annotations:
+          summary: "Database connection usage is high"
+          description: "Database is using {{ $value | humanizePercentage }} of available connections"
+          
+      - alert: DatabaseReplicationLag
+        expr: pg_stat_replication_lag_seconds > 60
+        for: 2m
+        labels:
+          severity: critical
+          service: database
+          team: platform
+        annotations:
+          summary: "Database replication lag is high"
+          description: "Replication lag is {{ $value }}s"
+          
+      # Fraud Detection Alerts
+      - alert: FraudDetectionServiceDown
+        expr: up{job="waqiti-services", service="fraud-detection-service"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          service: fraud-detection
+          team: security
+        annotations:
+          summary: "Fraud detection service is down"
+          description: "Fraud detection service is critical for transaction security"
+          
+      - alert: HighFraudScore
+        expr: avg_over_time(fraud_score[5m]) > 0.8
+        for: 1m
+        labels:
+          severity: warning
+          service: fraud-detection
+          team: security
+        annotations:
+          summary: "High fraud score detected"
+          description: "Average fraud score is {{ $value }} over the last 5 minutes"
+          
+      # KYC Service Alerts
+      - alert: KYCVerificationBacklog
+        expr: kyc_pending_verifications > 1000
+        for: 10m
+        labels:
+          severity: warning
+          service: kyc
+          team: compliance
+        annotations:
+          summary: "High KYC verification backlog"
+          description: "{{ $value }} KYC verifications are pending"
+          
+      # Resource Alerts
+      - alert: HighMemoryUsage
+        expr: (container_memory_working_set_bytes / container_spec_memory_limit_bytes) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High memory usage detected"
+          description: "Container {{ $labels.container }} in pod {{ $labels.pod }} is using {{ $value | humanizePercentage }} of memory"
+          
+      - alert: HighCPUUsage
+        expr: rate(container_cpu_usage_seconds_total[5m]) / container_spec_cpu_quota * container_spec_cpu_period > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High CPU usage detected"
+          description: "Container {{ $labels.container }} in pod {{ $labels.pod }} is using {{ $value | humanizePercentage }} of CPU"
+          
+      # Kafka Alerts
+      - alert: KafkaConsumerLag
+        expr: kafka_consumer_lag_sum > 10000
+        for: 5m
+        labels:
+          severity: warning
+          service: kafka
+          team: platform
+        annotations:
+          summary: "Kafka consumer lag is high"
+          description: "Consumer lag is {{ $value }} messages"
+          
+      # API Gateway Alerts
+      - alert: APIGatewayHighErrorRate
+        expr: rate(nginx_http_requests_total{status=~"5.."}[5m]) / rate(nginx_http_requests_total[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+          service: api-gateway
+          team: platform
+        annotations:
+          summary: "API Gateway high error rate"
+          description: "Error rate is {{ $value | humanizePercentage }}"
+          
+      # Business Metrics Alerts
+      - alert: DailyTransactionVolumeAnomaly
+        expr: abs(daily_transaction_volume - daily_transaction_volume offset 1d) / daily_transaction_volume offset 1d > 0.5
+        for: 30m
+        labels:
+          severity: warning
+          team: business
+        annotations:
+          summary: "Daily transaction volume anomaly"
+          description: "Transaction volume is {{ $value | humanizePercentage }} different from yesterday"
+          
+      - alert: RevenueDropAlert
+        expr: rate(revenue_total[1h]) < rate(revenue_total[1h] offset 24h) * 0.8
+        for: 30m
+        labels:
+          severity: critical
+          team: business
+        annotations:
+          summary: "Revenue drop detected"
+          description: "Hourly revenue is 20% below yesterday's rate"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      serviceAccountName: prometheus
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        fsGroup: 65534
+      containers:
+      - name: prometheus
+        image: prom/prometheus:v2.45.0
+        args:
+          - '--config.file=/etc/prometheus/prometheus.yml'
+          - '--storage.tsdb.path=/prometheus/'
+          - '--storage.tsdb.retention.time=30d'
+          - '--storage.tsdb.retention.size=50GB'
+          - '--web.console.libraries=/etc/prometheus/console_libraries'
+          - '--web.console.templates=/etc/prometheus/consoles'
+          - '--web.enable-lifecycle'
+          # SECURITY: Admin API disabled - allows data deletion/snapshot operations
+          # Only enable in non-production or with strict RBAC + audit logging
+          # - '--web.enable-admin-api'
+          - '--web.external-url=https://prometheus.example.com'
+          # SECURITY: Require authentication for web UI and API
+          - '--web.config.file=/etc/prometheus/web-config.yml'
+        ports:
+        - containerPort: 9090
+          name: web
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        volumeMounts:
+        - name: prometheus-config
+          mountPath: /etc/prometheus
+          readOnly: true
+        - name: prometheus-web-config
+          mountPath: /etc/prometheus/web-config.yml
+          subPath: web-config.yml
+          readOnly: true
+        - name: prometheus-auth
+          mountPath: /etc/prometheus/auth
+          readOnly: true
+        - name: prometheus-storage
+          mountPath: /prometheus
+        - name: rules
+          mountPath: /etc/prometheus/rules
+          readOnly: true
+        livenessProbe:
+          httpGet:
+            path: /-/healthy
+            port: 9090
+          initialDelaySeconds: 30
+          timeoutSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /-/ready
+            port: 9090
+          initialDelaySeconds: 30
+          timeoutSeconds: 30
+      volumes:
+      - name: prometheus-config
+        configMap:
+          name: prometheus-config
+      - name: prometheus-web-config
+        secret:
+          secretName: prometheus-web-config
+      - name: prometheus-auth
+        secret:
+          secretName: prometheus-auth
+      - name: rules
+        configMap:
+          name: prometheus-config
+          items:
+          - key: alerts.yml
+            path: alerts.yml
+      - name: prometheus-storage
+        persistentVolumeClaim:
+          claimName: prometheus-storage
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: prometheus-storage
+  namespace: monitoring
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Gi
+  storageClassName: gp3
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: monitoring
+  labels:
+    app: prometheus
+spec:
+  type: ClusterIP
+  ports:
+  - port: 9090
+    targetPort: 9090
+    name: web
+  selector:
+    app: prometheus
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus
+  namespace: monitoring
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: prometheus
+rules:
+- apiGroups: [""]
+  resources:
+  - nodes
+  - nodes/proxy
+  - services
+  - endpoints
+  - pods
+  verbs: ["get", "list", "watch"]
+- apiGroups:
+  - extensions
+  resources:
+  - ingresses
+  verbs: ["get", "list", "watch"]
+- nonResourceURLs: ["/metrics"]
+  verbs: ["get"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: prometheus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: prometheus
+subjects:
+- kind: ServiceAccount
+  name: prometheus
+  namespace: monitoring
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: prometheus-ingress
+  namespace: monitoring
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/auth-type: basic
+    nginx.ingress.kubernetes.io/auth-secret: prometheus-auth
+spec:
+  tls:
+  - hosts:
+    - prometheus.example.com
+    secretName: prometheus-tls
+  rules:
+  - host: prometheus.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: prometheus
+            port:
+              number: 9090
+
+---
+# SECURITY: Basic auth credentials managed by Vault
+# For production deployment, use: infrastructure/terraform/vault-secrets.tf
+# Generate strong credentials with: htpasswd -nbBC 12 USERNAME PASSWORD | base64
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: prometheus-auth
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: prometheus
+    security.example.com/managed-by: vault
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: vault-backend
+    kind: ClusterSecretStore
+  target:
+    name: prometheus-auth
+    creationPolicy: Owner
+  data:
+    - secretKey: auth
+      remoteRef:
+        key: secret/monitoring/prometheus
+        property: basic_auth_htpasswd
+
+---
+# Prometheus Web Config for Authentication (referenced by --web.config.file)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: prometheus-web-config
+  namespace: monitoring
+type: Opaque
+stringData:
+  web-config.yml: |
+    # Prometheus Web Authentication Configuration
+    # https://prometheus.io/docs/prometheus/latest/configuration/https/
+    basic_auth_users:
+      # Users loaded from prometheus-auth secret
+      # Format: username: bcrypt_hashed_password
+      # Generate with: htpasswd -nbBC 12 username password
+      #
+      # CRITICAL: Do NOT use default credentials (admin:admin)
+      # Rotate credentials every 90 days
+      # Use strong passwords (min 16 characters, alphanumeric + symbols)
+      __from_secret__: /etc/prometheus/auth/auth
+
+    tls_server_config:
+      # TLS configuration for HTTPS
+      cert_file: /etc/prometheus/certs/tls.crt
+      key_file: /etc/prometheus/certs/tls.key
+      # Require TLS 1.2 minimum
+      min_version: TLS12
+      # Strong cipher suites only
+      cipher_suites:
+        - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+        - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+        - TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+        - TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256

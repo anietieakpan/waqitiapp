@@ -1,0 +1,255 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: waqiti-system
+
+resources:
+  # Core services
+  - ../../base/user-service
+  - ../../base/wallet-service
+  - ../../base/payment-service
+  - ../../base/notification-service
+  - ../../base/security-service
+  - ../../base/analytics-service
+  - ../../base/api-gateway
+  - ../../base/config-service
+  - ../../base/discovery-service
+  
+  # New microservices
+  - ../../base/ml-service
+  - ../../base/event-sourcing-service
+  - ../../base/recurring-payment-service
+  - ../../base/audit-service
+  - ../../base/compliance-service
+  - ../../base/core-banking-service
+  - ../../base/reconciliation-service
+  - ../../base/reporting-service
+  
+  # Overlay configurations
+  - secrets.yaml
+  - configmaps.yaml
+  - network-policies.yaml
+  - service-monitors.yaml
+
+images:
+  # Core services
+  - name: ghcr.io/waqiti/p2p-platform-user-service
+    newTag: main-latest
+  - name: ghcr.io/waqiti/p2p-platform-wallet-service
+    newTag: main-latest
+  - name: ghcr.io/waqiti/p2p-platform-payment-service
+    newTag: main-latest
+  - name: ghcr.io/waqiti/p2p-platform-notification-service
+    newTag: main-latest
+  - name: ghcr.io/waqiti/p2p-platform-security-service
+    newTag: main-latest
+  - name: ghcr.io/waqiti/p2p-platform-analytics-service
+    newTag: main-latest
+  - name: ghcr.io/waqiti/p2p-platform-api-gateway
+    newTag: main-latest
+  
+  # New microservices
+  - name: waqiti/ml-service
+    newTag: v1.0.0-production
+  - name: waqiti/event-sourcing-service
+    newTag: v1.0.0-production
+  - name: waqiti/recurring-payment-service
+    newTag: v1.0.0-production
+  - name: waqiti/audit-service
+    newTag: v1.0.0-production
+  - name: waqiti/compliance-service
+    newTag: v1.0.0-production
+  - name: waqiti/core-banking-service
+    newTag: v1.0.0-production
+  - name: waqiti/reconciliation-service
+    newTag: v1.0.0-production
+  - name: waqiti/reporting-service
+    newTag: v1.0.0-production
+
+patchesStrategicMerge:
+  - patches/production-resources.yaml
+  - patches/production-environment.yaml
+  - patches/production-security.yaml
+
+patches:
+  # Production resource limits for new services
+  - target:
+      kind: Deployment
+      name: ml-service
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: 4000m
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: 8Gi
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: 1000m
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: 2Gi
+  
+  - target:
+      kind: Deployment
+      name: event-sourcing-service
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: 4000m
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: 8Gi
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: 1000m
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: 2Gi
+  
+  - target:
+      kind: Deployment
+      name: recurring-payment-service
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: 2000m
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: 4Gi
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: 500m
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: 1Gi
+  
+  # Production HPA scaling for new services
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: ml-service-hpa
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 5
+      - op: replace
+        path: /spec/maxReplicas
+        value: 50
+  
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: event-sourcing-service-hpa
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 5
+      - op: replace
+        path: /spec/maxReplicas
+        value: 30
+  
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: recurring-payment-service-hpa
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 4
+      - op: replace
+        path: /spec/maxReplicas
+        value: 25
+  
+  # Production storage for new services
+  - target:
+      kind: PersistentVolumeClaim
+      name: ml-models-pvc
+    patch: |-
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: 200Gi
+      - op: replace
+        path: /spec/storageClassName
+        value: fast-ssd-production
+  
+  - target:
+      kind: PersistentVolumeClaim
+      name: model-backups-pvc
+    patch: |-
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: 500Gi
+      - op: replace
+        path: /spec/storageClassName
+        value: standard-production
+  
+  - target:
+      kind: PersistentVolumeClaim
+      name: event-archives-pvc
+    patch: |-
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: 1Ti
+      - op: replace
+        path: /spec/storageClassName
+        value: standard-production
+  
+  # Default scaling for all services
+  - target:
+      kind: Deployment
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 5
+  - target:
+      kind: HorizontalPodAutoscaler
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 5
+      - op: replace
+        path: /spec/maxReplicas
+        value: 50
+
+replicas:
+  # Core services
+  - name: user-service
+    count: 5
+  - name: wallet-service
+    count: 5
+  - name: payment-service
+    count: 7
+  - name: notification-service
+    count: 3
+  - name: security-service
+    count: 3
+  - name: analytics-service
+    count: 2
+  - name: api-gateway
+    count: 5
+  
+  # New microservices
+  - name: ml-service
+    count: 5
+  - name: event-sourcing-service
+    count: 5
+  - name: recurring-payment-service
+    count: 4
+  - name: audit-service
+    count: 3
+  - name: compliance-service
+    count: 3
+  - name: core-banking-service
+    count: 4
+  - name: reconciliation-service
+    count: 3
+  - name: reporting-service
+    count: 3
+
+commonLabels:
+  environment: production
+  version: v1.0.0
+  app.kubernetes.io/managed-by: kustomize
+
+commonAnnotations:
+  deployment.kubernetes.io/revision: "1"
+  meta.helm.sh/release-name: example-platform
+  meta.helm.sh/release-namespace: waqiti-system

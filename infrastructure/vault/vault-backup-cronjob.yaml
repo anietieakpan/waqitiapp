@@ -1,0 +1,73 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: vault-backup
+  namespace: vault-system
+spec:
+  # Run backup every 6 hours
+  schedule: "0 */6 * * *"
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid
+
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: vault-backup
+        spec:
+          serviceAccountName: vault
+          restartPolicy: OnFailure
+
+          containers:
+            - name: backup
+              image: hashicorp/vault:1.15.4
+
+              env:
+                - name: VAULT_ADDR
+                  value: "https://vault.vault-system.svc.cluster.local:8200"
+                - name: VAULT_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: vault-backup-token
+                      key: token
+                - name: AWS_REGION
+                  value: "us-east-1"
+                - name: S3_BACKUP_BUCKET
+                  value: "waqiti-vault-backups"
+
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -e
+
+                  BACKUP_DATE=$(date +%Y-%m-%d-%H%M%S)
+                  BACKUP_FILE="/tmp/vault-backup-${BACKUP_DATE}.snap"
+
+                  echo "Creating Raft snapshot..."
+                  vault operator raft snapshot save "$BACKUP_FILE"
+
+                  echo "Uploading to S3..."
+                  aws s3 cp "$BACKUP_FILE" "s3://${S3_BACKUP_BUCKET}/raft-snapshots/vault-backup-${BACKUP_DATE}.snap"
+
+                  echo "Backup completed: vault-backup-${BACKUP_DATE}.snap"
+
+                  # Cleanup old backups (keep last 30 days)
+                  echo "Cleaning up old backups..."
+                  aws s3 ls "s3://${S3_BACKUP_BUCKET}/raft-snapshots/" | \
+                    awk '{print $4}' | \
+                    sort -r | \
+                    tail -n +121 | \
+                    xargs -I {} aws s3 rm "s3://${S3_BACKUP_BUCKET}/raft-snapshots/{}"
+
+                  echo "Backup job complete ✓"
+
+              resources:
+                requests:
+                  cpu: "100m"
+                  memory: "256Mi"
+                limits:
+                  cpu: "500m"
+                  memory: "1Gi"

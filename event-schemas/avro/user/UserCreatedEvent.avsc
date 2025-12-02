@@ -1,0 +1,63 @@
+{
+  "namespace": "com.waqiti.events.user",
+  "type": "record",
+  "name": "UserCreatedEvent",
+  "doc": "Event published when a new user is created in the system",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "Unique identifier for this event"
+    },
+    {
+      "name": "userId",
+      "type": "string",
+      "doc": "Unique identifier for the user"
+    },
+    {
+      "name": "email",
+      "type": "string",
+      "doc": "User email address"
+    },
+    {
+      "name": "phoneNumber",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "User phone number"
+    },
+    {
+      "name": "firstName",
+      "type": "string",
+      "doc": "User first name"
+    },
+    {
+      "name": "lastName",
+      "type": "string",
+      "doc": "User last name"
+    },
+    {
+      "name": "kycStatus",
+      "type": {
+        "type": "enum",
+        "name": "KycStatus",
+        "symbols": ["PENDING", "VERIFIED", "REJECTED"]
+      },
+      "doc": "KYC verification status"
+    },
+    {
+      "name": "createdAt",
+      "type": "long",
+      "logicalType": "timestamp-millis",
+      "doc": "Timestamp when user was created"
+    },
+    {
+      "name": "metadata",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "default": {},
+      "doc": "Additional metadata"
+    }
+  ]
+}

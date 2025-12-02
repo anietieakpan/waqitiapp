@@ -1,0 +1,338 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+  namespace: default
+  labels:
+    app: user-service
+    strategy: rolling-update
+spec:
+  replicas: 6
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: user-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 2        # Maximum pods above desired replica count
+      maxUnavailable: 1  # Maximum pods that can be unavailable
+  minReadySeconds: 30    # Wait before considering pod ready
+  progressDeadlineSeconds: 600  # Max time for deployment
+  template:
+    metadata:
+      labels:
+        app: user-service
+        version: "{{ .Values.version }}"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
+        rollme: "{{ .Values.rollme }}"  # Force pod restart on config change
+    spec:
+      serviceAccountName: user-service
+      terminationGracePeriodSeconds: 60
+      containers:
+      - name: user-service
+        image: waqiti/user-service:{{ .Values.imageTag }}
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        - containerPort: 8443
+          name: https
+          protocol: TCP
+        - containerPort: 9090
+          name: metrics
+          protocol: TCP
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "production"
+        - name: SERVER_SHUTDOWN
+          value: "graceful"
+        - name: MANAGEMENT_ENDPOINT_SHUTDOWN_ENABLED
+          value: "true"
+        - name: DATABASE_HOST
+          value: "waqiti-postgres-primary.database.svc.cluster.local"
+        - name: REDIS_HOST
+          value: "redis-cluster.database.svc.cluster.local"
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          timeoutSeconds: 3
+          successThreshold: 1
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /health/startup
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 30
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        volumeMounts:
+        - name: config
+          mountPath: /app/config
+          readOnly: true
+        lifecycle:
+          preStop:
+            exec:
+              command:
+              - /bin/sh
+              - -c
+              - |
+                # Graceful shutdown script
+                echo "Starting graceful shutdown..."
+                
+                # Signal app to stop accepting new requests
+                curl -X POST http://localhost:8080/actuator/shutdown || true
+                
+                # Wait for in-flight requests to complete
+                sleep 15
+                
+                # Deregister from service discovery
+                curl -X DELETE http://localhost:8080/actuator/service-registry || true
+                
+                echo "Graceful shutdown complete"
+      volumes:
+      - name: config
+        configMap:
+          name: user-service-config
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - user-service
+              topologyKey: kubernetes.io/hostname
+        podAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 50
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - redis
+              topologyKey: kubernetes.io/hostname
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rolling-update-config
+  namespace: default
+  labels:
+    app: deployment-strategy
+data:
+  update-strategy.sh: |
+    #!/bin/bash
+    set -e
+    
+    # Rolling Update Orchestration Script
+    
+    SERVICE_NAME=$1
+    NEW_IMAGE=$2
+    NAMESPACE=${3:-default}
+    
+    if [ -z "$SERVICE_NAME" ] || [ -z "$NEW_IMAGE" ]; then
+      echo "Usage: $0 <service-name> <new-image> [namespace]"
+      exit 1
+    fi
+    
+    echo "Starting rolling update for $SERVICE_NAME to $NEW_IMAGE"
+    
+    # Step 1: Pre-deployment validation
+    echo "Step 1: Pre-deployment validation..."
+    
+    # Check current deployment status
+    CURRENT_REPLICAS=$(kubectl get deployment $SERVICE_NAME -n $NAMESPACE -o jsonpath='{.status.replicas}')
+    READY_REPLICAS=$(kubectl get deployment $SERVICE_NAME -n $NAMESPACE -o jsonpath='{.status.readyReplicas}')
+    
+    if [ "$CURRENT_REPLICAS" != "$READY_REPLICAS" ]; then
+      echo "ERROR: Deployment is not healthy. $READY_REPLICAS/$CURRENT_REPLICAS replicas ready"
+      exit 1
+    fi
+    
+    echo "✓ Current deployment is healthy: $READY_REPLICAS replicas ready"
+    
+    # Step 2: Create backup of current deployment
+    echo "Step 2: Creating deployment backup..."
+    kubectl get deployment $SERVICE_NAME -n $NAMESPACE -o yaml > /tmp/${SERVICE_NAME}-backup-$(date +%s).yaml
+    echo "✓ Backup created"
+    
+    # Step 3: Update deployment image
+    echo "Step 3: Updating deployment image..."
+    kubectl set image deployment/$SERVICE_NAME $SERVICE_NAME=$NEW_IMAGE -n $NAMESPACE --record
+    
+    # Step 4: Monitor rollout
+    echo "Step 4: Monitoring rollout progress..."
+    
+    # Watch rollout status
+    kubectl rollout status deployment/$SERVICE_NAME -n $NAMESPACE --timeout=10m
+    
+    if [ $? -eq 0 ]; then
+      echo "✓ Rolling update completed successfully"
+    else
+      echo "✗ Rolling update failed or timed out"
+      echo "Initiating automatic rollback..."
+      kubectl rollout undo deployment/$SERVICE_NAME -n $NAMESPACE
+      kubectl rollout status deployment/$SERVICE_NAME -n $NAMESPACE --timeout=5m
+      exit 1
+    fi
+    
+    # Step 5: Post-deployment validation
+    echo "Step 5: Post-deployment validation..."
+    
+    # Wait for pods to stabilize
+    sleep 30
+    
+    # Check pod status
+    UNHEALTHY_PODS=$(kubectl get pods -n $NAMESPACE -l app=$SERVICE_NAME -o json | jq '.items[] | select(.status.phase != "Running") | .metadata.name' | wc -l)
+    
+    if [ "$UNHEALTHY_PODS" -gt 0 ]; then
+      echo "⚠ Warning: $UNHEALTHY_PODS unhealthy pods detected"
+    else
+      echo "✓ All pods are running"
+    fi
+    
+    # Verify service endpoints
+    ENDPOINTS=$(kubectl get endpoints $SERVICE_NAME -n $NAMESPACE -o jsonpath='{.subsets[*].addresses[*].ip}' | wc -w)
+    echo "✓ Service has $ENDPOINTS active endpoints"
+    
+    # Step 6: Run smoke tests
+    echo "Step 6: Running smoke tests..."
+    
+    # Get a pod to test
+    TEST_POD=$(kubectl get pods -n $NAMESPACE -l app=$SERVICE_NAME -o jsonpath='{.items[0].metadata.name}')
+    
+    # Health check
+    kubectl exec $TEST_POD -n $NAMESPACE -- curl -s http://localhost:8080/health/ready > /dev/null
+    if [ $? -eq 0 ]; then
+      echo "✓ Health check passed"
+    else
+      echo "✗ Health check failed"
+    fi
+    
+    # Version check
+    VERSION=$(kubectl exec $TEST_POD -n $NAMESPACE -- curl -s http://localhost:8080/api/version | jq -r '.version')
+    echo "✓ Running version: $VERSION"
+    
+    echo ""
+    echo "Rolling update completed successfully!"
+    echo "Deployment: $SERVICE_NAME"
+    echo "New image: $NEW_IMAGE"
+    echo "Namespace: $NAMESPACE"
+    echo ""
+    echo "Rollback command (if needed):"
+    echo "  kubectl rollout undo deployment/$SERVICE_NAME -n $NAMESPACE"
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: user-service-pdb
+  namespace: default
+  labels:
+    app: user-service
+spec:
+  minAvailable: 50%
+  selector:
+    matchLabels:
+      app: user-service
+  unhealthyPodEvictionPolicy: IfHealthyBudget
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: user-service-hpa
+  namespace: default
+  labels:
+    app: user-service
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: user-service
+  minReplicas: 3
+  maxReplicas: 20
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 25
+        periodSeconds: 60
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+  namespace: default
+  labels:
+    app: user-service
+spec:
+  selector:
+    app: user-service
+  ports:
+  - port: 8080
+    targetPort: 8080
+    name: http
+  - port: 8443
+    targetPort: 8443
+    name: https
+  - port: 9090
+    targetPort: 9090
+    name: metrics
+  type: ClusterIP
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 3600

@@ -1,0 +1,416 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config
+  namespace: monitoring
+  labels:
+    app: alertmanager
+    component: alerting
+data:
+  alertmanager.yml: |
+    global:
+      smtp_smarthost: 'smtp.example.com:587'
+      smtp_from: 'alerts@example.com'
+      smtp_auth_username: 'alerts@example.com'
+      smtp_auth_password_file: '/etc/alertmanager/secrets/smtp-password'
+      slack_api_url_file: '/etc/alertmanager/secrets/slack-webhook-url'
+      pagerduty_url: 'https://events.pagerduty.com/v2/enqueue'
+      resolve_timeout: 5m
+    
+    templates:
+    - '/etc/alertmanager/templates/*.tmpl'
+    
+    route:
+      group_by: ['alertname', 'cluster', 'service']
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+      receiver: 'default-receiver'
+      routes:
+      # Critical financial alerts - immediate PagerDuty + Slack
+      - match:
+          severity: critical
+        receiver: 'critical-alerts'
+        group_wait: 0s
+        group_interval: 1m
+        repeat_interval: 15m
+        routes:
+        - match:
+            service: payment
+          receiver: 'payment-critical'
+        - match:
+            service: wallet  
+          receiver: 'wallet-critical'
+        - match:
+            service: fraud
+          receiver: 'fraud-critical'
+      
+      # Business alerts - Slack + Email
+      - match:
+          team: operations
+        receiver: 'business-operations'
+        group_interval: 10m
+        repeat_interval: 2h
+      
+      # Infrastructure alerts - Platform team
+      - match:
+          team: platform
+        receiver: 'platform-team'
+        routes:
+        - match:
+            severity: critical
+          receiver: 'platform-critical'
+      
+      # Compliance alerts - Compliance team
+      - match:
+          team: compliance
+        receiver: 'compliance-team'
+        group_interval: 15m
+        repeat_interval: 4h
+      
+      # Security alerts - Security team
+      - match:
+          team: security
+        receiver: 'security-team'
+        group_wait: 0s
+        group_interval: 5m
+    
+    inhibit_rules:
+    - source_match:
+        severity: 'critical'
+      target_match:
+        severity: 'warning'
+      equal: ['alertname', 'cluster', 'service']
+    
+    - source_match:
+        alertname: 'PaymentServiceDown'
+      target_match_re:
+        alertname: 'Payment.*'
+      equal: ['instance']
+    
+    receivers:
+    - name: 'default-receiver'
+      email_configs:
+      - to: 'platform@example.com'
+        subject: 'Waqiti Alert: {{ .GroupLabels.alertname }}'
+        body: |
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Severity: {{ .Labels.severity }}
+          Service: {{ .Labels.service }}
+          Instance: {{ .Labels.instance }}
+          {{ end }}
+    
+    - name: 'critical-alerts'
+      pagerduty_configs:
+      - routing_key_file: '/etc/alertmanager/secrets/pagerduty-key'
+        description: '{{ .GroupLabels.alertname }}: {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+        severity: 'critical'
+        details:
+          service: '{{ .GroupLabels.service }}'
+          cluster: '{{ .GroupLabels.cluster }}'
+          runbook: '{{ range .Alerts }}{{ .Annotations.runbook_url }}{{ end }}'
+      slack_configs:
+      - channel: '#critical-alerts'
+        title: '🚨 CRITICAL: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          *Alert:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          *Service:* {{ .Labels.service }}
+          *Severity:* {{ .Labels.severity }}
+          *Runbook:* {{ .Annotations.runbook_url }}
+          {{ end }}
+        color: 'danger'
+        send_resolved: true
+    
+    - name: 'payment-critical'
+      pagerduty_configs:
+      - routing_key_file: '/etc/alertmanager/secrets/pagerduty-payment-key'
+        description: 'Payment System Critical: {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+        severity: 'critical'
+        component: 'payment-service'
+        group: 'financial-services'
+      slack_configs:
+      - channel: '#payment-alerts'
+        title: '💳 PAYMENT CRITICAL: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          *Alert:* {{ .Annotations.summary }}
+          *Impact:* Critical payment system failure
+          *Action Required:* Immediate investigation required
+          *Runbook:* {{ .Annotations.runbook_url }}
+          {{ end }}
+        color: 'danger'
+      email_configs:
+      - to: 'payment-team@example.com,admin@example.com'
+        subject: 'CRITICAL: Payment System Alert'
+        headers:
+          Priority: 'high'
+    
+    - name: 'wallet-critical'
+      pagerduty_configs:
+      - routing_key_file: '/etc/alertmanager/secrets/pagerduty-wallet-key'
+        description: 'Wallet System Critical: {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+        severity: 'critical'
+        component: 'wallet-service'
+      slack_configs:
+      - channel: '#wallet-alerts'
+        title: '💰 WALLET CRITICAL: {{ .GroupLabels.alertname }}'
+        color: 'danger'
+      email_configs:
+      - to: 'wallet-team@example.com,admin@example.com'
+        subject: 'CRITICAL: Wallet System Alert'
+    
+    - name: 'fraud-critical'
+      pagerduty_configs:
+      - routing_key_file: '/etc/alertmanager/secrets/pagerduty-security-key'
+        description: 'Fraud Detection Critical: {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+        severity: 'critical'
+        component: 'fraud-service'
+      slack_configs:
+      - channel: '#security-alerts'
+        title: '🛡️ FRAUD DETECTION CRITICAL: {{ .GroupLabels.alertname }}'
+        color: 'danger'
+      email_configs:
+      - to: 'security@example.com,admin@example.com'
+        subject: 'CRITICAL: Fraud Detection Alert'
+    
+    - name: 'business-operations'
+      slack_configs:
+      - channel: '#business-ops'
+        title: '📊 Business Alert: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          *Metric:* {{ .Annotations.summary }}
+          *Details:* {{ .Annotations.description }}
+          *Impact:* Business operations may be affected
+          {{ end }}
+        color: 'warning'
+      email_configs:
+      - to: 'operations@example.com'
+        subject: 'Business Operations Alert: {{ .GroupLabels.alertname }}'
+    
+    - name: 'platform-team'
+      slack_configs:
+      - channel: '#platform-alerts'
+        title: '🔧 Platform Alert: {{ .GroupLabels.alertname }}'
+        color: 'warning'
+      email_configs:
+      - to: 'platform@example.com'
+        subject: 'Platform Alert: {{ .GroupLabels.alertname }}'
+    
+    - name: 'platform-critical'
+      pagerduty_configs:
+      - routing_key_file: '/etc/alertmanager/secrets/pagerduty-platform-key'
+        description: 'Platform Critical: {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+        severity: 'critical'
+        component: 'infrastructure'
+      slack_configs:
+      - channel: '#platform-critical'
+        title: '🚨 PLATFORM CRITICAL: {{ .GroupLabels.alertname }}'
+        color: 'danger'
+      email_configs:
+      - to: 'platform@example.com,cto@example.com'
+        subject: 'CRITICAL: Platform Infrastructure Alert'
+    
+    - name: 'compliance-team'
+      slack_configs:
+      - channel: '#compliance-alerts'
+        title: '⚖️ Compliance Alert: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          *Issue:* {{ .Annotations.summary }}
+          *Details:* {{ .Annotations.description }}
+          *Regulatory Impact:* May affect compliance reporting
+          {{ end }}
+        color: 'warning'
+      email_configs:
+      - to: 'compliance@example.com'
+        subject: 'Compliance Alert: {{ .GroupLabels.alertname }}'
+    
+    - name: 'security-team'
+      slack_configs:
+      - channel: '#security-alerts'
+        title: '🛡️ Security Alert: {{ .GroupLabels.alertname }}'
+        color: 'danger'
+      email_configs:
+      - to: 'security@example.com'
+        subject: 'Security Alert: {{ .GroupLabels.alertname }}'
+        headers:
+          Priority: 'high'
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-templates
+  namespace: monitoring
+  labels:
+    app: alertmanager
+    component: templates
+data:
+  waqiti.tmpl: |
+    {{ define "slack.waqiti.title" }}
+    [{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}] {{ .GroupLabels.SortedPairs.Values | join " " }} {{ if gt (len .CommonLabels) (len .GroupLabels) }}({{ with .CommonLabels.Remove .GroupLabels.Names }}{{ .Values | join " " }}{{ end }}){{ end }}
+    {{ end }}
+    
+    {{ define "slack.waqiti.text" }}
+    {{ range .Alerts -}}
+    *Alert:* {{ .Annotations.title }}{{ if .Labels.severity }} - `{{ .Labels.severity }}`{{ end }}
+    
+    {{ if .Annotations.summary }}*Summary:* {{ .Annotations.summary }}{{ end }}
+    
+    {{ if .Annotations.description }}*Description:* {{ .Annotations.description }}{{ end }}
+    
+    *Details:*
+      {{ range .Labels.SortedPairs }} • *{{ .Name }}:* `{{ .Value }}`
+      {{ end }}
+    {{ if .Annotations.runbook_url }}
+    *Runbook:* {{ .Annotations.runbook_url }}{{ end }}
+    {{ end }}
+    {{ end }}
+    
+    {{ define "email.waqiti.html" }}
+    <html>
+    <head>
+      <style>
+        body { font-family: Arial, sans-serif; }
+        .alert-critical { background-color: #ff4444; color: white; }
+        .alert-warning { background-color: #ffaa00; color: white; }
+        .alert-info { background-color: #00aaff; color: white; }
+        .alert-header { padding: 10px; margin: 10px 0; }
+        .alert-details { background-color: #f5f5f5; padding: 10px; margin: 10px 0; }
+        .alert-resolved { background-color: #00aa44; color: white; }
+      </style>
+    </head>
+    <body>
+      <h2>Waqiti Platform Alert</h2>
+      {{ range .Alerts }}
+        <div class="alert-{{ .Labels.severity }}">
+          <div class="alert-header">
+            <strong>{{ .Annotations.summary }}</strong>
+          </div>
+          <div class="alert-details">
+            <p><strong>Description:</strong> {{ .Annotations.description }}</p>
+            <p><strong>Service:</strong> {{ .Labels.service }}</p>
+            <p><strong>Severity:</strong> {{ .Labels.severity }}</p>
+            <p><strong>Instance:</strong> {{ .Labels.instance }}</p>
+            {{ if .Annotations.runbook_url }}
+            <p><strong>Runbook:</strong> <a href="{{ .Annotations.runbook_url }}">{{ .Annotations.runbook_url }}</a></p>
+            {{ end }}
+            <p><strong>Status:</strong> {{ .Status }}</p>
+            <p><strong>Started:</strong> {{ .StartsAt.Format "2006-01-02 15:04:05 UTC" }}</p>
+          </div>
+        </div>
+      {{ end }}
+    </body>
+    </html>
+    {{ end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alertmanager
+  namespace: monitoring
+  labels:
+    app: alertmanager
+    component: alerting
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: alertmanager
+  template:
+    metadata:
+      labels:
+        app: alertmanager
+    spec:
+      serviceAccountName: alertmanager
+      containers:
+      - name: alertmanager
+        image: prom/alertmanager:v0.26.0
+        args:
+          - '--config.file=/etc/alertmanager/alertmanager.yml'
+          - '--storage.path=/alertmanager'
+          - '--data.retention=120h'
+          - '--web.listen-address=:9093'
+          - '--web.route-prefix=/'
+          - '--cluster.listen-address=:9094'
+          - '--cluster.peer=alertmanager-0.alertmanager:9094'
+          - '--cluster.peer=alertmanager-1.alertmanager:9094'
+        ports:
+        - containerPort: 9093
+          name: web
+        - containerPort: 9094
+          name: cluster
+        volumeMounts:
+        - name: alertmanager-config
+          mountPath: /etc/alertmanager
+        - name: alertmanager-templates
+          mountPath: /etc/alertmanager/templates
+        - name: alertmanager-secrets
+          mountPath: /etc/alertmanager/secrets
+          readOnly: true
+        - name: alertmanager-storage
+          mountPath: /alertmanager
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "200m"
+        livenessProbe:
+          httpGet:
+            path: /-/healthy
+            port: 9093
+          initialDelaySeconds: 30
+          timeoutSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /-/ready
+            port: 9093
+          initialDelaySeconds: 5
+          timeoutSeconds: 10
+      volumes:
+      - name: alertmanager-config
+        configMap:
+          name: alertmanager-config
+      - name: alertmanager-templates
+        configMap:
+          name: alertmanager-templates
+      - name: alertmanager-secrets
+        secret:
+          secretName: alertmanager-secrets
+      - name: alertmanager-storage
+        persistentVolumeClaim:
+          claimName: alertmanager-storage
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: alertmanager-storage
+  namespace: monitoring
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: fast-ssd
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: alertmanager-secrets
+  namespace: monitoring
+type: Opaque
+stringData:
+  smtp-password: "${vault.alertmanager.smtp.password:VAULT_SECRET_REQUIRED}"
+  slack-webhook-url: "${vault.alertmanager.slack.webhook:VAULT_SECRET_REQUIRED}"
+  pagerduty-key: "${vault.alertmanager.pagerduty.general.key:VAULT_SECRET_REQUIRED}"
+  pagerduty-payment-key: "${vault.alertmanager.pagerduty.payment.key:VAULT_SECRET_REQUIRED}"
+  pagerduty-wallet-key: "${vault.alertmanager.pagerduty.wallet.key:VAULT_SECRET_REQUIRED}"
+  pagerduty-security-key: "${vault.alertmanager.pagerduty.security.key:VAULT_SECRET_REQUIRED}"
+  pagerduty-platform-key: "${vault.alertmanager.pagerduty.platform.key:VAULT_SECRET_REQUIRED}"

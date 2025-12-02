@@ -1,0 +1,531 @@
+# ============================================================================
+# STANDARDIZED TIMEOUT CONFIGURATION v1.0
+# ============================================================================
+#
+# Single source of truth for ALL timeout configurations across Waqiti platform
+#
+# HIERARCHY:
+# 1. Service-specific (highest priority) → services.{service-name}
+# 2. Category defaults → categories.{category-name}
+# 3. Global defaults (lowest priority) → global
+#
+# PRINCIPLES:
+# - Connection Timeout: Time to establish TCP connection (fail fast)
+# - Read Timeout: Time waiting for response (prevent hangs)
+# - Always set BOTH to prevent thread exhaustion
+# - Coordinate with Circuit Breaker slowCallDurationThreshold
+#
+# LAST UPDATED: 2025-01-24
+# ============================================================================
+
+waqiti:
+  timeouts:
+    # ========================================================================
+    # LEVEL 1: Global Defaults (fallback for unconfigured services)
+    # ========================================================================
+    global:
+      connect-timeout-ms: 3000      # 3 seconds
+      read-timeout-ms: 10000        # 10 seconds
+      write-timeout-ms: 5000        # 5 seconds
+      connection-request-timeout-ms: 5000  # Time to get connection from pool
+
+    # ========================================================================
+    # LEVEL 2: Category Defaults (by service type)
+    # ========================================================================
+    categories:
+      # CRITICAL: User-facing, must be fast (<10s total)
+      critical:
+        connect-timeout-ms: 2000    # 2s
+        read-timeout-ms: 5000       # 5s
+        description: "User-facing operations requiring fast response"
+        services:
+          - user-service
+          - fraud-detection-service
+          - wallet-service
+          - risk-service
+
+      # STANDARD: Internal services (10-20s total)
+      standard:
+        connect-timeout-ms: 3000    # 3s
+        read-timeout-ms: 15000      # 15s
+        description: "Standard internal services"
+        services:
+          - ledger-service
+          - transaction-service
+          - account-service
+          - notification-service
+          - audit-service
+          - security-service
+
+      # LONG-RUNNING: Complex operations (30-120s)
+      long-running:
+        connect-timeout-ms: 5000    # 5s
+        read-timeout-ms: 60000      # 60s (1 minute)
+        description: "Complex processing (compliance, analytics)"
+        services:
+          - compliance-service
+          - kyc-service
+          - analytics-service
+          - tax-service
+          - reconciliation-service
+
+      # EXTERNAL: Third-party APIs (variable latency)
+      external:
+        connect-timeout-ms: 10000   # 10s
+        read-timeout-ms: 30000      # 30s
+        description: "External third-party services"
+        services:
+          - stripe-api
+          - paypal-api
+          - square-api
+          - plaid-api
+          - twilio-api
+          - sendgrid-api
+
+      # BATCH: Background processing (5+ minutes)
+      batch:
+        connect-timeout-ms: 10000   # 10s
+        read-timeout-ms: 300000     # 300s (5 minutes)
+        description: "Batch jobs and background processing"
+        services:
+          - reporting-service
+          - data-export-service
+          - backup-service
+
+    # ========================================================================
+    # LEVEL 3: Service-Specific Overrides
+    # ========================================================================
+    services:
+      # ----------------------------------------------------------------------
+      # CRITICAL SERVICES (User-facing, <5s)
+      # ----------------------------------------------------------------------
+
+      # User authentication and profile
+      user-service:
+        category: critical
+        connect-timeout-ms: 2000
+        read-timeout-ms: 5000
+        override-reason: "User lookups must be fast for authentication"
+
+      # Fraud detection - must be FAST
+      fraud-detection-service:
+        category: critical
+        connect-timeout-ms: 2000
+        read-timeout-ms: 5000
+        override-reason: "Fraud checks blocking payment flow"
+
+      # Wallet balance operations
+      wallet-service:
+        category: critical
+        connect-timeout-ms: 2000
+        read-timeout-ms: 8000        # Slightly higher for complex calculations
+        override-reason: "Balance calculations with multiple accounts"
+
+      # Risk scoring for transactions
+      risk-service:
+        category: critical
+        connect-timeout-ms: 2000
+        read-timeout-ms: 6000
+        override-reason: "Risk scoring for transaction approval"
+
+      # ----------------------------------------------------------------------
+      # STANDARD SERVICES (10-20s)
+      # ----------------------------------------------------------------------
+
+      # Payment processing core
+      payment-service:
+        category: standard
+        connect-timeout-ms: 3000
+        read-timeout-ms: 10000
+        override-reason: "Standard payment flow"
+
+      # Financial ledger
+      ledger-service:
+        category: standard
+        connect-timeout-ms: 3000
+        read-timeout-ms: 15000
+        override-reason: "Ledger writes can be slower due to ACID requirements"
+
+      # Transaction engine
+      transaction-service:
+        category: standard
+        connect-timeout-ms: 3000
+        read-timeout-ms: 20000
+        override-reason: "Complex transaction orchestration"
+
+      # Account management
+      account-service:
+        category: standard
+        connect-timeout-ms: 3000
+        read-timeout-ms: 15000
+
+      # Notifications (fire-and-forget)
+      notification-service:
+        category: standard
+        connect-timeout-ms: 3000
+        read-timeout-ms: 10000
+        override-reason: "Can fail gracefully"
+
+      # Security operations
+      security-service:
+        category: standard
+        connect-timeout-ms: 3000
+        read-timeout-ms: 15000
+
+      # Audit logging
+      audit-service:
+        category: standard
+        connect-timeout-ms: 3000
+        read-timeout-ms: 15000
+
+      # ----------------------------------------------------------------------
+      # LONG-RUNNING SERVICES (30-120s)
+      # ----------------------------------------------------------------------
+
+      # Compliance/AML screening - NOW WITH PARALLEL SCREENING
+      compliance-service:
+        category: long-running
+        connect-timeout-ms: 5000
+        read-timeout-ms: 60000       # 60s max for parallel OFAC/EU/UN
+        override-reason: "AML/OFAC screening (optimized with parallel checks)"
+        note: "Was 10s+ sequential, now 2-3s typical with parallel execution"
+
+      # Sanctions screening - PARALLEL IMPLEMENTATION
+      sanctions-screening:
+        category: long-running
+        connect-timeout-ms: 5000
+        read-timeout-ms: 15000       # 15s (3x typical 2-3s parallel time)
+        override-reason: "NEW: Parallel OFAC/EU/UN checks complete in 2-3s"
+        note: "Allow 15s for worst-case with retries and slow APIs"
+
+      # KYC identity verification
+      kyc-service:
+        category: long-running
+        connect-timeout-ms: 5000
+        read-timeout-ms: 90000       # 90s for document upload/verification
+        override-reason: "Document verification with OCR processing"
+
+      # Tax calculations
+      tax-service:
+        category: long-running
+        connect-timeout-ms: 5000
+        read-timeout-ms: 45000       # 45s for Avalara API
+        override-reason: "External tax calculation APIs"
+
+      # Analytics queries
+      analytics-service:
+        category: long-running
+        connect-timeout-ms: 5000
+        read-timeout-ms: 120000      # 2 minutes for complex aggregations
+        override-reason: "Complex analytical queries"
+
+      # Financial reconciliation
+      reconciliation-service:
+        category: batch
+        connect-timeout-ms: 10000
+        read-timeout-ms: 120000      # 2 minutes
+        override-reason: "Large dataset reconciliation"
+
+      # Report generation
+      reporting-service:
+        category: batch
+        connect-timeout-ms: 10000
+        read-timeout-ms: 300000      # 5 minutes
+        override-reason: "Complex report generation"
+
+      # ----------------------------------------------------------------------
+      # EXTERNAL PAYMENT PROVIDERS (30-90s)
+      # ----------------------------------------------------------------------
+
+      # Stripe - 3D Secure can be slow
+      stripe-api:
+        category: external
+        connect-timeout-ms: 10000
+        read-timeout-ms: 90000       # 90s for 3D Secure user interaction
+        override-reason: "3DS requires user interaction"
+
+      # PayPal - User authentication flow
+      paypal-api:
+        category: external
+        connect-timeout-ms: 10000
+        read-timeout-ms: 90000       # 90s
+        override-reason: "User authentication on PayPal site"
+
+      # Wise - International transfers
+      wise-api:
+        category: external
+        connect-timeout-ms: 10000
+        read-timeout-ms: 120000      # 2 minutes
+        override-reason: "International transfer processing"
+
+      # Dwolla - ACH processing
+      dwolla-api:
+        category: external
+        connect-timeout-ms: 10000
+        read-timeout-ms: 60000       # 60s
+        override-reason: "ACH processing workflows"
+
+      # Square payments
+      square-api:
+        category: external
+        connect-timeout-ms: 10000
+        read-timeout-ms: 60000       # 60s
+
+      # Plaid bank connections
+      plaid-api:
+        category: external
+        connect-timeout-ms: 10000
+        read-timeout-ms: 60000       # 60s
+        override-reason: "Bank API can be slow"
+
+      # ----------------------------------------------------------------------
+      # EXTERNAL KYC/COMPLIANCE PROVIDERS
+      # ----------------------------------------------------------------------
+
+      # Onfido document verification
+      onfido-api:
+        category: external
+        connect-timeout-ms: 10000
+        read-timeout-ms: 120000      # 2 minutes
+        override-reason: "Document upload and OCR processing"
+
+      # Jumio identity verification
+      jumio-api:
+        category: external
+        connect-timeout-ms: 10000
+        read-timeout-ms: 120000      # 2 minutes
+        override-reason: "Liveness detection and document verification"
+
+      # ShuftiPro verification
+      shufti-pro-api:
+        category: external
+        connect-timeout-ms: 10000
+        read-timeout-ms: 120000      # 2 minutes
+
+      # OFAC sanctions list API
+      ofac-api:
+        category: external
+        connect-timeout-ms: 10000
+        read-timeout-ms: 45000       # 45s
+        override-reason: "OFAC SDN list screening"
+
+      # Dow Jones watchlist
+      dow-jones-api:
+        category: external
+        connect-timeout-ms: 10000
+        read-timeout-ms: 60000       # 60s
+
+      # Refinitiv World-Check
+      refinitiv-api:
+        category: external
+        connect-timeout-ms: 10000
+        read-timeout-ms: 60000       # 60s
+
+      # ----------------------------------------------------------------------
+      # EXTERNAL TAX & GOVERNMENT APIS
+      # ----------------------------------------------------------------------
+
+      # Avalara tax calculation
+      avalara-api:
+        category: external
+        connect-timeout-ms: 10000
+        read-timeout-ms: 30000       # 30s
+
+      # FinCEN SAR filing
+      fincen-api:
+        category: external
+        connect-timeout-ms: 10000
+        read-timeout-ms: 120000      # 2 minutes
+        override-reason: "Government API, SAR filing"
+
+      # IRS FIRE system
+      irs-fire-api:
+        category: external
+        connect-timeout-ms: 10000
+        read-timeout-ms: 120000      # 2 minutes
+        override-reason: "Government API, tax form filing"
+
+      # ----------------------------------------------------------------------
+      # EXTERNAL COMMUNICATION SERVICES
+      # ----------------------------------------------------------------------
+
+      # Twilio SMS/Voice
+      twilio-api:
+        category: external
+        connect-timeout-ms: 10000
+        read-timeout-ms: 30000       # 30s
+
+      # SendGrid email
+      sendgrid-api:
+        category: external
+        connect-timeout-ms: 10000
+        read-timeout-ms: 30000       # 30s
+
+      # ----------------------------------------------------------------------
+      # EXTERNAL CURRENCY/CRYPTO SERVICES
+      # ----------------------------------------------------------------------
+
+      # Fixer.io currency rates
+      fixer-io-api:
+        category: external
+        connect-timeout-ms: 10000
+        read-timeout-ms: 30000       # 30s
+
+      # CurrencyLayer
+      currency-layer-api:
+        category: external
+        connect-timeout-ms: 10000
+        read-timeout-ms: 30000       # 30s
+
+      # OpenExchangeRates
+      openexchangerates-api:
+        category: external
+        connect-timeout-ms: 10000
+        read-timeout-ms: 30000       # 30s
+
+      # Bitcoin RPC
+      bitcoin-rpc:
+        category: external
+        connect-timeout-ms: 10000
+        read-timeout-ms: 120000      # 2 minutes
+        override-reason: "Blockchain confirmations"
+
+      # Ethereum RPC
+      ethereum-rpc:
+        category: external
+        connect-timeout-ms: 10000
+        read-timeout-ms: 120000      # 2 minutes
+
+      # ----------------------------------------------------------------------
+      # CREDIT BUREAUS
+      # ----------------------------------------------------------------------
+
+      # Equifax
+      equifax-api:
+        category: external
+        connect-timeout-ms: 15000
+        read-timeout-ms: 60000       # 60s
+        override-reason: "Credit report generation"
+
+      # Experian
+      experian-api:
+        category: external
+        connect-timeout-ms: 15000
+        read-timeout-ms: 60000       # 60s
+
+      # TransUnion
+      transunion-api:
+        category: external
+        connect-timeout-ms: 15000
+        read-timeout-ms: 60000       # 60s
+
+      # ----------------------------------------------------------------------
+      # SPECIAL CASES
+      # ----------------------------------------------------------------------
+
+      # Health checks - MUST BE FAST
+      health-checks:
+        category: critical
+        connect-timeout-ms: 2000
+        read-timeout-ms: 3000        # 3s max for health check
+        override-reason: "Fail fast for monitoring"
+
+      # Webhook callbacks from external systems
+      webhook-callbacks:
+        category: external
+        connect-timeout-ms: 5000
+        read-timeout-ms: 30000       # 30s
+        override-reason: "External systems may be slow to callback"
+
+# ============================================================================
+# APPLY TO FEIGN CLIENTS
+# ============================================================================
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: ${waqiti.timeouts.global.connect-timeout-ms}
+        readTimeout: ${waqiti.timeouts.global.read-timeout-ms}
+
+      # Apply service-specific configs
+      user-service:
+        connectTimeout: ${waqiti.timeouts.services.user-service.connect-timeout-ms}
+        readTimeout: ${waqiti.timeouts.services.user-service.read-timeout-ms}
+
+      fraud-detection-service:
+        connectTimeout: ${waqiti.timeouts.services.fraud-detection-service.connect-timeout-ms}
+        readTimeout: ${waqiti.timeouts.services.fraud-detection-service.read-timeout-ms}
+
+      wallet-service:
+        connectTimeout: ${waqiti.timeouts.services.wallet-service.connect-timeout-ms}
+        readTimeout: ${waqiti.timeouts.services.wallet-service.read-timeout-ms}
+
+      # ... (add all services using similar pattern)
+
+# ============================================================================
+# COORDINATE WITH RESILIENCE4J
+# ============================================================================
+resilience4j:
+  timelimiter:
+    configs:
+      default:
+        timeoutDuration: ${waqiti.timeouts.global.read-timeout-ms}ms
+        cancelRunningFuture: true
+
+    instances:
+      fraud-detection-service:
+        timeoutDuration: ${waqiti.timeouts.services.fraud-detection-service.read-timeout-ms}ms
+
+      compliance-service:
+        timeoutDuration: ${waqiti.timeouts.services.compliance-service.read-timeout-ms}ms
+
+      sanctions-screening:
+        timeoutDuration: ${waqiti.timeouts.services.sanctions-screening.read-timeout-ms}ms
+
+      # ... (coordinate with all services)
+
+  circuitbreaker:
+    configs:
+      default:
+        slowCallDurationThreshold: ${waqiti.timeouts.global.read-timeout-ms}ms
+
+# ============================================================================
+# DATABASE CONNECTION TIMEOUTS
+# ============================================================================
+spring:
+  datasource:
+    hikari:
+      connection-timeout: 30000       # 30s to get connection from pool
+      validation-timeout: 5000        # 5s to validate connection
+      idle-timeout: 600000            # 10 min idle before eviction
+      max-lifetime: 1800000           # 30 min max connection lifetime
+      leak-detection-threshold: 60000 # Warn if held > 60s
+
+# ============================================================================
+# KAFKA TIMEOUTS
+# ============================================================================
+spring:
+  kafka:
+    consumer:
+      properties:
+        request.timeout.ms: 30000
+        session.timeout.ms: 30000
+        heartbeat.interval.ms: 3000
+        max.poll.interval.ms: 300000  # 5 minutes
+
+# ============================================================================
+# HEALTH CHECK TIMEOUTS
+# ============================================================================
+management:
+  health:
+    timeout: ${waqiti.timeouts.services.health-checks.read-timeout-ms}ms
+
+# ============================================================================
+# NOTES:
+# ============================================================================
+# 1. All timeouts MUST be explicitly set (no infinite timeouts)
+# 2. Connection timeout should be < Read timeout
+# 3. Circuit breaker slowCallDurationThreshold = Read timeout
+# 4. Monitor P95/P99 latencies and adjust timeouts accordingly
+# 5. Test timeout behavior under load
+# ============================================================================

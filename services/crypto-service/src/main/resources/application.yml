@@ -1,0 +1,323 @@
+server:
+  port: 8095  # Changed from 8087 to avoid conflict with transaction-service
+  servlet:
+    context-path: /api/v1/crypto
+
+spring:
+  application:
+    name: crypto-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:waqiti_crypto}
+    username: ${DB_USERNAME:waqiti_crypto}
+    password: ${waqiti.secrets.database.password}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      leak-detection-threshold: 60000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+        generate_statistics: false
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      properties:
+        enable.idempotence: true
+    consumer:
+      group-id: crypto-service
+      enable-auto-commit: false  # Manual acknowledgment for DLQ support
+      max-poll-records: 50  # Batch size control
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: com.waqiti.*
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+      jedis:
+        pool:
+          max-active: 20
+          max-idle: 10
+          min-idle: 5
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:${EUREKA_SERVER_URL:https://discovery-service:8761/eureka}/}
+    fetch-registry: true
+    register-with-eureka: true
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+
+# Keycloak Configuration
+keycloak:
+  enabled: true
+  realm: waqiti-fintech
+  auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}
+  ssl-required: external
+  resource: crypto-service
+  bearer-only: true
+  use-resource-role-mappings: true
+  cors: true
+  cors-allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+  cors-allowed-headers: Authorization,Content-Type,X-Requested-With
+  cors-max-age: 3600
+  public-client: false
+  credentials:
+    secret: ${KEYCLOAK_CLIENT_SECRET:}
+
+# Spring Security OAuth2 Configuration
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti
+          jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/certs
+      client:
+        registration:
+          keycloak:
+            client-id: crypto-service
+            client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+            authorization-grant-type: client_credentials
+            scope: openid,profile,email,crypto
+        provider:
+          keycloak:
+            issuer-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti
+            token-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/token
+            authorization-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/auth
+            userinfo-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/userinfo
+            jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/certs
+
+# Service-to-Service Authentication
+service:
+  auth:
+    enabled: true
+    client-id: crypto-service
+    client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+
+logging:
+  level:
+    com.waqiti.crypto: ${LOG_LEVEL:INFO}
+    org.springframework.security: WARN
+    org.springframework.web: WARN
+    org.hibernate: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%X{traceId},%X{spanId}] %logger{36} - %msg%n"
+
+# Crypto Service Configuration
+crypto:
+  # Blockchain Configuration
+  blockchain:
+    bitcoin:
+      network: ${BITCOIN_NETWORK:testnet}
+      rpc-url: ${BITCOIN_RPC_URL:http://localhost:18332}
+      rpc-username: ${BITCOIN_RPC_USER:bitcoin}
+      rpc-password: ${BITCOIN_RPC_PASSWORD}
+      confirmations-required: ${BITCOIN_CONFIRMATIONS:6}
+      fee-rate-sat-per-byte: ${BITCOIN_FEE_RATE:10}
+      
+    ethereum:
+      network: ${ETHEREUM_NETWORK:sepolia}
+      # REQUIRED: Set ETHEREUM_RPC_URL environment variable
+      # Get RPC URL from:
+      # - Infura: https://infura.io (Recommended for production)
+      # - Alchemy: https://alchemy.com (Alternative provider)
+      # - Local node: http://localhost:8545 (For development only)
+      # Example: export ETHEREUM_RPC_URL=https://mainnet.infura.io/v3/your-project-id
+      rpc-url: ${ETHEREUM_RPC_URL}
+      confirmations-required: ${ETHEREUM_CONFIRMATIONS:12}
+      gas-price-gwei: ${ETHEREUM_GAS_PRICE:20}
+      gas-limit: ${ETHEREUM_GAS_LIMIT:21000}
+      
+    litecoin:
+      network: ${LITECOIN_NETWORK:testnet}
+      rpc-url: ${LITECOIN_RPC_URL:http://localhost:19332}
+      rpc-username: ${LITECOIN_RPC_USER:litecoin}
+      rpc-password: ${LITECOIN_RPC_PASSWORD}
+      confirmations-required: ${LITECOIN_CONFIRMATIONS:6}
+      fee-rate-sat-per-byte: ${LITECOIN_FEE_RATE:5}
+
+  # AWS KMS Configuration
+  aws:
+    kms:
+      region: ${AWS_REGION:us-east-1}
+      master-key-id: ${AWS_KMS_MASTER_KEY_ID:alias/waqiti-crypto-master}
+      hot-wallet-key-prefix: ${AWS_KMS_HOT_WALLET_PREFIX:waqiti-hot-wallet}
+      access-key-id: ${AWS_ACCESS_KEY_ID:}
+      secret-access-key: ${AWS_SECRET_ACCESS_KEY:}
+
+  # Security Configuration
+  security:
+    multi-sig:
+      required-signatures: 2
+      total-signatures: 3
+    transaction-limits:
+      daily-limit-usd: ${DAILY_LIMIT_USD:10000}
+      monthly-limit-usd: ${MONTHLY_LIMIT_USD:50000}
+      single-transaction-limit-usd: ${SINGLE_TX_LIMIT_USD:5000}
+    fraud-detection:
+      enabled: true
+      risk-score-threshold: ${FRAUD_RISK_THRESHOLD:75}
+      auto-block-threshold: ${FRAUD_AUTO_BLOCK_THRESHOLD:90}
+
+  # Pricing Configuration
+  pricing:
+    sources:
+      coinmarketcap:
+        enabled: true
+        api-key: ${CMC_API_KEY:${VAULT_CMC_API_KEY}}
+        url: https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest
+      coingecko:
+        enabled: true
+        api-key: ${COINGECKO_API_KEY:${VAULT_COINGECKO_API_KEY}}
+        url: https://api.coingecko.com/api/v3/simple/price
+    refresh-interval-seconds: 30
+    cache-ttl-seconds: 60
+
+  # Compliance Configuration
+  compliance:
+    aml:
+      enabled: true
+      chainalysis:
+        enabled: ${CHAINALYSIS_ENABLED:false}
+        api-key: ${CHAINALYSIS_API_KEY:${VAULT_CHAINALYSIS_API_KEY}}
+        api-url: ${CHAINALYSIS_API_URL:}
+      elliptic:
+        enabled: ${ELLIPTIC_ENABLED:false}
+        api-key: ${ELLIPTIC_API_KEY:}
+        api-url: ${ELLIPTIC_API_URL:}
+    reporting:
+      suspicious-activity-threshold: ${SAR_THRESHOLD:10000}
+      currency-transaction-threshold: ${CTR_THRESHOLD:10000}
+
+  # Wallet Configuration
+  wallet:
+    hd:
+      purpose: 44
+      coin-type-bitcoin: 0
+      coin-type-ethereum: 60
+      coin-type-litecoin: 2
+      account: 0
+      change: 0
+    auto-sweep:
+      enabled: true
+      threshold-bitcoin: 0.001
+      threshold-ethereum: 0.01
+      threshold-litecoin: 0.1
+
+  # API Configuration
+  api:
+    rate-limiting:
+      requests-per-minute: 100
+      burst-capacity: 200
+    timeouts:
+      blockchain-timeout-seconds: 30
+      pricing-timeout-seconds: 10
+      compliance-timeout-seconds: 15
+
+---
+# Development Profile
+spring:
+  config:
+    activate:
+      on-profile: dev
+  jpa:
+    show-sql: ${SHOW_SQL:false}  # false for production
+    properties:
+      hibernate:
+        generate_statistics: true
+
+logging:
+  level:
+    com.waqiti.crypto: DEBUG
+    org.springframework.security: DEBUG
+
+crypto:
+  blockchain:
+    bitcoin:
+      network: regtest
+    ethereum:
+      network: ganache
+    litecoin:
+      network: regtest
+  security:
+    fraud-detection:
+      risk-score-threshold: 50
+
+---
+# Production Profile
+spring:
+  config:
+    activate:
+      on-profile: prod
+  jpa:
+    show-sql: false
+    properties:
+      hibernate:
+        generate_statistics: false
+
+logging:
+  level:
+    root: WARN
+    com.waqiti.crypto: INFO
+
+crypto:
+  blockchain:
+    bitcoin:
+      network: mainnet
+    ethereum:
+      network: mainnet
+    litecoin:
+      network: mainnet
+  security:
+    fraud-detection:
+      risk-score-threshold: 85
+      auto-block-threshold: 95

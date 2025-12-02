@@ -1,0 +1,118 @@
+# ==============================================================================
+# Waqiti Smart Contracts - Git Ignore Configuration
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# SECURITY: NEVER COMMIT THESE FILES!
+# ------------------------------------------------------------------------------
+
+# Environment variables (contains private keys!)
+.env
+.env.local
+.env.*.local
+.env.production
+.env.staging
+.env.development
+
+# Private keys and secrets
+*.key
+*.pem
+*.p12
+*.pfx
+**/secrets/**
+**/keys/**
+
+# Deployment addresses (may contain sensitive info)
+deployments/**/solcInputs/**
+deployments/**/.chainId
+
+# Hardware wallet configs
+ledger-config.json
+trezor-config.json
+
+# ------------------------------------------------------------------------------
+# Build Artifacts
+# ------------------------------------------------------------------------------
+
+# Hardhat
+cache/
+artifacts/
+typechain/
+typechain-types/
+
+# Coverage
+coverage/
+coverage.json
+*.lcov
+
+# Gas reports
+gas-report.txt
+.gas-snapshot
+
+# ------------------------------------------------------------------------------
+# Dependencies
+# ------------------------------------------------------------------------------
+
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# ------------------------------------------------------------------------------
+# IDE & Editor
+# ------------------------------------------------------------------------------
+
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# ------------------------------------------------------------------------------
+# Testing
+# ------------------------------------------------------------------------------
+
+test-results/
+junit.xml
+
+# ------------------------------------------------------------------------------
+# Logs
+# ------------------------------------------------------------------------------
+
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ------------------------------------------------------------------------------
+# Temporary Files
+# ------------------------------------------------------------------------------
+
+*.tmp
+*.temp
+.cache/
+
+# ------------------------------------------------------------------------------
+# OS Files
+# ------------------------------------------------------------------------------
+
+Thumbs.db
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# ==============================================================================
+# ALLOW THESE FILES (exceptions to rules above)
+# ==============================================================================
+
+# Keep example environment file
+!.env.example
+
+# Keep deployment records for verified networks
+!deployments/**/solcInputs/.gitkeep
+
+# Keep README files everywhere
+!README.md
+
+# ==============================================================================

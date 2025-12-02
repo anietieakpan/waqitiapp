@@ -1,0 +1,401 @@
+# Advanced Fraud Detection Service Deployment
+# Production-ready deployment with ML capabilities and real-time processing
+# SECURITY: Enhanced fraud detection with machine learning and behavioral analysis
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fraud-detection-service
+  namespace: waqiti-system
+  labels:
+    app: fraud-detection-service
+    version: v2.0-enhanced
+    security.example.com/component: "fraud-detection"
+    security.example.com/ml-enabled: "true"
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: fraud-detection-service
+  template:
+    metadata:
+      labels:
+        app: fraud-detection-service
+        version: v2.0-enhanced
+      annotations:
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/role: "waqiti-services"
+        vault.hashicorp.com/agent-pre-populate-only: "true"
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      serviceAccountName: waqiti-service-account
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app: fraud-detection-service
+              topologyKey: kubernetes.io/hostname
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+      initContainers:
+      # ML Model Download Container
+      - name: ml-model-downloader
+        image: waqiti/ml-model-downloader:latest
+        env:
+        - name: MODEL_VERSION
+          value: "v2.1.0"
+        - name: S3_BUCKET
+          value: "waqiti-ml-models"
+        - name: MODEL_PATH
+          value: "/models"
+        volumeMounts:
+        - name: ml-models
+          mountPath: /models
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+      containers:
+      - name: fraud-detection-service
+        image: waqiti/fraud-detection-service:v2.0-enhanced
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        - containerPort: 8090
+          name: grpc
+          protocol: TCP
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "production,ml-enabled"
+        - name: ML_MODEL_PATH
+          value: "/app/models"
+        - name: REDIS_HOST
+          value: "redis.example.internal"
+        - name: INFLUXDB_URL
+          value: "http://influxdb.monitoring.svc.cluster.local:8086"
+        - name: NEO4J_URI
+          value: "bolt://neo4j.example.internal:7687"
+        - name: KAFKA_BROKERS
+          value: "kafka.example.internal:9092"
+        - name: VAULT_ROLE
+          value: "waqiti-services"
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 120
+          periodSeconds: 30
+          timeoutSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        - name: ml-models
+          mountPath: /app/models
+          readOnly: true
+        - name: feature-store
+          mountPath: /app/features
+      # TensorFlow Serving Container for ML Models
+      - name: tensorflow-serving
+        image: tensorflow/serving:2.12.0
+        ports:
+        - containerPort: 8501
+          name: tf-http
+        - containerPort: 8500
+          name: tf-grpc
+        env:
+        - name: MODEL_BASE_PATH
+          value: "/models"
+        - name: MODEL_NAME
+          value: "fraud_detection"
+        - name: TF_CPP_MIN_LOG_LEVEL
+          value: "2"
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        volumeMounts:
+        - name: ml-models
+          mountPath: /models
+          readOnly: true
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+      # Real-time Feature Processor
+      - name: feature-processor
+        image: waqiti/fraud-feature-processor:latest
+        ports:
+        - containerPort: 9090
+          name: metrics
+        env:
+        - name: KAFKA_BROKERS
+          value: "kafka.example.internal:9092"
+        - name: REDIS_HOST
+          value: "redis.example.internal"
+        - name: FEATURE_STORE_PATH
+          value: "/app/features"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        volumeMounts:
+        - name: feature-store
+          mountPath: /app/features
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      - name: ml-models
+        emptyDir: {}
+      - name: feature-store
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fraud-detection-service
+  namespace: waqiti-system
+  labels:
+    app: fraud-detection-service
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+spec:
+  selector:
+    app: fraud-detection-service
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+  - name: grpc
+    port: 8090
+    targetPort: 8090
+  - name: tf-http
+    port: 8501
+    targetPort: 8501
+  - name: tf-grpc
+    port: 8500
+    targetPort: 8500
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: fraud-detection-hpa
+  namespace: waqiti-system
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: fraud-detection-service
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  - type: Pods
+    pods:
+      metric:
+        name: fraud_checks_per_second
+      target:
+        type: AverageValue
+        averageValue: "100"
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: fraud-detection-pdb
+  namespace: waqiti-system
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: fraud-detection-service
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fraud-detection-config
+  namespace: waqiti-system
+data:
+  application-production.yml: |
+    # Fraud Detection Service Configuration
+    fraud-detection:
+      ml:
+        enabled: true
+        model-path: /app/models
+        tensorflow-serving:
+          host: localhost
+          port: 8500
+        feature-engineering:
+          enabled: true
+          real-time: true
+          batch-size: 1000
+          
+      rules:
+        velocity-checks: true
+        geo-location-checks: true
+        device-fingerprinting: true
+        behavior-analysis: true
+        network-analysis: true
+        
+      thresholds:
+        low-risk: 0.3
+        medium-risk: 0.6
+        high-risk: 0.8
+        block-threshold: 0.9
+        
+      monitoring:
+        real-time-alerts: true
+        dashboard-updates: 5s
+        model-performance-tracking: true
+        
+      integration:
+        kafka:
+          fraud-events-topic: fraud-events
+          real-time-features-topic: real-time-features
+        redis:
+          feature-cache-ttl: 300
+          model-cache-ttl: 3600
+        influxdb:
+          metrics-retention: 30d
+        neo4j:
+          relationship-analysis: true
+          
+    spring:
+      kafka:
+        consumer:
+          group-id: fraud-detection
+          auto-offset-reset: latest
+        producer:
+          acks: all
+          retries: 3
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: fraud-detection-service
+  namespace: waqiti-system
+spec:
+  selector:
+    matchLabels:
+      app: fraud-detection-service
+  endpoints:
+  - port: http
+    path: /actuator/prometheus
+    interval: 15s
+  - port: metrics
+    path: /metrics
+    interval: 15s
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: fraud-detection-vs
+  namespace: waqiti-system
+spec:
+  hosts:
+  - fraud-detection-service
+  http:
+  - match:
+    - uri:
+        prefix: "/fraud-check"
+    route:
+    - destination:
+        host: fraud-detection-service
+        port:
+          number: 8080
+    timeout: 30s
+    retries:
+      attempts: 3
+      perTryTimeout: 10s
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: fraud-model-trainer
+  namespace: waqiti-system
+spec:
+  schedule: "0 2 * * 0"  # Weekly at 2 AM Sunday
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: model-trainer
+            image: waqiti/fraud-model-trainer:latest
+            env:
+            - name: DATA_SOURCE
+              value: "postgres://fraud-db.example.internal/fraud_data"
+            - name: MODEL_OUTPUT_PATH
+              value: "s3://waqiti-ml-models/fraud-detection/"
+            - name: TRAINING_MODE
+              value: "incremental"
+            resources:
+              requests:
+                memory: "4Gi"
+                cpu: "2000m"
+              limits:
+                memory: "8Gi"
+                cpu: "4000m"
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                - ALL

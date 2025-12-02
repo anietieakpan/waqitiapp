@@ -1,0 +1,259 @@
+spring:
+  application:
+    name: virtual-card-service
+  
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  
+  cloud:
+    config:
+      uri: ${CONFIG_SERVER_URL:http://localhost:8888}
+      fail-fast: true
+      retry:
+        max-attempts: 3
+  
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/waqiti_virtual_cards}
+    username: ${DATABASE_USERNAME:waqiti}
+    password: ${DATABASE_PASSWORD:${VAULT_DATABASE_PASSWORD}}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+    
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+    show-sql: false
+    
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.trusted.packages: "*"
+    consumer:
+      group-id: virtual-card-service
+      enable-auto-commit: false  # Manual acknowledgment for DLQ support
+      max-poll-records: 50  # Batch size control
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+      auto-offset-reset: earliest
+  
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+    
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+
+# Virtual Card Configuration
+virtual-cards:
+  enabled: ${VIRTUAL_CARDS_ENABLED:true}
+  max-cards-per-user: ${MAX_CARDS_PER_USER:10}
+  card-issuer: ${CARD_ISSUER:WAQITI}
+  
+  limits:
+    default-daily-limit: ${DEFAULT_DAILY_LIMIT:1000.00}
+    default-monthly-limit: ${DEFAULT_MONTHLY_LIMIT:5000.00}
+    max-single-transaction: ${MAX_SINGLE_TRANSACTION:2500.00}
+
+# Card Network Integration  
+mastercard:
+  api:
+    endpoint: ${MASTERCARD_API_ENDPOINT:}
+    consumer-key: ${MASTERCARD_CONSUMER_KEY:}
+    private-key-path: ${MASTERCARD_PRIVATE_KEY_PATH:}
+    keystore-alias: ${MASTERCARD_KEYSTORE_ALIAS:}
+    keystore-password: ${MASTERCARD_KEYSTORE_PASSWORD:}
+    
+visa:
+  api:
+    endpoint: ${VISA_API_ENDPOINT:}
+    user-id: ${VISA_USER_ID:}
+    password: ${VISA_PASSWORD:}
+    certificate-path: ${VISA_CERT_PATH:}
+    private-key-path: ${VISA_PRIVATE_KEY_PATH:}
+
+# Card Processor
+marqeta:
+  api:
+    base-url: ${MARQETA_BASE_URL:https://sandbox-api.marqeta.com}
+    application-token: ${MARQETA_APP_TOKEN:}
+    access-token: ${MARQETA_ACCESS_TOKEN:}
+    webhook-username: ${MARQETA_WEBHOOK_USER:}
+    webhook-password: ${MARQETA_WEBHOOK_PASSWORD:}
+
+# Apple/Google Pay Integration
+apple-pay:
+  merchant-id: ${APPLE_PAY_MERCHANT_ID:}
+  certificate-path: ${APPLE_PAY_CERT_PATH:}
+  
+google-pay:
+  merchant-id: ${GOOGLE_PAY_MERCHANT_ID:}
+  api-key: ${GOOGLE_PAY_API_KEY:}
+
+# Security & Fraud
+security:
+  pci-compliance: ${PCI_COMPLIANCE_ENABLED:true}
+  tokenization:
+    provider: ${TOKENIZATION_PROVIDER:vault}
+    encryption-key: ${TOKEN_ENCRYPTION_KEY:}
+    
+fraud-detection:
+  real-time-monitoring: ${REAL_TIME_MONITORING:true}
+  velocity-checks: ${VELOCITY_CHECKS:true}
+  geo-blocking: ${GEO_BLOCKING_ENABLED:false}
+  merchant-category-blocking: ${MCC_BLOCKING:false}
+
+# Card Controls
+card-controls:
+  location-based: ${LOCATION_CONTROLS:true}
+  time-based: ${TIME_CONTROLS:true}
+  merchant-category: ${MCC_CONTROLS:true}
+  spending-categories:
+    - GROCERIES
+    - GAS_STATIONS
+    - RESTAURANTS
+    - ENTERTAINMENT
+    - ONLINE_PURCHASES
+    - RECURRING_PAYMENTS
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:${EUREKA_SERVER_URL:https://discovery-service:8761/eureka}/}
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+    metadata-map:
+      version: ${info.version}
+      region: ${DEPLOYMENT_REGION:us-east-1}
+
+server:
+  port: ${PORT:8091}
+  servlet:
+    context-path: /api/v1
+  error:
+    include-message: always
+    include-binding-errors: always
+
+# Keycloak Configuration - CRITICAL SECURITY IMPLEMENTATION
+keycloak:
+  enabled: true
+  realm: waqiti-fintech
+  auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}
+  ssl-required: external
+  resource: virtual-card-service
+  bearer-only: true
+  use-resource-role-mappings: true
+  cors: true
+  cors-allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+  cors-allowed-headers: Authorization,Content-Type,X-Requested-With,X-Card-Id
+  cors-max-age: 3600
+  public-client: false
+  credentials:
+    secret: ${KEYCLOAK_CLIENT_SECRET:}
+
+# Spring Security OAuth2 Configuration
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti
+          jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/certs
+      client:
+        registration:
+          keycloak:
+            client-id: virtual-card-service
+            client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+            authorization-grant-type: client_credentials
+            scope: openid,profile,email,virtual-cards
+        provider:
+          keycloak:
+            issuer-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti
+            token-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/token
+            authorization-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/auth
+            userinfo-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/userinfo
+            jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/certs
+
+# Service-to-Service Authentication
+service:
+  auth:
+    enabled: true
+    client-id: virtual-card-service
+    client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# Feign client configuration
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 5000
+        readTimeout: 5000
+        loggerLevel: FULL
+      user-service:
+        url: ${USER_SERVICE_URL:http://user-service/api/v1}
+      wallet-service:
+        url: ${WALLET_SERVICE_URL:http://wallet-service/api/v1}
+      notification-service:
+        url: ${NOTIFICATION_SERVICE_URL:http://notification-service/api/v1}
+      payment-service:
+        url: ${PAYMENT_SERVICE_URL:http://payment-service/api/v1}
+
+# Kafka topics
+kafka:
+  topics:
+    card-created: virtual-card-created
+    card-activated: virtual-card-activated
+    card-blocked: virtual-card-blocked
+    card-transaction: virtual-card-transaction
+    fraud-alert: fraud-alert-events
+    notification: notification-events
+
+logging:
+  level:
+    com.waqiti.virtualcard: INFO
+    org.springframework.web: INFO
+    org.springframework.kafka: INFO
+    org.hibernate.SQL: INFO
+    org.hibernate.type.descriptor.sql.BasicBinder: INFO
+    org.springframework.security: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

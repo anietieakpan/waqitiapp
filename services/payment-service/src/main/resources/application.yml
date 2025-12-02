@@ -1,0 +1,957 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: payment-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:development}
+    include: keycloak
+
+  # OAuth2 Resource Server Configuration for Keycloak
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://${KEYCLOAK_HOST:keycloak}:${KEYCLOAK_PORT:8180}/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://${KEYCLOAK_HOST:keycloak}:${KEYCLOAK_PORT:8180}/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+  # Database configuration - OPTIMIZED with PgBouncer
+  # ARCHITECTURE: payment-service -> PgBouncer (port 6432) -> PostgreSQL (port 5432)
+  # CONNECTION MATH: 15 replicas × 20 pool = 300 client connections -> 30 PostgreSQL connections
+  datasource:
+    # CRITICAL: Use PgBouncer endpoint instead of direct PostgreSQL
+    url: jdbc:postgresql://${DB_HOST:${PGBOUNCER_HOST:pgbouncer}}:${DB_PORT:${PGBOUNCER_PORT:6432}}/${DB_NAME:${PAYMENT_DB_NAME:waqiti_payments}}
+    username: ${vault.database.username}  # SECURITY: No fallback - Vault required
+    password: ${vault.database.password}  # SECURITY: No fallback - Vault required
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      # OPTIMIZED: Reduced from 100 to 20 (80% reduction)
+      # With PgBouncer transaction pooling, this maintains same throughput
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:20}
+      minimum-idle: ${DB_POOL_MIN_IDLE:5}
+
+      # Faster timeout with PgBouncer (cluster-local, <1ms latency)
+      connection-timeout: ${DB_CONNECTION_TIMEOUT:5000}
+
+      # Shorter idle timeout - PgBouncer recycles efficiently
+      idle-timeout: ${DB_IDLE_TIMEOUT:300000}
+
+      # Shorter max lifetime with PgBouncer (15 min vs 30 min)
+      max-lifetime: ${DB_MAX_LIFETIME:900000}
+
+      # Aggressive leak detection for financial service
+      leak-detection-threshold: ${DB_LEAK_DETECTION_THRESHOLD:20000}
+
+      pool-name: ${DB_POOL_NAME:payment-service-pgbouncer-pool}
+      validation-timeout: ${DB_VALIDATION_TIMEOUT:3000}
+      initialization-fail-timeout: ${DB_INIT_FAIL_TIMEOUT:1}
+      connection-test-query: SELECT 1
+      auto-commit: false
+      transaction-isolation: TRANSACTION_READ_COMMITTED
+      register-mbeans: true
+
+      # Enhanced monitoring for connection pool health
+      health-check-registry: true
+  
+  # Enhanced Vault configuration with comprehensive fallbacks
+  cloud:
+    vault:
+      enabled: ${VAULT_ENABLED:true}
+      uri: ${VAULT_URI:${VAULT_SCHEME:http}://${VAULT_HOST:vault}:${VAULT_PORT:8200}}
+      scheme: ${VAULT_SCHEME:http}
+      host: ${VAULT_HOST:vault}
+      port: ${VAULT_PORT:8200}
+      
+      # Authentication with multiple fallback methods
+      authentication: ${VAULT_AUTH_METHOD:APPROLE}
+      app-role:
+        role-id: ${VAULT_ROLE_ID:${PAYMENT_SERVICE_VAULT_ROLE_ID:}}
+        secret-id: ${VAULT_SECRET_ID:${PAYMENT_SERVICE_VAULT_SECRET_ID:}}
+        role: ${VAULT_ROLE_NAME:payment-service-role}
+        app-role-path: ${VAULT_APPROLE_PATH:approle}
+      
+      # Token fallback for development and CI/CD
+      token: ${VAULT_TOKEN:${PAYMENT_SERVICE_VAULT_TOKEN:}}
+      
+      # Database dynamic credentials with fallbacks
+      database:
+        enabled: ${VAULT_DB_ENABLED:true}
+        role: ${VAULT_DB_ROLE:payment-service-db-role}
+        backend: ${VAULT_DB_BACKEND:database}
+        username-property: spring.datasource.username
+        password-property: spring.datasource.password
+        # TTL settings for dynamic credentials
+        ttl: ${VAULT_DB_TTL:1h}
+        max-ttl: ${VAULT_DB_MAX_TTL:24h}
+      
+      # KV secrets engine with fallbacks
+      kv:
+        enabled: ${VAULT_KV_ENABLED:true}
+        backend: ${VAULT_KV_BACKEND:secret}
+        profile-separator: "/"
+        default-context: ${VAULT_DEFAULT_CONTEXT:application}
+        application-name: ${VAULT_APP_NAME:payment-service}
+        
+      # Generic secrets with fallbacks
+      generic:
+        enabled: ${VAULT_GENERIC_ENABLED:true}
+        backend: ${VAULT_GENERIC_BACKEND:secret}
+        default-context: ${VAULT_DEFAULT_CONTEXT:application}
+        application-name: ${VAULT_APP_NAME:payment-service}
+        
+      # SSL and connection settings - PRODUCTION SECURITY ENFORCED
+      connection-timeout: ${VAULT_CONNECTION_TIMEOUT:5000}
+      read-timeout: ${VAULT_READ_TIMEOUT:15000}
+      fail-fast: true  # CRITICAL: Application must not start without Vault
+      
+      # Session management
+      session:
+        enabled: ${VAULT_SESSION_ENABLED:true}
+        
+      # Health check configuration
+      config:
+        lifecycle:
+          enabled: ${VAULT_LIFECYCLE_ENABLED:true}
+          min-renewal: ${VAULT_MIN_RENEWAL:10s}
+          expiry-threshold: ${VAULT_EXPIRY_THRESHOLD:1m}
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+    show-sql: false
+
+  # Database migrations
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+  # Redis cache configuration - Vault-first with secure fallbacks
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:${vault.redis.password:}}
+      timeout: ${REDIS_TIMEOUT:2000ms}
+      database: ${REDIS_DATABASE:0}
+      lettuce:
+        pool:
+          max-active: ${REDIS_POOL_MAX_ACTIVE:8}
+          max-idle: ${REDIS_POOL_MAX_IDLE:8}
+          min-idle: ${REDIS_POOL_MIN_IDLE:0}
+          max-wait: ${REDIS_POOL_MAX_WAIT:-1ms}
+        shutdown-timeout: ${REDIS_SHUTDOWN_TIMEOUT:100ms}
+
+  # Kafka configuration with Dead Letter Queue support
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}
+    security:
+      protocol: ${KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
+    ssl:
+      trust-store-location: ${KAFKA_SSL_TRUSTSTORE_LOCATION:}
+      trust-store-password: ${KAFKA_SSL_TRUSTSTORE_PASSWORD:${vault.kafka.ssl.truststore-password:}}
+      key-store-location: ${KAFKA_SSL_KEYSTORE_LOCATION:}
+      key-store-password: ${KAFKA_SSL_KEYSTORE_PASSWORD:${vault.kafka.ssl.keystore-password:}}
+    
+    consumer:
+      group-id: ${KAFKA_CONSUMER_GROUP:payment-service}
+      auto-offset-reset: ${KAFKA_AUTO_OFFSET_RESET:earliest}
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.waqiti.payment.*,com.example.common.*"
+        max.poll.records: ${KAFKA_MAX_POLL_RECORDS:500}
+        fetch.min.bytes: ${KAFKA_FETCH_MIN_BYTES:1024}
+        fetch.max.wait.ms: ${KAFKA_FETCH_MAX_WAIT:500}
+      enable-auto-commit: false
+      isolation-level: read_committed
+    
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: ${KAFKA_PRODUCER_ACKS:all}
+      retries: ${KAFKA_PRODUCER_RETRIES:3}
+      batch-size: ${KAFKA_BATCH_SIZE:16384}
+      linger-ms: ${KAFKA_LINGER_MS:5}
+      buffer-memory: ${KAFKA_BUFFER_MEMORY:33554432}
+      enable-idempotence: true
+      transaction-id-prefix: payment-service-
+    
+    # Dead Letter Queue Configuration
+    listener:
+      ack-mode: manual_immediate
+      concurrency: ${KAFKA_LISTENER_CONCURRENCY:3}
+      poll-timeout: ${KAFKA_POLL_TIMEOUT:3000}
+      type: batch
+      
+    # DLQ Topic Configuration
+    dlq:
+      enabled: ${KAFKA_DLQ_ENABLED:true}
+      suffix: ${KAFKA_DLQ_SUFFIX:.DLT}
+      attempts: ${KAFKA_DLQ_ATTEMPTS:3}
+      backoff:
+        initial-interval: ${KAFKA_DLQ_INITIAL_INTERVAL:1000}
+        max-interval: ${KAFKA_DLQ_MAX_INTERVAL:10000}
+        multiplier: ${KAFKA_DLQ_MULTIPLIER:2.0}
+      
+    # Topic Names
+    topics:
+      payment-events: ${KAFKA_TOPIC_PAYMENT_EVENTS:payment.events}
+      payment-commands: ${KAFKA_TOPIC_PAYMENT_COMMANDS:payment.commands}
+      fraud-alerts: ${KAFKA_TOPIC_FRAUD_ALERTS:fraud.alerts}
+      compliance-events: ${KAFKA_TOPIC_COMPLIANCE_EVENTS:compliance.events}
+      audit-events: ${KAFKA_TOPIC_AUDIT_EVENTS:audit.events}
+
+# Service Discovery Configuration
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:${EUREKA_SERVER_URL:https://discovery-service:8761/eureka}/}
+    register-with-eureka: ${EUREKA_REGISTER:true}
+    fetch-registry: ${EUREKA_FETCH_REGISTRY:true}
+    registry-fetch-interval-seconds: ${EUREKA_FETCH_INTERVAL:30}
+    instance-info-replication-interval-seconds: ${EUREKA_REPLICATION_INTERVAL:30}
+    initial-instance-info-replication-interval-seconds: ${EUREKA_INITIAL_REPLICATION_INTERVAL:40}
+  instance:
+    hostname: ${HOSTNAME:${spring.application.name}}
+    instance-id: ${spring.application.name}:${server.port}:${random.value}
+    prefer-ip-address: ${EUREKA_PREFER_IP:true}
+    lease-renewal-interval-in-seconds: ${EUREKA_LEASE_RENEWAL:30}
+    lease-expiration-duration-in-seconds: ${EUREKA_LEASE_EXPIRATION:90}
+    metadata-map:
+      version: ${project.version:1.0-SNAPSHOT}
+      profile: ${spring.profiles.active:development}
+      service-type: payment-processing
+      health-check-url: ${server.port}/actuator/health
+
+# External services (fallback to direct URLs if service discovery fails)
+wallet-service:
+  url: ${WALLET_SERVICE_URL:http://wallet-service:8082}
+  fallback-url: http://${WALLET_SERVICE_HOST:wallet-service}:8082
+
+# BLOCKER #3 FIX: Crypto Service Integration
+crypto-service:
+  url: ${CRYPTO_SERVICE_URL:http://crypto-service:8087/api/v1/crypto}
+  fallback-url: http://${CRYPTO_SERVICE_HOST:crypto-service}:8087/api/v1/crypto
+
+user-service:
+  url: ${USER_SERVICE_URL:http://user-service:8081}
+  fallback-url: http://${USER_SERVICE_HOST:user-service}:8081
+
+compliance-service:
+  url: ${COMPLIANCE_SERVICE_URL:http://compliance-service:8089}
+  fallback-url: http://${COMPLIANCE_SERVICE_HOST:compliance-service}:8089
+
+risk-service:
+  url: ${RISK_SERVICE_URL:http://risk-service:8090}
+  fallback-url: http://${RISK_SERVICE_HOST:risk-service}:8090
+
+notification-service:
+  url: ${NOTIFICATION_SERVICE_URL:http://notification-service:8080}
+  fallback-url: http://${NOTIFICATION_SERVICE_HOST:notification-service}:8080
+
+rewards-service:
+  url: ${REWARDS_SERVICE_URL:http://rewards-service:8093}
+  fallback-url: http://${REWARDS_SERVICE_HOST:rewards-service}:8093
+
+analytics-service:
+  url: ${ANALYTICS_SERVICE_URL:http://analytics-service:8094}
+  fallback-url: http://${ANALYTICS_SERVICE_HOST:analytics-service}:8094
+
+ledger-service:
+  url: ${LEDGER_SERVICE_URL:http://ledger-service:8092}
+  fallback-url: http://${LEDGER_SERVICE_HOST:ledger-service}:8092
+
+# ACH Transfer Configuration
+ach:
+  daily-limit: 50000
+  single-transaction-limit: 10000
+  processing:
+    enabled: true
+  encryption:
+    key: ${ACH_ENCRYPTION_KEY:${vault.encryption.payment-service.ach-key:${VAULT_ACH_KEY}}}
+
+# Instant Deposit Configuration
+instant-deposit:
+  fee-percentage: 0.015      # 1.5% fee on deposit amount
+  minimum-fee: 0.25          # Minimum fee amount
+  maximum-fee: 15.00         # Maximum fee cap
+  minimum-amount: 1.00       # Minimum deposit amount eligible
+  maximum-amount: 5000.00    # Maximum per instant deposit
+  daily-limit: 10000.00      # Daily limit per user
+  processing-enabled: true   # Enable/disable instant deposit processing
+
+# Banking API Configuration
+banking:
+  api:
+    base-url: ${BANKING_API_URL:https://api.banking-partner.com}
+    client-id: ${BANKING_CLIENT_ID:${vault.api-keys.banking.client-id}}
+    client-secret: ${BANKING_CLIENT_SECRET:${vault.api-keys.banking.client-secret}}
+    timeout: 30
+
+# Payment configuration with consolidated API providers
+payment:
+  # Waqiti Commons Providers Configuration
+  commons:
+    providers:
+      wise:
+        priority: 4
+        supported-payment-types: 'BANK_TRANSFER,SWIFT'
+        capabilities:
+          batch-payment: true
+          multi-currency: true
+          rate-lock: true
+          international-transfer: true
+      plaid:
+        priority: 2
+        products: 'transactions,accounts,auth,identity'
+        supported-payment-types: 'ACH,WIRE'
+        supported-currencies: 'USD,CAD'
+        capabilities:
+          bank-transfer: true
+          ach-transfer: true
+      bitcoin:
+        priority: 10
+        network: 'mainnet'
+        supported-currencies: 'BTC,ETH,LTC,XRP'
+        capabilities:
+          lightning-network: true
+      square:
+        enabled: true
+        priority: 6
+        supported-payment-types: 'CARD,ACH,WALLET'
+        supported-currencies: 'USD,CAD,EUR,GBP'
+        capabilities:
+          partial-refund: true
+          payment-links: true
+      stripe:
+        retry-backoff-multiplier: 2
+        retry-max-attempts: 3
+        supported-payment-types: 'CARD,BANK,WALLET,CRYPTO'
+        supported-currencies: 'USD,EUR,GBP,CAD,AUD,JPY'
+        capabilities:
+          subscription: true
+      ethereum:
+        enabled: true
+        supported-payment-types: 'DIRECT,SMART_CONTRACT'
+        capabilities:
+          smart-contracts: true
+          erc20-tokens: true
+      braintree:
+        priority: 5
+        supported-payment-types: 'CARD,PAYPAL,VENMO'
+        supported-currencies: 'USD,EUR,GBP'
+        capabilities:
+          instant-transfer: true
+          subscription: true
+          vault: true
+      paypal:
+        mode: 'sandbox'
+        priority: 3
+        api-version: 'v2'
+        supported-payment-types: 'PAYPAL,VENMO,CREDIT'
+        capabilities:
+          subscription: true
+      adyen:
+        api-version: 'v70'
+        supported-payment-types: 'CARD,BANK,WALLET'
+        capabilities:
+          instant-transfer: true
+          payment-links: true
+          subscription: true
+      dwolla:
+        supported-payment-types: 'ACH,WIRE'
+        capabilities:
+          instant-transfer: true
+  
+  # Fraud detection configuration
+  fraud:
+    risk-thresholds:
+      low: 30
+      high: 70
+    rules:
+      velocity-check:
+        max-transactions: 10
+        window-minutes: 60
+      max-transactions: 5
+      amount-limit-daily: 10000
+      amount-limit-single: 5000
+      geo-location-blocked-countries: 'KP,IR,SY'
+    velocity-check-max-transactions: 10
+  
+  # Event topics configuration
+  events:
+    topics:
+      payment-initiated: 'payment.initiated'
+      payment-failed: 'payment.failed'
+      async: 'payment.async'
+      payment-completed: 'payment.completed'
+      payment-refunded: 'payment.refunded'
+      payment-cancelled: 'payment.cancelled'
+    enabled: true
+    async: true
+    retention-days: 30
+  
+  # Fee calculation configuration  
+  fees:
+    platform:
+      fixed: 0.30
+      percentage: 2.9
+    calculation:
+      round-up: false
+  
+  # Validation configuration
+  validation:
+    currency:
+      default: 'USD'
+      supported: 'USD,EUR,GBP,JPY,CAD,AUD'
+    amount:
+      decimal-places: 2
+    enabled: true
+    strict-mode: true
+  
+  # Rate limiting configuration
+  rate-limiting:
+    by-payment-type:
+      MERCHANT:
+        requests-per-minute: 100
+      CRYPTO:
+        requests-per-minute: 50
+    default:
+      requests-per-hour: 1000
+  
+  # Audit configuration
+  audit:
+    enabled: true
+    include-response-data: true
+  
+  # Web client configuration
+  web-client:
+    pool:
+      max-connections: 50
+    retry:
+      max-attempts: 3
+      backoff-max-interval: 5000
+    timeout:
+      write: 10000
+      connection: 5000
+  
+  # Rate limit configuration
+  rate-limit:
+    default-limit: 100
+    window-seconds: 60
+  
+  # High value transaction thresholds
+  high-value-threshold: 5000
+  critical-value-threshold: 25000
+  extreme-value-threshold: 100000
+  
+  # MFA configuration
+  mfa-session-duration-minutes: 10
+  mfa-challenge-expiry-minutes: 5
+  mfa-max-attempts: 3
+  
+  # Executor configuration
+  executor:
+    core-pool-size: 10
+    max-pool-size: 50
+    queue-capacity: 100
+    keep-alive-seconds: 60
+  
+  # Additional payment configurations
+  method:
+    max-per-user: 10
+  encryption:
+    key: ${PAYMENT_ENCRYPTION_KEY:${vault.encryption.payment-service.payment-key:${VAULT_PAYMENT_KEY}}}
+  event-sourcing:
+    enabled: true
+    async: true
+  
+  # Consolidated Payment Provider Configuration
+  providers:
+    stripe:
+      api-key: ${STRIPE_API_KEY:${vault.api-keys.stripe.secret-key:${STRIPE_SECRET_KEY}}}
+      webhook-secret: ${STRIPE_WEBHOOK_SECRET:${vault.api-keys.stripe.webhook-secret:${STRIPE_WEBHOOK_SECRET_KEY}}}
+      connect:
+        enabled: ${STRIPE_CONNECT_ENABLED:true}
+        client-id: ${STRIPE_CONNECT_CLIENT_ID:${vault.api-keys.stripe.connect-client-id:${STRIPE_CONNECT_CLIENT_KEY}}}
+      enabled: ${STRIPE_ENABLED:true}
+    paypal:
+      client-id: ${PAYPAL_CLIENT_ID:${vault.api-keys.paypal.client-id:${PAYPAL_CLIENT_KEY}}}
+      client-secret: ${PAYPAL_CLIENT_SECRET:${vault.api-keys.paypal.client-secret:${PAYPAL_SECRET_KEY}}}
+      enabled: ${PAYPAL_ENABLED:true}
+    plaid:
+      client-id: ${PLAID_CLIENT_ID:${vault.api-keys.plaid.client-id:${PLAID_CLIENT_KEY}}}
+      secret: ${PLAID_SECRET:${vault.api-keys.plaid.secret:${PLAID_SECRET_KEY}}}
+      environment: ${PLAID_ENVIRONMENT:production}
+      enabled: ${PLAID_ENABLED:true}
+    adyen:
+      api-key: ${ADYEN_API_KEY:${vault.api-keys.adyen.api-key:${ADYEN_SECRET_KEY}}}
+      merchant-account: ${ADYEN_MERCHANT_ACCOUNT:${vault.api-keys.adyen.merchant-account:${ADYEN_MERCHANT_KEY}}}
+      environment: ${ADYEN_ENVIRONMENT:live}
+      enabled: ${ADYEN_ENABLED:true}
+    dwolla:
+      key: ${DWOLLA_API_KEY:${vault.api-keys.dwolla.key}}
+      secret: ${DWOLLA_API_SECRET:${vault.api-keys.dwolla.secret}}
+      environment: ${DWOLLA_ENVIRONMENT:production}
+      enabled: true
+    wise:
+      api-token: ${WISE_API_TOKEN:${vault.api-keys.wise.api-token}}
+      environment: ${WISE_ENVIRONMENT:live}
+      enabled: true
+    twilio:
+      account-sid: ${TWILIO_ACCOUNT_SID:${vault.api-keys.twilio.account-sid}}
+      auth-token: ${TWILIO_AUTH_TOKEN:${vault.api-keys.twilio.auth-token}}
+      enabled: true
+
+# Security
+security:
+  jwt:
+    token:
+      secret-key: ${JWT_SECRET_KEY:${vault.jwt.payment-service.secret:${VAULT_JWT_SECRET}}}
+      expiration: ${JWT_EXPIRATION:3600000}  # 1 hour
+    refresh:
+      secret-key: ${JWT_REFRESH_SECRET_KEY:${vault.jwt.payment-service.refresh-secret:${VAULT_JWT_REFRESH_SECRET}}}
+      expiration: ${JWT_REFRESH_EXPIRATION:604800000}  # 7 days
+
+# Resilience4j configuration with consolidated patterns
+resilience4j:
+  # Default Circuit Breaker Configuration
+  circuitbreaker:
+    configs:
+      default:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 5s
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10
+      
+      # High-volume external services
+      external-api:
+        registerHealthIndicator: true
+        slidingWindowSize: 20
+        minimumNumberOfCalls: 10
+        permittedNumberOfCallsInHalfOpenState: 5
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 30s
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 20
+      
+      # Financial operations requiring higher tolerance
+      financial:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 15s
+        failureRateThreshold: 30
+        eventConsumerBufferSize: 10
+    
+    instances:
+      wallet-service:
+        baseConfig: default
+      user-service:
+        baseConfig: default
+      ach-transfer:
+        baseConfig: financial
+        waitDurationInOpenState: 10s
+      banking-api:
+        baseConfig: external-api
+      instant-deposit:
+        baseConfig: financial
+      stripe-payment:
+        baseConfig: financial
+        slidingWindowSize: 20
+        minimumNumberOfCalls: 10
+        failureRateThreshold: 40
+        waitDurationInOpenState: 20s
+      stripe-capture:
+        baseConfig: financial
+        failureRateThreshold: 30
+        waitDurationInOpenState: 15s
+      stripe-refund:
+        baseConfig: financial
+        failureRateThreshold: 35
+        waitDurationInOpenState: 15s
+      stripe-cancel:
+        baseConfig: financial
+        failureRateThreshold: 40
+        waitDurationInOpenState: 10s
+      risk-service:
+        baseConfig: default
+        slidingWindowSize: 20
+        minimumNumberOfCalls: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 15s
+      compliance-service:
+        baseConfig: financial
+        slidingWindowSize: 20
+        minimumNumberOfCalls: 10
+        failureRateThreshold: 30
+        waitDurationInOpenState: 20s
+      notification-service:
+        baseConfig: default
+        slidingWindowSize: 15
+        minimumNumberOfCalls: 8
+        failureRateThreshold: 60
+        waitDurationInOpenState: 10s
+      rewards-service:
+        baseConfig: default
+        slidingWindowSize: 15
+        minimumNumberOfCalls: 8
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+      analytics-service:
+        baseConfig: default
+        slidingWindowSize: 15
+        minimumNumberOfCalls: 8
+        failureRateThreshold: 70
+        waitDurationInOpenState: 10s
+      ledger-service:
+        baseConfig: financial
+        slidingWindowSize: 20
+        minimumNumberOfCalls: 10
+        failureRateThreshold: 25
+        waitDurationInOpenState: 20s
+  retry:
+    configs:
+      default:
+        maxAttempts: 3
+        waitDuration: 1s
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+      
+      external-api:
+        maxAttempts: 3
+        waitDuration: 5s
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+        maxDuration: 60s
+      
+      financial-with-network-retry:
+        maxAttempts: 3
+        waitDuration: 2s
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - java.io.IOException
+          - java.net.SocketTimeoutException
+      
+      card-network:
+        maxAttempts: 2
+        waitDuration: 3s
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - java.io.IOException
+          - java.net.SocketTimeoutException
+          - com.waqiti.payment.exception.CardNetworkException
+    
+    instances:
+      wallet-service:
+        baseConfig: default
+      user-service:
+        baseConfig: default
+      ach-transfer:
+        baseConfig: financial-with-network-retry
+      banking-api:
+        baseConfig: external-api
+      instant-deposit:
+        baseConfig: card-network
+      stripe-payment:
+        baseConfig: financial-with-network-retry
+        maxAttempts: 3
+        waitDuration: 2s
+      stripe-capture:
+        baseConfig: financial-with-network-retry
+        maxAttempts: 2
+      stripe-refund:
+        baseConfig: financial-with-network-retry
+        maxAttempts: 3
+      stripe-cancel:
+        baseConfig: default
+        maxAttempts: 2
+      risk-service:
+        baseConfig: default
+        maxAttempts: 3
+        waitDuration: 1s
+      compliance-service:
+        baseConfig: financial-with-network-retry
+        maxAttempts: 3
+        waitDuration: 2s
+      notification-service:
+        baseConfig: default
+        maxAttempts: 2
+        waitDuration: 1s
+      rewards-service:
+        baseConfig: default
+        maxAttempts: 3
+        waitDuration: 1s
+      analytics-service:
+        baseConfig: default
+        maxAttempts: 2
+        waitDuration: 1s
+      ledger-service:
+        baseConfig: financial-with-network-retry
+        maxAttempts: 3
+        waitDuration: 2s
+  timelimiter:
+    configs:
+      default:
+        timeoutDuration: 10s
+        cancelRunningFuture: true
+      
+      fast:
+        timeoutDuration: 5s
+        cancelRunningFuture: true
+      
+      financial:
+        timeoutDuration: 15s
+        cancelRunningFuture: true
+      
+      ach:
+        timeoutDuration: 30s
+        cancelRunningFuture: true
+      
+      external-api:
+        timeoutDuration: 60s
+        cancelRunningFuture: true
+    
+    instances:
+      wallet-service:
+        baseConfig: default
+      user-service:
+        baseConfig: fast
+      ach-transfer:
+        baseConfig: ach
+      banking-api:
+        baseConfig: external-api
+      stripe-payment:
+        baseConfig: financial
+        timeoutDuration: 30s
+      stripe-capture:
+        baseConfig: financial
+        timeoutDuration: 20s
+      stripe-refund:
+        baseConfig: financial
+        timeoutDuration: 30s
+      stripe-cancel:
+        baseConfig: external-api
+      instant-deposit:
+        baseConfig: financial
+      risk-service:
+        baseConfig: default
+        timeoutDuration: 10s
+      compliance-service:
+        baseConfig: financial
+        timeoutDuration: 15s
+      notification-service:
+        baseConfig: fast
+        timeoutDuration: 5s
+      rewards-service:
+        baseConfig: default
+        timeoutDuration: 10s
+      analytics-service:
+        baseConfig: fast
+        timeoutDuration: 5s
+      ledger-service:
+        baseConfig: financial
+        timeoutDuration: 15s
+
+# Rate Limiting Configuration
+rate-limiting:
+  enabled: true
+  key-prefix: "waqiti:payment:rate-limit:"
+  bucket-expiration-minutes: 60
+  default:
+    capacity: 50
+    refill-tokens: 50
+    refill-period-minutes: 1
+  services:
+    payment-service:
+      capacity: 50
+      refill-tokens: 50
+      refill-period-minutes: 1
+      endpoints:
+        "/api/v1/payments/request":
+          capacity: 10
+          refill-tokens: 10
+          refill-period-minutes: 5
+          tokens: 1
+        "/api/v1/payments/transfer":
+          capacity: 5
+          refill-tokens: 5
+          refill-period-minutes: 10
+          tokens: 1
+        "/api/v1/payments/instant-deposit":
+          capacity: 20
+          refill-tokens: 20
+          refill-period-minutes: 5
+          tokens: 2
+        "/api/v1/payments/ach-transfer":
+          capacity: 10
+          refill-tokens: 10
+          refill-period-minutes: 10
+          tokens: 2
+
+# Unified Wallet Service Client Configuration
+wallet:
+  client:
+    connect-timeout: 5000
+    read-timeout: 10000
+    log-level: BASIC
+
+# Third-Party Integration Features
+third-party:
+  integrations:
+    enabled: true
+    retry-attempts: 3
+    timeout-seconds: 30
+    circuit-breaker:
+      enabled: true
+      failure-threshold: 50
+      reset-timeout: 60
+
+# Consolidated Cash Deposit Provider Configurations
+cash-deposit:
+  providers:
+    moneygram:
+      api:
+        url: ${MONEYGRAM_API_URL:https://api.moneygram.com/v2}
+        client-id: ${MONEYGRAM_CLIENT_ID:${vault.api-keys.moneygram.client-id}}
+        client-secret: ${MONEYGRAM_CLIENT_SECRET:${vault.api-keys.moneygram.client-secret}}
+        partner-id: ${MONEYGRAM_PARTNER_ID:${vault.api-keys.moneygram.partner-id}}
+        timeout: 30000
+      cache:
+        locations:
+          ttl: 3600
+      enabled: true
+    
+    westernunion:
+      api:
+        url: ${WU_API_URL:https://api.westernunion.com/ws/v1}
+        partner-id: ${WESTERNUNION_PARTNER_ID:${vault.api-keys.westernunion.partner-id}}
+        partner-key: ${WESTERNUNION_PARTNER_KEY:${vault.api-keys.westernunion.partner-key}}
+        agent-id: ${WESTERNUNION_AGENT_ID:${vault.api-keys.westernunion.agent-id}}
+        environment: ${WU_ENVIRONMENT:production}
+        timeout: 30000
+      cache:
+        locations:
+          ttl: 3600
+      enabled: true
+    
+    paypal:
+      api:
+        url: ${PAYPAL_API_URL:https://api.paypal.com/v1}
+        client-id: ${PAYPAL_CLIENT_ID:${vault.api-keys.paypal.client-id}}
+        client-secret: ${PAYPAL_CLIENT_SECRET:${vault.api-keys.paypal.client-secret}}
+      enabled: true
+    
+    cashapp:
+      api:
+        url: ${CASHAPP_API_URL:https://api.cash.app/v1}
+        api-key: ${CASHAPP_API_KEY:${vault.api-keys.cashapp.api-key}}
+        merchant-id: ${CASHAPP_MERCHANT_ID:${vault.api-keys.cashapp.merchant-id}}
+      enabled: true
+    
+    venmo:
+      api:
+        url: ${VENMO_API_URL:https://api.venmo.com/v1}
+        access-token: ${VENMO_ACCESS_TOKEN:${vault.api-keys.venmo.access-token}}
+        merchant-id: ${VENMO_MERCHANT_ID:${vault.api-keys.venmo.merchant-id}}
+      enabled: true
+
+# Logging
+logging:
+  level:
+    root: INFO
+    com.waqiti: DEBUG
+    org.hibernate.SQL: ${LOG_LEVEL_SQL:WARN}  # WARN for production
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/${spring.application.name}.log
+
+# Management endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  health:
+    circuitbreakers:
+      enabled: true
+
+# Keycloak Configuration
+keycloak:
+  enabled: ${KEYCLOAK_ENABLED:true}
+  auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:https://${KEYCLOAK_HOST:keycloak}:${KEYCLOAK_PORT:8180}}
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  resource: payment-service
+  bearer-only: true
+  ssl-required: ${KEYCLOAK_SSL_REQUIRED:external}
+  use-resource-role-mappings: true
+  principal-attribute: preferred_username
+  credentials:
+    secret: ${KEYCLOAK_CLIENT_SECRET:${vault.keycloak.payment-service.client-secret}}
+  public-client: false
+  verify-token-audience: true
+  confidential-port: 0
+
+# Feature Flags for Authentication Migration
+features:
+  auth:
+    mode: ${AUTH_MODE:KEYCLOAK}  # KEYCLOAK only - Legacy JWT retired
+    keycloak:
+      enabled: ${KEYCLOAK_ENABLED:true}
+    legacy:
+      enabled: ${LEGACY_AUTH_ENABLED:false}
+
+# SECURITY FIX: Error Message Sanitization Configuration
+payment:
+  security:
+    error-sanitization:
+      enabled: true
+      cleanup-interval: 3600000  # 1 hour in milliseconds
+      max-tracking-entries: 10000
+      sensitive-keywords:
+        - password
+        - secret
+        - token
+        - key
+        - credential
+        - internal
+        - database
+        - connection
+        - timeout
+
+# CRITICAL: Async Financial Operations Configuration
+waqiti:
+  async:
+    financial:
+      core-pool-size: ${ASYNC_FINANCIAL_CORE_POOL:5}
+      max-pool-size: ${ASYNC_FINANCIAL_MAX_POOL:20}
+      queue-capacity: ${ASYNC_FINANCIAL_QUEUE:100}
+    batch:
+      core-pool-size: ${ASYNC_BATCH_CORE_POOL:2}
+      max-pool-size: ${ASYNC_BATCH_MAX_POOL:8}
+      queue-capacity: ${ASYNC_BATCH_QUEUE:50}
+    compliance:
+      core-pool-size: ${ASYNC_COMPLIANCE_CORE_POOL:3}
+      max-pool-size: ${ASYNC_COMPLIANCE_MAX_POOL:10}
+      queue-capacity: ${ASYNC_COMPLIANCE_QUEUE:75}

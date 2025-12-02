@@ -1,0 +1,120 @@
+{
+  "properties": [
+    {
+      "name": "dispute.service.auto-escalation.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable automatic dispute escalation",
+      "defaultValue": true
+    },
+    {
+      "name": "dispute.service.auto-escalation.days-before-escalation",
+      "type": "java.lang.Integer",
+      "description": "Days before dispute escalation",
+      "defaultValue": 7
+    },
+    {
+      "name": "dispute.service.auto-escalation.escalation-levels",
+      "type": "java.util.List",
+      "description": "List of escalation levels"
+    },
+    {
+      "name": "dispute.service.resolution.max-resolution-days",
+      "type": "java.lang.Integer",
+      "description": "Maximum days for dispute resolution",
+      "defaultValue": 30
+    },
+    {
+      "name": "dispute.service.resolution.auto-close-resolved-days",
+      "type": "java.lang.Integer",
+      "description": "Days after which resolved disputes auto-close",
+      "defaultValue": 7
+    },
+    {
+      "name": "dispute.service.resolution.require-evidence-for-high-value",
+      "type": "java.lang.Boolean",
+      "description": "Require evidence for high value disputes",
+      "defaultValue": true
+    },
+    {
+      "name": "dispute.service.resolution.high-value-threshold",
+      "type": "java.lang.Integer",
+      "description": "Threshold amount for high value disputes",
+      "defaultValue": 1000
+    },
+    {
+      "name": "dispute.service.notifications.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable dispute notifications",
+      "defaultValue": true
+    },
+    {
+      "name": "dispute.service.notifications.channels",
+      "type": "java.util.List",
+      "description": "Available notification channels"
+    },
+    {
+      "name": "dispute.service.file-upload.max-size",
+      "type": "java.lang.Long",
+      "description": "Maximum file upload size in bytes",
+      "defaultValue": 10485760
+    },
+    {
+      "name": "dispute.service.file-upload.allowed-extensions",
+      "type": "java.util.List",
+      "description": "Allowed file extensions for upload"
+    },
+    {
+      "name": "dispute.service.file-upload.storage-path",
+      "type": "java.lang.String",
+      "description": "Storage path for uploaded files",
+      "defaultValue": "/var/waqiti/disputes/evidence"
+    },
+    {
+      "name": "dispute.service.export.max-records",
+      "type": "java.lang.Integer",
+      "description": "Maximum records for export",
+      "defaultValue": 10000
+    },
+    {
+      "name": "dispute.service.export.formats",
+      "type": "java.util.List",
+      "description": "Available export formats"
+    },
+    {
+      "name": "security.jwt.secret",
+      "type": "java.lang.String",
+      "description": "JWT secret key",
+      "defaultValue": "your-256-bit-secret-key-for-jwt-signing"
+    },
+    {
+      "name": "security.jwt.expiration",
+      "type": "java.lang.Long",
+      "description": "JWT expiration time in milliseconds",
+      "defaultValue": 86400000
+    },
+    {
+      "name": "security.cors.allowed-origins",
+      "type": "java.lang.String",
+      "description": "Allowed CORS origins",
+      "defaultValue": "http://localhost:3000,http://localhost:3001"
+    },
+    {
+      "name": "security.cors.allowed-methods",
+      "type": "java.lang.String",
+      "description": "Allowed CORS methods",
+      "defaultValue": "GET,POST,PUT,DELETE,OPTIONS"
+    },
+    {
+      "name": "security.cors.allowed-headers",
+      "type": "java.lang.String",
+      "description": "Allowed CORS headers",
+      "defaultValue": "*"
+    },
+    {
+      "name": "security.cors.allow-credentials",
+      "type": "java.lang.Boolean",
+      "description": "Allow CORS credentials",
+      "defaultValue": true
+    }
+  ]
+}

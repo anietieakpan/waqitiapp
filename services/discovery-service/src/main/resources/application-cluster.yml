@@ -1,0 +1,12 @@
+eureka:
+  client:
+    registerWithEureka: true
+    fetchRegistry: true
+    serviceUrl:
+      defaultZone: ${EUREKA_CLUSTER_URLS:http://eureka:password@eureka1:8761/eureka/,http://eureka:password@eureka2:8761/eureka/,http://eureka:password@eureka3:8761/eureka/}
+  instance:
+    prefer-ip-address: true
+  server:
+    enable-self-preservation: true
+    eviction-interval-timer-in-ms: 30000
+    expected-client-renewal-interval-seconds: 30

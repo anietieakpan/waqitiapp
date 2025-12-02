@@ -1,0 +1,281 @@
+# Secure Application Configuration Template
+# This template uses Vault secrets and environment variables instead of hardcoded values
+
+server:
+  port: ${SERVER_PORT:8080}
+  servlet:
+    context-path: ${CONTEXT_PATH:/api/v1}
+  ssl:
+    enabled: ${SSL_ENABLED:true}
+    key-store: ${SSL_KEYSTORE_PATH:classpath:keystore.p12}
+    key-store-password: ${vault:secret/ssl/keystore-password}
+    key-store-type: PKCS12
+    key-alias: waqiti
+  compression:
+    enabled: true
+    mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json
+    min-response-size: 1024
+
+spring:
+  application:
+    name: ${SPRING_APPLICATION_NAME:waqiti-service}
+  
+  # Database Configuration - Using Vault secrets
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:waqiti}
+    username: ${vault:secret/database/username}
+    password: ${vault:secret/database/password}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${DB_MAX_POOL_SIZE:20}
+      minimum-idle: ${DB_MIN_IDLE:5}
+      idle-timeout: 300000
+      connection-timeout: 20000
+      leak-detection-threshold: 60000
+      pool-name: ${spring.application.name}-pool
+  
+  # JPA Configuration
+  jpa:
+    hibernate:
+      ddl-auto: validate # Never use create-drop or update in production
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: false
+        generate_statistics: false
+        jdbc:
+          batch_size: 20
+          order_inserts: true
+          order_updates: true
+        cache:
+          use_second_level_cache: true
+          region:
+            factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
+  
+  # Redis Configuration - Using Vault secrets
+  redis:
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+    password: ${vault:secret/redis/password}
+    database: ${REDIS_DATABASE:0}
+    timeout: 2000ms
+    ssl: ${REDIS_SSL:false}
+    jedis:
+      pool:
+        max-active: 10
+        max-idle: 10
+        min-idle: 1
+        max-wait: -1ms
+  
+  # Cache Configuration
+  cache:
+    type: redis
+    redis:
+      time-to-live: PT1H
+      cache-null-values: false
+  
+  # Kafka Configuration - Using Vault secrets
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    security:
+      protocol: ${KAFKA_SECURITY_PROTOCOL:SASL_SSL}
+    sasl:
+      mechanism: ${KAFKA_SASL_MECHANISM:PLAIN}
+      jaas:
+        config: org.apache.kafka.common.security.plain.PlainLoginModule required username="${vault:secret/kafka/username}" password="${vault:secret/kafka/password}";
+    ssl:
+      trust-store-location: ${KAFKA_SSL_TRUSTSTORE_PATH:}
+      trust-store-password: ${vault:secret/kafka/truststore-password}
+      key-store-location: ${KAFKA_SSL_KEYSTORE_PATH:}
+      key-store-password: ${vault:secret/kafka/keystore-password}
+    producer:
+      retries: 3
+      batch-size: 16384
+      linger-ms: 5
+      buffer-memory: 33554432
+      acks: all
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+    consumer:
+      group-id: ${KAFKA_GROUP_ID:waqiti-${spring.application.name}}
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.waqiti.*"
+        isolation.level: read_committed
+
+# Security Configuration
+security:
+  jwt:
+    secret: ${vault:secret/jwt/secret-key}
+    expiration: ${JWT_EXPIRATION:3600} # 1 hour
+    refresh-expiration: ${JWT_REFRESH_EXPIRATION:86400} # 24 hours
+    issuer: ${JWT_ISSUER:example.com}
+  
+  oauth2:
+    keycloak:
+      realm: ${KEYCLOAK_REALM:waqiti}
+      server-url: ${KEYCLOAK_SERVER_URL:https://keycloak.example.com}
+      client-id: ${KEYCLOAK_CLIENT_ID:waqiti-service}
+      client-secret: ${vault:secret/keycloak/client-secret}
+  
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:https://*.example.com}
+    allowed-methods: GET,POST,PUT,PATCH,DELETE,OPTIONS
+    allowed-headers: "*"
+    allow-credentials: true
+    max-age: 3600
+
+# External Service Configuration
+external-services:
+  payment-gateway:
+    stripe:
+      api-key: ${vault:secret/stripe/api-key}
+      webhook-secret: ${vault:secret/stripe/webhook-secret}
+    paypal:
+      client-id: ${vault:secret/paypal/client-id}
+      client-secret: ${vault:secret/paypal/client-secret}
+  
+  notification:
+    twilio:
+      account-sid: ${vault:secret/twilio/account-sid}
+      auth-token: ${vault:secret/twilio/auth-token}
+      phone-number: ${vault:secret/twilio/phone-number}
+    sendgrid:
+      api-key: ${vault:secret/sendgrid/api-key}
+      from-email: ${SENDGRID_FROM_EMAIL:noreply@example.com}
+  
+  blockchain:
+    ethereum:
+      node-url: ${ETHEREUM_NODE_URL:https://mainnet.infura.io/v3/}
+      api-key: ${vault:secret/infura/api-key}
+      private-key: ${vault:secret/ethereum/private-key}
+    bitcoin:
+      node-url: ${BITCOIN_NODE_URL:}
+      username: ${vault:secret/bitcoin/rpc-username}
+      password: ${vault:secret/bitcoin/rpc-password}
+
+# Vault Configuration
+vault:
+  uri: ${VAULT_URI:https://vault.example.com}
+  token: ${VAULT_TOKEN:}
+  kv-version: 2
+  connection-timeout: 5000
+  read-timeout: 15000
+  ssl:
+    trust-store: ${VAULT_SSL_TRUSTSTORE:}
+    trust-store-password: ${vault:secret/vault/truststore-password}
+
+# Logging Configuration
+logging:
+  level:
+    com.waqiti: ${LOG_LEVEL:INFO}
+    org.springframework.security: ${SECURITY_LOG_LEVEL:WARN}
+    org.springframework.web: ${WEB_LOG_LEVEL:WARN}
+    org.hibernate.SQL: ${SQL_LOG_LEVEL:WARN}
+    org.springframework.kafka: ${KAFKA_LOG_LEVEL:WARN}
+    httpclient.wire: ${HTTP_LOG_LEVEL:WARN}
+  pattern:
+    console: "%d{ISO8601} [%thread] %-5level [%X{traceId},%X{spanId}] %logger{36} - %msg%n"
+  appender:
+    rolling-file:
+      file-name-pattern: "logs/${spring.application.name}.%d{yyyy-MM-dd}.%i.log"
+      max-file-size: 10MB
+      max-history: 30
+
+# Monitoring and Observability
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+      show-components: when-authorized
+      probes:
+        enabled: true
+    metrics:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: ${spring.application.name}
+      environment: ${ENVIRONMENT:production}
+      region: ${AWS_REGION:us-east-1}
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING_RATE:0.1}
+
+# OpenAPI Documentation
+springdoc:
+  api-docs:
+    enabled: ${API_DOCS_ENABLED:true}
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: ${SWAGGER_UI_ENABLED:false} # Disable in production
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+  show-actuator: false
+
+# Rate Limiting
+rate-limiting:
+  enabled: ${RATE_LIMITING_ENABLED:true}
+  requests-per-minute: ${RATE_LIMIT_RPM:100}
+  requests-per-hour: ${RATE_LIMIT_RPH:1000}
+  burst-capacity: ${RATE_LIMIT_BURST:20}
+
+# Circuit Breaker Configuration
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30000
+        sliding-window-size: 100
+        minimum-number-of-calls: 10
+        permitted-number-of-calls-in-half-open-state: 5
+    instances:
+      payment-service:
+        base-config: default
+      notification-service:
+        base-config: default
+  
+  retry:
+    configs:
+      default:
+        max-attempts: 3
+        wait-duration: 1000
+        retry-exceptions:
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
+    instances:
+      payment-service:
+        base-config: default
+      notification-service:
+        base-config: default
+  
+  bulkhead:
+    configs:
+      default:
+        max-concurrent-calls: 25
+    instances:
+      payment-service:
+        base-config: default
+
+# Feature Flags
+feature-flags:
+  new-fraud-detection: ${FEATURE_NEW_FRAUD_DETECTION:true}
+  crypto-payments: ${FEATURE_CRYPTO_PAYMENTS:false}
+  international-transfers: ${FEATURE_INTERNATIONAL_TRANSFERS:true}
+  voice-payments: ${FEATURE_VOICE_PAYMENTS:false}
+  biometric-auth: ${FEATURE_BIOMETRIC_AUTH:true}

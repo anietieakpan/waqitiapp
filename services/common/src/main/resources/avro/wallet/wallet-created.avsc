@@ -1,0 +1,72 @@
+{
+  "namespace": "com.waqiti.events.v1.wallet",
+  "type": "record",
+  "name": "WalletCreatedEvent",
+  "doc": "Event published when a new wallet is created for a user",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "Unique identifier for this event (UUID)"
+    },
+    {
+      "name": "eventType",
+      "type": "string",
+      "default": "wallet.created",
+      "doc": "Type of event"
+    },
+    {
+      "name": "eventVersion",
+      "type": "string",
+      "default": "1.0.0",
+      "doc": "Event schema version"
+    },
+    {
+      "name": "timestamp",
+      "type": "long",
+      "logicalType": "timestamp-millis",
+      "doc": "Event timestamp in epoch milliseconds"
+    },
+    {
+      "name": "correlationId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Correlation ID for tracking"
+    },
+    {
+      "name": "walletId",
+      "type": "string",
+      "doc": "Unique wallet identifier (UUID)"
+    },
+    {
+      "name": "userId",
+      "type": "string",
+      "doc": "User who owns the wallet (UUID)"
+    },
+    {
+      "name": "walletType",
+      "type": "string",
+      "doc": "Wallet type (PERSONAL, BUSINESS, SAVINGS, etc.)"
+    },
+    {
+      "name": "accountType",
+      "type": "string",
+      "doc": "Account type (CHECKING, SAVINGS, INVESTMENT, etc.)"
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "doc": "ISO 4217 currency code"
+    },
+    {
+      "name": "initialBalance",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 19,
+        "scale": 4
+      },
+      "doc": "Initial balance amount"
+    }
+  ]
+}

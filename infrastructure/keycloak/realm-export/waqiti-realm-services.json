@@ -1,0 +1,416 @@
+{
+  "realm": "waqiti-fintech",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "maxFailureWaitSeconds": 900,
+  "minimumQuickLoginWaitSeconds": 60,
+  "waitIncrementSeconds": 60,
+  "quickLoginCheckMilliSeconds": 1000,
+  "maxDeltaTimeSeconds": 43200,
+  "failureFactor": 5,
+  "defaultRoles": ["user"],
+  "requiredCredentials": ["password"],
+  "otpPolicyType": "totp",
+  "otpPolicyAlgorithm": "HmacSHA1",
+  "otpPolicyInitialCounter": 0,
+  "otpPolicyDigits": 6,
+  "otpPolicyLookAheadWindow": 1,
+  "otpPolicyPeriod": 30,
+  "clients": [
+    {
+      "clientId": "payment-service",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${PAYMENT_SERVICE_SECRET}",
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "protocol": "openid-connect",
+      "bearerOnly": true,
+      "attributes": {
+        "saml.assertion.signature": "false",
+        "saml.multivalued.roles": "false",
+        "saml.force.post.binding": "false",
+        "saml.encrypt": "false",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "backchannel.logout.session.required": "true",
+        "backchannel.logout.revoke.offline.tokens": "false"
+      }
+    },
+    {
+      "clientId": "wallet-service",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${WALLET_SERVICE_SECRET}",
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "protocol": "openid-connect",
+      "bearerOnly": true
+    },
+    {
+      "clientId": "transaction-service",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${TRANSACTION_SERVICE_SECRET}",
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "protocol": "openid-connect",
+      "bearerOnly": true
+    },
+    {
+      "clientId": "core-banking-service",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${CORE_BANKING_SERVICE_SECRET}",
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "protocol": "openid-connect",
+      "bearerOnly": true
+    },
+    {
+      "clientId": "security-service",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${SECURITY_SERVICE_SECRET}",
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "protocol": "openid-connect",
+      "bearerOnly": true
+    },
+    {
+      "clientId": "kyc-service",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${KYC_SERVICE_SECRET}",
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "protocol": "openid-connect",
+      "bearerOnly": true
+    },
+    {
+      "clientId": "compliance-service",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${COMPLIANCE_SERVICE_SECRET}",
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "protocol": "openid-connect",
+      "bearerOnly": true
+    },
+    {
+      "clientId": "audit-service",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${AUDIT_SERVICE_SECRET}",
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "protocol": "openid-connect",
+      "bearerOnly": true
+    },
+    {
+      "clientId": "notification-service",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${NOTIFICATION_SERVICE_SECRET}",
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "protocol": "openid-connect",
+      "bearerOnly": true
+    },
+    {
+      "clientId": "waqiti-web-app",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${WEB_APP_SECRET}",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "authorizationServicesEnabled": false,
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "redirectUris": [
+        "https://app.example.com/*",
+        "http://localhost:3000/*"
+      ],
+      "webOrigins": [
+        "https://app.example.com",
+        "http://localhost:3000"
+      ]
+    },
+    {
+      "clientId": "waqiti-mobile-app",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "authorizationServicesEnabled": false,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "redirectUris": [
+        "com.waqiti.app://oauth/callback",
+        "waqiti://oauth/callback"
+      ]
+    }
+  ],
+  "roles": {
+    "realm": [
+      {
+        "name": "USER",
+        "description": "Standard user role"
+      },
+      {
+        "name": "ADMIN",
+        "description": "Administrator role"
+      },
+      {
+        "name": "SERVICE",
+        "description": "Service account role for inter-service communication"
+      },
+      {
+        "name": "PAYMENT_ADMIN",
+        "description": "Payment service administrator"
+      },
+      {
+        "name": "WALLET_ADMIN",
+        "description": "Wallet service administrator"
+      },
+      {
+        "name": "TRANSACTION_ADMIN",
+        "description": "Transaction service administrator"
+      },
+      {
+        "name": "BANKING_ADMIN",
+        "description": "Banking service administrator"
+      },
+      {
+        "name": "SECURITY_ADMIN",
+        "description": "Security service administrator"
+      },
+      {
+        "name": "KYC_ADMIN",
+        "description": "KYC service administrator"
+      },
+      {
+        "name": "KYC_VERIFIER",
+        "description": "KYC verification officer"
+      },
+      {
+        "name": "KYC_APPROVER",
+        "description": "KYC approval officer"
+      },
+      {
+        "name": "COMPLIANCE_ADMIN",
+        "description": "Compliance service administrator"
+      },
+      {
+        "name": "COMPLIANCE_OFFICER",
+        "description": "Compliance officer"
+      },
+      {
+        "name": "COMPLIANCE_INVESTIGATOR",
+        "description": "Compliance investigator"
+      },
+      {
+        "name": "AUDIT_ADMIN",
+        "description": "Audit service administrator"
+      },
+      {
+        "name": "AUDITOR",
+        "description": "Auditor role"
+      },
+      {
+        "name": "FORENSIC_INVESTIGATOR",
+        "description": "Forensic investigator"
+      },
+      {
+        "name": "NOTIFICATION_ADMIN",
+        "description": "Notification service administrator"
+      },
+      {
+        "name": "ANALYST",
+        "description": "Data analyst"
+      },
+      {
+        "name": "RISK_MANAGER",
+        "description": "Risk management officer"
+      },
+      {
+        "name": "RECONCILIATION",
+        "description": "Reconciliation officer"
+      },
+      {
+        "name": "MARKETING",
+        "description": "Marketing team member"
+      },
+      {
+        "name": "CFO",
+        "description": "Chief Financial Officer"
+      },
+      {
+        "name": "FINANCIAL_AUDITOR",
+        "description": "Financial auditor"
+      },
+      {
+        "name": "SYSTEM_ADMIN",
+        "description": "System administrator"
+      }
+    ]
+  },
+  "clientScopes": [
+    {
+      "name": "payment",
+      "description": "Payment service scopes",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true"
+      },
+      "protocolMappers": [
+        {
+          "name": "payment-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "payment-service",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wallet",
+      "description": "Wallet service scopes",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true"
+      }
+    },
+    {
+      "name": "transaction",
+      "description": "Transaction service scopes",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true"
+      }
+    },
+    {
+      "name": "banking",
+      "description": "Banking service scopes",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true"
+      }
+    },
+    {
+      "name": "security",
+      "description": "Security service scopes",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true"
+      }
+    },
+    {
+      "name": "kyc",
+      "description": "KYC service scopes",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true"
+      }
+    },
+    {
+      "name": "compliance",
+      "description": "Compliance service scopes",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true"
+      }
+    },
+    {
+      "name": "audit",
+      "description": "Audit service scopes",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true"
+      }
+    },
+    {
+      "name": "notification",
+      "description": "Notification service scopes",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true"
+      }
+    }
+  ],
+  "authenticationFlows": [
+    {
+      "alias": "MFA Authentication",
+      "description": "Multi-factor authentication flow",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "auth-username-password-form",
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "autheticatorFlow": false
+        },
+        {
+          "authenticator": "auth-otp-form",
+          "requirement": "CONDITIONAL",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "autheticatorFlow": false
+        }
+      ]
+    }
+  ]
+}

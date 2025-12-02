@@ -1,0 +1,116 @@
+# Keycloak Configuration for Family Account Service
+
+keycloak:
+  enabled: true
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  ssl-required: external
+  resource: family-account-service
+  bearer-only: true
+  credentials:
+    secret: ${FAMILY_ACCOUNT_SERVICE_CLIENT_SECRET:CHANGE_ME_SECURE_SECRET_REQUIRED}
+  use-resource-role-mappings: true
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# Family Account Service Security Configuration
+family:
+  security:
+    # Public endpoints that don't require authentication
+    public-endpoints:
+      - /actuator/health
+      - /actuator/info
+      - /swagger-ui/**
+      - /v3/api-docs/**
+    
+    # Service-to-service endpoints
+    service-endpoints:
+      - /internal/family/**
+    
+    # Required roles for family account operations
+    required-roles:
+      read:
+        - USER
+        - FAMILY_MEMBER
+      family-create:
+        - USER
+        - FAMILY_ADMIN
+      family-join:
+        - USER
+        - FAMILY_MEMBER
+      family-manage:
+        - FAMILY_ADMIN
+        - FAMILY_OWNER
+      member-invite:
+        - FAMILY_ADMIN
+        - FAMILY_OWNER
+      member-remove:
+        - FAMILY_ADMIN
+        - FAMILY_OWNER
+      spending-control:
+        - FAMILY_ADMIN
+        - FAMILY_PARENT
+      allowance-manage:
+        - FAMILY_ADMIN
+        - FAMILY_PARENT
+      savings-goal:
+        - FAMILY_MEMBER
+        - FAMILY_ADMIN
+      management:
+        - FAMILY_MANAGER
+        - FAMILY_OPERATOR
+      admin:
+        - FAMILY_ADMIN
+        - SYSTEM_ADMIN
+    
+    # Required scopes for operations
+    required-scopes:
+      family-read: family:read
+      family-write: family:write
+      member-manage: family:member:manage
+      spending-control: family:spending:control
+      allowance-manage: family:allowance:manage
+      savings-goal: family:savings:goal
+      parental-controls: family:parental:controls
+      financial-education: family:education
+      admin: family:admin
+      management: family:manage
+    
+    # Family account security features
+    features:
+      parental-controls-enabled: true
+      spending-limits-enabled: true
+      transaction-approval-enabled: true
+      educational-content-enabled: true
+      savings-goals-enabled: true
+      age-verification-enabled: true
+      
+    # Family account limits and thresholds
+    limits:
+      max-family-members: 10
+      max-children-per-family: 8
+      max-allowance-amount: 1000.00
+      max-spending-limit-child: 500.00
+      max-savings-goals-per-member: 5
+      
+    # Security thresholds requiring parental approval
+    approval-thresholds:
+      child-transaction-amount: 50.00
+      teen-transaction-amount: 200.00
+      unusual-spending-pattern: 3
+      new-merchant-category: true
+      
+    # Advanced security features
+    advanced-security:
+      require-parental-approval-high-value: true
+      automatic-spending-alerts: true
+      location-based-restrictions: true
+      merchant-category-filtering: true
+      real-time-transaction-monitoring: true
+      educational-intervention-triggers: true

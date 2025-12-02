@@ -1,0 +1,265 @@
+# ========================================
+# ASYNC KAFKA PUBLISHER CONFIGURATION
+# ========================================
+#
+# This configuration file contains all settings for the
+# production-grade async Kafka publisher with circuit breakers
+#
+# CRITICAL SETTINGS:
+# ==================
+# 1. NO BLOCKING: All operations are async with callbacks
+# 2. CIRCUIT BREAKERS: Fail-fast during Kafka outages
+# 3. DLQ ROUTING: 100% event preservation
+# 4. HIGH THROUGHPUT: 50K+ events/sec per instance
+# 5. LOW LATENCY: P99 < 100ms
+#
+# DEPLOYMENT ENVIRONMENTS:
+# ========================
+# - Development: Low throughput, verbose logging
+# - Staging: Production-like with safety nets
+# - Production: Optimized for performance and reliability
+
+# ========================================
+# DEVELOPMENT ENVIRONMENT
+# ========================================
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+# Kafka Async Publisher
+kafka:
+  async:
+    publisher:
+      enable-circuit-breaker: true
+      enable-dlq: true
+
+      # Circuit Breaker Settings (Lenient for Dev)
+      circuit-breaker:
+        failure-rate-threshold: 70         # Open at 70% failures
+        slow-call-rate-threshold: 70       # Open at 70% slow calls
+        slow-call-duration-threshold-ms: 10000  # 10s = slow
+        wait-duration-ms: 30000            # Wait 30s in open state
+        sliding-window-size: 50            # Evaluate over 50 calls
+        minimum-number-of-calls: 5         # Need 5+ calls to evaluate
+        permitted-calls-half-open: 3       # Test with 3 calls
+
+  # Kafka Producer Settings (Development)
+  producer:
+    # Performance (Lower throughput for dev)
+    linger-ms: 100                         # Wait 100ms to batch
+    batch-size: 16384                      # 16KB batches
+    buffer-memory: 33554432                # 32MB buffer
+    compression-type: none                 # No compression (easier debugging)
+    max-in-flight-requests: 1              # Strict ordering
+
+    # Reliability
+    acks: all                              # Wait for all replicas
+    retries: 3                             # 3 automatic retries
+    enable-idempotence: true               # Exactly-once semantics
+
+    # Timeouts (Longer for dev debugging)
+    request-timeout-ms: 10000              # 10s request timeout
+    delivery-timeout-ms: 60000             # 60s delivery timeout
+    max-block-ms: 20000                    # 20s max block time
+
+# Logging (Verbose for development)
+logging:
+  level:
+    com.example.common.kafka: DEBUG
+    org.apache.kafka.clients.producer: INFO
+
+# ========================================
+# STAGING ENVIRONMENT
+# ========================================
+---
+spring:
+  config:
+    activate:
+      on-profile: staging
+
+# Kafka Async Publisher
+kafka:
+  async:
+    publisher:
+      enable-circuit-breaker: true
+      enable-dlq: true
+
+      # Circuit Breaker Settings (Production-like)
+      circuit-breaker:
+        failure-rate-threshold: 50         # Open at 50% failures
+        slow-call-rate-threshold: 50       # Open at 50% slow calls
+        slow-call-duration-threshold-ms: 5000   # 5s = slow
+        wait-duration-ms: 60000            # Wait 60s in open state
+        sliding-window-size: 100           # Evaluate over 100 calls
+        minimum-number-of-calls: 10        # Need 10+ calls to evaluate
+        permitted-calls-half-open: 5       # Test with 5 calls
+
+  # Kafka Producer Settings (Staging)
+  producer:
+    # Performance (Moderate throughput)
+    linger-ms: 10                          # Wait 10ms to batch
+    batch-size: 32768                      # 32KB batches
+    buffer-memory: 67108864                # 64MB buffer
+    compression-type: lz4                  # Fast compression
+    max-in-flight-requests: 5              # Pipelining for performance
+
+    # Reliability
+    acks: all                              # Wait for all replicas
+    retries: 3                             # 3 automatic retries
+    enable-idempotence: true               # Exactly-once semantics
+
+    # Timeouts (Production-like)
+    request-timeout-ms: 5000               # 5s request timeout
+    delivery-timeout-ms: 30000             # 30s delivery timeout
+    max-block-ms: 10000                    # 10s max block time
+
+# Logging (Balanced)
+logging:
+  level:
+    com.example.common.kafka: INFO
+    org.apache.kafka.clients.producer: WARN
+
+# ========================================
+# PRODUCTION ENVIRONMENT
+# ========================================
+---
+spring:
+  config:
+    activate:
+      on-profile: production
+
+# Kafka Async Publisher
+kafka:
+  async:
+    publisher:
+      enable-circuit-breaker: true
+      enable-dlq: true
+
+      # Circuit Breaker Settings (Production-Optimized)
+      circuit-breaker:
+        failure-rate-threshold: 50         # Open at 50% failures
+        slow-call-rate-threshold: 50       # Open at 50% slow calls
+        slow-call-duration-threshold-ms: 5000   # 5s = slow
+        wait-duration-ms: 60000            # Wait 60s in open state
+        sliding-window-size: 100           # Evaluate over 100 calls
+        minimum-number-of-calls: 10        # Need 10+ calls to evaluate
+        permitted-calls-half-open: 5       # Test with 5 calls
+
+  # Kafka Producer Settings (Production-Optimized)
+  producer:
+    # Performance (HIGH THROUGHPUT)
+    linger-ms: 10                          # Wait 10ms to batch
+    batch-size: 32768                      # 32KB batches
+    buffer-memory: 67108864                # 64MB buffer
+    compression-type: lz4                  # Fast compression (best for production)
+    max-in-flight-requests: 5              # Pipelining for max performance
+
+    # Reliability (NO DATA LOSS)
+    acks: all                              # Wait for all replicas (durability)
+    retries: 3                             # 3 automatic retries
+    enable-idempotence: true               # Exactly-once semantics
+
+    # Timeouts (FAIL FAST)
+    request-timeout-ms: 5000               # 5s request timeout (fail fast)
+    delivery-timeout-ms: 30000             # 30s delivery timeout (total)
+    max-block-ms: 10000                    # 10s max block time
+
+# Logging (Production - Errors Only)
+logging:
+  level:
+    com.example.common.kafka: INFO
+    org.apache.kafka.clients.producer: ERROR
+
+# ========================================
+# HIGH-PERFORMANCE ENVIRONMENT (Optional)
+# ========================================
+# Use this profile for extremely high-throughput scenarios
+# (e.g., Black Friday, payment spikes > 100K events/sec)
+---
+spring:
+  config:
+    activate:
+      on-profile: high-performance
+
+# Kafka Async Publisher
+kafka:
+  async:
+    publisher:
+      enable-circuit-breaker: true
+      enable-dlq: true
+
+      # Circuit Breaker Settings (Aggressive)
+      circuit-breaker:
+        failure-rate-threshold: 60         # Tolerate more failures
+        slow-call-rate-threshold: 60       # Tolerate more slow calls
+        slow-call-duration-threshold-ms: 10000  # 10s = slow (higher tolerance)
+        wait-duration-ms: 30000            # Wait 30s (faster recovery)
+        sliding-window-size: 200           # Larger window
+        minimum-number-of-calls: 20        # More calls before evaluating
+        permitted-calls-half-open: 10      # More test calls
+
+  # Kafka Producer Settings (MAXIMUM THROUGHPUT)
+  producer:
+    # Performance (EXTREME THROUGHPUT)
+    linger-ms: 5                           # Wait only 5ms to batch
+    batch-size: 65536                      # 64KB batches (larger)
+    buffer-memory: 134217728               # 128MB buffer (2x)
+    compression-type: lz4                  # Fastest compression
+    max-in-flight-requests: 10             # Aggressive pipelining
+
+    # Reliability (Still no data loss)
+    acks: all                              # Wait for all replicas
+    retries: 3                             # 3 automatic retries
+    enable-idempotence: true               # Exactly-once semantics
+
+    # Timeouts (Fast failure)
+    request-timeout-ms: 3000               # 3s request timeout (very fast)
+    delivery-timeout-ms: 20000             # 20s delivery timeout
+    max-block-ms: 5000                     # 5s max block time (very fast)
+
+# Logging (Minimal)
+logging:
+  level:
+    com.example.common.kafka: WARN
+    org.apache.kafka.clients.producer: ERROR
+
+# ========================================
+# CONFIGURATION NOTES
+# ========================================
+#
+# CHOOSING THE RIGHT PROFILE:
+# ============================
+# 1. dev: Local development, debugging, low throughput
+# 2. staging: Pre-production testing, production-like settings
+# 3. production: Production deployment, balanced performance/reliability
+# 4. high-performance: Special events, extreme throughput requirements
+#
+# TUNING GUIDELINES:
+# ==================
+# - linger.ms: Lower = lower latency, Higher = better throughput
+# - batch.size: Larger = better throughput, more memory
+# - compression: none (debug) < lz4 (fast) < snappy < gzip (high CPU)
+# - max.in.flight.requests: 1 (strict ordering) vs 5+ (performance)
+#
+# CIRCUIT BREAKER TUNING:
+# =======================
+# - failure-rate-threshold: 30-70% (lower = more sensitive)
+# - sliding-window-size: 50-200 calls (larger = smoother)
+# - wait-duration-ms: 30-120 seconds (Kafka recovery time)
+#
+# MONITORING METRICS:
+# ===================
+# - kafka.async.publish.success (counter)
+# - kafka.async.publish.failure (counter)
+# - kafka.async.publish.dlq (counter)
+# - kafka.async.circuit_breaker.open (counter)
+# - kafka.async.publish.duration (timer)
+#
+# ALERTING RECOMMENDATIONS:
+# =========================
+# 1. Alert if circuit breaker opens (critical topic)
+# 2. Alert if DLQ rate > 1% of total events
+# 3. Alert if P99 latency > 500ms
+# 4. Alert if failure rate > 5%

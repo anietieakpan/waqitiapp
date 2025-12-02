@@ -1,0 +1,213 @@
+{
+  "properties": [
+    {
+      "name": "fraud.detection.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable fraud detection service",
+      "defaultValue": true
+    },
+    {
+      "name": "fraud.detection.real-time-analysis",
+      "type": "java.lang.Boolean",
+      "description": "Enable real-time fraud analysis",
+      "defaultValue": true
+    },
+    {
+      "name": "fraud.detection.batch-processing",
+      "type": "java.lang.Boolean",
+      "description": "Enable batch fraud processing",
+      "defaultValue": true
+    },
+    {
+      "name": "fraud.rules.velocity-check.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable velocity check rules",
+      "defaultValue": true
+    },
+    {
+      "name": "fraud.rules.velocity-check.time-window",
+      "type": "java.time.Duration",
+      "description": "Time window for velocity checks",
+      "defaultValue": "60m"
+    },
+    {
+      "name": "fraud.rules.velocity-check.max-transactions",
+      "type": "java.lang.Integer",
+      "description": "Maximum transactions in time window",
+      "defaultValue": 10
+    },
+    {
+      "name": "fraud.rules.velocity-check.max-amount",
+      "type": "java.math.BigDecimal",
+      "description": "Maximum amount in time window",
+      "defaultValue": 5000.00
+    },
+    {
+      "name": "fraud.rules.location-check.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable location-based fraud checks",
+      "defaultValue": true
+    },
+    {
+      "name": "fraud.rules.location-check.impossible-travel-speed",
+      "type": "java.lang.Integer",
+      "description": "Speed threshold for impossible travel detection (km/h)",
+      "defaultValue": 500
+    },
+    {
+      "name": "fraud.rules.pattern-detection.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable pattern detection",
+      "defaultValue": true
+    },
+    {
+      "name": "fraud.rules.pattern-detection.suspicious-patterns",
+      "type": "java.util.List",
+      "description": "List of suspicious transaction patterns"
+    },
+    {
+      "name": "fraud.scoring.threshold.low",
+      "type": "java.lang.Double",
+      "description": "Low risk threshold score",
+      "defaultValue": 0.3
+    },
+    {
+      "name": "fraud.scoring.threshold.medium",
+      "type": "java.lang.Double",
+      "description": "Medium risk threshold score",
+      "defaultValue": 0.6
+    },
+    {
+      "name": "fraud.scoring.threshold.high",
+      "type": "java.lang.Double",
+      "description": "High risk threshold score",
+      "defaultValue": 0.8
+    },
+    {
+      "name": "fraud.scoring.threshold.block",
+      "type": "java.lang.Double",
+      "description": "Blocking threshold score",
+      "defaultValue": 0.95
+    },
+    {
+      "name": "fraud.ml.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable ML-based fraud detection",
+      "defaultValue": true
+    },
+    {
+      "name": "fraud.ml.model-path",
+      "type": "java.lang.String",
+      "description": "Path to ML model files",
+      "defaultValue": "/models/fraud-detection"
+    },
+    {
+      "name": "fraud.ml.update-frequency",
+      "type": "java.time.Duration",
+      "description": "Model update frequency",
+      "defaultValue": "24h"
+    },
+    {
+      "name": "fraud.ml.batch-size",
+      "type": "java.lang.Integer",
+      "description": "Batch size for ML processing",
+      "defaultValue": 100
+    },
+    {
+      "name": "fraud.notification.high-risk-alert",
+      "type": "java.lang.Boolean",
+      "description": "Send alerts for high-risk transactions",
+      "defaultValue": true
+    },
+    {
+      "name": "fraud.notification.channels",
+      "type": "java.util.List",
+      "description": "Notification channels for fraud alerts"
+    },
+    {
+      "name": "fraud.quarantine.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable transaction quarantine",
+      "defaultValue": true
+    },
+    {
+      "name": "fraud.quarantine.duration",
+      "type": "java.time.Duration",
+      "description": "Quarantine duration for suspicious transactions",
+      "defaultValue": "24h"
+    },
+    {
+      "name": "fraud.quarantine.review-required",
+      "type": "java.lang.Boolean",
+      "description": "Require manual review for quarantined transactions",
+      "defaultValue": true
+    },
+    {
+      "name": "services.ml-service.url",
+      "type": "java.lang.String",
+      "description": "ML service URL"
+    },
+    {
+      "name": "services.ml-service.timeout",
+      "type": "java.time.Duration",
+      "description": "ML service timeout",
+      "defaultValue": "10s"
+    },
+    {
+      "name": "services.notification-service.url",
+      "type": "java.lang.String",
+      "description": "Notification service URL"
+    },
+    {
+      "name": "services.notification-service.timeout",
+      "type": "java.time.Duration",
+      "description": "Notification service timeout",
+      "defaultValue": "5s"
+    },
+    {
+      "name": "services.transaction-service.url",
+      "type": "java.lang.String",
+      "description": "Transaction service URL"
+    },
+    {
+      "name": "services.transaction-service.timeout",
+      "type": "java.time.Duration",
+      "description": "Transaction service timeout",
+      "defaultValue": "10s"
+    },
+    {
+      "name": "security.jwt.secret",
+      "type": "java.lang.String",
+      "description": "JWT secret key"
+    },
+    {
+      "name": "security.jwt.expiration",
+      "type": "java.lang.Long",
+      "description": "JWT token expiration time in milliseconds",
+      "defaultValue": 86400000
+    }
+  ],
+  "hints": [
+    {
+      "name": "fraud.notification.channels",
+      "values": [
+        {"value": "email", "description": "Email notifications"},
+        {"value": "sms", "description": "SMS notifications"},
+        {"value": "push", "description": "Push notifications"},
+        {"value": "slack", "description": "Slack notifications"},
+        {"value": "webhook", "description": "Webhook notifications"}
+      ]
+    },
+    {
+      "name": "fraud.rules.pattern-detection.suspicious-patterns",
+      "values": [
+        {"value": "multiple-small-transactions", "description": "Multiple small transactions in succession"},
+        {"value": "round-dollar-amounts", "description": "Transactions with round dollar amounts"},
+        {"value": "rapid-succession", "description": "Rapid succession of transactions"},
+        {"value": "structured-transactions", "description": "Structured transactions to avoid reporting"},
+        {"value": "velocity-abuse", "description": "Velocity limit abuse patterns"},
+        {"value": "card-testing", "description": "Card testing patterns"}
+      ]
+    }
+  ]
+}

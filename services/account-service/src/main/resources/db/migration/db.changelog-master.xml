@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!-- Include SQL migrations in order -->
+    <include file="db/migration/V1__Create_account_tables.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/V2__Align_schema_with_entity_model.sql" relativeToChangelogFile="false"/>
+
+</databaseChangeLog>

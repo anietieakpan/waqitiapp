@@ -1,0 +1,137 @@
+# Waqiti Platform - Redis Configuration
+# This configuration is shared across all services for consistent caching behavior
+
+spring:
+  # Redis connection configuration
+  redis:
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+    password: ${VAULT_REDIS_PASSWORD}
+    database: 0
+    timeout: 2000ms
+    ssl:
+      enabled: ${REDIS_SSL_ENABLED:true}
+    lettuce:
+      pool:
+        max-active: 20      # Maximum number of connections
+        max-idle: 10        # Maximum idle connections
+        min-idle: 5         # Minimum idle connections
+        max-wait: 2000ms    # Maximum wait time for connection
+        time-between-eviction-runs: 60000ms
+      shutdown-timeout: 200ms
+      cluster:
+        refresh:
+          adaptive: true
+          period: 30000ms
+
+  # Cache configuration
+  cache:
+    type: redis
+    redis:
+      time-to-live: 3600000  # Default 1 hour (in milliseconds)
+      cache-null-values: false
+      use-key-prefix: true
+      key-prefix: "${spring.application.name}:"
+      enable-statistics: true
+
+# Redis Sentinel configuration (High Availability)
+redis:
+  sentinel:
+    enabled: ${REDIS_SENTINEL_ENABLED:false}
+    master: waqiti-master
+    nodes:
+      - ${REDIS_SENTINEL_HOST_1:localhost}:26379
+      - ${REDIS_SENTINEL_HOST_2:localhost}:26380
+      - ${REDIS_SENTINEL_HOST_3:localhost}:26381
+    password: ${VAULT_REDIS_SENTINEL_PASSWORD}
+
+# Cache-specific TTL configurations (in milliseconds)
+cache:
+  ttl:
+    # User & Authentication (30 minutes - moderate freshness)
+    user-profile: 1800000
+    user-permissions: 1800000
+    user-roles: 1800000
+    session-data: 1800000
+
+    # Wallet & Balance (5 minutes - high freshness required)
+    wallet-balance: 300000
+    wallet-details: 600000
+    wallet-limits: 1800000
+    daily-transaction-limits: 3600000
+
+    # Transactions (10 minutes - moderate caching)
+    transaction-history: 600000
+    transaction-details: 1800000
+    transaction-status: 300000
+
+    # Payments (5 minutes - frequently changing)
+    payment-status: 300000
+    payment-methods: 1800000
+    payment-limits: 3600000
+
+    # Account & Banking (30 minutes)
+    account-details: 1800000
+    account-balance: 300000
+    account-statement: 3600000
+
+    # KYC & Compliance (1 hour - relatively static)
+    kyc-status: 3600000
+    kyc-documents: 3600000
+    compliance-rules: 3600000
+    sanctions-list: 7200000  # 2 hours
+
+    # Exchange Rates (1 minute - very dynamic)
+    exchange-rates: 60000
+    crypto-prices: 30000  # 30 seconds for crypto
+
+    # Fraud Detection (30 minutes)
+    fraud-rules: 1800000
+    fraud-scores: 900000  # 15 minutes
+    blacklist: 3600000
+
+    # Cards (30 minutes)
+    card-details: 1800000
+    virtual-card-details: 1800000
+    card-limits: 3600000
+
+    # Notifications (15 minutes)
+    notification-templates: 900000
+    notification-preferences: 1800000
+
+    # Analytics & Reporting (1 hour - can be stale)
+    analytics-data: 3600000
+    report-data: 7200000  # 2 hours
+
+    # Reference Data (4 hours - very static)
+    countries: 14400000
+    currencies: 14400000
+    banks: 14400000
+    merchant-categories: 14400000
+
+# Cache eviction policies
+eviction:
+  policies:
+    # High-priority caches (keep longer, evict less frequently)
+    high-priority:
+      - user-profile
+      - wallet-balance
+      - kyc-status
+      - fraud-rules
+
+    # Low-priority caches (can evict aggressively)
+    low-priority:
+      - analytics-data
+      - report-data
+      - notification-templates
+
+# Cache monitoring and metrics
+monitoring:
+  cache:
+    metrics:
+      enabled: true
+      export-to-prometheus: true
+    alerts:
+      eviction-rate-threshold: 0.1  # Alert if >10% eviction rate
+      hit-rate-threshold: 0.8       # Alert if <80% hit rate
+      memory-usage-threshold: 0.9   # Alert if >90% memory used

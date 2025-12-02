@@ -1,0 +1,139 @@
+# Docker Compose override for integrating Bitcoin infrastructure with Waqiti services
+# This file extends the main docker-compose.yml to include Bitcoin/Lightning support
+
+version: '3.8'
+
+services:
+  # Extend crypto-service to connect to Bitcoin infrastructure
+  crypto-service:
+    depends_on:
+      bitcoin-core:
+        condition: service_healthy
+      lnd:
+        condition: service_healthy
+    environment:
+      # Bitcoin connection
+      - BITCOIN_NETWORK=${BITCOIN_NETWORK:-testnet}
+      - BITCOIN_NODE_HOST=bitcoin-core
+      - BITCOIN_RPC_USER=${BITCOIN_RPC_USER:-waqiti}
+      - BITCOIN_RPC_PASSWORD=${BITCOIN_RPC_PASSWORD}
+      
+      # Lightning connection
+      - LND_NODE_HOST=lnd
+      - LND_TLS_CERT_PATH=/shared/tls.cert
+      - LND_MACAROON_PATH=/shared/admin.macaroon
+      
+      # Security
+      - BITCOIN_BACKUP_ENCRYPTION_KEY=${BITCOIN_BACKUP_ENCRYPTION_KEY}
+      - LIGHTNING_CHANNEL_BACKUP_KEY=${LIGHTNING_CHANNEL_BACKUP_KEY}
+      
+      # Database for Lightning data
+      - LIGHTNING_DB_NAME=waqiti_lightning
+      - LIGHTNING_DB_USER=waqiti_lightning
+      - LIGHTNING_DB_PASSWORD=${LIGHTNING_DB_PASSWORD}
+      
+      # Spring profiles
+      - SPRING_PROFILES_ACTIVE=bitcoin,${SPRING_PROFILES_ACTIVE:-docker}
+    volumes:
+      - shared-data:/shared:ro  # Access to LND certificates and macaroons
+    networks:
+      - waqiti-network
+    profiles:
+      - bitcoin
+
+  # Bitcoin Core node from the bitcoin compose file
+  bitcoin-core:
+    extends:
+      file: docker-compose-bitcoin.yml
+      service: bitcoin-core
+    networks:
+      - waqiti-network
+    profiles:
+      - bitcoin
+
+  # Lightning Network Daemon
+  lnd:
+    extends:
+      file: docker-compose-bitcoin.yml
+      service: lnd
+    networks:
+      - waqiti-network
+    volumes:
+      - lnd-data:/root/.lnd
+      - shared-data:/shared  # Share certs/macaroons with crypto-service
+    profiles:
+      - bitcoin
+
+  # Lightning Terminal (optional management UI)
+  lightning-terminal:
+    extends:
+      file: docker-compose-bitcoin.yml
+      service: lightning-terminal
+    networks:
+      - waqiti-network
+    profiles:
+      - bitcoin
+      - optional
+
+  # RTL (Ride The Lightning) web UI
+  rtl:
+    extends:
+      file: docker-compose-bitcoin.yml
+      service: rtl
+    networks:
+      - waqiti-network
+    profiles:
+      - bitcoin
+      - optional
+
+  # Electrum server for wallet connectivity
+  electrs:
+    extends:
+      file: docker-compose-bitcoin.yml
+      service: electrs
+    networks:
+      - waqiti-network
+    profiles:
+      - bitcoin
+      - optional
+
+  # BTCPay server for merchant functionality
+  btcpay:
+    extends:
+      file: docker-compose-bitcoin.yml
+      service: btcpay
+    networks:
+      - waqiti-network
+    profiles:
+      - bitcoin
+      - optional
+
+  # Extend PostgreSQL to include Lightning database
+  postgres:
+    environment:
+      - POSTGRES_MULTIPLE_DATABASES=waqiti_main,waqiti_lightning
+    volumes:
+      - ./init-lightning-db.sql:/docker-entrypoint-initdb.d/02-init-lightning-db.sql
+
+  # Extend Prometheus to scrape Bitcoin/Lightning metrics
+  prometheus:
+    volumes:
+      - ./prometheus-bitcoin.yml:/etc/prometheus/bitcoin.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+
+  # Extend Grafana with Bitcoin/Lightning dashboards
+  grafana:
+    volumes:
+      - ./grafana/dashboards/bitcoin:/var/lib/grafana/dashboards/bitcoin
+    environment:
+      - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/var/lib/grafana/dashboards/bitcoin/overview.json
+
+volumes:
+  shared-data:
+    driver: local

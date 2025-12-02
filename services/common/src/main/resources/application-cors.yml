@@ -1,0 +1,111 @@
+# CORS Configuration for Different Environments
+# HIGH-01 FIX (2025-11-22): Environment-specific CORS settings
+
+---
+# Development Environment
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+cors:
+  enabled: true
+  allowed-origins:
+    - http://localhost:3000
+    - http://localhost:3001
+    - http://localhost:4200
+    - http://127.0.0.1:3000
+  allowed-methods:
+    - GET
+    - POST
+    - PUT
+    - DELETE
+    - PATCH
+    - OPTIONS
+  allowed-headers:
+    - "*"
+  exposed-headers:
+    - X-Total-Count
+    - X-Total-Pages
+    - X-Current-Page
+    - X-Correlation-Id
+    - X-RateLimit-Limit
+    - X-RateLimit-Remaining
+  allow-credentials: true
+  max-age: 3600
+
+---
+# Staging Environment
+spring:
+  config:
+    activate:
+      on-profile: staging
+
+cors:
+  enabled: true
+  allowed-origins:
+    - https://staging-app.example.com
+    - https://staging-admin.example.com
+  allowed-methods:
+    - GET
+    - POST
+    - PUT
+    - DELETE
+    - PATCH
+    - OPTIONS
+  allowed-headers:
+    - Authorization
+    - Content-Type
+    - X-Requested-With
+    - X-Correlation-Id
+    - X-Device-Id
+    - X-Session-Id
+  exposed-headers:
+    - X-Total-Count
+    - X-Total-Pages
+    - X-Current-Page
+    - X-Correlation-Id
+    - X-RateLimit-Limit
+    - X-RateLimit-Remaining
+  allow-credentials: true
+  max-age: 3600
+
+---
+# Production Environment
+spring:
+  config:
+    activate:
+      on-profile: prod,production
+
+cors:
+  enabled: true
+  allowed-origins:
+    - https://app.example.com
+    - https://admin.example.com
+    - https://mobile.example.com
+  allowed-methods:
+    - GET
+    - POST
+    - PUT
+    - DELETE
+    - PATCH
+    - OPTIONS
+  allowed-headers:
+    - Authorization
+    - Content-Type
+    - X-Requested-With
+    - X-Correlation-Id
+    - X-Device-Id
+    - X-Session-Id
+    - Accept
+    - Origin
+  exposed-headers:
+    - X-Total-Count
+    - X-Total-Pages
+    - X-Current-Page
+    - X-Correlation-Id
+    - X-RateLimit-Limit
+    - X-RateLimit-Remaining
+    - X-RateLimit-Reset
+  allow-credentials: true
+  max-age: 7200

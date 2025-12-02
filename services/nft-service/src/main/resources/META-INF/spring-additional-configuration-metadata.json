@@ -1,0 +1,75 @@
+{
+  "properties": [
+    {
+      "name": "nft.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable NFT functionality",
+      "defaultValue": false
+    },
+    {
+      "name": "nft.blockchain.network",
+      "type": "java.lang.String",
+      "description": "Blockchain network for NFTs",
+      "defaultValue": "ETHEREUM"
+    },
+    {
+      "name": "nft.blockchain.testnet",
+      "type": "java.lang.Boolean",
+      "description": "Use testnet for NFT operations",
+      "defaultValue": true
+    },
+    {
+      "name": "nft.minting.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable NFT minting",
+      "defaultValue": false
+    },
+    {
+      "name": "nft.marketplace.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable NFT marketplace",
+      "defaultValue": false
+    },
+    {
+      "name": "nft.marketplace.commission-percentage",
+      "type": "java.math.BigDecimal",
+      "description": "Marketplace commission percentage",
+      "defaultValue": "2.5"
+    },
+    {
+      "name": "nft.storage.ipfs.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable IPFS storage for NFT metadata",
+      "defaultValue": true
+    },
+    {
+      "name": "nft.storage.ipfs.gateway",
+      "type": "java.lang.String",
+      "description": "IPFS gateway URL",
+      "defaultValue": "https://ipfs.io/ipfs/"
+    },
+    {
+      "name": "nft.wallet.integration",
+      "type": "java.lang.String",
+      "description": "Wallet integration type",
+      "defaultValue": "METAMASK"
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "OAuth2 client ID for service",
+      "defaultValue": "nft-service"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "OAuth2 client secret for service"
+    }
+  ]
+}

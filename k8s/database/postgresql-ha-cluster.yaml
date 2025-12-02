@@ -1,0 +1,142 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: waqiti-postgres-cluster
+  namespace: database
+  labels:
+    app: postgresql
+    component: database
+    tier: data
+spec:
+  instances: 3
+  
+  postgresql:
+    parameters:
+      max_connections: "200"
+      shared_buffers: "256MB"
+      effective_cache_size: "1GB"
+      maintenance_work_mem: "64MB"
+      checkpoint_completion_target: "0.9"
+      wal_buffers: "16MB"
+      default_statistics_target: "100"
+      random_page_cost: "1.1"
+      effective_io_concurrency: "200"
+      work_mem: "4MB"
+      min_wal_size: "1GB"
+      max_wal_size: "4GB"
+      max_worker_processes: "8"
+      max_parallel_workers_per_gather: "2"
+      max_parallel_workers: "8"
+      max_parallel_maintenance_workers: "2"
+      # Encryption settings
+      ssl: "on"
+      ssl_cert_file: "/opt/app-root/src/certificates/tls.crt"
+      ssl_key_file: "/opt/app-root/src/certificates/tls.key"
+      # Audit logging
+      log_statement: "all"
+      log_min_duration_statement: "1000"
+      log_checkpoints: "on"
+      log_connections: "on"
+      log_disconnections: "on"
+      log_lock_waits: "on"
+      log_temp_files: "0"
+      
+  primaryUpdateStrategy: unsupervised
+  
+  resources:
+    requests:
+      memory: "2Gi"
+      cpu: "1000m"
+    limits:
+      memory: "4Gi"
+      cpu: "2000m"
+      
+  storage:
+    size: "100Gi"
+    storageClass: "fast-ssd"
+    
+  monitoring:
+    enabled: true
+    
+  backup:
+    retentionPolicy: "30d"
+    barmanObjectStore:
+      destinationPath: "s3://waqiti-postgres-backups/cluster"
+      s3Credentials:
+        accessKeyId:
+          name: backup-credentials
+          key: ACCESS_KEY_ID
+        secretAccessKey:
+          name: backup-credentials
+          key: SECRET_ACCESS_KEY
+      wal:
+        retention: "7d"
+        compression: gzip
+      data:
+        compression: gzip
+        immediateCheckpoint: true
+        jobs: 2
+        
+  certificates:
+    serverTLSSecret: "postgres-server-certs"
+    serverCASecret: "postgres-ca-certs"
+    clientCASecret: "postgres-client-ca-certs"
+    
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+          - key: cnpg.io/cluster
+            operator: In
+            values:
+            - waqiti-postgres-cluster
+        topologyKey: kubernetes.io/hostname
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: backup-credentials
+  namespace: database
+type: Opaque
+stringData:
+  ACCESS_KEY_ID: "${vault.aws.backup.access_key_id:VAULT_SECRET_REQUIRED}"
+  SECRET_ACCESS_KEY: "${vault.aws.backup.secret_access_key:VAULT_SECRET_REQUIRED}"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: waqiti-postgres-primary
+  namespace: database
+  labels:
+    app: postgresql
+    component: primary
+spec:
+  type: ClusterIP
+  ports:
+  - port: 5432
+    targetPort: 5432
+    protocol: TCP
+    name: postgres
+  selector:
+    cnpg.io/cluster: waqiti-postgres-cluster
+    cnpg.io/instanceRole: primary
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: waqiti-postgres-replica
+  namespace: database
+  labels:
+    app: postgresql
+    component: replica
+spec:
+  type: ClusterIP
+  ports:
+  - port: 5432
+    targetPort: 5432
+    protocol: TCP
+    name: postgres
+  selector:
+    cnpg.io/cluster: waqiti-postgres-cluster
+    cnpg.io/instanceRole: replica

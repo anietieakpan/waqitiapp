@@ -1,0 +1,456 @@
+spring:
+  application:
+    name: ml-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  
+  cloud:
+    config:
+      uri: ${CONFIG_SERVER_URL:http://localhost:8888}
+      fail-fast: true
+      retry:
+        max-attempts: 3
+    circuitbreaker:
+      resilience4j:
+              enabled: true
+              configs:
+                default:
+                  failure-rate-threshold: 50
+                  slow-call-rate-threshold: 50
+                  slow-call-duration-threshold: 2s
+                  permitted-number-of-calls-in-half-open-state: 3
+                  sliding-window-size: 10
+                  minimum-number-of-calls: 5
+                  wait-duration-in-open-state: 10s
+                  automatic-transition-from-open-to-half-open-enabled: true
+  
+  # Database Configuration
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/waqiti_ml}
+    username: ${DATABASE_USERNAME:waqiti}
+    password: ${DATABASE_PASSWORD:${VAULT_DATABASE_PASSWORD}}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 300000
+      connection-timeout: 30000
+      validation-timeout: 5000
+      max-lifetime: 1800000
+      leak-detection-threshold: 60000
+  
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        use_sql_comments: true
+        jdbc:
+          batch_size: 25
+          order_inserts: true
+          order_updates: true
+        cache:
+          use_second_level_cache: true
+          use_query_cache: true
+          region:
+            factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
+  
+  # Flyway Database Migration
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+    table: ml_schema_version
+  
+  # Redis Configuration
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 10
+          max-idle: 5
+          min-idle: 1
+          max-wait: 2000ms
+  
+  # Kafka Configuration
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}}
+    consumer:
+      group-id: ml-service
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.trusted.packages: "*"
+  
+  # InfluxDB Configuration (for time series data)
+  influxdb:
+    url: ${INFLUXDB_URL:http://localhost:8086}
+    token: ${INFLUXDB_TOKEN:}
+    org: ${INFLUXDB_ORG:waqiti}
+    bucket: ${INFLUXDB_BUCKET:ml-metrics}
+    timeout: 10s
+  
+  # Neo4j Configuration (for graph analysis)
+  neo4j:
+    uri: ${NEO4J_URI:bolt://localhost:7687}
+    authentication:
+      username: ${NEO4J_USER:neo4j}
+      password: ${NEO4J_PASSWORD:}
+    connection-timeout: 10s
+    max-transaction-retry-time: 30s
+  
+  # Circuit Breaker Configuration
+
+  security:
+    oauth2:
+          resourceserver:
+            jwt:
+              issuer-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti
+              jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/certs
+          client:
+            registration:
+              keycloak:
+                client-id: ml-service
+                client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+                authorization-grant-type: client_credentials
+                scope: openid,profile,email,ml
+            provider:
+              keycloak:
+                issuer-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti
+                token-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/token
+                authorization-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/auth
+                userinfo-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/userinfo
+                jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/certs
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:${EUREKA_SERVER_URL:https://discovery-service:8761/eureka}/}
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+    metadata-map:
+      version: ${info.version}
+      region: ${DEPLOYMENT_REGION:us-east-1}
+
+server:
+  port: ${PORT:8095}
+  servlet:
+    context-path: /api/v1
+  error:
+    include-message: always
+    include-binding-errors: always
+  compression:
+    enabled: true
+    mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json
+    min-response-size: 1024
+
+# Keycloak Configuration - CRITICAL SECURITY IMPLEMENTATION
+keycloak:
+  enabled: true
+  realm: waqiti-fintech
+  auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}
+  ssl-required: external
+  resource: ml-service
+  bearer-only: true
+  use-resource-role-mappings: true
+  cors: true
+  cors-allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+  cors-allowed-headers: Authorization,Content-Type,X-Requested-With,X-ML-Model-Id
+  cors-max-age: 3600
+  public-client: false
+  credentials:
+    secret: ${KEYCLOAK_CLIENT_SECRET:}
+
+# Spring Security OAuth2 Configuration
+
+# Service-to-Service Authentication
+service:
+  auth:
+    enabled: true
+    client-id: ml-service
+    client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+
+# Management and Monitoring
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,loggers
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+    metrics:
+      enabled: true
+    prometheus:
+      enabled: true
+  health:
+    circuitbreakers:
+      enabled: true
+    redis:
+      enabled: true
+    db:
+      enabled: true
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+      version: ${project.version:1.0.0}
+  info:
+    git:
+      mode: full
+    build:
+      enabled: true
+  tracing:
+    sampling:
+      probability: 1.0
+
+# Logging Configuration
+logging:
+  level:
+    com.waqiti.ml: ${LOG_LEVEL:INFO}
+    org.springframework.kafka: WARN
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+    org.springframework.cloud.netflix.eureka: WARN
+    com.netflix.discovery: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%logger{36}] - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%logger{36}] - %msg%n"
+  file:
+    name: logs/ml-service.log
+    max-size: 10MB
+    max-history: 30
+
+# ML Service Specific Configuration
+ml:
+  models:
+    fraud-detection:
+      enabled: true
+      model-path: ${ML_MODELS_PATH:/app/models}/fraud-detection
+      batch-size: 100
+      confidence-threshold: 0.7
+      retrain-interval: 24h
+      feature-store:
+        enabled: true
+        feast-server: ${FEAST_SERVER:localhost:6566}
+    
+    risk-scoring:
+      enabled: true
+      model-path: ${ML_MODELS_PATH:/app/models}/risk-scoring
+      batch-size: 50
+      confidence-threshold: 0.8
+      retrain-interval: 12h
+      
+    behavioral-analysis:
+      enabled: true
+      model-path: ${ML_MODELS_PATH:/app/models}/behavioral-analysis
+      batch-size: 200
+      confidence-threshold: 0.75
+      retrain-interval: 6h
+      
+    pattern-recognition:
+      enabled: true
+      model-path: ${ML_MODELS_PATH:/app/models}/pattern-recognition
+      batch-size: 150
+      confidence-threshold: 0.8
+      retrain-interval: 8h
+  
+  feature-store:
+    enabled: true
+    feast:
+      server: ${FEAST_SERVER:localhost:6566}
+      project: waqiti-ml
+      registry: ${FEAST_REGISTRY:/app/feature-store/registry.db}
+      online-store:
+        type: redis
+        connection-string: redis://${REDIS_HOST:localhost}:${REDIS_PORT:6379}
+      offline-store:
+        type: postgres
+        host: ${DB_HOST:localhost}
+        port: ${DB_PORT:5432}
+        database: ${DB_NAME:waqiti_ml}
+        user: ${DATABASE_USERNAME:waqiti}
+        password: ${DATABASE_PASSWORD:${VAULT_DATABASE_PASSWORD}}
+  
+  inference:
+    timeout: 5s
+    max-concurrent-requests: 100
+    queue-capacity: 1000
+    thread-pool-size: 20
+    batch-processing:
+      enabled: true
+      batch-size: 50
+      max-wait-time: 1s
+  
+  training:
+    enabled: true
+    schedule: 0 2 * * *  # Daily at 2 AM
+    data-retention-days: 90
+    model-backup-enabled: true
+    model-backup-location: ${MODEL_BACKUP_PATH:/app/backups/models}
+    
+  monitoring:
+    model-drift-detection: true
+    performance-tracking: true
+    data-quality-monitoring: true
+    alert-threshold:
+      accuracy-drop: 0.05
+      prediction-drift: 0.1
+      data-quality: 0.8
+
+# Feign client configuration
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 5000
+        readTimeout: 5000
+        loggerLevel: FULL
+      user-service:
+        url: ${USER_SERVICE_URL:http://user-service/api/v1}
+      transaction-service:
+        url: ${TRANSACTION_SERVICE_URL:http://transaction-service/api/v1}
+      notification-service:
+        url: ${NOTIFICATION_SERVICE_URL:http://notification-service/api/v1}
+      fraud-service:
+        url: ${FRAUD_SERVICE_URL:http://fraud-service/api/v1}
+
+# Kafka topics
+kafka:
+  topics:
+    fraud-detection: fraud-detection-events
+    risk-scoring: risk-scoring-events
+    model-inference: model-inference-events
+    transaction-analysis: transaction-analysis-events
+    model-training: model-training-events
+    notification: notification-events
+
+# External Service Configuration
+external-services:
+  fraud-detection:
+    url: ${FRAUD_SERVICE_URL:http://localhost:8090}
+    timeout: 5s
+    retry-attempts: 3
+    
+  risk-assessment:
+    url: ${RISK_SERVICE_URL:http://localhost:8091}
+    timeout: 3s
+    retry-attempts: 2
+    
+  transaction-service:
+    url: ${TRANSACTION_SERVICE_URL:http://localhost:8092}
+    timeout: 10s
+    retry-attempts: 3
+    
+  notification-service:
+    url: ${NOTIFICATION_SERVICE_URL:http://localhost:8093}
+    timeout: 5s
+    retry-attempts: 2
+
+# Threading Configuration
+async:
+  core-pool-size: 5
+  max-pool-size: 20
+  queue-capacity: 1000
+  thread-name-prefix: ml-async-
+  keep-alive-seconds: 60
+
+# Caching Configuration
+cache:
+  caffeine:
+    spec: maximumSize=1000,expireAfterWrite=1h
+  redis:
+    ttl: 3600  # 1 hour
+    key-prefix: ml-service:
+
+---
+# Production Profile
+spring:
+  profiles: production
+  
+  datasource:
+    hikari:
+      maximum-pool-size: 50
+      minimum-idle: 10
+      
+  jpa:
+    show-sql: false
+    hibernate:
+      ddl-auto: none
+      
+  kafka:
+    producer:
+      acks: all
+      retries: 3
+      batch-size: 16384
+      linger-ms: 5
+      buffer-memory: 33554432
+    consumer:
+      enable-auto-commit: false
+      isolation-level: read_committed
+
+logging:
+  level:
+    com.waqiti.ml: INFO
+    org.springframework.kafka: WARN
+    org.hibernate: WARN
+  file:
+    name: /app/logs/ml-service.log
+
+ml:
+  inference:
+    max-concurrent-requests: 500
+    queue-capacity: 5000
+    thread-pool-size: 50
+    
+security:
+  rate-limiting:
+    requests-per-minute: 5000
+    burst-capacity: 500
+
+---
+# Development Profile
+spring:
+  profiles: development
+  
+  jpa:
+    show-sql: ${SHOW_SQL:false}  # false for production
+    hibernate:
+      ddl-auto: validate
+      
+logging:
+  level:
+    com.waqiti.ml: DEBUG
+    org.springframework.kafka: DEBUG
+    org.hibernate.SQL: ${LOG_LEVEL_SQL:WARN}  # WARN for production
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+ml:
+  training:
+    enabled: false  # Disable automatic training in dev
+    
+security:
+  rate-limiting:
+    enabled: false  # Disable rate limiting in dev

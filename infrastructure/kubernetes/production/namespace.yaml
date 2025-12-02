@@ -1,0 +1,51 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: waqiti-production
+  labels:
+    name: waqiti-production
+    environment: production
+    istio-injection: enabled
+  annotations:
+    scheduler.alpha.kubernetes.io/node-selector: "node-type=production"
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: production-quota
+  namespace: waqiti-production
+spec:
+  hard:
+    requests.cpu: "100"
+    requests.memory: "200Gi"
+    limits.cpu: "200"
+    limits.memory: "400Gi"
+    persistentvolumeclaims: "20"
+    services.loadbalancers: "5"
+    services.nodeports: "10"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: production-limits
+  namespace: waqiti-production
+spec:
+  limits:
+  - max:
+      cpu: "4"
+      memory: "8Gi"
+    min:
+      cpu: "100m"
+      memory: "128Mi"
+    default:
+      cpu: "1"
+      memory: "1Gi"
+    defaultRequest:
+      cpu: "500m"
+      memory: "512Mi"
+    type: Container
+  - max:
+      storage: "100Gi"
+    min:
+      storage: "1Gi"
+    type: PersistentVolumeClaim

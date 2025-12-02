@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
+
+    <include file="db/changelog/changelogs/001-create-kyc-tables.xml"/>
+    <include file="db/changelog/changelogs/002-create-indexes.xml"/>
+    <include file="db/changelog/changelogs/003-create-audit-tables.xml"/>
+    <include file="db/changelog/changelogs/004-insert-initial-data.xml"/>
+    <include file="db/changelog/changelogs/005-create-migration-tables.xml"/>
+
+</databaseChangeLog>

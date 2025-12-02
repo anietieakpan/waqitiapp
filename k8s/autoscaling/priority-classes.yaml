@@ -1,0 +1,209 @@
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: waqiti-critical-priority
+  labels:
+    component: scheduling
+description: "Critical financial services that must always be available"
+value: 1000000
+globalDefault: false
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: waqiti-high-priority
+  labels:
+    component: scheduling
+description: "High priority financial operations"
+value: 500000
+globalDefault: false
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: waqiti-normal-priority
+  labels:
+    component: scheduling
+description: "Standard financial services"
+value: 100000
+globalDefault: true
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: waqiti-low-priority
+  labels:
+    component: scheduling
+description: "Low priority background tasks and analytics"
+value: 10000
+globalDefault: false
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: waqiti-batch-priority
+  labels:
+    component: scheduling
+description: "Batch processing and reporting tasks"
+value: 1000
+globalDefault: false
+---
+# Example deployment using priority classes
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-service-priority-example
+  namespace: default
+  labels:
+    app: payment-service
+    priority: critical
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: payment-service
+  template:
+    metadata:
+      labels:
+        app: payment-service
+    spec:
+      priorityClassName: waqiti-critical-priority
+      containers:
+      - name: payment-service
+        image: waqiti/payment-service:latest
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+          limits:
+            cpu: 2000m
+            memory: 4Gi
+        ports:
+        - containerPort: 8080
+      nodeSelector:
+        node-type: financial-critical
+      tolerations:
+      - key: "critical-workload"
+        operator: "Equal"
+        value: "true"
+        effect: "NoSchedule"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wallet-service-priority-example
+  namespace: default
+  labels:
+    app: wallet-service
+    priority: critical
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: wallet-service
+  template:
+    metadata:
+      labels:
+        app: wallet-service
+    spec:
+      priorityClassName: waqiti-critical-priority
+      containers:
+      - name: wallet-service
+        image: waqiti/wallet-service:latest
+        resources:
+          requests:
+            cpu: 300m
+            memory: 512Mi
+          limits:
+            cpu: 1500m
+            memory: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fraud-service-priority-example
+  namespace: default
+  labels:
+    app: fraud-service
+    priority: high
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: fraud-service
+  template:
+    metadata:
+      labels:
+        app: fraud-service
+    spec:
+      priorityClassName: waqiti-high-priority
+      containers:
+      - name: fraud-service
+        image: waqiti/fraud-service:latest
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+          limits:
+            cpu: 3000m
+            memory: 8Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: analytics-service-priority-example
+  namespace: default
+  labels:
+    app: analytics-service
+    priority: low
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: analytics-service
+  template:
+    metadata:
+      labels:
+        app: analytics-service
+    spec:
+      priorityClassName: waqiti-low-priority
+      containers:
+      - name: analytics-service
+        image: waqiti/analytics-service:latest
+        resources:
+          requests:
+            cpu: 200m
+            memory: 256Mi
+          limits:
+            cpu: 1000m
+            memory: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reporting-service-priority-example
+  namespace: default
+  labels:
+    app: reporting-service
+    priority: batch
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: reporting-service
+  template:
+    metadata:
+      labels:
+        app: reporting-service
+    spec:
+      priorityClassName: waqiti-batch-priority
+      containers:
+      - name: reporting-service
+        image: waqiti/reporting-service:latest
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 1Gi

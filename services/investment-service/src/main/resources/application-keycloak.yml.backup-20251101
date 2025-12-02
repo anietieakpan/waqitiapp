@@ -1,0 +1,113 @@
+# Keycloak Configuration for Investment Service
+
+keycloak:
+  enabled: true
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  ssl-required: external
+  resource: investment-service
+  bearer-only: true
+  credentials:
+    secret: ${INVESTMENT_SERVICE_CLIENT_SECRET:CHANGE_ME_SECURE_SECRET_REQUIRED}
+  use-resource-role-mappings: true
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# Investment Service Security Configuration
+investment:
+  security:
+    # Public endpoints that don't require authentication
+    public-endpoints:
+      - /actuator/health
+      - /actuator/info
+      - /api/v1/investment/market-data/public
+      - /api/v1/investment/instruments/list
+      - /swagger-ui/**
+      - /v3/api-docs/**
+    
+    # Service-to-service endpoints
+    service-endpoints:
+      - /internal/investment/**
+    
+    # Required roles for investment operations
+    required-roles:
+      read:
+        - USER
+        - INVESTOR
+      portfolio-read:
+        - USER
+        - INVESTOR
+      portfolio-manage:
+        - USER
+        - INVESTOR
+        - PORTFOLIO_MANAGER
+      trade-execute:
+        - USER
+        - INVESTOR
+        - TRADER
+      risk-assessment:
+        - RISK_ANALYST
+        - INVESTMENT_ADVISOR
+      advisory:
+        - INVESTMENT_ADVISOR
+        - FINANCIAL_PLANNER
+      compliance:
+        - INVESTMENT_COMPLIANCE
+        - REGULATORY_OFFICER
+      management:
+        - INVESTMENT_MANAGER
+        - INVESTMENT_OPERATOR
+      admin:
+        - INVESTMENT_ADMIN
+        - SYSTEM_ADMIN
+    
+    # Required scopes for operations
+    required-scopes:
+      portfolio-read: investment:portfolio:read
+      portfolio-write: investment:portfolio:write
+      trade-execute: investment:trade:execute
+      market-data: investment:market:data
+      risk-assessment: investment:risk:assess
+      advisory: investment:advisory
+      research: investment:research
+      compliance: investment:compliance
+      admin: investment:admin
+      management: investment:manage
+    
+    # Investment security features
+    features:
+      risk-profiling-enabled: true
+      suitability-checking-enabled: true
+      portfolio-monitoring-enabled: true
+      compliance-reporting-enabled: true
+      fraud-detection-enabled: true
+      market-abuse-monitoring: true
+      
+    # Investment limits and thresholds
+    limits:
+      max-portfolio-value: 1000000.00
+      max-single-investment: 100000.00
+      max-trades-per-day: 50
+      portfolio-concentration-limit: 0.1
+      
+    # Security thresholds requiring verification
+    verification-thresholds:
+      high-value-trade: 25000.00
+      high-risk-investment: true
+      concentrated-position: 0.05
+      unusual-trading-pattern: 3
+      
+    # Advanced security features
+    advanced-security:
+      require-suitability-assessment: true
+      automatic-risk-monitoring: true
+      market-abuse-detection: true
+      best-execution-monitoring: true
+      regulatory-compliance-checking: true
+      insider-trading-detection: true

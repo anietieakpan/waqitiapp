@@ -1,0 +1,514 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus
+  namespace: monitoring
+  labels:
+    app: prometheus
+    component: monitoring
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: prometheus
+  labels:
+    app: prometheus
+    component: monitoring
+rules:
+- apiGroups: [""]
+  resources:
+  - nodes
+  - nodes/proxy
+  - nodes/metrics
+  - services
+  - endpoints
+  - pods
+  - ingresses
+  - configmaps
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["extensions", "networking.k8s.io"]
+  resources:
+  - ingresses
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources:
+  - deployments
+  - daemonsets
+  - replicasets
+  - statefulsets
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["batch"]
+  resources:
+  - cronjobs
+  - jobs
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["autoscaling"]
+  resources:
+  - horizontalpodautoscalers
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["policy"]
+  resources:
+  - poddisruptionbudgets
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["storage.k8s.io"]
+  resources:
+  - storageclasses
+  - volumeattachments
+  verbs: ["get", "list", "watch"]
+- nonResourceURLs: ["/metrics", "/metrics/cadvisor"]
+  verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: prometheus
+  labels:
+    app: prometheus
+    component: monitoring
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: prometheus
+subjects:
+- kind: ServiceAccount
+  name: prometheus
+  namespace: monitoring
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: alertmanager
+  namespace: monitoring
+  labels:
+    app: alertmanager
+    component: alerting
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: monitoring
+  name: alertmanager
+  labels:
+    app: alertmanager
+    component: alerting
+rules:
+- apiGroups: [""]
+  resources:
+  - configmaps
+  - secrets
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: alertmanager
+  namespace: monitoring
+  labels:
+    app: alertmanager
+    component: alerting
+subjects:
+- kind: ServiceAccount
+  name: alertmanager
+  namespace: monitoring
+roleRef:
+  kind: Role
+  name: alertmanager
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: grafana
+  namespace: monitoring
+  labels:
+    app: grafana
+    component: visualization
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: monitoring
+  name: grafana
+  labels:
+    app: grafana
+    component: visualization
+rules:
+- apiGroups: [""]
+  resources:
+  - configmaps
+  - secrets
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources:
+  - pods
+  - services
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: grafana
+  namespace: monitoring
+  labels:
+    app: grafana
+    component: visualization
+subjects:
+- kind: ServiceAccount
+  name: grafana
+  namespace: monitoring
+roleRef:
+  kind: Role
+  name: grafana
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: grafana-readonly
+  labels:
+    app: grafana
+    component: visualization
+rules:
+# Allow Grafana to read basic cluster information for dashboards
+- apiGroups: [""]
+  resources:
+  - nodes
+  - services
+  - pods
+  verbs: ["get", "list"]
+- apiGroups: ["apps"]
+  resources:
+  - deployments
+  - replicasets
+  - statefulsets
+  verbs: ["get", "list"]
+- apiGroups: ["metrics.k8s.io"]
+  resources:
+  - nodes
+  - pods
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: grafana-readonly
+  labels:
+    app: grafana
+    component: visualization
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: grafana-readonly
+subjects:
+- kind: ServiceAccount
+  name: grafana
+  namespace: monitoring
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: business-metrics-exporter
+  namespace: monitoring
+  labels:
+    app: business-metrics-exporter
+    component: metrics
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: monitoring
+  name: business-metrics-exporter
+  labels:
+    app: business-metrics-exporter
+    component: metrics
+rules:
+- apiGroups: [""]
+  resources:
+  - configmaps
+  - secrets
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: business-metrics-exporter
+  namespace: monitoring
+  labels:
+    app: business-metrics-exporter
+    component: metrics
+subjects:
+- kind: ServiceAccount
+  name: business-metrics-exporter
+  namespace: monitoring
+roleRef:
+  kind: Role
+  name: business-metrics-exporter
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: node-exporter
+  namespace: monitoring
+  labels:
+    app: node-exporter
+    component: monitoring
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: node-exporter
+  labels:
+    app: node-exporter
+    component: monitoring
+rules:
+- apiGroups: ["authentication.k8s.io"]
+  resources:
+  - tokenreviews
+  verbs: ["create"]
+- apiGroups: ["authorization.k8s.io"]
+  resources:
+  - subjectaccessreviews
+  verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: node-exporter
+  labels:
+    app: node-exporter
+    component: monitoring
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: node-exporter
+subjects:
+- kind: ServiceAccount
+  name: node-exporter
+  namespace: monitoring
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: monitoring-network-policy
+  namespace: monitoring
+  labels:
+    app: monitoring
+    component: security
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Allow Prometheus to scrape metrics from all pods
+  - from:
+    - podSelector:
+        matchLabels:
+          app: prometheus
+    ports:
+    - protocol: TCP
+      port: 9090
+  # Allow Grafana to access Prometheus and other data sources
+  - from:
+    - podSelector:
+        matchLabels:
+          app: grafana
+    ports:
+    - protocol: TCP
+      port: 3000
+  # Allow Alertmanager to receive alerts from Prometheus
+  - from:
+    - podSelector:
+        matchLabels:
+          app: prometheus
+    - podSelector:
+        matchLabels:
+          app: alertmanager
+    ports:
+    - protocol: TCP
+      port: 9093
+    - protocol: TCP
+      port: 9094
+  # Allow external access to Grafana (via ingress)
+  - from: []
+    ports:
+    - protocol: TCP
+      port: 3000
+  # Allow monitoring of services in other namespaces
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          monitoring: "enabled"
+  egress:
+  # Allow access to Kubernetes API
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 6443
+  # Allow access to database for business metrics
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: database
+    ports:
+    - protocol: TCP
+      port: 5432
+  # Allow SMTP and webhook notifications
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 587
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 80
+  # Allow DNS resolution
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: monitoring
+  labels:
+    app: prometheus
+    component: monitoring
+spec:
+  type: ClusterIP
+  ports:
+  - port: 9090
+    targetPort: 9090
+    name: web
+  selector:
+    app: prometheus
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager
+  namespace: monitoring
+  labels:
+    app: alertmanager
+    component: alerting
+spec:
+  type: ClusterIP
+  ports:
+  - port: 9093
+    targetPort: 9093
+    name: web
+  - port: 9094
+    targetPort: 9094
+    name: cluster
+  selector:
+    app: alertmanager
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: monitoring
+  labels:
+    app: grafana
+    component: visualization
+spec:
+  type: ClusterIP
+  ports:
+  - port: 3000
+    targetPort: 3000
+    name: web
+  selector:
+    app: grafana
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: monitoring-ingress
+  namespace: monitoring
+  labels:
+    app: monitoring
+    component: ingress
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/auth-type: basic
+    nginx.ingress.kubernetes.io/auth-secret: monitoring-auth
+    nginx.ingress.kubernetes.io/auth-realm: "Waqiti Monitoring - Authentication Required"
+spec:
+  tls:
+  - hosts:
+    - monitoring.example.com
+    - grafana.example.com
+    - alerts.example.com
+    secretName: monitoring-tls
+  rules:
+  - host: grafana.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: grafana
+            port:
+              number: 3000
+  - host: alerts.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: alertmanager
+            port:
+              number: 9093
+  - host: monitoring.example.com
+    http:
+      paths:
+      - path: /prometheus
+        pathType: Prefix
+        backend:
+          service:
+            name: prometheus
+            port:
+              number: 9090
+      - path: /grafana
+        pathType: Prefix
+        backend:
+          service:
+            name: grafana
+            port:
+              number: 3000
+      - path: /alertmanager
+        pathType: Prefix
+        backend:
+          service:
+            name: alertmanager
+            port:
+              number: 9093
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: monitoring-auth
+  namespace: monitoring
+  annotations:
+    vault.hashicorp.com/agent-inject: "true"
+    vault.hashicorp.com/role: "monitoring"
+    vault.hashicorp.com/agent-inject-secret-auth: "waqiti/monitoring/basic-auth"
+    vault.hashicorp.com/agent-inject-template-auth: |
+      {{- with secret "waqiti/monitoring/basic-auth" -}}
+      {{ .Data.data.auth }}
+      {{- end -}}
+type: Opaque
+data:
+  # This will be populated by Vault Agent
+  auth: ""

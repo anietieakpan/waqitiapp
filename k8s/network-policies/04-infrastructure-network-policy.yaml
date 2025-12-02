@@ -1,0 +1,474 @@
+---
+# ============================================================================
+# POSTGRESQL DATABASE NETWORK POLICY
+# ============================================================================
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres-policy
+  namespace: example-production
+  labels:
+    app.kubernetes.io/name: network-policy
+    app.kubernetes.io/component: postgres
+    security.example.com/tier: infrastructure
+    security.example.com/pci-scope: "true"
+    compliance: pci-dss
+  annotations:
+    description: "PostgreSQL database - critical data storage"
+    security.example.com/last-reviewed: "2025-10-25"
+    pci-dss.requirements: "1.2.1, 1.3.6"
+spec:
+  podSelector:
+    matchLabels:
+      app: postgres
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress:
+    # Allow ingress from all application services (backend only)
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - user-service
+                  - wallet-service
+                  - payment-service
+                  - transaction-service
+                  - fraud-detection-service
+                  - kyc-service
+                  - compliance-service
+                  - notification-service
+                  - integration-service
+                  - audit-service
+                  - analytics-service
+      ports:
+        - protocol: TCP
+          port: 5432
+
+    # Allow ingress from backup services
+    - from:
+        - podSelector:
+            matchLabels:
+              app: backup-service
+      ports:
+        - protocol: TCP
+          port: 5432
+
+    # Allow ingress from monitoring
+    - from:
+        - podSelector:
+            matchLabels:
+              app: prometheus
+      ports:
+        - protocol: TCP
+          port: 9187  # PostgreSQL exporter
+
+  egress:
+    # DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+    # PostgreSQL replication (if using streaming replication)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+
+---
+# ============================================================================
+# REDIS NETWORK POLICY
+# ============================================================================
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: redis-policy
+  namespace: example-production
+  labels:
+    app.kubernetes.io/name: network-policy
+    app.kubernetes.io/component: redis
+    security.example.com/tier: infrastructure
+  annotations:
+    description: "Redis - caching, distributed locks, sessions"
+    security.example.com/last-reviewed: "2025-10-25"
+spec:
+  podSelector:
+    matchLabels:
+      app: redis
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress:
+    # Allow ingress from all application services
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - api-gateway
+                  - user-service
+                  - wallet-service
+                  - payment-service
+                  - transaction-service
+                  - fraud-detection-service
+                  - kyc-service
+                  - compliance-service
+                  - notification-service
+      ports:
+        - protocol: TCP
+          port: 6379
+
+    # Allow ingress from Prometheus for metrics
+    - from:
+        - podSelector:
+            matchLabels:
+              app: prometheus
+      ports:
+        - protocol: TCP
+          port: 9121  # Redis exporter
+
+  egress:
+    # DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+    # Redis cluster communication (if using Redis Cluster)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+        - protocol: TCP
+          port: 16379  # Cluster bus
+
+---
+# ============================================================================
+# KAFKA NETWORK POLICY
+# ============================================================================
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kafka-policy
+  namespace: example-production
+  labels:
+    app.kubernetes.io/name: network-policy
+    app.kubernetes.io/component: kafka
+    security.example.com/tier: infrastructure
+  annotations:
+    description: "Kafka - event streaming platform"
+    security.example.com/last-reviewed: "2025-10-25"
+spec:
+  podSelector:
+    matchLabels:
+      app: kafka
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress:
+    # Allow ingress from all application services
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - user-service
+                  - wallet-service
+                  - payment-service
+                  - transaction-service
+                  - fraud-detection-service
+                  - kyc-service
+                  - compliance-service
+                  - notification-service
+                  - integration-service
+                  - audit-service
+                  - analytics-service
+      ports:
+        - protocol: TCP
+          port: 9092   # Kafka broker
+        - protocol: TCP
+          port: 29092  # Internal broker
+
+    # Allow ingress from monitoring
+    - from:
+        - podSelector:
+            matchLabels:
+              app: prometheus
+      ports:
+        - protocol: TCP
+          port: 7071  # JMX exporter
+
+  egress:
+    # DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+    # Zookeeper connection
+    - to:
+        - podSelector:
+            matchLabels:
+              app: zookeeper
+      ports:
+        - protocol: TCP
+          port: 2181
+
+    # Kafka inter-broker communication
+    - to:
+        - podSelector:
+            matchLabels:
+              app: kafka
+      ports:
+        - protocol: TCP
+          port: 9092
+        - protocol: TCP
+          port: 29092
+
+---
+# ============================================================================
+# ZOOKEEPER NETWORK POLICY
+# ============================================================================
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: zookeeper-policy
+  namespace: example-production
+  labels:
+    app.kubernetes.io/name: network-policy
+    app.kubernetes.io/component: zookeeper
+    security.example.com/tier: infrastructure
+  annotations:
+    description: "Zookeeper - Kafka coordination service"
+    security.example.com/last-reviewed: "2025-10-25"
+spec:
+  podSelector:
+    matchLabels:
+      app: zookeeper
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress:
+    # Allow ingress from Kafka brokers
+    - from:
+        - podSelector:
+            matchLabels:
+              app: kafka
+      ports:
+        - protocol: TCP
+          port: 2181
+
+    # Allow ingress from monitoring
+    - from:
+        - podSelector:
+            matchLabels:
+              app: prometheus
+      ports:
+        - protocol: TCP
+          port: 7070  # JMX exporter
+
+  egress:
+    # DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+    # Zookeeper ensemble communication
+    - to:
+        - podSelector:
+            matchLabels:
+              app: zookeeper
+      ports:
+        - protocol: TCP
+          port: 2181
+        - protocol: TCP
+          port: 2888  # Follower port
+        - protocol: TCP
+          port: 3888  # Election port
+
+---
+# ============================================================================
+# CLICKHOUSE NETWORK POLICY
+# ============================================================================
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: clickhouse-policy
+  namespace: example-production
+  labels:
+    app.kubernetes.io/name: network-policy
+    app.kubernetes.io/component: clickhouse
+    security.example.com/tier: infrastructure
+  annotations:
+    description: "ClickHouse - OLAP analytics database"
+    security.example.com/last-reviewed: "2025-10-25"
+spec:
+  podSelector:
+    matchLabels:
+      app: clickhouse
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress:
+    # Allow ingress from analytics services
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - transaction-service
+                  - analytics-service
+                  - reporting-service
+      ports:
+        - protocol: TCP
+          port: 9000  # Native protocol
+        - protocol: TCP
+          port: 8123  # HTTP interface
+
+    # Allow ingress from monitoring
+    - from:
+        - podSelector:
+            matchLabels:
+              app: prometheus
+      ports:
+        - protocol: TCP
+          port: 9363  # ClickHouse exporter
+
+  egress:
+    # DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+    # ClickHouse cluster replication
+    - to:
+        - podSelector:
+            matchLabels:
+              app: clickhouse
+      ports:
+        - protocol: TCP
+          port: 9000
+        - protocol: TCP
+          port: 9009  # Inter-server HTTP
+
+---
+# ============================================================================
+# NEO4J NETWORK POLICY (Graph Database for Fraud Detection)
+# ============================================================================
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: neo4j-policy
+  namespace: example-production
+  labels:
+    app.kubernetes.io/name: network-policy
+    app.kubernetes.io/component: neo4j
+    security.example.com/tier: infrastructure
+  annotations:
+    description: "Neo4j - graph database for fraud detection"
+    security.example.com/last-reviewed: "2025-10-25"
+spec:
+  podSelector:
+    matchLabels:
+      app: neo4j
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress:
+    # Allow ingress from Fraud Detection Service only
+    - from:
+        - podSelector:
+            matchLabels:
+              app: fraud-detection-service
+      ports:
+        - protocol: TCP
+          port: 7687  # Bolt protocol
+        - protocol: TCP
+          port: 7474  # HTTP
+
+    # Allow ingress from monitoring
+    - from:
+        - podSelector:
+            matchLabels:
+              app: prometheus
+      ports:
+        - protocol: TCP
+          port: 2004  # Prometheus metrics
+
+  egress:
+    # DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+    # Neo4j cluster communication (if using causal cluster)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: neo4j
+      ports:
+        - protocol: TCP
+          port: 7687
+        - protocol: TCP
+          port: 5000  # Discovery
+        - protocol: TCP
+          port: 6000  # Transaction
+        - protocol: TCP
+          port: 7000  # Raft

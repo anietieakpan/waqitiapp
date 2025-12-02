@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: compliance-service
+  namespace: waqiti
+  labels:
+    app: compliance-service
+    component: compliance
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8090"
+    prometheus.io/path: "/actuator/prometheus"
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  - port: 8090
+    targetPort: 8090
+    protocol: TCP
+    name: management
+  selector:
+    app: compliance-service
+  sessionAffinity: None

@@ -1,0 +1,597 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-config
+  namespace: monitoring
+data:
+  grafana.ini: |
+    [analytics]
+    check_for_updates = true
+    
+    [grafana_net]
+    url = https://grafana.net
+    
+    [log]
+    mode = console
+    level = info
+    
+    [paths]
+    data = /var/lib/grafana/data
+    logs = /var/lib/grafana/logs
+    plugins = /var/lib/grafana/plugins
+    provisioning = /etc/grafana/provisioning
+    
+    [server]
+    http_port = 3000
+    domain = grafana.example.com
+    root_url = https://grafana.example.com
+    
+    [security]
+    admin_user = admin
+    admin_password = $__env{GF_SECURITY_ADMIN_PASSWORD}
+    secret_key = $__env{GF_SECURITY_SECRET_KEY}
+    
+    [users]
+    allow_sign_up = false
+    default_theme = dark
+    
+    [auth]
+    disable_login_form = false
+    
+    [auth.basic]
+    enabled = true
+    
+    [auth.anonymous]
+    enabled = false
+    
+    [dashboards]
+    default_home_dashboard_path = /var/lib/grafana/dashboards/waqiti-overview.json
+    
+    [alerting]
+    enabled = true
+    execute_alerts = true
+
+  datasources.yml: |
+    apiVersion: 1
+    datasources:
+    - name: Prometheus
+      type: prometheus
+      access: proxy
+      url: http://prometheus:9090
+      isDefault: true
+      editable: true
+      jsonData:
+        timeInterval: "5s"
+        queryTimeout: "60s"
+        httpMethod: GET
+    - name: Loki
+      type: loki
+      access: proxy
+      url: http://loki:3100
+      editable: true
+      jsonData:
+        maxLines: 1000
+
+  dashboards.yml: |
+    apiVersion: 1
+    providers:
+    - name: 'default'
+      orgId: 1
+      folder: ''
+      type: file
+      disableDeletion: false
+      updateIntervalSeconds: 10
+      allowUiUpdates: true
+      options:
+        path: /var/lib/grafana/dashboards
+
+  waqiti-overview.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "Waqiti Financial Platform Overview",
+        "tags": ["waqiti", "financial", "overview"],
+        "style": "dark",
+        "timezone": "UTC",
+        "refresh": "30s",
+        "time": {
+          "from": "now-1h",
+          "to": "now"
+        },
+        "panels": [
+          {
+            "id": 1,
+            "title": "Platform Health Status",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "up{job=\"waqiti-services\"}",
+                "legendFormat": "{{service}}"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "thresholds"
+                },
+                "thresholds": {
+                  "steps": [
+                    {"color": "red", "value": 0},
+                    {"color": "green", "value": 1}
+                  ]
+                }
+              }
+            },
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+          },
+          {
+            "id": 2,
+            "title": "Transaction Volume (Last 24h)",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(transaction_total[5m]) * 60",
+                "legendFormat": "Transactions/minute"
+              }
+            ],
+            "yAxes": [
+              {"label": "Transactions/min", "min": 0}
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+          },
+          {
+            "id": 3,
+            "title": "Payment Success Rate",
+            "type": "singlestat",
+            "targets": [
+              {
+                "expr": "rate(payment_success_total[5m]) / rate(payment_total[5m])",
+                "legendFormat": "Success Rate"
+              }
+            ],
+            "valueName": "current",
+            "format": "percentunit",
+            "thresholds": "0.95,0.99",
+            "colors": ["red", "yellow", "green"],
+            "gridPos": {"h": 8, "w": 6, "x": 0, "y": 8}
+          },
+          {
+            "id": 4,
+            "title": "Revenue (USD)",
+            "type": "singlestat",
+            "targets": [
+              {
+                "expr": "sum(revenue_total)",
+                "legendFormat": "Total Revenue"
+              }
+            ],
+            "valueName": "current",
+            "format": "currencyUSD",
+            "gridPos": {"h": 8, "w": 6, "x": 6, "y": 8}
+          },
+          {
+            "id": 5,
+            "title": "Active Users",
+            "type": "singlestat",
+            "targets": [
+              {
+                "expr": "active_users_total",
+                "legendFormat": "Active Users"
+              }
+            ],
+            "valueName": "current",
+            "format": "short",
+            "gridPos": {"h": 8, "w": 6, "x": 12, "y": 8}
+          },
+          {
+            "id": 6,
+            "title": "System Resource Usage",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(container_cpu_usage_seconds_total[5m]) * 100",
+                "legendFormat": "CPU Usage %"
+              },
+              {
+                "expr": "container_memory_usage_bytes / container_spec_memory_limit_bytes * 100",
+                "legendFormat": "Memory Usage %"
+              }
+            ],
+            "yAxes": [
+              {"label": "Percentage", "min": 0, "max": 100}
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16}
+          },
+          {
+            "id": 7,
+            "title": "Database Performance",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "pg_stat_database_tup_inserted",
+                "legendFormat": "Inserts"
+              },
+              {
+                "expr": "pg_stat_database_tup_updated",
+                "legendFormat": "Updates"
+              },
+              {
+                "expr": "pg_stat_database_tup_deleted",
+                "legendFormat": "Deletes"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16}
+          }
+        ]
+      }
+    }
+
+  payment-service-dashboard.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "Payment Service Dashboard",
+        "tags": ["waqiti", "payment", "service"],
+        "refresh": "10s",
+        "panels": [
+          {
+            "id": 1,
+            "title": "Payment Request Rate",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(payment_requests_total[5m])",
+                "legendFormat": "{{method}} {{status}}"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+          },
+          {
+            "id": 2,
+            "title": "Payment Latency",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.95, rate(payment_duration_seconds_bucket[5m]))",
+                "legendFormat": "95th percentile"
+              },
+              {
+                "expr": "histogram_quantile(0.50, rate(payment_duration_seconds_bucket[5m]))",
+                "legendFormat": "50th percentile"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+          },
+          {
+            "id": 3,
+            "title": "Payment Methods Distribution",
+            "type": "piechart",
+            "targets": [
+              {
+                "expr": "sum by (payment_method) (payment_total)",
+                "legendFormat": "{{payment_method}}"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+          },
+          {
+            "id": 4,
+            "title": "Failed Payments by Reason",
+            "type": "table",
+            "targets": [
+              {
+                "expr": "sum by (failure_reason) (payment_failures_total)",
+                "legendFormat": "{{failure_reason}}"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+          }
+        ]
+      }
+    }
+
+  fraud-detection-dashboard.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "Fraud Detection Dashboard",
+        "tags": ["waqiti", "fraud", "security"],
+        "refresh": "30s",
+        "panels": [
+          {
+            "id": 1,
+            "title": "Fraud Detection Rate",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "rate(fraud_detected_total[5m]) / rate(transactions_total[5m])",
+                "legendFormat": "Fraud Rate"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "percentunit",
+                "thresholds": {
+                  "steps": [
+                    {"color": "green", "value": 0},
+                    {"color": "yellow", "value": 0.01},
+                    {"color": "red", "value": 0.05}
+                  ]
+                }
+              }
+            },
+            "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0}
+          },
+          {
+            "id": 2,
+            "title": "Fraud Score Distribution",
+            "type": "histogram",
+            "targets": [
+              {
+                "expr": "fraud_score_bucket",
+                "legendFormat": "Score: {{le}}"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 18, "x": 6, "y": 0}
+          },
+          {
+            "id": 3,
+            "title": "Risk Factors",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "sum by (risk_factor) (fraud_risk_factors_total)",
+                "legendFormat": "{{risk_factor}}"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+          },
+          {
+            "id": 4,
+            "title": "Blocked Transactions",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(transactions_blocked_total[5m])",
+                "legendFormat": "Blocked/min"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+          }
+        ]
+      }
+    }
+
+  business-metrics-dashboard.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "Business Metrics Dashboard",
+        "tags": ["waqiti", "business", "metrics"],
+        "refresh": "1m",
+        "panels": [
+          {
+            "id": 1,
+            "title": "Daily Revenue",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "sum(increase(revenue_total[24h]))",
+                "legendFormat": "Daily Revenue"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+          },
+          {
+            "id": 2,
+            "title": "Transaction Volume by Type",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "sum by (transaction_type) (rate(transactions_total[5m]))",
+                "legendFormat": "{{transaction_type}}"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+          },
+          {
+            "id": 3,
+            "title": "User Growth",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "sum(user_registrations_total)",
+                "legendFormat": "Total Users"
+              },
+              {
+                "expr": "rate(user_registrations_total[24h])",
+                "legendFormat": "Daily Registrations"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+          },
+          {
+            "id": 4,
+            "title": "KYC Verification Status",
+            "type": "piechart",
+            "targets": [
+              {
+                "expr": "sum by (kyc_status) (kyc_verifications_total)",
+                "legendFormat": "{{kyc_status}}"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+          }
+        ]
+      }
+    }
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 472
+        fsGroup: 472
+      containers:
+      - name: grafana
+        image: grafana/grafana:10.0.0
+        ports:
+        - containerPort: 3000
+          name: grafana
+        env:
+        - name: GF_SECURITY_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: grafana-secret
+              key: admin-password
+        - name: GF_SECURITY_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: grafana-secret
+              key: secret-key
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        volumeMounts:
+        - name: grafana-config
+          mountPath: /etc/grafana
+        - name: grafana-dashboards
+          mountPath: /var/lib/grafana/dashboards
+        - name: grafana-provisioning
+          mountPath: /etc/grafana/provisioning
+        - name: grafana-storage
+          mountPath: /var/lib/grafana
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: grafana-config
+        configMap:
+          name: grafana-config
+          items:
+          - key: grafana.ini
+            path: grafana.ini
+      - name: grafana-dashboards
+        configMap:
+          name: grafana-config
+          items:
+          - key: waqiti-overview.json
+            path: waqiti-overview.json
+          - key: payment-service-dashboard.json
+            path: payment-service-dashboard.json
+          - key: fraud-detection-dashboard.json
+            path: fraud-detection-dashboard.json
+          - key: business-metrics-dashboard.json
+            path: business-metrics-dashboard.json
+      - name: grafana-provisioning
+        configMap:
+          name: grafana-config
+          items:
+          - key: datasources.yml
+            path: datasources/datasources.yml
+          - key: dashboards.yml
+            path: dashboards/dashboards.yml
+      - name: grafana-storage
+        persistentVolumeClaim:
+          claimName: grafana-storage
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: grafana-storage
+  namespace: monitoring
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: gp3
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: monitoring
+  labels:
+    app: grafana
+spec:
+  type: ClusterIP
+  ports:
+  - port: 3000
+    targetPort: 3000
+    name: grafana
+  selector:
+    app: grafana
+
+---
+# IMPORTANT: This secret is a placeholder for demonstration purposes.
+# In production, use External Secrets Operator or generate secrets during deployment.
+# NEVER commit actual admin passwords to version control.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: grafana-secret
+  namespace: monitoring
+  annotations:
+    description: "PLACEHOLDER - Replace with actual credentials via secrets management"
+type: Opaque
+stringData:
+  admin-password: "${GRAFANA_ADMIN_PASSWORD}"
+  secret-key: "${GRAFANA_SECRET_KEY}"
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: grafana-ingress
+  namespace: monitoring
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  tls:
+  - hosts:
+    - grafana.example.com  # Replace with your domain
+    secretName: grafana-tls
+  rules:
+  - host: grafana.example.com  # Replace with your domain
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: grafana
+            port:
+              number: 3000

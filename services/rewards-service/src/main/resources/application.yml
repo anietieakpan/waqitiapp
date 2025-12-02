@@ -1,0 +1,320 @@
+spring:
+  application:
+    name: rewards-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:default}
+  
+  # Database Configuration
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:rewards_db}
+    username: ${DB_USERNAME:rewards_user}
+    password: ${DATABASE_PASSWORD:${VAULT_DATABASE_PASSWORD}}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      pool-name: RewardsHikariPool
+  
+  # JPA Configuration
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        jdbc:
+          batch_size: 25
+          batch_versioned_data: true
+        order_inserts: true
+        order_updates: true
+        query:
+          in_clause_parameter_padding: true
+    show-sql: false
+    open-in-view: false
+  
+  # Flyway Configuration
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+    table: rewards_schema_history
+  
+  # Redis Configuration
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+  
+  # RabbitMQ Configuration
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:${VAULT_RABBITMQ_USERNAME}}
+    password: ${RABBITMQ_PASSWORD:${VAULT_RABBITMQ_PASSWORD}}
+    virtual-host: ${RABBITMQ_VHOST:/}
+    publisher-confirms: true
+    publisher-returns: true
+    template:
+      retry:
+        enabled: true
+        initial-interval: 1000
+        max-attempts: 3
+        max-interval: 10000
+        multiplier: 2
+  
+  # Kafka Configuration (if using Kafka instead of RabbitMQ)
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+    consumer:
+      group-id: rewards-service-group
+      enable-auto-commit: false  # Manual acknowledgment for DLQ support
+      max-poll-records: 50  # Batch size control
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      auto-offset-reset: earliest
+      properties:
+        spring.json.trusted.packages: "com.waqiti.*"
+
+# Eureka Configuration
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER:${EUREKA_SERVER_URL:https://discovery-service:8761/eureka}/}
+    registry-fetch-interval-seconds: 5
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 5
+    lease-expiration-duration-in-seconds: 10
+    metadata-map:
+      version: ${APP_VERSION:1.0.0}
+      region: ${AWS_REGION:us-east-1}
+
+# Keycloak Configuration
+keycloak:
+  enabled: true
+  realm: waqiti-fintech
+  auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}
+  ssl-required: external
+  resource: rewards-service
+  bearer-only: true
+  use-resource-role-mappings: true
+  cors: true
+  cors-allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+  cors-allowed-headers: Authorization,Content-Type,X-Requested-With
+  cors-max-age: 3600
+  public-client: false
+  credentials:
+    secret: ${KEYCLOAK_CLIENT_SECRET:}
+
+# Spring Security OAuth2 Configuration
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti
+          jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/certs
+      client:
+        registration:
+          keycloak:
+            client-id: rewards-service
+            client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+            authorization-grant-type: client_credentials
+            scope: openid,profile,email,rewards
+        provider:
+          keycloak:
+            issuer-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti
+            token-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/token
+            authorization-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/auth
+            userinfo-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/userinfo
+            jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/certs
+
+# Service-to-Service Authentication
+service:
+  auth:
+    enabled: true
+    client-id: rewards-service
+    client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+
+# Service URLs
+services:
+  payment:
+    url: ${PAYMENT_SERVICE_URL:http://payment-service:8082}
+  wallet:
+    url: ${WALLET_SERVICE_URL:http://wallet-service:8083}
+  user:
+    url: ${USER_SERVICE_URL:http://user-service:8081}
+  notification:
+    url: ${NOTIFICATION_SERVICE_URL:http://notification-service:8084}
+
+# Rewards Configuration
+rewards:
+  default-cashback-rate: 0.01 # 1% default cashback
+  points-per-dollar: 100 # $1 = 100 points
+  max-daily-cashback: 50.00 # $50 max daily cashback
+  tier-refresh-days: 90 # Days for tier calculation
+  
+  cashback:
+    default-rate: 0.01 # 1% default cashback
+    max-rate: 0.05 # 5% maximum cashback
+    min-transaction-amount: 1.00
+    min-redemption-amount: 5.00
+    processing-delay-minutes: 5
+    batch-size: 100
+    welcome-bonus-amount: 10.00
+  
+  points:
+    dollar-to-points-ratio: 100 # $1 = 100 points
+    points-to-dollar-ratio: 0.01 # 100 points = $1
+    min-redemption-points: 500
+    expiration-months: 12
+    batch-size: 100
+    welcome-bonus-points: 1000
+  
+  tiers:
+    bronze:
+      min-points: 0
+      max-points: 999
+      cashback-multiplier: 1.0
+      points-multiplier: 1.0
+    silver:
+      min-points: 1000
+      max-points: 4999
+      cashback-multiplier: 1.25
+      points-multiplier: 1.25
+    gold:
+      min-points: 5000
+      max-points: 9999
+      cashback-multiplier: 1.5
+      points-multiplier: 1.5
+    platinum:
+      min-points: 10000
+      max-points: 999999999
+      cashback-multiplier: 2.0
+      points-multiplier: 2.0
+  
+  campaigns:
+    max-active-per-user: 5
+    cache-ttl-minutes: 15
+  
+  fraud:
+    max-daily-redemptions: 10
+    max-daily-redemption-amount: 1000.00
+    suspicious-activity-threshold: 5
+
+# Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  tracing:
+    sampling:
+      probability: 1.0
+  health:
+    circuitbreakers:
+      enabled: true
+    ratelimiters:
+      enabled: true
+
+# Resilience4j Configuration
+resilience4j:
+  circuitbreaker:
+    instances:
+      payment-service:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        slow-call-rate-threshold: 100
+        slow-call-duration-threshold: 2s
+      wallet-service:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+      user-service:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+  
+  retry:
+    instances:
+      payment-service:
+        max-attempts: 3
+        wait-duration: 1s
+        retry-exceptions:
+          - java.io.IOException
+          - java.net.SocketTimeoutException
+      wallet-service:
+        max-attempts: 3
+        wait-duration: 1s
+      user-service:
+        max-attempts: 3
+        wait-duration: 1s
+  
+  ratelimiter:
+    instances:
+      rewards-api:
+        limit-for-period: 100
+        limit-refresh-period: 1s
+        timeout-duration: 5s
+
+# Logging Configuration
+logging:
+  level:
+    com.waqiti.rewards: DEBUG
+    org.springframework.web: INFO
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: ${LOG_LEVEL_SQL:WARN}  # WARN for production
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  logback:
+    rollingpolicy:
+      file-name-pattern: logs/rewards-service-%d{yyyy-MM-dd}.%i.log
+      max-file-size: 10MB
+      max-history: 30
+
+# Server Configuration
+server:
+  port: ${SERVER_PORT:8089}
+  error:
+    include-message: always
+    include-binding-errors: always
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/xml,text/plain
+
+# OpenAPI Documentation
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method

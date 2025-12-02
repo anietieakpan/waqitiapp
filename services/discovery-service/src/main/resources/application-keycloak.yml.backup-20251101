@@ -1,0 +1,107 @@
+# Keycloak Configuration for Discovery Service
+
+keycloak:
+  enabled: true
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  ssl-required: external
+  resource: discovery-service
+  bearer-only: true
+  credentials:
+    secret: ${DISCOVERY_SERVICE_CLIENT_SECRET:CHANGE_ME_SECURE_SECRET_REQUIRED}
+  use-resource-role-mappings: true
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# Discovery Service Security Configuration
+discovery:
+  security:
+    # Public endpoints that don't require authentication
+    public-endpoints:
+      - /actuator/health
+      - /actuator/info
+      - /eureka/apps
+      - /eureka/instances/**
+      - /swagger-ui/**
+      - /v3/api-docs/**
+    
+    # Service-to-service endpoints
+    service-endpoints:
+      - /internal/discovery/**
+    
+    # Required roles for discovery operations
+    required-roles:
+      read:
+        - SERVICE_USER
+        - DISCOVERY_USER
+      service-registration:
+        - SERVICE_USER
+        - SERVICE_ADMIN
+      service-discovery:
+        - SERVICE_USER
+        - DISCOVERY_USER
+      health-check:
+        - SERVICE_USER
+        - MONITORING_USER
+      load-balancing:
+        - SERVICE_USER
+        - LOAD_BALANCER
+      circuit-breaker:
+        - SERVICE_USER
+        - RESILIENCE_USER
+      management:
+        - DISCOVERY_MANAGER
+        - SERVICE_ADMIN
+      admin:
+        - DISCOVERY_ADMIN
+        - SYSTEM_ADMIN
+    
+    # Required scopes for operations
+    required-scopes:
+      service-register: discovery:service:register
+      service-deregister: discovery:service:deregister
+      service-query: discovery:service:query
+      health-check: discovery:health:check
+      load-balancing: discovery:load-balance
+      circuit-breaker: discovery:circuit-breaker
+      metrics: discovery:metrics
+      admin: discovery:admin
+      management: discovery:manage
+    
+    # Discovery service security features
+    features:
+      service-authentication-enabled: true
+      health-check-enabled: true
+      load-balancing-enabled: true
+      circuit-breaker-enabled: true
+      metrics-collection-enabled: true
+      audit-logging-enabled: true
+      
+    # Discovery service limits and thresholds
+    limits:
+      max-services-per-instance: 1000
+      max-instances-per-service: 100
+      health-check-interval-seconds: 30
+      service-registration-timeout-seconds: 60
+      
+    # Security thresholds requiring monitoring
+    monitoring-thresholds:
+      service-down-count: 3
+      health-check-failure-rate: 0.1
+      circuit-breaker-open-count: 5
+      high-error-rate: 0.05
+      
+    # Advanced security features
+    advanced-security:
+      require-mutual-tls: false
+      service-mesh-integration: true
+      automatic-failover: true
+      distributed-tracing: true
+      service-dependency-tracking: true
+      security-policy-enforcement: true

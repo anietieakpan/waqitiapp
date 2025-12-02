@@ -1,0 +1,253 @@
+spring:
+  application:
+    name: recurring-payment-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:development}
+    include: keycloak
+  
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/recurring_payment_db}
+    username: ${vault.database.username:recurring_user}
+    password: ${vault.database.password}}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+  
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        generate_statistics: true
+        jdbc:
+          batch_size: 25
+          batch_versioned_data: true
+        order_inserts: true
+        order_updates: true
+    show-sql: false
+  
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+  
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      retries: 3
+      acks: all
+    consumer:
+      group-id: recurring-payment-service
+      enable-auto-commit: false  # Manual acknowledgment for DLQ support
+      max-poll-records: 50  # Batch size control
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.example.common.event,com.waqiti.recurring.event"
+  
+  cloud:
+    discovery:
+      enabled: true
+    loadbalancer:
+      ribbon:
+        enabled: false
+  
+  cache:
+    type: redis
+    redis:
+      time-to-live: 3600000
+      cache-null-values: false
+  
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${vault.redis.password}}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:${EUREKA_SERVER_URL:https://discovery-service:8761/eureka}/}
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,circuitbreakers
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    export:
+      prometheus:
+        enabled: true
+
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 5000
+        readTimeout: 10000
+        loggerLevel: basic
+  circuitbreaker:
+    enabled: true
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      payment-service:
+        register-health-indicator: true
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        wait-duration-in-open-state: 5s
+        failure-rate-threshold: 50
+        event-consumer-buffer-size: 10
+      wallet-service:
+        register-health-indicator: true
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        wait-duration-in-open-state: 5s
+        failure-rate-threshold: 50
+        event-consumer-buffer-size: 10
+  retry:
+    instances:
+      payment-service:
+        max-attempts: 3
+        wait-duration: 1s
+        retry-exceptions:
+          - java.io.IOException
+          - java.net.SocketTimeoutException
+  bulkhead:
+    instances:
+      payment-service:
+        max-concurrent-calls: 10
+        max-wait-duration: 1s
+
+logging:
+  level:
+    com.waqiti.recurring: DEBUG
+    org.springframework.web: INFO
+    org.hibernate.SQL: ${LOG_LEVEL_SQL:WARN}  # WARN for production
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/recurring-payment-service.log
+    max-size: 10MB
+    max-history: 30
+
+# Application specific configuration
+recurring:
+  payment:
+    execution:
+      window:
+        minutes: 10
+    batch:
+      size: 100
+    limits:
+      max-active-per-user: 20
+      max-amount-per-payment: 10000
+      max-retry-attempts: 3
+    scheduler:
+      execution-thread-pool-size: 10
+      reminder-thread-pool-size: 5
+    notifications:
+      reminder-days: [7, 3, 1]
+      upcoming-hours: [24, 12, 1]
+
+# Security configuration
+security:
+  jwt:
+    secret: ${vault.jwt.recurring-payment-service.secret}}
+    expiration: 86400000
+  encryption:
+    algorithm: AES
+    key: ${vault.encryption.recurring-payment-service.key}}
+
+# External services
+external:
+  services:
+    payment-service:
+      url: ${PAYMENT_SERVICE_URL:http://payment-service:8080}
+    wallet-service:
+      url: ${WALLET_SERVICE_URL:http://wallet-service:8080}
+    notification-service:
+      url: ${NOTIFICATION_SERVICE_URL:http://notification-service:8080}
+    fraud-detection-service:
+      url: ${FRAUD_SERVICE_URL:http://fraud-detection-service:8080}
+# OAuth2 Resource Server Configuration for Keycloak
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# Keycloak Configuration
+keycloak:
+  enabled: ${KEYCLOAK_ENABLED:true}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  resource: recurring-payment-service
+  credentials:
+    secret: ${vault.keycloak.recurring-payment-service.secret}}
+  use-resource-role-mappings: true
+  bearer-only: true
+  ssl-required: external
+  confidential-port: 8443
+  
+# OAuth2 Resource Server (Keycloak) - Updated
+spring.security:
+  oauth2:
+    resourceserver:
+      jwt:
+        issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+        jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+    client:
+      registration:
+        recurring-payment-service:
+          client-id: ${keycloak.resource}
+          client-secret: ${keycloak.credentials.secret}
+          authorization-grant-type: client_credentials
+          scope: openid
+      provider:
+        keycloak:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          
+# Feature Flags for Dual-Mode Authentication
+feature:
+  flags:
+    dual-auth-mode:
+      enabled: ${DUAL_AUTH_MODE_ENABLED:false}
+    keycloak-only:
+      enabled: ${KEYCLOAK_ONLY_MODE:true}
+    legacy-jwt-deprecation-warning:
+      enabled: ${LEGACY_JWT_WARNING:true}

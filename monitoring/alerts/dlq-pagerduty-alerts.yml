@@ -1,0 +1,204 @@
+# DLQ PagerDuty Alert Configuration
+# Waqiti Platform - Production Ready Alerts
+# Version: 1.0.0
+# Date: 2025-10-10
+
+groups:
+  - name: dlq_critical_alerts
+    interval: 30s
+    rules:
+      # CRITICAL: DLQ Send Failure - Message Loss Risk
+      - alert: DLQSendFailure
+        expr: rate(dlq_send_failures_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: kafka-dlq
+          pagerduty: true
+          escalation_policy: payment-engineering-oncall
+        annotations:
+          summary: "DLQ send failed - messages may be lost"
+          description: "DLQ handler failed to send {{$value}} messages to DLQ in the last 5 minutes. Messages may be permanently lost. Topic: {{$labels.topic}}, Partition: {{$labels.partition}}"
+          runbook_url: "https://docs.example.com/runbooks/dlq-send-failure"
+          impact: "HIGH - Potential message loss and data inconsistency"
+          action: "1. Check DLQ handler logs\n2. Verify Kafka cluster health\n3. Check database connectivity\n4. Review failed message details\n5. Manual message recovery may be required"
+
+      # CRITICAL: High DLQ Rate
+      - alert: HighDLQRate
+        expr: rate(kafka_dlq_messages_total[5m]) > 10
+        for: 10m
+        labels:
+          severity: critical
+          service: kafka-consumers
+          pagerduty: true
+          escalation_policy: platform-engineering-oncall
+        annotations:
+          summary: "High DLQ rate detected - consumer health issue"
+          description: "DLQ receiving {{$value}} messages/sec for {{$labels.topic}}. This indicates systemic consumer failures."
+          runbook_url: "https://docs.example.com/runbooks/high-dlq-rate"
+          impact: "HIGH - Service degradation and processing delays"
+          action: "1. Check consumer service health\n2. Review recent deployments\n3. Check external dependencies (DB, APIs)\n4. Review error logs for patterns\n5. Scale consumers if needed"
+
+      # CRITICAL: Parking Lot Threshold Exceeded
+      - alert: ParkingLotThresholdCritical
+        expr: kafka_dlq_parking_total > 500
+        for: 5m
+        labels:
+          severity: critical
+          service: kafka-dlq
+          pagerduty: true
+          escalation_policy: platform-engineering-oncall
+        annotations:
+          summary: "500+ messages in DLQ parking lot - manual intervention required"
+          description: "{{$value}} messages have exceeded max retry attempts and require manual review. Topic: {{$labels.topic}}"
+          runbook_url: "https://docs.example.com/runbooks/dlq-parking-lot"
+          impact: "MEDIUM - Manual intervention required to prevent backlog"
+          action: "1. Query parking lot messages from database\n2. Identify failure patterns\n3. Fix root cause issues\n4. Execute manual replay for valid messages\n5. Document poison pill patterns"
+
+  - name: dlq_warning_alerts
+    interval: 1m
+    rules:
+      # WARNING: Elevated DLQ Rate
+      - alert: ElevatedDLQRate
+        expr: rate(kafka_dlq_messages_total[5m]) > 5
+        for: 15m
+        labels:
+          severity: warning
+          service: kafka-consumers
+          pagerduty: false
+          slack_channel: "#platform-alerts"
+        annotations:
+          summary: "Elevated DLQ rate - investigate potential issues"
+          description: "DLQ receiving {{$value}} messages/sec for {{$labels.topic}}. Monitor for escalation."
+          runbook_url: "https://docs.example.com/runbooks/elevated-dlq-rate"
+
+      # WARNING: Parking Lot Warning
+      - alert: ParkingLotThresholdWarning
+        expr: kafka_dlq_parking_total > 100
+        for: 30m
+        labels:
+          severity: warning
+          service: kafka-dlq
+          pagerduty: false
+          slack_channel: "#platform-alerts"
+        annotations:
+          summary: "100+ messages in parking lot - review recommended"
+          description: "{{$value}} messages in parking lot for {{$labels.topic}}. Review and replay soon."
+
+      # WARNING: Consumer Success Rate Drop
+      - alert: ConsumerSuccessRateDrop
+        expr: (1 - (rate(kafka_dlq_messages_total[5m]) / rate(kafka_consumer_records_consumed_total[5m]))) < 0.95
+        for: 10m
+        labels:
+          severity: warning
+          service: kafka-consumers
+          pagerduty: false
+          slack_channel: "#platform-alerts"
+        annotations:
+          summary: "Consumer success rate below 95%"
+          description: "Success rate: {{$value | humanizePercentage}} for {{$labels.topic}}"
+
+      # WARNING: High Transient Failures
+      - alert: HighTransientFailures
+        expr: sum(rate(kafka_dlq_category_total{category="TRANSIENT"}[10m])) by (topic) > 5
+        for: 15m
+        labels:
+          severity: warning
+          service: external-dependencies
+          pagerduty: false
+          slack_channel: "#platform-alerts"
+        annotations:
+          summary: "High transient failure rate - dependency issue"
+          description: "{{$value}} transient failures/sec for {{$labels.topic}}. Check external APIs/databases."
+
+      # WARNING: High Poison Pill Rate
+      - alert: HighPoisonPillRate
+        expr: sum(rate(kafka_dlq_category_total{category="POISON_PILL"}[10m])) by (topic) > 2
+        for: 20m
+        labels:
+          severity: warning
+          service: kafka-consumers
+          pagerduty: false
+          slack_channel: "#platform-alerts"
+        annotations:
+          summary: "High poison pill rate - data validation issue"
+          description: "{{$value}} poison pill messages/sec for {{$labels.topic}}. Check message format and validation."
+
+  - name: dlq_info_alerts
+    interval: 5m
+    rules:
+      # INFO: DLQ Activity Detected
+      - alert: DLQActivityDetected
+        expr: increase(kafka_dlq_messages_total[1h]) > 0
+        labels:
+          severity: info
+          service: kafka-dlq
+          slack_channel: "#platform-monitoring"
+        annotations:
+          summary: "DLQ activity detected in last hour"
+          description: "{{$value}} messages sent to DLQ for {{$labels.topic}} in the last hour."
+
+# PagerDuty Integration Configuration
+pagerduty_config:
+  service_key: "${PAGERDUTY_INTEGRATION_KEY}"
+  severity_mapping:
+    critical: "critical"
+    warning: "warning"
+    info: "info"
+
+  escalation_policies:
+    payment-engineering-oncall:
+      escalation_timeout_minutes: 10
+      escalation_levels:
+        - oncall: payment-engineering-primary
+        - oncall: payment-engineering-secondary
+        - oncall: platform-engineering-lead
+
+    platform-engineering-oncall:
+      escalation_timeout_minutes: 15
+      escalation_levels:
+        - oncall: platform-engineering-primary
+        - oncall: platform-engineering-secondary
+        - oncall: cto
+
+# Slack Integration Configuration
+slack_config:
+  webhook_url: "${SLACK_WEBHOOK_URL}"
+  channels:
+    "#platform-alerts":
+      min_severity: warning
+    "#platform-monitoring":
+      min_severity: info
+    "#payment-engineering":
+      min_severity: critical
+      topics:
+        - payment.*
+        - ach.*
+        - card.*
+
+# Alert Grouping and Throttling
+grouping:
+  group_by: ['alertname', 'topic', 'service']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+
+# Maintenance Windows
+maintenance_windows:
+  - name: "Scheduled Deployment Window"
+    start: "02:00"
+    end: "04:00"
+    timezone: "America/New_York"
+    days: ["Sunday"]
+    suppress_alerts:
+      - ElevatedDLQRate
+      - ConsumerSuccessRateDrop
+
+# Testing Configuration
+test_alerts:
+  - name: DLQSendFailure
+    test_expr: "vector(1)"
+    expected_severity: critical
+  - name: HighDLQRate
+    test_expr: "vector(15)"
+    expected_severity: critical

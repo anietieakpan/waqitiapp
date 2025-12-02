@@ -1,0 +1,143 @@
+# Common configuration for all services
+spring:
+  # Database configuration
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      
+  # JPA configuration
+  jpa:
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        use_sql_comments: true
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    
+  # Kafka configuration
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}}
+    consumer:
+      group-id: ${spring.application.name}
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.waqiti.*"
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      
+  # Redis configuration
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+        
+# Eureka client configuration
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:${EUREKA_SERVER_URL:https://discovery-service:8761/eureka}/}
+    registry-fetch-interval-seconds: 5
+  instance:
+    hostname: ${HOSTNAME:localhost}
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 10
+    lease-expiration-duration-in-seconds: 30
+
+# Management endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics,refresh
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+  tracing:
+    sampling:
+      probability: 1.0
+
+# Logging configuration
+logging:
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  level:
+    root: INFO
+    com.waqiti: DEBUG
+    org.springframework.web: INFO
+    org.hibernate.SQL: ${LOG_LEVEL_SQL:WARN}  # WARN for production
+
+# Security settings
+security:
+  jwt:
+    secret: ${JWT_SECRET:?JWT secret key must be provided via JWT_SECRET environment variable}
+    expiration: 86400000  # 24 hours
+    refresh-expiration: 604800000  # 7 days
+
+# Waqiti specific security configuration
+waqiti:
+  security:
+    database:
+      rls:
+        enabled: ${WAQITI_RLS_ENABLED:true}
+        strict-mode: ${WAQITI_RLS_STRICT_MODE:true}
+        emergency-access: ${WAQITI_EMERGENCY_ACCESS_ENABLED:false}
+  
+  # Observability configuration
+  observability:
+    enabled: ${WAQITI_OBSERVABILITY_ENABLED:true}
+    tracing:
+      enabled: ${WAQITI_TRACING_ENABLED:true}
+      sample-rate: ${WAQITI_TRACING_SAMPLE_RATE:0.1}
+    financial-tracing:
+      enabled: ${WAQITI_FINANCIAL_TRACING_ENABLED:true}
+    correlation:
+      enabled: ${WAQITI_CORRELATION_ENABLED:true}
+    metrics:
+      prometheus:
+        enabled: ${WAQITI_PROMETHEUS_ENABLED:true}
+    jaeger:
+      endpoint: ${WAQITI_JAEGER_ENDPOINT:http://localhost:14250}
+
+# Resilience4j defaults
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 5s
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10
+  retry:
+    configs:
+      default:
+        maxAttempts: 3
+        waitDuration: 1s
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - java.io.IOException
+          - java.net.SocketTimeoutException
+          - org.springframework.web.client.ResourceAccessException
+        ignoreExceptions:
+          - java.lang.IllegalArgumentException

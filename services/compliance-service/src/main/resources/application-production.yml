@@ -1,0 +1,368 @@
+# =====================================================
+# WAQITI COMPLIANCE SERVICE - PRODUCTION CONFIGURATION
+# =====================================================
+# CRITICAL: This configuration enables regulatory compliance
+# Do NOT modify without compliance team approval
+# =====================================================
+
+spring:
+  application:
+    name: compliance-service
+  profiles:
+    active: production
+
+  # Database Configuration
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://db-prod.example.amazonaws.com:5432/waqiti_compliance}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      leak-detection-threshold: 60000
+
+  # JPA Configuration
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+    show-sql: false
+
+  # Kafka Configuration
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka-prod-1.example.internal:9092,kafka-prod-2.example.internal:9092,kafka-prod-3.example.internal:9092}
+    consumer:
+      group-id: compliance-service-prod
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: io.confluent.kafka.serializers.KafkaAvroDeserializer
+      properties:
+        schema.registry.url: ${SCHEMA_REGISTRY_URL:http://schema-registry-prod.example.internal:8081}
+        specific.avro.reader: true
+        # P1-009: Schema Registry compatibility configuration
+        auto.register.schemas: false
+        use.latest.version: true
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: io.confluent.kafka.serializers.KafkaAvroSerializer
+      acks: all
+      retries: 3
+      properties:
+        schema.registry.url: ${SCHEMA_REGISTRY_URL:http://schema-registry-prod.example.internal:8081}
+        # P1-009: Schema Registry compatibility configuration
+        auto.register.schemas: false
+        use.latest.version: true
+
+  # Redis Configuration
+  redis:
+    host: ${REDIS_HOST:redis-prod.example.internal}
+    port: ${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD}
+    ssl: true
+    timeout: 3000ms
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 2
+        max-wait: -1ms
+
+  # Security Configuration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://auth.example.com/realms/waqiti}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://auth.example.com/realms/waqiti/protocol/openid-connect/certs}
+
+# =====================================================
+# FINCEN API CONFIGURATION - PRODUCTION
+# =====================================================
+# REGULATORY CRITICAL: SAR filing with FinCEN BSA E-Filing System
+# =====================================================
+
+fincen:
+  api:
+    # PRODUCTION: MUST BE ENABLED FOR REGULATORY COMPLIANCE
+    enabled: true  # 🚨 CHANGED FROM false TO true - REGULATORY REQUIREMENT
+
+    # FinCEN BSA E-Filing System URLs
+    base-url: ${FINCEN_API_URL:https://bsaefiling.fincen.treas.gov/api}
+
+    # FinCEN Credentials (MUST BE STORED IN AWS SECRETS MANAGER OR VAULT)
+    username: ${FINCEN_USERNAME}  # Load from Vault/Secrets Manager
+    password: ${FINCEN_PASSWORD}  # Load from Vault/Secrets Manager
+    institution-id: ${FINCEN_INSTITUTION_ID}  # Waqiti's FinCEN registration number
+
+    # API Configuration
+    timeout-seconds: 30
+    retry-attempts: 3
+
+    # Rate Limiting (FinCEN has submission limits)
+    rate-limit:
+      max-requests-per-hour: 100
+      max-requests-per-day: 1000
+
+    # Filing Configuration
+    filing:
+      # Auto-submit SARs or require manual approval
+      auto-submit: ${FINCEN_AUTO_SUBMIT:false}  # Default: false for safety
+
+      # Expedited filing threshold (in USD)
+      expedited-threshold: 100000.00
+
+      # SAR filing deadline (days after detection)
+      filing-deadline-days: 30
+
+      # SAR filing reminder (days before deadline)
+      reminder-days-before-deadline: 7
+
+    # Monitoring and Alerting
+    monitoring:
+      # Alert on SAR submission failures
+      alert-on-failure: true
+
+      # Alert on filing deadline approaching
+      alert-on-deadline-approaching: true
+
+      # Alert on FinCEN API errors
+      alert-on-api-errors: true
+
+      # Slack/PagerDuty webhook for critical alerts
+      alert-webhook-url: ${FINCEN_ALERT_WEBHOOK:https://hooks.slack.com/services/YOUR/WEBHOOK/URL}
+
+    # Audit Configuration
+    audit:
+      # Log all SAR submissions to separate audit log
+      enable-audit-logging: true
+
+      # Retain SAR filing records (years)
+      retention-years: 7
+
+      # Enable SIEM integration
+      siem-enabled: true
+
+# =====================================================
+# AML/BSA COMPLIANCE CONFIGURATION
+# =====================================================
+
+aml:
+  # Transaction Monitoring
+  transaction-monitoring:
+    enabled: true
+
+    # Thresholds
+    thresholds:
+      # Currency Transaction Report (CTR) threshold
+      ctr-amount: 10000.00
+
+      # SAR filing threshold
+      sar-amount: 5000.00
+
+      # Structuring detection threshold
+      structuring-amount: 3000.00
+      structuring-window-hours: 24
+      structuring-transaction-count: 3
+
+      # Velocity check thresholds
+      daily-transaction-limit: 50000.00
+      weekly-transaction-limit: 200000.00
+      monthly-transaction-limit: 500000.00
+
+    # Drools Rule Engine
+    rules:
+      enabled: true
+      rules-path: classpath:drools/aml-rules.drl
+      reload-interval-minutes: 60
+
+  # Sanctions Screening
+  sanctions-screening:
+    enabled: true
+
+    # OFAC SDN List
+    ofac:
+      enabled: true
+      list-url: https://www.treasury.gov/ofac/downloads/sdn.xml
+      update-frequency-hours: 24
+      fuzzy-match-threshold: 85
+
+    # EU Sanctions List
+    eu:
+      enabled: true
+      list-url: https://webgate.ec.europa.eu/fsd/fsf/public/files/xmlFullSanctionsList_1_1/content
+      update-frequency-hours: 24
+      fuzzy-match-threshold: 85
+
+    # UN Sanctions List
+    un:
+      enabled: true
+      list-url: https://scsanctions.un.org/resources/xml/en/consolidated.xml
+      update-frequency-hours: 24
+      fuzzy-match-threshold: 85
+
+  # Customer Risk Profiling
+  risk-profiling:
+    enabled: true
+
+    # Risk scoring factors
+    factors:
+      transaction-volume-weight: 0.30
+      transaction-frequency-weight: 0.25
+      geographic-risk-weight: 0.20
+      customer-type-weight: 0.15
+      historical-risk-weight: 0.10
+
+    # Risk categories
+    categories:
+      low-threshold: 30
+      medium-threshold: 60
+      high-threshold: 80
+
+# =====================================================
+# LOGGING CONFIGURATION
+# =====================================================
+
+logging:
+  level:
+    root: INFO
+    com.example.compliance: INFO
+    com.example.compliance.fincen: DEBUG  # Verbose logging for FinCEN
+    com.example.compliance.aml: DEBUG
+    org.springframework.security: WARN
+
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+  file:
+    name: /var/log/waqiti/compliance-service.log
+    max-size: 100MB
+    max-history: 90
+    total-size-cap: 10GB
+
+# =====================================================
+# ACTUATOR & MONITORING
+# =====================================================
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: ${spring.application.name}
+      environment: production
+
+# =====================================================
+# SERVER CONFIGURATION
+# =====================================================
+
+server:
+  port: 8090
+  shutdown: graceful
+
+  # SSL/TLS Configuration
+  ssl:
+    enabled: true
+    key-store: ${SSL_KEYSTORE_PATH:/etc/waqiti/ssl/keystore.p12}
+    key-store-password: ${SSL_KEYSTORE_PASSWORD}
+    key-store-type: PKCS12
+    key-alias: waqiti-compliance
+
+# =====================================================
+# FEATURE FLAGS
+# =====================================================
+
+features:
+  # FinCEN Integration
+  fincen-integration: true
+
+  # Enhanced Due Diligence
+  enhanced-due-diligence: true
+
+  # Real-time Sanctions Screening
+  realtime-sanctions-screening: true
+
+  # Automated SAR Filing
+  automated-sar-filing: ${FINCEN_AUTO_SUBMIT:false}
+
+# =====================================================
+# CIRCUIT BREAKER CONFIGURATION
+# =====================================================
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 10s
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10
+    instances:
+      fincenApi:
+        baseConfig: default
+        waitDurationInOpenState: 30s
+        failureRateThreshold: 30
+
+  retry:
+    configs:
+      default:
+        maxAttempts: 3
+        waitDuration: 2s
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+    instances:
+      fincenApi:
+        baseConfig: default
+        maxAttempts: 3
+
+# =====================================================
+# ALERT CONFIGURATION
+# =====================================================
+
+alerts:
+  # Critical Alerts (sent to PagerDuty)
+  critical:
+    - type: FINCEN_SUBMISSION_FAILURE
+      channels: [pagerduty, slack, email]
+    - type: FINCEN_API_DOWN
+      channels: [pagerduty, slack]
+    - type: SAR_FILING_DEADLINE_MISSED
+      channels: [pagerduty, email]
+
+  # High Priority Alerts (sent to Slack)
+  high:
+    - type: SANCTIONS_MATCH_DETECTED
+      channels: [slack, email]
+    - type: HIGH_RISK_TRANSACTION
+      channels: [slack, email]
+    - type: SAR_FILING_DEADLINE_APPROACHING
+      channels: [slack, email]
+
+  # Medium Priority Alerts (sent to Email)
+  medium:
+    - type: COMPLIANCE_RULE_TRIGGERED
+      channels: [email]
+    - type: CUSTOMER_RISK_ELEVATED
+      channels: [email]

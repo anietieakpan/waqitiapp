@@ -1,0 +1,157 @@
+spring:
+  application:
+    name: kyc-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:development}
+    
+  # Enhanced Vault configuration for KYC service
+  cloud:
+    vault:
+      # Vault server configuration with HA support
+      uri: ${VAULT_URI:https://vault.example.internal:8200}
+      scheme: ${VAULT_SCHEME:https}
+      host: ${VAULT_HOST:vault.example.internal}
+      port: ${VAULT_PORT:8200}
+      
+      # Kubernetes authentication (preferred for production)
+      authentication: ${VAULT_AUTH_METHOD:KUBERNETES}
+      kubernetes:
+        role: kyc-service-role
+        kubernetes-path: ${VAULT_K8S_PATH:kubernetes}
+        service-account-token-file: ${VAULT_SA_TOKEN_FILE:/var/run/secrets/kubernetes.io/serviceaccount/token}
+      
+      # AppRole authentication (fallback)
+      app-role:
+        role-id: ${VAULT_ROLE_ID:}
+        secret-id: ${VAULT_SECRET_ID:}
+        role: kyc-service-role
+        app-role-path: ${VAULT_APPROLE_PATH:approle}
+      
+      # Token authentication (development only)
+      token: ${VAULT_TOKEN:}
+      
+      # Connection settings with retries
+      connection-timeout: ${VAULT_CONNECTION_TIMEOUT:10000}
+      read-timeout: ${VAULT_READ_TIMEOUT:30000}
+      fail-fast: ${VAULT_FAIL_FAST:false}
+      
+      # KV engine configuration for KYC secrets
+      kv:
+        enabled: true
+        backend: ${VAULT_KV_BACKEND:secret}
+        backend-version: ${VAULT_KV_VERSION:2}
+        profile-separator: /
+        default-context: kyc-service
+        application-name: kyc-service
+        profiles: ${spring.profiles.active:development}
+        additional-contexts:
+          - common
+          - kyc-providers
+      
+      # Database dynamic credentials
+      database:
+        enabled: ${VAULT_DATABASE_ENABLED:true}
+        role: kyc-service-db-role
+        backend: database
+        username-property: spring.datasource.username
+        password-property: spring.datasource.password
+        ttl: 24h
+        max-ttl: 168h
+      
+      # Generic secrets
+      generic:
+        enabled: true
+        backend: secret
+        default-context: kyc-service
+        application-name: kyc-service
+      
+      # SSL configuration
+      ssl:
+        trust-store: ${VAULT_TRUST_STORE:/etc/ssl/certs/vault-ca.jks}
+        trust-store-password: ${VAULT_TRUST_STORE_PASSWORD:changeit}
+        trust-store-type: ${VAULT_TRUST_STORE_TYPE:JKS}
+        verify-hostname: ${VAULT_VERIFY_HOSTNAME:true}
+      
+      # Session lifecycle management
+      session:
+        lifecycle:
+          enabled: true
+          expiry-threshold: 7200s
+          refresh-before-expiry: 600s
+          min-renewal: 300s
+          token-renewal:
+            enabled: true
+            grace-period: 60s
+      
+      # Configuration properties
+      config:
+        order: -10
+        lifecycle:
+          enabled: true
+          min-renewal: 300s
+          expiry-threshold: 10m
+          lease-endpoints: SysLeases
+        cache:
+          enabled: true
+          ttl: 300s
+        refresh:
+          enabled: true
+          period: 30m
+          
+    # Spring Cloud Config fallback
+    config:
+      enabled: ${CONFIG_SERVER_ENABLED:false}
+      uri: ${CONFIG_SERVER_URL:http://localhost:8888}
+      fail-fast: true  # CRITICAL: Application must not start without Vault
+      retry:
+        initial-interval: 1000
+        max-interval: 2000
+        max-attempts: 3
+      label: ${CONFIG_LABEL:main}
+
+# Logging configuration for Vault
+logging:
+  level:
+    org.springframework.vault: INFO
+    org.springframework.cloud.vault: INFO
+    com.waqiti.kyc.security: DEBUG
+    
+# Management endpoints with Vault health
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,vault,info
+  endpoint:
+    vault:
+      enabled: true
+      cache:
+        time-to-live: 30s
+    health:
+      show-details: when-authorized
+      
+# KYC service specific Vault paths
+vault:
+  paths:
+    # KYC provider credentials
+    jumio: api-keys/jumio
+    onfido: api-keys/onfido
+    shufti-pro: api-keys/shufti-pro
+    veriff: api-keys/veriff
+    
+    # Database credentials
+    database: database/kyc-service
+    database-read: database/kyc-service-read
+    
+    # Encryption keys for sensitive data
+    encryption: encryption/kyc-service
+    document-encryption: encryption/kyc-service/documents
+    
+    # JWT secrets
+    jwt: jwt/kyc-service
+    
+    # Webhook secrets
+    webhooks: webhooks/kyc-service
+    
+    # Audit and compliance
+    compliance: compliance/kyc-service

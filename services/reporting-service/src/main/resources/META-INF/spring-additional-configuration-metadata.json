@@ -1,0 +1,62 @@
+{
+  "properties": [
+    {
+      "name": "reporting.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable reporting functionality",
+      "defaultValue": true
+    },
+    {
+      "name": "reporting.formats",
+      "type": "java.util.List",
+      "description": "Supported report formats"
+    },
+    {
+      "name": "reporting.scheduled.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable scheduled reports",
+      "defaultValue": true
+    },
+    {
+      "name": "reporting.export.max-records",
+      "type": "java.lang.Integer",
+      "description": "Maximum records per report",
+      "defaultValue": 100000
+    },
+    {
+      "name": "reporting.templates.custom-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable custom report templates",
+      "defaultValue": true
+    },
+    {
+      "name": "reporting.delivery.email-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable email delivery of reports",
+      "defaultValue": true
+    },
+    {
+      "name": "reporting.retention.days",
+      "type": "java.lang.Integer",
+      "description": "Report retention period in days",
+      "defaultValue": 90
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "OAuth2 client ID for service",
+      "defaultValue": "reporting-service"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "OAuth2 client secret for service"
+    }
+  ]
+}

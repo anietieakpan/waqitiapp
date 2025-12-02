@@ -1,0 +1,367 @@
+server:
+  port: 8097  # Changed from 8091 to avoid conflict with fraud-detection-service and bnpl-service
+  servlet:
+    context-path: /api/v1/savings
+
+spring:
+  application:
+    name: savings-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:waqiti_savings}
+    username: ${DB_USERNAME:waqiti_savings}
+    password: ${DB_PASSWORD}  # SECURITY: No default - service must fail if password not provided
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      leak-detection-threshold: 60000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+        generate_statistics: false
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      properties:
+        enable.idempotence: true
+    consumer:
+      group-id: savings-service
+      enable-auto-commit: false  # Manual acknowledgment for DLQ support
+      max-poll-records: 50  # Batch size control
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: com.waqiti.*
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD}  # SECURITY: No default - service must fail if password not provided
+      timeout: 2000ms
+      jedis:
+        pool:
+          max-active: 20
+          max-idle: 10
+          min-idle: 5
+
+  cache:
+    type: redis
+    redis:
+      time-to-live: 3600000 # 1 hour
+      cache-null-values: false
+      enable-statistics: true
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:${EUREKA_SERVER_URL:https://discovery-service:8761/eureka}/}
+    fetch-registry: true
+    register-with-eureka: true
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# Keycloak Configuration
+keycloak:
+  enabled: true
+  realm: waqiti-fintech
+  auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}
+  ssl-required: external
+  resource: savings-service
+  bearer-only: true
+  use-resource-role-mappings: true
+  cors: true
+  cors-allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+  cors-allowed-headers: Authorization,Content-Type,X-Requested-With
+  cors-max-age: 3600
+  public-client: false
+  credentials:
+    secret: ${KEYCLOAK_CLIENT_SECRET:}
+
+# Spring Security OAuth2 Configuration
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti
+          jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/certs
+      client:
+        registration:
+          keycloak:
+            client-id: savings-service
+            client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+            authorization-grant-type: client_credentials
+            scope: openid,profile,email,savings
+        provider:
+          keycloak:
+            issuer-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti
+            token-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/token
+            authorization-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/auth
+            userinfo-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/userinfo
+            jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/certs
+
+# Service-to-Service Authentication
+service:
+  auth:
+    enabled: true
+    client-id: savings-service
+    client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+
+logging:
+  level:
+    com.waqiti.savings: ${LOG_LEVEL:INFO}
+    org.springframework.security: WARN
+    org.springframework.web: WARN
+    org.hibernate: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%X{traceId},%X{spanId}] %logger{36} - %msg%n"
+
+# Savings Service Configuration
+savings:
+  # Account Types
+  account-types:
+    regular:
+      min-balance: 0.00
+      interest-rate: 2.5
+      compounding-frequency: MONTHLY
+      withdrawal-limit: UNLIMITED
+      monthly-fee: 0.00
+    
+    high-yield:
+      min-balance: 500.00
+      interest-rate: 4.5
+      compounding-frequency: DAILY
+      withdrawal-limit: 6
+      monthly-fee: 0.00
+    
+    fixed-deposit:
+      min-balance: 1000.00
+      interest-rate: 6.0
+      compounding-frequency: QUARTERLY
+      withdrawal-penalty: 2.0
+      terms: [3, 6, 12, 24, 36] # months
+    
+    emergency:
+      min-balance: 0.00
+      interest-rate: 3.0
+      compounding-frequency: MONTHLY
+      instant-access: true
+      monthly-fee: 0.00
+    
+    retirement:
+      min-balance: 100.00
+      interest-rate: 7.0
+      compounding-frequency: ANNUALLY
+      tax-advantaged: true
+      early-withdrawal-penalty: 10.0
+      vesting-period: 60 # months
+  
+  # Goals Configuration
+  goals:
+    min-amount: 10.00
+    max-amount: 1000000.00
+    max-goals-per-user: 20
+    auto-save:
+      enabled: true
+      frequency: [DAILY, WEEKLY, MONTHLY]
+      round-up:
+        enabled: true
+        multiplier: [1, 2, 5, 10]
+    categories:
+      - VACATION
+      - EDUCATION
+      - EMERGENCY
+      - HOME
+      - CAR
+      - WEDDING
+      - RETIREMENT
+      - CUSTOM
+  
+  # Interest Calculation
+  interest:
+    calculation-frequency: DAILY
+    posting-frequency: MONTHLY
+    posting-day: 1
+    method: COMPOUND
+    tax-withholding:
+      enabled: true
+      rate: 10.0 # percentage
+  
+  # Automated Savings Rules
+  automation:
+    round-up:
+      enabled: true
+      min-transaction: 1.00
+      max-round-up: 10.00
+    
+    percentage-save:
+      enabled: true
+      min-percentage: 1.0
+      max-percentage: 50.0
+      applicable-to: [SALARY, DEPOSIT, TRANSFER_IN]
+    
+    scheduled-transfer:
+      enabled: true
+      min-amount: 1.00
+      max-amount: 10000.00
+      frequencies: [DAILY, WEEKLY, BIWEEKLY, MONTHLY, QUARTERLY, ANNUALLY]
+    
+    trigger-based:
+      enabled: true
+      triggers:
+        - PAYDAY
+        - BONUS_RECEIVED
+        - TAX_REFUND
+        - GOAL_MILESTONE
+  
+  # Rewards & Bonuses
+  rewards:
+    welcome-bonus:
+      enabled: true
+      amount: 25.00
+      min-deposit: 100.00
+    
+    milestone-bonuses:
+      enabled: true
+      milestones:
+        - amount: 1000.00
+          bonus: 10.00
+        - amount: 5000.00
+          bonus: 50.00
+        - amount: 10000.00
+          bonus: 150.00
+    
+    referral-bonus:
+      enabled: true
+      referrer-amount: 20.00
+      referee-amount: 10.00
+    
+    consistency-bonus:
+      enabled: true
+      consecutive-months: 6
+      bonus-percentage: 1.0
+  
+  # Notifications
+  notifications:
+    goal-progress:
+      enabled: true
+      thresholds: [25, 50, 75, 90, 100]
+    
+    interest-posted:
+      enabled: true
+    
+    low-balance:
+      enabled: true
+      threshold: 50.00
+    
+    maturity-reminder:
+      enabled: true
+      days-before: [30, 7, 1]
+  
+  # Limits & Restrictions
+  limits:
+    min-account-balance: 0.00
+    max-account-balance: 10000000.00
+    max-accounts-per-user: 10
+    max-daily-deposit: 50000.00
+    max-daily-withdrawal: 10000.00
+    withdrawal-notice-period: 0 # days
+  
+  # Integration
+  integration:
+    wallet-service:
+      url: ${WALLET_SERVICE_URL:http://wallet-service:8083}
+      timeout: 10s
+    payment-service:
+      url: ${PAYMENT_SERVICE_URL:http://payment-service:8082}
+      timeout: 10s
+    notification-service:
+      url: ${NOTIFICATION_SERVICE_URL:http://notification-service:8084}
+      timeout: 5s
+
+---
+# Development Profile
+spring:
+  config:
+    activate:
+      on-profile: dev
+  jpa:
+    show-sql: ${SHOW_SQL:false}  # false for production
+    properties:
+      hibernate:
+        generate_statistics: true
+
+logging:
+  level:
+    com.waqiti.savings: DEBUG
+    org.springframework.security: DEBUG
+
+savings:
+  interest:
+    calculation-frequency: HOURLY # Faster for testing
+    posting-frequency: DAILY
+
+---
+# Production Profile
+spring:
+  config:
+    activate:
+      on-profile: prod
+  jpa:
+    show-sql: false
+    properties:
+      hibernate:
+        generate_statistics: false
+
+logging:
+  level:
+    root: WARN
+    com.waqiti.savings: INFO
+
+savings:
+  limits:
+    max-daily-deposit: 100000.00
+    max-daily-withdrawal: 50000.00

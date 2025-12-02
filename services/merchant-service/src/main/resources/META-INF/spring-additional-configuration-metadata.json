@@ -1,0 +1,207 @@
+{
+  "properties": [
+    {
+      "name": "merchant.onboarding.auto-approval-threshold",
+      "type": "java.math.BigDecimal",
+      "description": "Threshold amount for automatic merchant approval",
+      "defaultValue": 5000.00
+    },
+    {
+      "name": "merchant.onboarding.manual-review-required",
+      "type": "java.lang.Boolean",
+      "description": "Require manual review for merchant onboarding",
+      "defaultValue": true
+    },
+    {
+      "name": "merchant.payments.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable payment processing for merchants",
+      "defaultValue": true
+    },
+    {
+      "name": "merchant.payments.fee-percentage",
+      "type": "java.math.BigDecimal",
+      "description": "Fee percentage for merchant payments",
+      "defaultValue": 2.9
+    },
+    {
+      "name": "merchant.payments.settlement-delay-hours",
+      "type": "java.lang.Integer",
+      "description": "Settlement delay for merchant payments in hours",
+      "defaultValue": 24
+    },
+    {
+      "name": "merchant.supported-industries",
+      "type": "java.util.List<java.lang.String>",
+      "description": "List of supported merchant industries",
+      "defaultValue": ["RETAIL", "FOOD_BEVERAGE", "PROFESSIONAL_SERVICES", "HEALTHCARE", "EDUCATION", "NON_PROFIT", "E_COMMERCE", "SUBSCRIPTION_SERVICES"]
+    },
+    {
+      "name": "payment-processing.webhook.timeout-seconds",
+      "type": "java.lang.Integer",
+      "description": "Webhook timeout for payment processing in seconds",
+      "defaultValue": 30
+    },
+    {
+      "name": "payment-processing.webhook.retry-attempts",
+      "type": "java.lang.Integer",
+      "description": "Number of retry attempts for webhook failures",
+      "defaultValue": 3
+    },
+    {
+      "name": "payment-processing.webhook.retry-delay-seconds",
+      "type": "java.lang.Integer",
+      "description": "Delay between webhook retry attempts in seconds",
+      "defaultValue": 300
+    },
+    {
+      "name": "payment-processing.settlement.batch-processing-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable batch processing for settlements",
+      "defaultValue": true
+    },
+    {
+      "name": "payment-processing.settlement.batch-size",
+      "type": "java.lang.Integer",
+      "description": "Batch size for settlement processing",
+      "defaultValue": 100
+    },
+    {
+      "name": "payment-processing.settlement.automatic-settlement",
+      "type": "java.lang.Boolean",
+      "description": "Enable automatic settlement processing",
+      "defaultValue": true
+    },
+    {
+      "name": "stripe.api-key",
+      "type": "java.lang.String",
+      "description": "Stripe API key for payment processing"
+    },
+    {
+      "name": "stripe.webhook-secret",
+      "type": "java.lang.String",
+      "description": "Stripe webhook secret for payment processing"
+    },
+    {
+      "name": "square.api-key",
+      "type": "java.lang.String",
+      "description": "Square API key for payment processing"
+    },
+    {
+      "name": "square.webhook-secret",
+      "type": "java.lang.String",
+      "description": "Square webhook secret for payment processing"
+    },
+    {
+      "name": "square.application-id",
+      "type": "java.lang.String",
+      "description": "Square application ID for payment processing"
+    },
+    {
+      "name": "risk-management.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable risk management features",
+      "defaultValue": true
+    },
+    {
+      "name": "risk-management.high-risk-industries",
+      "type": "java.util.List<java.lang.String>",
+      "description": "List of high-risk industries",
+      "defaultValue": ["GAMBLING", "ADULT_ENTERTAINMENT", "CRYPTOCURRENCY", "DEBT_COLLECTION"]
+    },
+    {
+      "name": "risk-management.velocity-checks.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable velocity checks for risk management",
+      "defaultValue": true
+    },
+    {
+      "name": "risk-management.velocity-checks.max-transactions-per-hour",
+      "type": "java.lang.Integer",
+      "description": "Maximum transactions per hour for velocity checks",
+      "defaultValue": 100
+    },
+    {
+      "name": "jwt.secret",
+      "type": "java.lang.String",
+      "description": "JWT secret for merchant service authentication"
+    },
+    {
+      "name": "jwt.expiration",
+      "type": "java.lang.Long",
+      "description": "JWT token expiration time in milliseconds",
+      "defaultValue": 86400000
+    },
+    {
+      "name": "keycloak.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Keycloak authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "keycloak.auth-server-url",
+      "type": "java.lang.String",
+      "description": "Keycloak authentication server URL",
+      "defaultValue": "http://localhost:8180/auth"
+    },
+    {
+      "name": "keycloak.realm",
+      "type": "java.lang.String",
+      "description": "Keycloak realm name",
+      "defaultValue": "waqiti"
+    },
+    {
+      "name": "keycloak.resource",
+      "type": "java.lang.String",
+      "description": "Keycloak resource/client ID",
+      "defaultValue": "merchant-service"
+    },
+    {
+      "name": "keycloak.credentials.secret",
+      "type": "java.lang.String",
+      "description": "Keycloak client secret"
+    },
+    {
+      "name": "keycloak.use-resource-role-mappings",
+      "type": "java.lang.Boolean",
+      "description": "Use resource-level role mappings in Keycloak",
+      "defaultValue": true
+    },
+    {
+      "name": "keycloak.bearer-only",
+      "type": "java.lang.Boolean",
+      "description": "Configure Keycloak as bearer-only client",
+      "defaultValue": true
+    },
+    {
+      "name": "keycloak.ssl-required",
+      "type": "java.lang.String",
+      "description": "SSL requirement level for Keycloak",
+      "defaultValue": "external"
+    },
+    {
+      "name": "keycloak.confidential-port",
+      "type": "java.lang.Integer",
+      "description": "Keycloak confidential port",
+      "defaultValue": 8443
+    },
+    {
+      "name": "feature.flags.dual-auth-mode.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable dual authentication mode feature flag",
+      "defaultValue": false
+    },
+    {
+      "name": "feature.flags.keycloak-only.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Keycloak-only mode feature flag",
+      "defaultValue": true
+    },
+    {
+      "name": "feature.flags.legacy-jwt-deprecation-warning.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable legacy JWT deprecation warning feature flag",
+      "defaultValue": true
+    }
+  ]
+}

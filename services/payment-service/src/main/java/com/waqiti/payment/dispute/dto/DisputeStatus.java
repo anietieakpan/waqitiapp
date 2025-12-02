@@ -1,0 +1,16 @@
+package com.waqiti.payment.dispute.dto;
+
+/**
+ * Dispute status
+ */
+public enum DisputeStatus {
+    SUBMITTED,
+    UNDER_REVIEW,
+    MERCHANT_RESPONSE_REQUIRED,
+    AWAITING_CUSTOMER_RESPONSE,
+    EVIDENCE_SUBMITTED,
+    RESOLVED_CUSTOMER_FAVOR,
+    RESOLVED_MERCHANT_FAVOR,
+    CANCELLED,
+    ESCALATED_TO_CHARGEBACK
+}

@@ -1,0 +1,389 @@
+# ============================================================================
+# RESILIENCE4J PRODUCTION CONFIGURATION
+# ============================================================================
+#
+# COMPREHENSIVE CIRCUIT BREAKER, RETRY, BULKHEAD, AND RATE LIMITER CONFIG
+# For all microservice integrations in Waqiti platform
+#
+# CRITICAL PATTERNS:
+# - Circuit Breaker: Prevents cascade failures
+# - Retry: Handles transient failures
+# - Bulkhead: Limits concurrent calls
+# - Rate Limiter: Respects external API quotas
+# - Time Limiter: Prevents slow call accumulation
+#
+# @version 2.0.0
+# @since 2025-11-03
+# ============================================================================
+
+resilience4j:
+
+  # ============================================================================
+  # CIRCUIT BREAKER CONFIGURATION
+  # ============================================================================
+  circuitbreaker:
+    configs:
+      # Default configuration for all circuit breakers
+      default:
+        # Open circuit after 50% failures
+        failure-rate-threshold: 50
+        slow-call-rate-threshold: 75
+        slow-call-duration-threshold: 5s
+
+        # Sliding window configuration
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+
+        # State transition configuration
+        wait-duration-in-open-state: 60s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+
+        # Record these as failures
+        record-exceptions:
+          - org.springframework.web.client.HttpServerErrorException
+          - org.springframework.web.client.ResourceAccessException
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
+          - java.io.IOException
+          - org.springframework.web.reactive.function.client.WebClientResponseException$ServiceUnavailable
+          - org.springframework.web.reactive.function.client.WebClientResponseException$GatewayTimeout
+
+        # Ignore these (don't count as failures)
+        ignore-exceptions:
+          - java.lang.IllegalArgumentException
+          - java.lang.IllegalStateException
+          - org.springframework.web.client.HttpClientErrorException$BadRequest
+
+    instances:
+      # Wallet Service Circuit Breaker
+      wallet-service:
+        base-config: default
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s  # Faster recovery for critical service
+        sliding-window-size: 20
+        minimum-number-of-calls: 10
+
+      # Fraud Detection Service Circuit Breaker
+      fraud-detection-service:
+        base-config: default
+        failure-rate-threshold: 40  # More sensitive for security service
+        slow-call-duration-threshold: 100ms  # Fraud checks must be fast
+        wait-duration-in-open-state: 120s  # Longer wait for ML service recovery
+
+      # User Service Circuit Breaker
+      user-service:
+        base-config: default
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 45s
+
+      # Notification Service Circuit Breaker
+      notification-service:
+        base-config: default
+        failure-rate-threshold: 60  # More tolerant (notifications non-critical)
+        wait-duration-in-open-state: 30s
+        ignore-exceptions:
+          - java.lang.IllegalArgumentException
+          - org.springframework.web.client.HttpClientErrorException
+
+      # Compliance Service Circuit Breaker
+      compliance-service:
+        base-config: default
+        failure-rate-threshold: 30  # Very sensitive for regulatory service
+        wait-duration-in-open-state: 180s  # Longer recovery time
+
+      # FinCEN API Circuit Breaker (already configured in fincen config)
+      fincen-api:
+        failure-rate-threshold: 50
+        slow-call-rate-threshold: 75
+        slow-call-duration-threshold: 45s
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        wait-duration-in-open-state: 120s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+
+      # Payment Gateway Circuit Breaker
+      payment-gateway:
+        base-config: default
+        failure-rate-threshold: 40
+        slow-call-duration-threshold: 10s
+        wait-duration-in-open-state: 90s
+
+      # KYC Service Circuit Breaker
+      kyc-service:
+        base-config: default
+        failure-rate-threshold: 50
+        slow-call-duration-threshold: 5s
+        wait-duration-in-open-state: 60s
+
+      # Ledger Service Circuit Breaker
+      ledger-service:
+        base-config: default
+        failure-rate-threshold: 40  # Critical for financial integrity
+        wait-duration-in-open-state: 120s
+
+      # Transaction Service Circuit Breaker
+      transaction-service:
+        base-config: default
+        failure-rate-threshold: 40
+        wait-duration-in-open-state: 60s
+
+      # Reconciliation Service Circuit Breaker
+      reconciliation-service:
+        base-config: default
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 180s  # Longer for batch processing
+
+  # ============================================================================
+  # RETRY CONFIGURATION
+  # ============================================================================
+  retry:
+    configs:
+      default:
+        max-attempts: 3
+        wait-duration: 1s
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - org.springframework.web.client.HttpServerErrorException$ServiceUnavailable
+          - org.springframework.web.client.HttpServerErrorException$GatewayTimeout
+          - java.net.SocketTimeoutException
+          - java.net.ConnectException
+
+    instances:
+      wallet-service:
+        max-attempts: 3
+        wait-duration: 500ms
+        exponential-backoff-multiplier: 2
+
+      fraud-detection-service:
+        max-attempts: 2  # Fewer retries for fast failure
+        wait-duration: 100ms
+
+      user-service:
+        max-attempts: 3
+        wait-duration: 1s
+
+      notification-service:
+        max-attempts: 5  # More retries for non-critical service
+        wait-duration: 2s
+
+      compliance-service:
+        max-attempts: 2  # Fail fast for compliance
+        wait-duration: 500ms
+
+      fincen-api:
+        max-attempts: 3
+        wait-duration: 2s
+        exponential-backoff-multiplier: 2
+
+      payment-gateway:
+        max-attempts: 2
+        wait-duration: 1s
+
+  # ============================================================================
+  # BULKHEAD CONFIGURATION
+  # ============================================================================
+  bulkhead:
+    configs:
+      default:
+        max-concurrent-calls: 25
+        max-wait-duration: 10s
+
+    instances:
+      wallet-service:
+        max-concurrent-calls: 50  # High concurrency for critical service
+        max-wait-duration: 5s
+
+      fraud-detection-service:
+        max-concurrent-calls: 100  # Very high for fraud checks
+        max-wait-duration: 2s
+
+      user-service:
+        max-concurrent-calls: 30
+        max-wait-duration: 10s
+
+      notification-service:
+        max-concurrent-calls: 100  # High for async notifications
+        max-wait-duration: 1s
+
+      compliance-service:
+        max-concurrent-calls: 20  # Limited for regulatory service
+        max-wait-duration: 15s
+
+      fincen-api:
+        max-concurrent-calls: 10  # Respect FinCEN rate limits
+        max-wait-duration: 30s
+
+      payment-gateway:
+        max-concurrent-calls: 40
+        max-wait-duration: 10s
+
+  # ============================================================================
+  # RATE LIMITER CONFIGURATION
+  # ============================================================================
+  ratelimiter:
+    configs:
+      default:
+        limit-for-period: 100
+        limit-refresh-period: 1s
+        timeout-duration: 5s
+
+    instances:
+      wallet-service:
+        limit-for-period: 500  # High throughput
+        limit-refresh-period: 1s
+
+      fraud-detection-service:
+        limit-for-period: 1000  # Very high for fraud checks
+        limit-refresh-period: 1s
+
+      user-service:
+        limit-for-period: 200
+        limit-refresh-period: 1s
+
+      notification-service:
+        limit-for-period: 500
+        limit-refresh-period: 1s
+
+      compliance-service:
+        limit-for-period: 100
+        limit-refresh-period: 1s
+
+      fincen-api:
+        limit-for-period: 100  # FinCEN API quota
+        limit-refresh-period: 60s  # Per minute
+        timeout-duration: 10s
+
+      payment-gateway:
+        limit-for-period: 300
+        limit-refresh-period: 1s
+
+  # ============================================================================
+  # TIME LIMITER CONFIGURATION
+  # ============================================================================
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 5s
+        cancel-running-future: true
+
+    instances:
+      wallet-service:
+        timeout-duration: 3s
+
+      fraud-detection-service:
+        timeout-duration: 100ms  # Very fast for fraud checks
+
+      user-service:
+        timeout-duration: 5s
+
+      notification-service:
+        timeout-duration: 10s  # Longer for external notifications
+
+      compliance-service:
+        timeout-duration: 10s
+
+      fincen-api:
+        timeout-duration: 60s  # FinCEN can be slow
+
+      payment-gateway:
+        timeout-duration: 30s
+
+  # ============================================================================
+  # THREAD POOL BULKHEAD CONFIGURATION (for async operations)
+  # ============================================================================
+  thread-pool-bulkhead:
+    configs:
+      default:
+        max-thread-pool-size: 10
+        core-thread-pool-size: 5
+        queue-capacity: 50
+        keep-alive-duration: 20ms
+
+    instances:
+      async-notification-service:
+        max-thread-pool-size: 20
+        core-thread-pool-size: 10
+        queue-capacity: 100
+
+# ============================================================================
+# MONITORING & METRICS
+# ============================================================================
+management:
+  health:
+    circuitbreakers:
+      enabled: true
+    ratelimiters:
+      enabled: true
+
+  metrics:
+    tags:
+      application: ${spring.application.name}
+      environment: ${spring.profiles.active:default}
+    distribution:
+      percentiles-histogram:
+        resilience4j.circuitbreaker.calls: true
+        resilience4j.retry.calls: true
+        resilience4j.bulkhead.calls: true
+        resilience4j.ratelimiter.calls: true
+    export:
+      prometheus:
+        enabled: true
+        step: 1m
+
+  endpoint:
+    health:
+      show-details: always
+    metrics:
+      enabled: true
+
+# ============================================================================
+# LOGGING CONFIGURATION
+# ============================================================================
+logging:
+  level:
+    io.github.resilience4j: INFO
+    io.github.resilience4j.circuitbreaker: INFO
+    io.github.resilience4j.retry: DEBUG
+    io.github.resilience4j.bulkhead: INFO
+    io.github.resilience4j.ratelimiter: INFO
+
+# ============================================================================
+# ALERTING CONFIGURATION
+# ============================================================================
+resilience4j:
+  circuitbreaker:
+    # Event consumer for circuit breaker state changes
+    event-consumer-buffer-size: 100
+
+  # Register health indicators
+  circuitbreaker:
+    health-indicator:
+      enabled: true
+
+# ============================================================================
+# PRODUCTION NOTES
+# ============================================================================
+#
+# Circuit Breaker States:
+# - CLOSED: Normal operation, calls go through
+# - OPEN: Failure threshold exceeded, calls fail fast
+# - HALF_OPEN: Testing if service recovered
+#
+# Tuning Guidelines:
+# 1. failure-rate-threshold: Lower for critical services (30-40%)
+# 2. wait-duration-in-open-state: Longer for services with slow recovery
+# 3. sliding-window-size: Larger for high-traffic services (20-50)
+# 4. minimum-number-of-calls: At least 5, higher for accurate metrics
+#
+# Monitoring:
+# - Check /actuator/health for circuit breaker states
+# - Check /actuator/metrics for detailed metrics
+# - Set up alerts for circuit breaker open events
+# - Monitor slow call rates and durations
+#
+# ============================================================================

@@ -1,0 +1,460 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: waqiti-sla-monitoring
+  namespace: monitoring
+  labels:
+    app: sla-monitoring
+    component: alerting
+spec:
+  groups:
+  - name: waqiti-sla-payment-service
+    interval: 30s
+    rules:
+    # Payment Service SLA: 99.9% uptime, <500ms P95 response time
+    - record: waqiti:payment_service_availability_5m
+      expr: |
+        avg_over_time(up{job="waqiti-payment-service"}[5m])
+        
+    - record: waqiti:payment_service_error_rate_5m
+      expr: |
+        sum(rate(payment_requests_failed_total[5m])) / 
+        sum(rate(payment_requests_total[5m]))
+        
+    - record: waqiti:payment_service_response_time_p95_5m
+      expr: |
+        histogram_quantile(0.95, 
+          sum(rate(payment_request_duration_seconds_bucket[5m])) by (le)
+        )
+        
+    - record: waqiti:payment_service_sla_compliance_5m
+      expr: |
+        (waqiti:payment_service_availability_5m >= 0.999) and
+        (waqiti:payment_service_error_rate_5m <= 0.001) and
+        (waqiti:payment_service_response_time_p95_5m <= 0.5)
+        
+    - alert: PaymentServiceSLAViolation
+      expr: waqiti:payment_service_sla_compliance_5m == 0
+      for: 2m
+      labels:
+        severity: critical
+        service: payment
+        sla: violated
+        team: platform
+      annotations:
+        summary: "Payment service SLA violation"
+        description: |
+          Payment service is violating SLA requirements:
+          - Availability: {{ printf "%.3f" $values.waqiti:payment_service_availability_5m }}% (target: 99.9%)
+          - Error rate: {{ printf "%.3f" $values.waqiti:payment_service_error_rate_5m }}% (target: <0.1%)
+          - P95 response time: {{ printf "%.3f" $values.waqiti:payment_service_response_time_p95_5m }}s (target: <0.5s)
+        runbook_url: "https://runbook.example.com/sla-violation-payment"
+        
+  - name: waqiti-sla-wallet-service
+    interval: 30s
+    rules:
+    # Wallet Service SLA: 99.95% uptime, <200ms P95 response time
+    - record: waqiti:wallet_service_availability_5m
+      expr: avg_over_time(up{job="waqiti-wallet-service"}[5m])
+      
+    - record: waqiti:wallet_service_error_rate_5m
+      expr: |
+        sum(rate(wallet_requests_failed_total[5m])) / 
+        sum(rate(wallet_requests_total[5m]))
+        
+    - record: waqiti:wallet_service_response_time_p95_5m
+      expr: |
+        histogram_quantile(0.95, 
+          sum(rate(wallet_request_duration_seconds_bucket[5m])) by (le)
+        )
+        
+    - record: waqiti:wallet_service_sla_compliance_5m
+      expr: |
+        (waqiti:wallet_service_availability_5m >= 0.9995) and
+        (waqiti:wallet_service_error_rate_5m <= 0.0005) and
+        (waqiti:wallet_service_response_time_p95_5m <= 0.2)
+        
+    - alert: WalletServiceSLAViolation
+      expr: waqiti:wallet_service_sla_compliance_5m == 0
+      for: 1m
+      labels:
+        severity: critical
+        service: wallet
+        sla: violated
+        team: platform
+      annotations:
+        summary: "Wallet service SLA violation"
+        description: "Wallet service is violating SLA requirements"
+        runbook_url: "https://runbook.example.com/sla-violation-wallet"
+        
+  - name: waqiti-sla-fraud-detection
+    interval: 60s
+    rules:
+    # Fraud Detection SLA: 99.5% uptime, <2s P95 processing time
+    - record: waqiti:fraud_service_availability_5m
+      expr: avg_over_time(up{job="waqiti-fraud-service"}[5m])
+      
+    - record: waqiti:fraud_detection_processing_time_p95_5m
+      expr: |
+        histogram_quantile(0.95, 
+          sum(rate(fraud_detection_duration_seconds_bucket[5m])) by (le)
+        )
+        
+    - record: waqiti:fraud_service_sla_compliance_5m
+      expr: |
+        (waqiti:fraud_service_availability_5m >= 0.995) and
+        (waqiti:fraud_detection_processing_time_p95_5m <= 2.0)
+        
+    - alert: FraudDetectionSLAViolation
+      expr: waqiti:fraud_service_sla_compliance_5m == 0
+      for: 5m
+      labels:
+        severity: warning
+        service: fraud
+        sla: violated
+        team: security
+      annotations:
+        summary: "Fraud detection SLA violation"
+        description: "Fraud detection service is violating SLA requirements"
+        
+  - name: waqiti-sla-business-metrics
+    interval: 300s  # 5 minutes
+    rules:
+    # Business SLA: Transaction processing within 10 seconds
+    - record: waqiti:transaction_processing_time_p95_5m
+      expr: |
+        histogram_quantile(0.95, 
+          sum(rate(transaction_processing_duration_seconds_bucket[5m])) by (le)
+        )
+        
+    - record: waqiti:daily_transaction_success_rate
+      expr: |
+        sum(increase(payment_transactions_success_total[24h])) /
+        sum(increase(payment_transactions_total[24h]))
+        
+    - record: waqiti:business_sla_compliance_daily
+      expr: |
+        (waqiti:daily_transaction_success_rate >= 0.999) and
+        (waqiti:transaction_processing_time_p95_5m <= 10.0)
+        
+    - alert: BusinessSLAViolation
+      expr: waqiti:business_sla_compliance_daily == 0
+      for: 10m
+      labels:
+        severity: warning
+        service: business
+        sla: violated
+        team: operations
+      annotations:
+        summary: "Business SLA violation detected"
+        description: |
+          Business metrics are violating SLA:
+          - Daily success rate: {{ printf "%.3f" $values.waqiti:daily_transaction_success_rate }}% (target: 99.9%)
+          - P95 processing time: {{ printf "%.1f" $values.waqiti:transaction_processing_time_p95_5m }}s (target: <10s)
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sla-dashboard-config
+  namespace: monitoring
+  labels:
+    app: sla-monitoring
+    component: dashboard
+data:
+  sla-overview.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "Waqiti SLA Monitoring Dashboard",
+        "tags": ["waqiti", "sla", "monitoring"],
+        "timezone": "UTC",
+        "refresh": "30s",
+        "time": {"from": "now-24h", "to": "now"},
+        "panels": [
+          {
+            "id": 1,
+            "title": "Payment Service SLA Compliance",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "waqiti:payment_service_sla_compliance_5m",
+                "legendFormat": "SLA Compliance"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "bool",
+                "mappings": [
+                  {"options": {"0": {"text": "VIOLATED"}}, "type": "value"},
+                  {"options": {"1": {"text": "COMPLIANT"}}, "type": "value"}
+                ],
+                "thresholds": {
+                  "steps": [
+                    {"color": "red", "value": 0},
+                    {"color": "green", "value": 1}
+                  ]
+                }
+              }
+            },
+            "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0}
+          },
+          {
+            "id": 2,
+            "title": "Wallet Service SLA Compliance",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "waqiti:wallet_service_sla_compliance_5m",
+                "legendFormat": "SLA Compliance"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "bool",
+                "mappings": [
+                  {"options": {"0": {"text": "VIOLATED"}}, "type": "value"},
+                  {"options": {"1": {"text": "COMPLIANT"}}, "type": "value"}
+                ],
+                "thresholds": {
+                  "steps": [
+                    {"color": "red", "value": 0},
+                    {"color": "green", "value": 1}
+                  ]
+                }
+              }
+            },
+            "gridPos": {"h": 8, "w": 6, "x": 6, "y": 0}
+          },
+          {
+            "id": 3,
+            "title": "Service Availability Over Time",
+            "type": "timeseries",
+            "targets": [
+              {
+                "expr": "waqiti:payment_service_availability_5m * 100",
+                "legendFormat": "Payment Service"
+              },
+              {
+                "expr": "waqiti:wallet_service_availability_5m * 100",
+                "legendFormat": "Wallet Service"
+              },
+              {
+                "expr": "waqiti:fraud_service_availability_5m * 100",
+                "legendFormat": "Fraud Service"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "percent",
+                "min": 95,
+                "max": 100,
+                "thresholds": {
+                  "steps": [
+                    {"color": "red", "value": 0},
+                    {"color": "yellow", "value": 99},
+                    {"color": "green", "value": 99.9}
+                  ]
+                }
+              }
+            },
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+          },
+          {
+            "id": 4,
+            "title": "Response Time SLA Targets",
+            "type": "timeseries",
+            "targets": [
+              {
+                "expr": "waqiti:payment_service_response_time_p95_5m * 1000",
+                "legendFormat": "Payment Service P95"
+              },
+              {
+                "expr": "waqiti:wallet_service_response_time_p95_5m * 1000",
+                "legendFormat": "Wallet Service P95"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "ms",
+                "thresholds": {
+                  "steps": [
+                    {"color": "green", "value": 0},
+                    {"color": "yellow", "value": 200},
+                    {"color": "red", "value": 500}
+                  ]
+                }
+              },
+              "overrides": [
+                {
+                  "matcher": {"id": "byName", "options": "Payment Service P95"},
+                  "properties": [
+                    {"id": "thresholds", "value": {
+                      "steps": [
+                        {"color": "green", "value": 0},
+                        {"color": "yellow", "value": 400},
+                        {"color": "red", "value": 500}
+                      ]
+                    }}
+                  ]
+                }
+              ]
+            },
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+          },
+          {
+            "id": 5,
+            "title": "Error Rate SLA Compliance",
+            "type": "timeseries",
+            "targets": [
+              {
+                "expr": "waqiti:payment_service_error_rate_5m * 100",
+                "legendFormat": "Payment Service"
+              },
+              {
+                "expr": "waqiti:wallet_service_error_rate_5m * 100",
+                "legendFormat": "Wallet Service"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "percent",
+                "max": 1,
+                "thresholds": {
+                  "steps": [
+                    {"color": "green", "value": 0},
+                    {"color": "yellow", "value": 0.05},
+                    {"color": "red", "value": 0.1}
+                  ]
+                }
+              }
+            },
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+          }
+        ]
+      }
+    }
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: sla-report-generator
+  namespace: monitoring
+  labels:
+    app: sla-reporting
+    component: reporting
+spec:
+  schedule: "0 0 * * *"  # Daily at midnight
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: sla-reporter
+          containers:
+          - name: sla-reporter
+            image: prom/prometheus:v2.47.0
+            command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              echo "Generating daily SLA report..."
+              
+              REPORT_DATE=$(date -d yesterday '+%Y-%m-%d')
+              REPORT_FILE="/tmp/sla-report-${REPORT_DATE}.json"
+              
+              # Query Prometheus for SLA metrics
+              PROMETHEUS_URL="http://prometheus:9090"
+              
+              # Payment Service SLA
+              PAYMENT_AVAILABILITY=$(curl -s "${PROMETHEUS_URL}/api/v1/query" \
+                --data-urlencode "query=avg_over_time(waqiti:payment_service_availability_5m[1d] offset 1d)" \
+                | jq -r '.data.result[0].value[1]' 2>/dev/null || echo "0")
+              
+              PAYMENT_ERROR_RATE=$(curl -s "${PROMETHEUS_URL}/api/v1/query" \
+                --data-urlencode "query=avg_over_time(waqiti:payment_service_error_rate_5m[1d] offset 1d)" \
+                | jq -r '.data.result[0].value[1]' 2>/dev/null || echo "0")
+              
+              PAYMENT_P95_RESPONSE_TIME=$(curl -s "${PROMETHEUS_URL}/api/v1/query" \
+                --data-urlencode "query=avg_over_time(waqiti:payment_service_response_time_p95_5m[1d] offset 1d)" \
+                | jq -r '.data.result[0].value[1]' 2>/dev/null || echo "0")
+              
+              # Calculate SLA compliance percentage
+              PAYMENT_SLA_COMPLIANCE=$(curl -s "${PROMETHEUS_URL}/api/v1/query" \
+                --data-urlencode "query=avg_over_time(waqiti:payment_service_sla_compliance_5m[1d] offset 1d) * 100" \
+                | jq -r '.data.result[0].value[1]' 2>/dev/null || echo "0")
+              
+              # Generate JSON report
+              cat > $REPORT_FILE << EOF
+              {
+                "report_date": "$REPORT_DATE",
+                "sla_targets": {
+                  "payment_service": {
+                    "availability_target": 99.9,
+                    "error_rate_target": 0.1,
+                    "response_time_target": 0.5
+                  }
+                },
+                "actual_performance": {
+                  "payment_service": {
+                    "availability": $(printf "%.3f" $(echo "$PAYMENT_AVAILABILITY * 100" | bc -l)),
+                    "error_rate": $(printf "%.3f" $(echo "$PAYMENT_ERROR_RATE * 100" | bc -l)),
+                    "p95_response_time": $(printf "%.3f" $PAYMENT_P95_RESPONSE_TIME),
+                    "sla_compliance": $(printf "%.2f" $PAYMENT_SLA_COMPLIANCE)
+                  }
+                },
+                "summary": {
+                  "overall_sla_compliance": $(printf "%.2f" $PAYMENT_SLA_COMPLIANCE),
+                  "violations": $(echo "if ($PAYMENT_SLA_COMPLIANCE < 100) 1 else 0" | bc -l)
+                }
+              }
+              EOF
+              
+              echo "SLA Report generated: $REPORT_FILE"
+              cat $REPORT_FILE
+              
+              # Send to S3 for storage
+              if [ ! -z "$AWS_S3_BUCKET" ]; then
+                aws s3 cp $REPORT_FILE s3://$AWS_S3_BUCKET/sla-reports/
+                echo "Report uploaded to S3"
+              fi
+              
+              # Send to Slack if violations detected
+              VIOLATIONS=$(jq -r '.summary.violations' $REPORT_FILE)
+              if [ "$VIOLATIONS" -gt 0 ]; then
+                COMPLIANCE=$(jq -r '.summary.overall_sla_compliance' $REPORT_FILE)
+                curl -X POST $SLACK_WEBHOOK_URL -H "Content-Type: application/json" -d "{
+                  \"text\": \"📊 Daily SLA Report - $REPORT_DATE\n⚠️ SLA Compliance: ${COMPLIANCE}%\n🔗 Full report: s3://$AWS_S3_BUCKET/sla-reports/sla-report-${REPORT_DATE}.json\",
+                  \"channel\": \"#sla-reports\"
+                }"
+              fi
+            env:
+            - name: AWS_S3_BUCKET
+              value: "waqiti-sla-reports"
+            - name: SLACK_WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: sla-secrets
+                  key: slack-webhook-url
+            resources:
+              requests:
+                memory: "128Mi"
+                cpu: "100m"
+              limits:
+                memory: "256Mi"
+                cpu: "200m"
+          restartPolicy: OnFailure
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sla-reporter
+  namespace: monitoring
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: sla-secrets
+  namespace: monitoring
+type: Opaque
+stringData:
+  slack-webhook-url: "https://hooks.slack.com/services/YOUR/SLA/WEBHOOK"

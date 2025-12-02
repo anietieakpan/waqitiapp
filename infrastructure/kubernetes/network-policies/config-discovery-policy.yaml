@@ -1,0 +1,103 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: config-service-network-policy
+  namespace: waqiti
+spec:
+  podSelector:
+    matchLabels:
+      app: config-service
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Allow all services to fetch configuration
+  - from:
+    - podSelector: {}
+    ports:
+    - protocol: TCP
+      port: 8888
+  # Allow Prometheus scraping
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    - podSelector:
+        matchLabels:
+          app: prometheus
+    ports:
+    - protocol: TCP
+      port: 8888
+  egress:
+  # Allow access to Git repositories
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 22
+  # Allow access to Vault
+  - to:
+    - podSelector:
+        matchLabels:
+          app: vault
+    ports:
+    - protocol: TCP
+      port: 8200
+  # Allow access to discovery service
+  - to:
+    - podSelector:
+        matchLabels:
+          app: discovery-service
+    ports:
+    - protocol: TCP
+      port: 8761
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: discovery-service-network-policy
+  namespace: waqiti
+spec:
+  podSelector:
+    matchLabels:
+      app: discovery-service
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Allow all services to register and discover
+  - from:
+    - podSelector: {}
+    ports:
+    - protocol: TCP
+      port: 8761
+  # Allow Prometheus scraping
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    - podSelector:
+        matchLabels:
+          app: prometheus
+    ports:
+    - protocol: TCP
+      port: 8761
+  egress:
+  # Allow DNS only (discovery service doesn't need external access)
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+  # Allow inter-Eureka communication for clustering
+  - to:
+    - podSelector:
+        matchLabels:
+          app: discovery-service
+    ports:
+    - protocol: TCP
+      port: 8761

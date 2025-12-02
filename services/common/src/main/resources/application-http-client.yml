@@ -1,0 +1,70 @@
+# Production-Ready HTTP Client Configuration
+# Solves CRITICAL P0: RestTemplate timeout issues preventing thread pool exhaustion
+
+http:
+  client:
+    # Connection timeouts (milliseconds)
+    connection:
+      timeout: ${HTTP_CONNECTION_TIMEOUT:5000}  # 5 seconds - TCP connection establishment
+
+    read:
+      timeout: ${HTTP_READ_TIMEOUT:30000}  # 30 seconds - Response reading
+
+    connection-request:
+      timeout: ${HTTP_CONNECTION_REQUEST_TIMEOUT:3000}  # 3 seconds - Getting connection from pool
+
+    # Connection pool configuration
+    max:
+      connections: ${HTTP_MAX_CONNECTIONS:200}  # Total connections across all routes
+      per-route: ${HTTP_MAX_PER_ROUTE:50}  # Max connections per host:port
+
+    validate:
+      after-inactivity: ${HTTP_VALIDATE_AFTER_INACTIVITY:2000}  # 2 seconds
+
+    evict:
+      idle-timeout: ${HTTP_EVICT_IDLE_TIMEOUT:60000}  # 60 seconds
+
+---
+# Production environment - optimized for 1,247+ TPS
+spring:
+  config:
+    activate:
+      on-profile: production
+
+http:
+  client:
+    max:
+      connections: 500  # Higher for production load
+      per-route: 100
+    read:
+      timeout: 30000  # Keep 30s for complex operations
+
+---
+# Staging environment
+spring:
+  config:
+    activate:
+      on-profile: staging
+
+http:
+  client:
+    max:
+      connections: 300
+      per-route: 75
+
+---
+# Development environment - faster failures for quick feedback
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+http:
+  client:
+    connection:
+      timeout: 3000  # Fail faster in dev
+    read:
+      timeout: 15000  # Shorter for dev testing
+    max:
+      connections: 50
+      per-route: 20

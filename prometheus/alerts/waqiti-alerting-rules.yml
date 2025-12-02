@@ -1,0 +1,492 @@
+# ============================================================================
+# WAQITI FINTECH PLATFORM - COMPREHENSIVE ALERTING RULES
+# ============================================================================
+# Production-grade Prometheus alerting rules for all critical systems
+#
+# Categories:
+# - Infrastructure (databases, Kafka, Redis)
+# - Application Services (payment, wallet, transaction)
+# - Business Metrics (transaction failures, fraud alerts)
+# - Security & Compliance
+# - Dead Letter Queues
+# - Performance & SLA
+#
+# Author: Waqiti Platform Team
+# Version: 1.0.0
+# Date: 2025-10-30
+# ============================================================================
+
+groups:
+  # ==========================================================================
+  # INFRASTRUCTURE ALERTS - CRITICAL
+  # ==========================================================================
+  - name: infrastructure_critical
+    interval: 30s
+    rules:
+      # PostgreSQL Alerts
+      - alert: PostgreSQLDown
+        expr: up{job="postgres"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: database
+          pci_scope: "true"
+        annotations:
+          summary: "PostgreSQL database is down"
+          description: "PostgreSQL instance {{ $labels.instance }} has been down for more than 1 minute."
+          runbook_url: "https://docs.example.com/runbooks/postgresql-down"
+
+      - alert: PostgreSQLTooManyConnections
+        expr: sum(pg_stat_activity_count) by (instance) / max(pg_settings_max_connections) by (instance) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "PostgreSQL connection pool near capacity"
+          description: "PostgreSQL instance {{ $labels.instance }} is using {{ $value | humanizePercentage }} of max connections."
+
+      - alert: PostgreSQLHighTransactionTime
+        expr: rate(pg_stat_activity_max_tx_duration[5m]) > 60
+        for: 5m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "PostgreSQL transactions taking too long"
+          description: "Long-running transactions detected on {{ $labels.instance }}. Average: {{ $value }}s"
+
+      # Redis Alerts
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: cache
+        annotations:
+          summary: "Redis is down"
+          description: "Redis instance {{ $labels.instance }} has been down for more than 1 minute."
+
+      - alert: RedisMemoryHigh
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          component: cache
+        annotations:
+          summary: "Redis memory usage high"
+          description: "Redis {{ $labels.instance }} memory usage is at {{ $value | humanizePercentage }}"
+
+      # Kafka Alerts
+      - alert: KafkaDown
+        expr: up{job="kafka"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: messaging
+        annotations:
+          summary: "Kafka broker is down"
+          description: "Kafka broker {{ $labels.instance }} is down."
+
+      - alert: KafkaUnderReplicatedPartitions
+        expr: kafka_server_replicamanager_underreplicatedpartitions > 0
+        for: 5m
+        labels:
+          severity: critical
+          component: messaging
+        annotations:
+          summary: "Kafka has under-replicated partitions"
+          description: "Kafka broker {{ $labels.instance }} has {{ $value }} under-replicated partitions."
+
+      - alert: KafkaOfflinePartitions
+        expr: kafka_controller_kafkacontroller_offlinepartitionscount > 0
+        for: 1m
+        labels:
+          severity: critical
+          component: messaging
+        annotations:
+          summary: "Kafka has offline partitions"
+          description: "Kafka cluster has {{ $value }} offline partitions."
+
+      - alert: KafkaConsumerLag
+        expr: kafka_consumergroup_lag > 10000
+        for: 5m
+        labels:
+          severity: warning
+          component: messaging
+        annotations:
+          summary: "Kafka consumer lag is high"
+          description: "Consumer group {{ $labels.consumergroup }} has lag of {{ $value }} messages."
+
+  # ==========================================================================
+  # APPLICATION SERVICES - CRITICAL
+  # ==========================================================================
+  - name: application_services_critical
+    interval: 30s
+    rules:
+      # Service Availability
+      - alert: ServiceDown
+        expr: up{job=~"payment-service|wallet-service|transaction-service|user-service"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: microservice
+        annotations:
+          summary: "Critical service is down"
+          description: "Service {{ $labels.job }} on {{ $labels.instance }} has been down for 2 minutes."
+
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          component: microservice
+        annotations:
+          summary: "High HTTP 5xx error rate"
+          description: "Service {{ $labels.job }} has {{ $value | humanizePercentage }} error rate."
+
+      - alert: HighLatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+          component: performance
+        annotations:
+          summary: "High request latency"
+          description: "Service {{ $labels.job }} p95 latency is {{ $value }}s (threshold: 1s)"
+
+      # Circuit Breaker Alerts
+      - alert: CircuitBreakerOpen
+        expr: resilience4j_circuitbreaker_state{state="open"} > 0
+        for: 2m
+        labels:
+          severity: critical
+          component: circuit_breaker
+        annotations:
+          summary: "Circuit breaker open"
+          description: "Circuit breaker {{ $labels.name }} in {{ $labels.job }} is OPEN."
+
+  # ==========================================================================
+  # FINANCIAL OPERATIONS - CRITICAL
+  # ==========================================================================
+  - name: financial_operations_critical
+    interval: 30s
+    rules:
+      # Payment Failures
+      - alert: HighPaymentFailureRate
+        expr: rate(payment_processing_failed_total[5m]) / rate(payment_processing_total[5m]) > 0.10
+        for: 5m
+        labels:
+          severity: critical
+          component: payments
+          pci_scope: "true"
+        annotations:
+          summary: "High payment failure rate"
+          description: "Payment failure rate is {{ $value | humanizePercentage }} (threshold: 10%)"
+
+      - alert: PaymentProcessingStalled
+        expr: rate(payment_processing_total[5m]) == 0 and rate(payment_processing_total[1h] offset 1h) > 0
+        for: 5m
+        labels:
+          severity: critical
+          component: payments
+        annotations:
+          summary: "Payment processing stalled"
+          description: "No payments processed in the last 5 minutes, but there was activity 1 hour ago."
+
+      # Wallet Balance Discrepancies
+      - alert: WalletBalanceDiscrepancy
+        expr: abs(wallet_balance_calculated - wallet_balance_stored) > 0.01
+        for: 1m
+        labels:
+          severity: critical
+          component: wallet
+          financial_impact: "true"
+        annotations:
+          summary: "Wallet balance discrepancy detected"
+          description: "Wallet {{ $labels.wallet_id }} has balance discrepancy of ${{ $value }}"
+
+      # Transaction Failures
+      - alert: HighTransactionFailureRate
+        expr: rate(transaction_failed_total[5m]) / rate(transaction_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          component: transactions
+        annotations:
+          summary: "High transaction failure rate"
+          description: "Transaction failure rate is {{ $value | humanizePercentage }}"
+
+      # Fraud Alerts
+      - alert: HighFraudDetectionRate
+        expr: rate(fraud_alerts_total{severity="high"}[5m]) > 10
+        for: 2m
+        labels:
+          severity: critical
+          component: fraud_detection
+        annotations:
+          summary: "High fraud alert rate"
+          description: "{{ $value }} high-severity fraud alerts in the last 5 minutes."
+
+  # ==========================================================================
+  # DEAD LETTER QUEUE ALERTS
+  # ==========================================================================
+  - name: dlq_alerts
+    interval: 1m
+    rules:
+      - alert: DLQCriticalMessagesFailed
+        expr: rate(dlq_messages_total{priority="CRITICAL"}[5m]) > 1
+        for: 1m
+        labels:
+          severity: critical
+          component: dlq
+        annotations:
+          summary: "Critical messages in DLQ"
+          description: "{{ $value }} CRITICAL priority messages sent to DLQ in last 5 minutes for topic {{ $labels.topic }}"
+
+      - alert: DLQHighVolume
+        expr: rate(dlq_messages_total[5m]) > 100
+        for: 5m
+        labels:
+          severity: warning
+          component: dlq
+        annotations:
+          summary: "High DLQ message volume"
+          description: "DLQ receiving {{ $value }} messages/min for topic {{ $labels.topic }}"
+
+      - alert: DLQRetryExhausted
+        expr: dlq_messages_retry_exhausted_total > 0
+        for: 1m
+        labels:
+          severity: critical
+          component: dlq
+        annotations:
+          summary: "DLQ messages exhausted all retries"
+          description: "{{ $value }} messages exhausted all retry attempts and require manual intervention."
+
+      - alert: DLQOldMessages
+        expr: time() - dlq_oldest_message_timestamp > 86400
+        for: 1h
+        labels:
+          severity: warning
+          component: dlq
+        annotations:
+          summary: "Old messages in DLQ"
+          description: "Messages in DLQ for topic {{ $labels.topic }} are older than 24 hours."
+
+  # ==========================================================================
+  # SECURITY & COMPLIANCE ALERTS
+  # ==========================================================================
+  - name: security_compliance
+    interval: 1m
+    rules:
+      # Authentication Failures
+      - alert: HighAuthenticationFailureRate
+        expr: rate(authentication_failures_total[5m]) > 50
+        for: 5m
+        labels:
+          severity: warning
+          component: security
+        annotations:
+          summary: "High authentication failure rate"
+          description: "{{ $value }} authentication failures per second. Possible brute force attack."
+
+      # KYC Processing Delays
+      - alert: KYCProcessingDelayed
+        expr: kyc_verification_pending_duration_seconds > 3600
+        for: 10m
+        labels:
+          severity: warning
+          component: kyc
+          compliance: "true"
+        annotations:
+          summary: "KYC verification delayed"
+          description: "KYC verifications pending for more than 1 hour: {{ $value }} users affected."
+
+      # GDPR Data Export Delays
+      - alert: GDPRDataExportDelayed
+        expr: gdpr_data_export_pending_duration_seconds > 7200
+        for: 30m
+        labels:
+          severity: warning
+          component: gdpr
+          compliance: "true"
+        annotations:
+          summary: "GDPR data export delayed"
+          description: "GDPR data export requests pending for more than 2 hours."
+
+      # Network Policy Violations (if instrumented)
+      - alert: NetworkPolicyViolations
+        expr: rate(network_policy_violations_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: security
+          pci_scope: "true"
+        annotations:
+          summary: "Network policy violations detected"
+          description: "{{ $value }} network policy violations per minute."
+
+  # ==========================================================================
+  # PERFORMANCE & SLA ALERTS
+  # ==========================================================================
+  - name: performance_sla
+    interval: 30s
+    rules:
+      # API Gateway Performance
+      - alert: APIGatewayHighLatency
+        expr: histogram_quantile(0.99, rate(http_request_duration_seconds_bucket{job="api-gateway"}[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+          component: api_gateway
+        annotations:
+          summary: "API Gateway high latency"
+          description: "API Gateway p99 latency is {{ $value }}s (threshold: 2s)"
+
+      # Database Query Performance
+      - alert: SlowDatabaseQueries
+        expr: rate(database_query_duration_seconds_sum[5m]) / rate(database_query_duration_seconds_count[5m]) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "Slow database queries"
+          description: "Average query time is {{ $value }}s on {{ $labels.instance }}"
+
+      # PgBouncer Connection Pool
+      - alert: PgBouncerPoolExhausted
+        expr: pgbouncer_pools_cl_waiting > 10
+        for: 2m
+        labels:
+          severity: warning
+          component: pgbouncer
+        annotations:
+          summary: "PgBouncer connection pool exhausted"
+          description: "{{ $value }} clients waiting for connections in PgBouncer pool {{ $labels.database }}"
+
+  # ==========================================================================
+  # RESOURCE UTILIZATION ALERTS
+  # ==========================================================================
+  - name: resource_utilization
+    interval: 1m
+    rules:
+      # CPU Usage
+      - alert: HighCPUUsage
+        expr: rate(process_cpu_seconds_total[5m]) > 0.8
+        for: 10m
+        labels:
+          severity: warning
+          component: resources
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is {{ $value | humanizePercentage }} on {{ $labels.instance }}"
+
+      # Memory Usage
+      - alert: HighMemoryUsage
+        expr: process_resident_memory_bytes / node_memory_MemTotal_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          component: resources
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is {{ $value | humanizePercentage }} on {{ $labels.instance }}"
+
+      # Disk Space
+      - alert: DiskSpaceLow
+        expr: node_filesystem_avail_bytes / node_filesystem_size_bytes < 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: resources
+        annotations:
+          summary: "Disk space low"
+          description: "Only {{ $value | humanizePercentage }} disk space available on {{ $labels.instance }}"
+
+  # ==========================================================================
+  # BUSINESS METRICS ALERTS
+  # ==========================================================================
+  - name: business_metrics
+    interval: 5m
+    rules:
+      # Transaction Volume Drop
+      - alert: TransactionVolumeDrop
+        expr: rate(transaction_total[5m]) < rate(transaction_total[1h] offset 1h) * 0.5
+        for: 10m
+        labels:
+          severity: warning
+          component: business
+        annotations:
+          summary: "Transaction volume dropped significantly"
+          description: "Current transaction rate is less than 50% of the rate 1 hour ago."
+
+      # Payment Success Rate SLA
+      - alert: PaymentSuccessRateBelowSLA
+        expr: rate(payment_processing_success_total[5m]) / rate(payment_processing_total[5m]) < 0.95
+        for: 10m
+        labels:
+          severity: critical
+          component: sla
+          pci_scope: "true"
+        annotations:
+          summary: "Payment success rate below SLA"
+          description: "Payment success rate is {{ $value | humanizePercentage }} (SLA: 95%)"
+
+      # Wallet Creation Failures
+      - alert: WalletCreationFailures
+        expr: rate(wallet_creation_failed_total[5m]) / rate(wallet_creation_total[5m]) > 0.01
+        for: 5m
+        labels:
+          severity: warning
+          component: wallet
+        annotations:
+          summary: "High wallet creation failure rate"
+          description: "Wallet creation failure rate is {{ $value | humanizePercentage }}"
+
+# ============================================================================
+# ALERTMANAGER CONFIGURATION
+# ============================================================================
+# This section should be added to your alertmanager.yml
+
+# Example AlertManager routing configuration:
+# route:
+#   receiver: 'default'
+#   group_by: ['alertname', 'cluster']
+#   group_wait: 10s
+#   group_interval: 10s
+#   repeat_interval: 12h
+#
+#   routes:
+#     - match:
+#         severity: critical
+#       receiver: pagerduty-critical
+#       continue: true
+#
+#     - match:
+#         pci_scope: "true"
+#       receiver: pci-team
+#       continue: true
+#
+#     - match:
+#         compliance: "true"
+#       receiver: compliance-team
+#
+# receivers:
+#   - name: 'default'
+#     slack_configs:
+#       - api_url: 'https://hooks.slack.com/services/YOUR/WEBHOOK/URL'
+#         channel: '#alerts'
+#
+#   - name: 'pagerduty-critical'
+#     pagerduty_configs:
+#       - service_key: 'YOUR_PAGERDUTY_SERVICE_KEY'
+#
+#   - name: 'pci-team'
+#     email_configs:
+#       - to: 'pci-team@example.com'
+#
+#   - name: 'compliance-team'
+#     email_configs:
+#       - to: 'compliance@example.com'

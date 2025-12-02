@@ -1,0 +1,74 @@
+{
+  "properties": [
+    {
+      "name": "layer2.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Layer 2 blockchain functionality",
+      "defaultValue": false
+    },
+    {
+      "name": "layer2.network",
+      "type": "java.lang.String",
+      "description": "Layer 2 network type",
+      "defaultValue": "POLYGON"
+    },
+    {
+      "name": "layer2.rpc-url",
+      "type": "java.lang.String",
+      "description": "Layer 2 RPC endpoint URL"
+    },
+    {
+      "name": "layer2.chain-id",
+      "type": "java.lang.Integer",
+      "description": "Layer 2 chain ID",
+      "defaultValue": 137
+    },
+    {
+      "name": "layer2.gas.optimization",
+      "type": "java.lang.Boolean",
+      "description": "Enable gas optimization",
+      "defaultValue": true
+    },
+    {
+      "name": "layer2.gas.max-price-gwei",
+      "type": "java.math.BigDecimal",
+      "description": "Maximum gas price in GWEI",
+      "defaultValue": "100"
+    },
+    {
+      "name": "layer2.bridge.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Layer 1 to Layer 2 bridge",
+      "defaultValue": false
+    },
+    {
+      "name": "layer2.transactions.batch-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable transaction batching",
+      "defaultValue": true
+    },
+    {
+      "name": "layer2.transactions.batch-size",
+      "type": "java.lang.Integer",
+      "description": "Transaction batch size",
+      "defaultValue": 100
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "OAuth2 client ID for service",
+      "defaultValue": "layer2-service"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "OAuth2 client secret for service"
+    }
+  ]
+}

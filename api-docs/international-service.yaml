@@ -1,0 +1,874 @@
+openapi: 3.0.3
+info:
+  title: Waqiti International Transfer Service API
+  description: |
+    International Transfer Service enables cross-border money transfers with full compliance.
+    
+    Features:
+    - Beneficiary management and verification
+    - International wire transfers via SWIFT
+    - Real-time exchange rate calculations
+    - AML and sanctions screening
+    - Compliance monitoring and reporting
+    - Multi-currency support
+    
+    This service provides secure, compliant international money transfer capabilities
+    with competitive exchange rates and transparent fees.
+  version: 1.0.0
+  contact:
+    name: Waqiti API Support  
+    email: api-support@example.com
+    url: https://docs.example.com
+
+servers:
+  - url: https://api.example.com/international
+    description: Production server
+  - url: https://api-staging.example.com/international
+    description: Staging server
+  - url: http://localhost:8089/international
+    description: Development server
+
+security:
+  - BearerAuth: []
+
+paths:
+  /api/v1/international/beneficiaries:
+    post:
+      summary: Create beneficiary
+      description: Create a new beneficiary for international transfers
+      operationId: createBeneficiary
+      tags:
+        - Beneficiaries
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBeneficiaryRequest'
+            examples:
+              ukBeneficiary:
+                summary: UK Bank Account
+                value:
+                  userId: "user-12345"
+                  fullName: "John Smith"
+                  accountNumber: "12345678"
+                  bankCode: "123456"  
+                  bankName: "Barclays Bank PLC"
+                  country: "GB"
+                  currency: "GBP"
+                  address:
+                    street: "123 Oxford Street"
+                    city: "London"
+                    postalCode: "W1D 1LL"
+                    country: "GB"
+              eurozoneBeneficiary:
+                summary: Eurozone IBAN Account
+                value:
+                  userId: "user-12345"
+                  fullName: "Marie Dupont"
+                  accountNumber: "FR1420041010050500013M02606"
+                  bankCode: "BNPAFRPP"
+                  bankName: "BNP Paribas"
+                  country: "FR"
+                  currency: "EUR"
+                  address:
+                    street: "16 Boulevard des Italiens"
+                    city: "Paris" 
+                    postalCode: "75009"
+                    country: "FR"
+      responses:
+        '200':
+          description: Beneficiary created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ResultWrapper'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Beneficiary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    get:
+      summary: Get user beneficiaries
+      description: Retrieve all beneficiaries for a user
+      operationId: getUserBeneficiaries
+      tags:
+        - Beneficiaries
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: string
+          example: "user-12345"
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: Beneficiaries retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BeneficiaryDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/international/transfers:
+    post:
+      summary: Initiate international transfer
+      description: Create and initiate a new international money transfer
+      operationId: initiateTransfer
+      tags:
+        - Transfers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInternationalTransferRequest'
+            examples:
+              usdToGbp:
+                summary: USD to GBP Transfer
+                value:
+                  senderId: "user-12345"
+                  beneficiaryId: "beneficiary-67890"
+                  amount: 1000.00
+                  fromCurrency: "USD"
+                  toCurrency: "GBP"
+                  purpose: "Family support"
+                  sourceOfFunds: "Salary"
+                  expectedDelivery: "STANDARD"
+      responses:
+        '200':
+          description: Transfer initiated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ResultWrapper'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/InternationalTransferResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '402':
+          description: Payment required - insufficient funds
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    get:
+      summary: Get user transfers
+      description: Retrieve transfer history for a user
+      operationId: getUserTransfers
+      tags:
+        - Transfers
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Transfer history retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InternationalTransferDto'
+
+  /api/v1/international/transfers/{transferId}/status:
+    get:
+      summary: Get transfer status
+      description: Get current status and tracking information for a transfer
+      operationId: getTransferStatus
+      tags:
+        - Transfers
+      parameters:
+        - name: transferId
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "transfer-12345"
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: string
+          example: "user-12345"
+      responses:
+        '200':
+          description: Transfer status retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransferStatusDto'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/international/transfers/{transferId}/cancel:
+    post:
+      summary: Cancel transfer
+      description: Cancel a pending international transfer
+      operationId: cancelTransfer
+      tags:
+        - Transfers
+      parameters:
+        - name: transferId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: reason
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [CUSTOMER_REQUEST, COMPLIANCE_HOLD, TECHNICAL_ERROR]
+      responses:
+        '200':
+          description: Transfer cancelled successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ResultWrapper'
+                  - type: object
+                    properties:
+                      data:
+                        type: string
+                        example: "Transfer cancelled successfully"
+        '400':
+          description: Transfer cannot be cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/international/exchange-rates:
+    get:
+      summary: Get exchange rate
+      description: Get real-time exchange rate between currencies
+      operationId: getExchangeRate
+      tags:
+        - Exchange Rates
+      parameters:
+        - name: fromCurrency
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [USD, EUR, GBP, CAD, AUD, JPY, SGD]
+          example: "USD"
+        - name: toCurrency
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [USD, EUR, GBP, CAD, AUD, JPY, SGD]
+          example: "EUR"
+        - name: amount
+          in: query
+          schema:
+            type: string
+          description: Optional amount for conversion calculation
+          example: "1000.00"
+      responses:
+        '200':
+          description: Exchange rate retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExchangeRateDto'
+
+  /api/v1/international/countries:
+    get:
+      summary: Get supported countries
+      description: Get list of countries supported for international transfers
+      operationId: getSupportedCountries
+      tags:
+        - Countries
+      responses:
+        '200':
+          description: Supported countries retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CountryDto'
+
+  /api/v1/international/health:
+    get:
+      summary: Health check
+      description: Check service health status
+      operationId: healthCheck
+      tags:
+        - System
+      security: []
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "International Transfer Service is healthy"
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    CreateBeneficiaryRequest:
+      type: object
+      required:
+        - userId
+        - fullName
+        - accountNumber
+        - bankCode
+        - country
+        - currency
+        - address
+      properties:
+        userId:
+          type: string
+          example: "user-12345"
+        fullName:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: "John Smith"
+        accountNumber:
+          type: string
+          description: Bank account number or IBAN
+          minLength: 6
+          maxLength: 34
+          example: "12345678"
+        bankCode:
+          type: string
+          description: Bank sort code, routing number, or SWIFT BIC
+          minLength: 6
+          maxLength: 11
+          example: "ABCDGB2L"
+        bankName:
+          type: string
+          maxLength: 100
+          example: "Barclays Bank PLC"
+        country:
+          type: string
+          pattern: '^[A-Z]{2}$'
+          example: "GB"
+        currency:
+          type: string
+          enum: [USD, EUR, GBP, CAD, AUD, JPY, SGD]
+          example: "GBP"
+        address:
+          $ref: '#/components/schemas/Address'
+        phoneNumber:
+          type: string
+          pattern: '^\+[1-9]\d{1,14}$'
+          example: "+44207123456"
+        dateOfBirth:
+          type: string
+          format: date
+          example: "1990-01-15"
+        nationality:
+          type: string
+          pattern: '^[A-Z]{2}$'
+          example: "GB"
+        idNumber:
+          type: string
+          description: Government ID number
+          example: "AB123456C"
+
+    CreateInternationalTransferRequest:
+      type: object
+      required:
+        - senderId
+        - beneficiaryId
+        - amount
+        - fromCurrency
+        - toCurrency
+        - purpose
+        - sourceOfFunds
+      properties:
+        senderId:
+          type: string
+          example: "user-12345"
+        beneficiaryId:
+          type: string
+          example: "beneficiary-67890"
+        amount:
+          type: number
+          format: decimal
+          minimum: 1.00
+          maximum: 50000.00
+          example: 1000.00
+        fromCurrency:
+          type: string
+          enum: [USD, EUR, GBP, CAD, AUD, JPY, SGD]
+          example: "USD"
+        toCurrency:
+          type: string
+          enum: [USD, EUR, GBP, CAD, AUD, JPY, SGD]
+          example: "EUR"
+        purpose:
+          $ref: '#/components/schemas/TransferPurpose'
+        sourceOfFunds:
+          $ref: '#/components/schemas/SourceOfFunds'
+        expectedDelivery:
+          $ref: '#/components/schemas/DeliverySpeed'
+        message:
+          type: string
+          maxLength: 200
+          description: Optional message to beneficiary
+          example: "Monthly family support"
+
+    Beneficiary:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        fullName:
+          type: string
+        accountNumber:
+          type: string
+        bankCode:
+          type: string
+        bankName:
+          type: string
+        country:
+          type: string
+        currency:
+          type: string
+        address:
+          $ref: '#/components/schemas/Address'
+        phoneNumber:
+          type: string
+        status:
+          $ref: '#/components/schemas/BeneficiaryStatus'
+        verificationStatus:
+          $ref: '#/components/schemas/VerificationStatus'
+        createdAt:
+          type: string
+          format: date-time
+        lastUsedAt:
+          type: string
+          format: date-time
+
+    BeneficiaryDto:
+      type: object
+      properties:
+        id:
+          type: string
+        fullName:
+          type: string
+        bankName:
+          type: string
+        country:
+          type: string
+        currency:
+          type: string
+        accountNumberMasked:
+          type: string
+          description: Masked account number for security
+          example: "****5678"
+        status:
+          $ref: '#/components/schemas/BeneficiaryStatus'
+        lastUsedAt:
+          type: string
+          format: date-time
+
+    InternationalTransferResponse:
+      type: object
+      properties:
+        transferId:
+          type: string
+        status:
+          $ref: '#/components/schemas/TransferStatus'
+        amount:
+          type: number
+          format: decimal
+        fromCurrency:
+          type: string
+        toCurrency:
+          type: string
+        exchangeRate:
+          type: number
+          format: decimal
+        fees:
+          $ref: '#/components/schemas/TransferFees'
+        estimatedDelivery:
+          type: string
+          format: date-time
+        trackingNumber:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    InternationalTransferDto:
+      type: object
+      properties:
+        transferId:
+          type: string
+        beneficiaryName:
+          type: string
+        amount:
+          type: number
+          format: decimal
+        fromCurrency:
+          type: string
+        toCurrency:
+          type: string
+        status:
+          $ref: '#/components/schemas/TransferStatus'
+        purpose:
+          $ref: '#/components/schemas/TransferPurpose'
+        createdAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+        trackingNumber:
+          type: string
+
+    TransferStatusDto:
+      type: object
+      properties:
+        transferId:
+          type: string
+        status:
+          $ref: '#/components/schemas/TransferStatus'
+        statusHistory:
+          type: array
+          items:
+            $ref: '#/components/schemas/StatusHistoryItem'
+        trackingNumber:
+          type: string
+        estimatedDelivery:
+          type: string
+          format: date-time
+        actualDelivery:
+          type: string
+          format: date-time
+        complianceStatus:
+          $ref: '#/components/schemas/ComplianceStatus'
+        lastUpdated:
+          type: string
+          format: date-time
+
+    ExchangeRateDto:
+      type: object
+      properties:
+        fromCurrency:
+          type: string
+        toCurrency:
+          type: string
+        rate:
+          type: number
+          format: decimal
+          example: 1.2567
+        inverseRate:
+          type: number
+          format: decimal
+          example: 0.7958
+        margin:
+          type: number
+          format: decimal
+          description: Our margin percentage
+          example: 1.5
+        amount:
+          type: number
+          format: decimal
+          description: Original amount if provided
+        convertedAmount:
+          type: number
+          format: decimal
+          description: Converted amount after rate
+        fees:
+          $ref: '#/components/schemas/TransferFees'
+        validUntil:
+          type: string
+          format: date-time
+          description: Rate expiration time
+        lastUpdated:
+          type: string
+          format: date-time
+
+    CountryDto:
+      type: object
+      properties:
+        countryCode:
+          type: string
+          pattern: '^[A-Z]{2}$'
+          example: "GB"
+        countryName:
+          type: string
+          example: "United Kingdom"
+        currency:
+          type: string
+          example: "GBP"
+        isSupported:
+          type: boolean
+        deliveryMethods:
+          type: array
+          items:
+            type: string
+            enum: [BANK_TRANSFER, CASH_PICKUP, MOBILE_WALLET]
+        requiredFields:
+          type: array
+          items:
+            type: string
+            enum: [ACCOUNT_NUMBER, ROUTING_NUMBER, IBAN, SWIFT_CODE, SORT_CODE]
+        minAmount:
+          type: number
+          format: decimal
+        maxAmount:
+          type: number
+          format: decimal
+
+    Address:
+      type: object
+      required:
+        - street
+        - city
+        - country
+      properties:
+        street:
+          type: string
+          maxLength: 200
+          example: "123 Oxford Street"
+        city:
+          type: string
+          maxLength: 100
+          example: "London"
+        state:
+          type: string
+          maxLength: 100
+          example: "England"
+        postalCode:
+          type: string
+          maxLength: 20
+          example: "W1D 1LL"
+        country:
+          type: string
+          pattern: '^[A-Z]{2}$'
+          example: "GB"
+
+    TransferFees:
+      type: object
+      properties:
+        serviceFee:
+          type: number
+          format: decimal
+          description: Our service fee
+          example: 4.99
+        correspondentBankFee:
+          type: number
+          format: decimal
+          description: Correspondent bank fee
+          example: 15.00
+        totalFees:
+          type: number
+          format: decimal
+          description: Total all fees
+          example: 19.99
+        exchangeMargin:
+          type: number
+          format: decimal
+          description: Exchange rate margin
+          example: 12.50
+
+    StatusHistoryItem:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/TransferStatus'
+        timestamp:
+          type: string
+          format: date-time
+        description:
+          type: string
+        location:
+          type: string
+
+    # Enum schemas
+    TransferPurpose:
+      type: string
+      enum:
+        - FAMILY_SUPPORT
+        - EDUCATION
+        - MEDICAL_EXPENSES
+        - BUSINESS_PAYMENT
+        - PROPERTY_PURCHASE
+        - INVESTMENT
+        - GIFT
+        - OTHER
+      example: "FAMILY_SUPPORT"
+
+    SourceOfFunds:
+      type: string
+      enum:
+        - SALARY
+        - BUSINESS_INCOME
+        - INVESTMENT_RETURNS
+        - SAVINGS
+        - GIFT
+        - LOAN
+        - INHERITANCE
+        - OTHER
+      example: "SALARY"
+
+    DeliverySpeed:
+      type: string
+      enum:
+        - EXPRESS
+        - STANDARD
+        - ECONOMY
+      example: "STANDARD"
+
+    BeneficiaryStatus:
+      type: string
+      enum: [ACTIVE, INACTIVE, SUSPENDED]
+
+    VerificationStatus:
+      type: string
+      enum: [PENDING, VERIFIED, REJECTED, REQUIRES_DOCUMENTS]
+
+    TransferStatus:
+      type: string
+      enum:
+        - PENDING_COMPLIANCE
+        - COMPLIANCE_APPROVED
+        - FUNDS_RESERVED
+        - PROCESSING
+        - SENT_TO_BANK
+        - IN_TRANSIT
+        - DELIVERED
+        - COMPLETED
+        - FAILED
+        - CANCELLED
+        - REFUNDED
+
+    ComplianceStatus:
+      type: string
+      enum:
+        - APPROVED
+        - STANDARD_REVIEW
+        - ENHANCED_DUE_DILIGENCE
+        - MANUAL_REVIEW_REQUIRED
+        - BLOCKED
+
+    # Common schemas
+    ResultWrapper:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+        errorMessage:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        path:
+          type: string
+
+  responses:
+    BadRequest:
+      description: Bad request - invalid input
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Unauthorized:
+      description: Unauthorized - authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Forbidden:
+      description: Forbidden - insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+tags:
+  - name: Beneficiaries
+    description: Beneficiary management and verification
+  - name: Transfers
+    description: International transfer operations
+  - name: Exchange Rates
+    description: Currency exchange rate queries
+  - name: Countries
+    description: Supported countries and requirements
+  - name: System
+    description: System health and status

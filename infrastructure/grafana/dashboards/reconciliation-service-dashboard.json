@@ -1,0 +1,365 @@
+{
+  "dashboard": {
+    "title": "Reconciliation Service - Settlement Processing",
+    "tags": ["reconciliation", "settlement", "financial"],
+    "timezone": "browser",
+    "schemaVersion": 38,
+    "version": 1,
+    "refresh": "1m",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Settlement Processing Rate",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(settlement_processed_total{status=\"RECONCILED\"}[5m])",
+            "legendFormat": "Reconciled/sec",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(settlement_processed_total{status=\"DISCREPANCY_DETECTED\"}[5m])",
+            "legendFormat": "Discrepancies/sec",
+            "refId": "B"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Settlement Success Rate",
+        "type": "gauge",
+        "gridPos": {"x": 12, "y": 0, "w": 6, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(settlement_processed_total{status=\"RECONCILED\"}[5m])) / sum(rate(settlement_processed_total[5m])) * 100",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 95, "color": "yellow"},
+                {"value": 99, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 3,
+        "title": "Settlement Processing Time (p95)",
+        "type": "graph",
+        "gridPos": {"x": 18, "y": 0, "w": 6, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(settlement_processing_duration_seconds_bucket[5m]))",
+            "legendFormat": "p95",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "s", "label": "Duration"},
+          {"format": "short"}
+        ],
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": {"type": "gt", "params": [300]},
+              "operator": {"type": "and"},
+              "query": {"params": ["A", "5m", "now"]},
+              "type": "query"
+            }
+          ],
+          "frequency": "5m",
+          "handler": 1,
+          "name": "Slow Settlement Processing",
+          "message": "Settlement processing exceeds 5 minute threshold"
+        }
+      },
+      {
+        "id": 4,
+        "title": "Settlement Amount by Provider (24h)",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum by (payment_provider) (increase(settlement_amount_total[24h]))",
+            "legendFormat": "{{payment_provider}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "currencyUSD", "label": "Amount"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Pending Settlements",
+        "type": "stat",
+        "gridPos": {"x": 12, "y": 8, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(settlement_queue_size{status=\"PENDING_RECONCILIATION\"})",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 10, "color": "yellow"},
+                {"value": 50, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 6,
+        "title": "Discrepancy Amount (24h)",
+        "type": "stat",
+        "gridPos": {"x": 18, "y": 8, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(increase(settlement_discrepancy_amount_total[24h]))",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyUSD",
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 1000, "color": "yellow"},
+                {"value": 10000, "color": "red"}
+              ]
+            }
+          }
+        },
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": {"type": "gt", "params": [10000]},
+              "operator": {"type": "and"},
+              "query": {"params": ["A", "24h", "now"]},
+              "type": "query"
+            }
+          ],
+          "frequency": "1h",
+          "handler": 1,
+          "name": "High Discrepancy Amount",
+          "message": "Settlement discrepancies exceed $10,000 in 24 hours"
+        }
+      },
+      {
+        "id": 7,
+        "title": "Discrepancy Types",
+        "type": "piechart",
+        "gridPos": {"x": 12, "y": 12, "w": 8, "h": 8},
+        "targets": [
+          {
+            "expr": "sum by (discrepancy_type) (increase(settlement_discrepancies_total[24h]))",
+            "legendFormat": "{{discrepancy_type}}",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "Settlement Instructions Pending",
+        "type": "stat",
+        "gridPos": {"x": 20, "y": 12, "w": 4, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(settlement_instructions_total{status=\"PENDING_EXECUTION\"})",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 9,
+        "title": "Daily Settlement Volume",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 16, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(increase(settlement_amount_total[1d]))",
+            "legendFormat": "Total Settlement Amount",
+            "refId": "A"
+          },
+          {
+            "expr": "sum(increase(settlement_transaction_count_total[1d]))",
+            "legendFormat": "Transaction Count",
+            "refId": "B"
+          }
+        ]
+      },
+      {
+        "id": 10,
+        "title": "Provider Fee Variance",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 16, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum by (payment_provider) (abs(settlement_fee_variance_total))",
+            "legendFormat": "{{payment_provider}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "currencyUSD", "label": "Fee Variance"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 11,
+        "title": "Settlement Age (Pending)",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 24, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, settlement_age_hours_bucket{status=\"PENDING_RECONCILIATION\"})",
+            "legendFormat": "p95 Age (hours)",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "h", "label": "Hours"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 12,
+        "title": "Reconciliation Accuracy",
+        "type": "gauge",
+        "gridPos": {"x": 12, "y": 24, "w": 6, "h": 8},
+        "targets": [
+          {
+            "expr": "avg(settlement_reconciliation_confidence_score)",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit",
+            "min": 0,
+            "max": 1,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 0.95, "color": "yellow"},
+                {"value": 0.99, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 13,
+        "title": "Transaction Matching Rate",
+        "type": "gauge",
+        "gridPos": {"x": 18, "y": 24, "w": 6, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(settlement_matched_transactions_total) / sum(settlement_total_transactions_total) * 100",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 98, "color": "yellow"},
+                {"value": 99.5, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 14,
+        "title": "Refund/Chargeback Impact",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 32, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(settlement_refund_amount_total)",
+            "legendFormat": "Refunds",
+            "refId": "A"
+          },
+          {
+            "expr": "sum(settlement_chargeback_amount_total)",
+            "legendFormat": "Chargebacks",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {"format": "currencyUSD", "label": "Amount"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 15,
+        "title": "Settlement Idempotency Cache",
+        "type": "stat",
+        "gridPos": {"x": 12, "y": 32, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(settlement_duplicate_events_prevented_total)",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "decimals": 0
+          }
+        }
+      },
+      {
+        "id": 16,
+        "title": "High-Priority Investigations",
+        "type": "stat",
+        "gridPos": {"x": 18, "y": 32, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(settlement_discrepancies_total{severity=~\"HIGH|CRITICAL\",status=\"OPEN\"})",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 1, "color": "red"}
+              ]
+            }
+          }
+        }
+      }
+    ]
+  }
+}

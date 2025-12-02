@@ -1,0 +1,236 @@
+spring:
+  application:
+    name: bnpl-service
+  profiles:
+    active: development
+    include:
+      - resilience
+  
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:waqiti_bnpl}?ssl=${DB_SSL_ENABLED:true}&sslmode=${DB_SSL_MODE:require}
+    username: ${DB_USERNAME:waqiti_user}
+    password: ${DATABASE_PASSWORD:${VAULT_DATABASE_PASSWORD}}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+  
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        jdbc:
+          batch_size: 25
+        order_inserts: true
+        order_updates: true
+        jdbc.batch_versioned_data: true
+  
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+  
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti
+          jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/certs
+      client:
+        registration:
+          keycloak:
+            client-id: bnpl-service
+            client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+            authorization-grant-type: client_credentials
+            scope: openid,profile,email,bnpl
+        provider:
+          keycloak:
+            issuer-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti
+            token-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/token
+  
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false
+    consumer:
+      group-id: bnpl-service
+      enable-auto-commit: false  # Manual acknowledgment for DLQ support
+      max-poll-records: 50  # Batch size control
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        # SECURITY FIX: Whitelist specific packages to prevent RCE via deserialization (CVE-2017-17485)
+        spring.json.trusted.packages: "com.waqiti.*,java.util.*,java.time.*,java.math.*"
+  
+  cache:
+    type: redis
+  
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD}  # SECURITY: No default - service must fail if password not provided
+      timeout: 2000ms
+      jedis:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+
+# Keycloak Configuration
+keycloak:
+  enabled: true
+  realm: waqiti-fintech
+  auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}
+  ssl-required: external
+  resource: bnpl-service
+  bearer-only: true
+  use-resource-role-mappings: true
+  cors: true
+  cors-allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+  cors-allowed-headers: Authorization,Content-Type,X-Requested-With
+  cors-max-age: 3600
+  public-client: false
+  credentials:
+    secret: ${KEYCLOAK_CLIENT_SECRET:}
+
+# Service-to-Service Authentication
+service:
+  auth:
+    enabled: true
+    client-id: bnpl-service
+    client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+
+server:
+  port: ${SERVER_PORT:8096}  # Changed from 8091 to avoid conflict with fraud-detection-service
+  servlet:
+    context-path: /
+  compression:
+    enabled: true
+  http2:
+    enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+
+logging:
+  level:
+    com.waqiti.bnpl: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: WARN
+    org.springframework.kafka: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/bnpl-service.log
+
+# BNPL specific configuration
+bnpl:
+  credit:
+    max-limit: 5000.00
+    min-score: 600
+    assessment-validity-days: 30
+  
+  payment:
+    gateway:
+      url: ${PAYMENT_GATEWAY_URL:http://localhost:8080/api/payments}
+      timeout: 30s
+    retry:
+      max-attempts: 3
+      backoff-delay: 2s
+  
+  notifications:
+    enabled: true
+    reminder-days-before: 3
+    late-fee-grace-days: 3
+  
+  security:
+    allowed-origins: ${ALLOWED_ORIGINS:http://localhost:3000,http://localhost:3001}
+    cors-enabled: true
+
+# OpenAPI documentation
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+  info:
+    title: Waqiti BNPL Service API
+    description: Buy Now Pay Later service for Waqiti platform
+    version: 1.0.0
+    contact:
+      name: Waqiti Team
+      email: support@example.com
+
+---
+
+spring:
+  config:
+    activate:
+      on-profile: test
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    database-platform: org.hibernate.dialect.H2Dialect
+  h2:
+    console:
+      enabled: true
+  kafka:
+    bootstrap-servers: ${spring.embedded.kafka.brokers}
+
+logging:
+  level:
+    com.waqiti.bnpl: DEBUG
+    org.springframework.kafka: WARN
+
+---
+
+spring:
+  config:
+    activate:
+      on-profile: production
+  
+  datasource:
+    url: ${DATABASE_URL}
+    hikari:
+      maximum-pool-size: 50
+      minimum-idle: 10
+  
+logging:
+  level:
+    com.waqiti.bnpl: INFO
+    org.springframework.security: INFO
+    org.hibernate.SQL: WARN
+  file:
+    name: /var/log/waqiti/bnpl-service.log
+
+bnpl:
+  security:
+    allowed-origins: ${PRODUCTION_ALLOWED_ORIGINS}

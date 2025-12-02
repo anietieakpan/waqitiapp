@@ -1,0 +1,85 @@
+# SECURE Payment Service Configuration
+# All secrets MUST be provided via environment variables or Vault
+# NO HARDCODED SECRETS - PRODUCTION READY
+
+server:
+  port: 8082
+
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/waqiti_payments
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+# Payment service settings with secure defaults
+payment:
+  processing:
+    timeout: 30000
+    retry-attempts: 3
+    batch-size: 50
+    
+  providers:
+    stripe:
+      enabled: ${STRIPE_ENABLED:false}
+      public-key: ${STRIPE_PUBLIC_KEY}
+      secret-key: ${STRIPE_SECRET_KEY}
+      webhook-secret: ${STRIPE_WEBHOOK_SECRET}
+      api-version: "2023-10-16"
+      
+    paypal:
+      enabled: ${PAYPAL_ENABLED:false}
+      client-id: ${PAYPAL_CLIENT_ID}
+      client-secret: ${PAYPAL_CLIENT_SECRET}
+      mode: ${PAYPAL_MODE:sandbox}
+      
+    plaid:
+      enabled: ${PLAID_ENABLED:false}
+      client-id: ${PLAID_CLIENT_ID}
+      secret: ${PLAID_SECRET}
+      environment: ${PLAID_ENVIRONMENT:sandbox}
+      
+  limits:
+    daily-send-limit: ${PAYMENT_DAILY_LIMIT:25000}
+    weekly-send-limit: ${PAYMENT_WEEKLY_LIMIT:100000}
+    monthly-send-limit: ${PAYMENT_MONTHLY_LIMIT:500000}
+    single-transaction-limit: ${PAYMENT_SINGLE_LIMIT:25000}
+    
+  fraud:
+    enabled: ${FRAUD_DETECTION_ENABLED:true}
+    velocity-check: true
+    amount-threshold: ${FRAUD_AMOUNT_THRESHOLD:10000}
+    suspicious-pattern-detection: true
+
+# Security configuration
+security:
+  secrets:
+    vault:
+      enabled: ${VAULT_ENABLED:true}
+      path: secret/payment-service
+      renew-token: true
+      token: ${VAULT_TOKEN}
+    encryption:
+      algorithm: AES-256-GCM
+      key-rotation-days: 30
+      master-key: ${ENCRYPTION_MASTER_KEY}
+
+# Monitoring and security
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+      
+logging:
+  level:
+    com.waqiti: INFO
+    org.springframework.security: WARN
+    # NEVER log sensitive data
+    com.waqiti.payment.service: WARN
+  pattern:
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - [%X{traceId}] %msg%n"
+  file:
+    name: /var/log/waqiti/payment-service.log

@@ -1,0 +1,313 @@
+# Infrastructure-level Chaos Experiments
+apiVersion: litmuschaos.io/v1alpha1
+kind: ChaosExperiment
+metadata:
+  name: node-cpu-hog
+  namespace: litmus
+spec:
+  definition:
+    scope: Cluster
+    permissions:
+      - apiGroups: [""]
+        resources: ["nodes"]
+        verbs: ["get", "list"]
+      - apiGroups: [""]
+        resources: ["pods"]
+        verbs: ["create", "delete", "get", "list", "patch", "deletecollection"]
+      - apiGroups: [""]
+        resources: ["pods/exec", "pods/log", "events"]
+        verbs: ["create", "get", "list", "patch"]
+      - apiGroups: ["batch"]
+        resources: ["jobs"]
+        verbs: ["create", "list", "get", "delete", "deletecollection"]
+      - apiGroups: ["litmuschaos.io"]
+        resources: ["chaosengines", "chaosexperiments", "chaosresults"]
+        verbs: ["create", "list", "get", "patch", "update"]
+    image: "litmuschaos/go-runner:2.14.0"
+    imagePullPolicy: Always
+    args:
+    - -c
+    - ./experiments -name node-cpu-hog
+    command:
+    - /bin/bash
+    env:
+    - name: TOTAL_CHAOS_DURATION
+      value: '300' # 5 minutes
+    - name: NODE_CPU_CORE
+      value: '2'
+    - name: NODE_CPU_LOAD
+      value: '90' # 90% CPU load
+    - name: NODES_AFFECTED_PERC
+      value: '30' # Affect 30% of nodes
+    labels:
+      name: node-cpu-hog
+      app.kubernetes.io/part-of: litmus
+---
+# Node Memory Hog Experiment
+apiVersion: litmuschaos.io/v1alpha1
+kind: ChaosExperiment
+metadata:
+  name: node-memory-hog
+  namespace: litmus
+spec:
+  definition:
+    scope: Cluster
+    permissions:
+      - apiGroups: [""]
+        resources: ["nodes"]
+        verbs: ["get", "list"]
+      - apiGroups: [""]
+        resources: ["pods"]
+        verbs: ["create", "delete", "get", "list", "patch", "deletecollection"]
+      - apiGroups: [""]
+        resources: ["pods/exec", "pods/log", "events"]
+        verbs: ["create", "get", "list", "patch"]
+    image: "litmuschaos/go-runner:2.14.0"
+    imagePullPolicy: Always
+    args:
+    - -c
+    - ./experiments -name node-memory-hog
+    command:
+    - /bin/bash
+    env:
+    - name: TOTAL_CHAOS_DURATION
+      value: '300'
+    - name: MEMORY_PERCENTAGE
+      value: '80' # Use 80% of available memory
+    - name: NODES_AFFECTED_PERC
+      value: '30'
+    labels:
+      name: node-memory-hog
+      app.kubernetes.io/part-of: litmus
+---
+# Kafka Broker Failure Experiment
+apiVersion: litmuschaos.io/v1alpha1
+kind: ChaosExperiment
+metadata:
+  name: kafka-broker-pod-failure
+  namespace: waqiti
+spec:
+  definition:
+    scope: Namespaced
+    permissions:
+      - apiGroups: [""]
+        resources: ["pods"]
+        verbs: ["create", "delete", "get", "list", "patch", "update", "deletecollection"]
+      - apiGroups: [""]
+        resources: ["pods/exec", "pods/log", "events"]
+        verbs: ["create", "get", "list", "patch", "update"]
+      - apiGroups: ["apps"]
+        resources: ["deployments", "statefulsets"]
+        verbs: ["get", "list"]
+      - apiGroups: ["litmuschaos.io"]
+        resources: ["chaosengines", "chaosexperiments", "chaosresults"]
+        verbs: ["create", "list", "get", "patch", "update"]
+    image: "litmuschaos/kafka-pod-delete:latest"
+    imagePullPolicy: Always
+    args:
+    - -c
+    - ./experiments -name kafka-broker-pod-failure
+    command:
+    - /bin/bash
+    env:
+    - name: KAFKA_KIND
+      value: 'statefulset'
+    - name: KAFKA_LIVENESS_STREAM
+      value: 'enabled'
+    - name: KAFKA_LIVENESS_IMAGE
+      value: 'litmuschaos/kafka-client:latest'
+    - name: KAFKA_CONSUMER_TIMEOUT
+      value: '30000'
+    - name: TOTAL_CHAOS_DURATION
+      value: '300'
+    - name: KAFKA_INSTANCE_NAME
+      value: ''
+    - name: KAFKA_NAMESPACE
+      value: 'waqiti'
+    - name: KAFKA_LABEL
+      value: 'app=kafka'
+    - name: KAFKA_SERVICE
+      value: 'kafka-svc'
+    - name: KAFKA_PORT
+      value: '9092'
+    - name: KAFKA_REPLICATION_FACTOR
+      value: '3'
+    - name: KAFKA_TOPIC
+      value: 'test-topic'
+    - name: ZOOKEEPER_NAMESPACE
+      value: 'waqiti'
+    - name: ZOOKEEPER_LABEL
+      value: 'app=zookeeper'
+    - name: ZOOKEEPER_SERVICE
+      value: 'zookeeper-svc'
+    - name: ZOOKEEPER_PORT
+      value: '2181'
+    labels:
+      name: kafka-broker-pod-failure
+      app.kubernetes.io/part-of: litmus
+---
+# PostgreSQL Database Connection Drain Experiment
+apiVersion: litmuschaos.io/v1alpha1
+kind: ChaosExperiment
+metadata:
+  name: postgres-connection-drain
+  namespace: waqiti
+spec:
+  definition:
+    scope: Namespaced
+    permissions:
+      - apiGroups: [""]
+        resources: ["pods", "configmaps"]
+        verbs: ["create", "get", "list", "patch", "update", "delete"]
+      - apiGroups: [""]
+        resources: ["pods/exec", "pods/log", "events"]
+        verbs: ["create", "get", "list"]
+    image: "litmuschaos/go-runner:2.14.0"
+    imagePullPolicy: Always
+    args:
+    - -c
+    - ./experiments -name connection-drain
+    command:
+    - /bin/bash
+    env:
+    - name: TARGET_CONTAINER
+      value: 'postgres'
+    - name: TOTAL_CHAOS_DURATION
+      value: '120' # 2 minutes
+    - name: CONNECTION_COUNT
+      value: '100' # Number of connections to create
+    - name: DB_NAME
+      value: 'waqiti_db'
+    - name: DB_USER
+      value: 'postgres'
+    - name: DB_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: postgres-secret
+          key: password
+    labels:
+      name: connection-drain
+      app.kubernetes.io/part-of: litmus
+---
+# Redis Cache Flush Experiment
+apiVersion: litmuschaos.io/v1alpha1
+kind: ChaosExperiment
+metadata:
+  name: redis-cache-expire
+  namespace: waqiti
+spec:
+  definition:
+    scope: Namespaced
+    permissions:
+      - apiGroups: [""]
+        resources: ["pods"]
+        verbs: ["get", "list"]
+      - apiGroups: [""]
+        resources: ["pods/exec", "events"]
+        verbs: ["create", "get", "list"]
+    image: "litmuschaos/go-runner:2.14.0"
+    imagePullPolicy: Always
+    args:
+    - -c
+    - ./experiments -name redis-cache-expire
+    command:
+    - /bin/bash
+    env:
+    - name: TOTAL_CHAOS_DURATION
+      value: '60'
+    - name: REDIS_KEY_PATTERN
+      value: '*' # Flush all keys
+    - name: REDIS_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: redis-secret
+          key: password
+    labels:
+      name: redis-cache-expire
+      app.kubernetes.io/part-of: litmus
+---
+# Disk Fill Experiment
+apiVersion: litmuschaos.io/v1alpha1
+kind: ChaosExperiment
+metadata:
+  name: disk-fill
+  namespace: waqiti
+spec:
+  definition:
+    scope: Namespaced
+    permissions:
+      - apiGroups: [""]
+        resources: ["pods"]
+        verbs: ["create", "delete", "get", "list", "patch", "update", "deletecollection"]
+      - apiGroups: [""]
+        resources: ["pods/exec", "pods/log", "events"]
+        verbs: ["create", "get", "list", "patch", "update"]
+    image: "litmuschaos/go-runner:2.14.0"
+    imagePullPolicy: Always
+    args:
+    - -c
+    - ./experiments -name disk-fill
+    command:
+    - /bin/bash
+    env:
+    - name: TOTAL_CHAOS_DURATION
+      value: '180' # 3 minutes
+    - name: FILL_PERCENTAGE
+      value: '80' # Fill 80% of disk
+    - name: TARGET_CONTAINER
+      value: ''
+    - name: EPHEMERAL_STORAGE_MEBIBYTES
+      value: ''
+    labels:
+      name: disk-fill
+      app.kubernetes.io/part-of: litmus
+---
+# Cluster-wide Service Account for Infrastructure Chaos
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: litmus-admin
+  namespace: litmus
+  labels:
+    name: litmus-admin
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: litmus-admin
+  labels:
+    name: litmus-admin
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "events", "configmaps", "secrets", "services"]
+    verbs: ["create", "list", "get", "patch", "update", "delete"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "patch", "update"]
+  - apiGroups: [""]
+    resources: ["pods/exec", "pods/log"]
+    verbs: ["create", "list", "get"]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["create", "list", "get", "delete", "deletecollection"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "daemonsets", "replicasets"]
+    verbs: ["list", "get", "patch", "update"]
+  - apiGroups: ["litmuschaos.io"]
+    resources: ["chaosengines", "chaosexperiments", "chaosresults"]
+    verbs: ["create", "list", "get", "patch", "update", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: litmus-admin
+  labels:
+    name: litmus-admin
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: litmus-admin
+subjects:
+- kind: ServiceAccount
+  name: litmus-admin
+  namespace: litmus

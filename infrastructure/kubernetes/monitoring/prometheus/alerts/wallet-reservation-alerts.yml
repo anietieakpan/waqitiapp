@@ -1,0 +1,278 @@
+# ===============================================
+# PROMETHEUS ALERT RULES
+# Wallet Fund Reservation Monitoring
+# ===============================================
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wallet-reservation-alerts
+  namespace: monitoring
+  labels:
+    app: prometheus
+    component: alert-rules
+data:
+  wallet-reservation-alerts.yml: |
+    groups:
+      - name: wallet_reservation_critical
+        interval: 30s
+        rules:
+          # CRITICAL: Double-Spending Attempts Detected
+          - alert: DoubleSpendingAttemptsDetected
+            expr: rate(wallet_reservation_double_spending_prevented_total[5m]) > 0
+            for: 1m
+            labels:
+              severity: critical
+              team: security
+              service: wallet-service
+              category: fraud
+            annotations:
+              summary: "Double-spending attempts detected in wallet service"
+              description: "{{ $value }} double-spending attempts prevented in last 5 minutes via idempotency checks. This may indicate an attack or buggy client."
+              impact: "CRITICAL - Potential security breach or system abuse"
+              action: |
+                1. Check application logs for source IP and user IDs
+                2. Review transaction patterns for suspicious activity
+                3. Consider rate limiting or blocking offending clients
+                4. Alert security team immediately
+              runbook: https://wiki.example.com/runbooks/double-spending-alert
+              dashboard: https://grafana.example.com/d/wallet-security
+
+          # CRITICAL: High Reservation Failure Rate
+          - alert: HighReservationFailureRate
+            expr: rate(wallet_reservation_failure_total[5m]) / rate(wallet_reservation_total[5m]) > 0.05
+            for: 2m
+            labels:
+              severity: critical
+              team: platform
+              service: wallet-service
+              category: availability
+            annotations:
+              summary: "High fund reservation failure rate ({{ $value | humanizePercentage }})"
+              description: "More than 5% of fund reservations are failing in the last 5 minutes"
+              impact: "CRITICAL - Users unable to complete transactions"
+              action: |
+                1. Check Redis availability and connectivity
+                2. Verify database connection pool status
+                3. Check for distributed lock timeouts
+                4. Review error logs for root cause
+                5. Consider scaling up service instances
+              runbook: https://wiki.example.com/runbooks/reservation-failures
+
+          # CRITICAL: Lock Acquisition Timeouts
+          - alert: LockAcquisitionTimeouts
+            expr: rate(wallet_lock_timeout_total[5m]) > 10
+            for: 1m
+            labels:
+              severity: critical
+              team: platform
+              service: wallet-service
+              category: performance
+            annotations:
+              summary: "High rate of distributed lock timeouts ({{ $value }}/min)"
+              description: "Many wallet operations are failing to acquire distributed locks within timeout"
+              impact: "CRITICAL - Transaction processing degraded"
+              action: |
+                1. Check Redis cluster health and latency
+                2. Verify network connectivity to Redis
+                3. Review lock lease times (may need tuning)
+                4. Check for deadlocks or long-running transactions
+                5. Scale Redis cluster if needed
+              runbook: https://wiki.example.com/runbooks/lock-timeouts
+
+          # CRITICAL: Reservation Service Down
+          - alert: ReservationServiceDown
+            expr: up{job="wallet-service"} == 0
+            for: 1m
+            labels:
+              severity: critical
+              team: platform
+              service: wallet-service
+              category: availability
+            annotations:
+              summary: "Wallet service is down"
+              description: "Wallet service has been down for more than 1 minute"
+              impact: "CRITICAL - All payment operations blocked"
+              action: |
+                1. Check service health endpoint
+                2. Review pod status in Kubernetes
+                3. Check application logs for startup errors
+                4. Verify database and Redis connectivity
+                5. Trigger failover if available
+
+      - name: wallet_reservation_high
+        interval: 1m
+        rules:
+          # HIGH: Slow Reservation Operations
+          - alert: SlowReservationOperations
+            expr: histogram_quantile(0.95, rate(wallet_reservation_duration_seconds_bucket[5m])) > 0.5
+            for: 3m
+            labels:
+              severity: high
+              team: platform
+              service: wallet-service
+              category: performance
+            annotations:
+              summary: "P95 reservation latency is {{ $value | humanizeDuration }}"
+              description: "95th percentile of reservation operations is taking longer than 500ms"
+              impact: "HIGH - User experience degraded, slow transaction processing"
+              action: |
+                1. Check database query performance
+                2. Review Redis latency metrics
+                3. Check for database connection pool exhaustion
+                4. Review slow query logs
+                5. Consider adding database indexes if missing
+
+          # HIGH: Slow Lock Acquisition
+          - alert: SlowLockAcquisition
+            expr: histogram_quantile(0.95, rate(wallet_lock_acquisition_seconds_bucket[5m])) > 1.0
+            for: 3m
+            labels:
+              severity: high
+              team: platform
+              service: wallet-service
+              category: performance
+            annotations:
+              summary: "P95 lock acquisition time is {{ $value | humanizeDuration }}"
+              description: "Taking longer than 1 second to acquire distributed locks"
+              impact: "HIGH - Transaction processing slow"
+              action: |
+                1. Check Redis latency and throughput
+                2. Review lock contention metrics
+                3. Consider increasing Redis resources
+                4. Check network latency to Redis cluster
+
+          # HIGH: Large Cleanup Batch
+          - alert: LargeExpiredReservationCleanup
+            expr: wallet_reservation_cleanup_count_total > 100
+            for: 5m
+            labels:
+              severity: high
+              team: platform
+              service: wallet-service
+              category: business
+            annotations:
+              summary: "{{ $value }} expired reservations cleaned up"
+              description: "Unusually high number of expired reservations being cleaned up"
+              impact: "HIGH - May indicate transaction completion issues or misconfigured TTL"
+              action: |
+                1. Review transaction completion rates
+                2. Check for payment gateway timeouts
+                3. Verify reservation TTL configuration
+                4. Investigate if users are abandoning transactions
+                5. Check for service outages during peak times
+
+          # HIGH: Optimistic Lock Retries
+          - alert: HighOptimisticLockRetries
+            expr: rate(wallet_optimistic_lock_retry_total[5m]) > 50
+            for: 3m
+            labels:
+              severity: high
+              team: platform
+              service: wallet-service
+              category: performance
+            annotations:
+              summary: "{{ $value }} optimistic lock retries/min"
+              description: "High rate of optimistic locking failures requiring retries"
+              impact: "HIGH - Indicates high concurrency or contention"
+              action: |
+                1. Review concurrent transaction patterns
+                2. Consider increasing retry backoff
+                3. Check for hot wallet accounts (high activity)
+                4. Monitor database CPU and connection usage
+
+      - name: wallet_reservation_medium
+        interval: 2m
+        rules:
+          # MEDIUM: Cleanup Job Duration
+          - alert: SlowReservationCleanup
+            expr: wallet_reservation_cleanup_duration_seconds > 30
+            for: 5m
+            labels:
+              severity: medium
+              team: platform
+              service: wallet-service
+              category: performance
+            annotations:
+              summary: "Reservation cleanup job taking {{ $value | humanizeDuration }}"
+              description: "Scheduled cleanup job is taking longer than 30 seconds"
+              impact: "MEDIUM - Background job performance degraded"
+              action: |
+                1. Check database index performance
+                2. Review cleanup batch size configuration
+                3. Consider adding database query optimization
+                4. Monitor during peak hours
+
+          # MEDIUM: Cleanup Job Failures
+          - alert: ReservationCleanupFailures
+            expr: rate(wallet_reservation_cleanup_failure_total[10m]) > 0
+            for: 5m
+            labels:
+              severity: medium
+              team: platform
+              service: wallet-service
+              category: reliability
+            annotations:
+              summary: "Reservation cleanup job is failing"
+              description: "Scheduled cleanup job has failed {{ $value }} times in last 10 minutes"
+              impact: "MEDIUM - Expired reservations not being released, funds locked"
+              action: |
+                1. Check application error logs
+                2. Verify database connectivity
+                3. Check distributed lock (ShedLock) status
+                4. Ensure cleanup job can acquire lock
+
+          # MEDIUM: Insufficient Balance Errors Increasing
+          - alert: HighInsufficientBalanceRate
+            expr: rate(wallet_insufficient_balance_total[10m]) > 100
+            for: 5m
+            labels:
+              severity: medium
+              team: business
+              service: wallet-service
+              category: business
+            annotations:
+              summary: "{{ $value }} insufficient balance errors/min"
+              description: "Unusually high rate of insufficient balance rejections"
+              impact: "MEDIUM - May indicate business issue or user behavior change"
+              action: |
+                1. Analyze user wallet balance distribution
+                2. Check if this is expected (e.g., fraud prevention working)
+                3. Review transaction patterns
+                4. Consider user communication if systematic issue
+
+      - name: wallet_reservation_info
+        interval: 5m
+        rules:
+          # INFO: Reservation Success Rate
+          - alert: ReservationSuccessRateNormal
+            expr: rate(wallet_reservation_success_total[5m]) / rate(wallet_reservation_total[5m]) > 0.95
+            labels:
+              severity: info
+              team: platform
+              service: wallet-service
+            annotations:
+              summary: "Reservation success rate is {{ $value | humanizePercentage }}"
+              description: "System is operating normally with high success rate"
+
+          # INFO: Metrics for Dashboard
+          - record: wallet:reservation:success_rate
+            expr: rate(wallet_reservation_success_total[5m]) / rate(wallet_reservation_total[5m])
+
+          - record: wallet:reservation:p50_latency
+            expr: histogram_quantile(0.50, rate(wallet_reservation_duration_seconds_bucket[5m]))
+
+          - record: wallet:reservation:p95_latency
+            expr: histogram_quantile(0.95, rate(wallet_reservation_duration_seconds_bucket[5m]))
+
+          - record: wallet:reservation:p99_latency
+            expr: histogram_quantile(0.99, rate(wallet_reservation_duration_seconds_bucket[5m]))
+
+          - record: wallet:lock:acquisition:p95
+            expr: histogram_quantile(0.95, rate(wallet_lock_acquisition_seconds_bucket[5m]))
+
+          - record: wallet:reservation:total_active
+            expr: sum(wallet_reservation_active_total)
+
+          - record: wallet:reservation:cleanup:rate
+            expr: rate(wallet_reservation_cleanup_count_total[5m])

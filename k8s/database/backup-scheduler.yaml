@@ -1,0 +1,220 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup-full
+  namespace: database
+  labels:
+    app: postgres-backup
+    type: full
+spec:
+  schedule: "0 2 * * 0"  # Weekly full backup at 2 AM Sunday
+  timeZone: "UTC"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: postgres-backup-sa
+          containers:
+          - name: postgres-backup
+            image: postgres:15-alpine
+            command:
+            - /bin/bash
+            - -c
+            - |
+              set -e
+              TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+              BACKUP_NAME="waqiti_full_backup_${TIMESTAMP}"
+              
+              echo "Starting full database backup: ${BACKUP_NAME}"
+              
+              # Create backup with compression
+              pg_dumpall -h $POSTGRES_HOST -U $POSTGRES_USER --clean --if-exists --quote-all-identifiers | gzip > /tmp/${BACKUP_NAME}.sql.gz
+              
+              # Upload to S3 with encryption
+              aws s3 cp /tmp/${BACKUP_NAME}.sql.gz s3://$S3_BUCKET/full-backups/${BACKUP_NAME}.sql.gz \
+                --server-side-encryption AES256 \
+                --metadata "backup-type=full,timestamp=${TIMESTAMP},retention=90d"
+              
+              # Verify backup integrity
+              aws s3api head-object --bucket $S3_BUCKET --key full-backups/${BACKUP_NAME}.sql.gz
+              
+              echo "Full backup completed successfully: ${BACKUP_NAME}"
+              
+              # Cleanup old backups (keep 4 weekly full backups)
+              aws s3 ls s3://$S3_BUCKET/full-backups/ | head -n -4 | awk '{print $4}' | while read file; do
+                if [ ! -z "$file" ]; then
+                  aws s3 rm s3://$S3_BUCKET/full-backups/$file
+                  echo "Deleted old backup: $file"
+                fi
+              done
+            env:
+            - name: POSTGRES_HOST
+              value: "waqiti-postgres-primary.database.svc.cluster.local"
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: username
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: password
+            - name: S3_BUCKET
+              value: "waqiti-postgres-backups"
+            - name: AWS_DEFAULT_REGION
+              value: "us-west-2"
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: backup-credentials
+                  key: ACCESS_KEY_ID
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: backup-credentials
+                  key: SECRET_ACCESS_KEY
+            volumeMounts:
+            - name: backup-storage
+              mountPath: /tmp
+            resources:
+              requests:
+                memory: "512Mi"
+                cpu: "200m"
+              limits:
+                memory: "2Gi"
+                cpu: "1000m"
+          volumes:
+          - name: backup-storage
+            emptyDir:
+              sizeLimit: "10Gi"
+          restartPolicy: OnFailure
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup-incremental
+  namespace: database
+  labels:
+    app: postgres-backup
+    type: incremental
+spec:
+  schedule: "0 6,12,18 * * *"  # Every 6 hours
+  timeZone: "UTC"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 5
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: postgres-backup-sa
+          containers:
+          - name: postgres-incremental-backup
+            image: postgres:15-alpine
+            command:
+            - /bin/bash
+            - -c
+            - |
+              set -e
+              TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+              BACKUP_NAME="waqiti_incremental_backup_${TIMESTAMP}"
+              
+              echo "Starting incremental database backup: ${BACKUP_NAME}"
+              
+              # Get last backup LSN
+              LAST_LSN=$(aws s3api list-objects-v2 --bucket $S3_BUCKET --prefix incremental-backups/ --query 'sort_by(Contents, &LastModified)[-1].Key' --output text 2>/dev/null || echo "")
+              
+              if [ "$LAST_LSN" != "None" ] && [ ! -z "$LAST_LSN" ]; then
+                echo "Found previous backup, creating incremental from: $LAST_LSN"
+                # This would use pg_basebackup with start LSN in real implementation
+                pg_dump -h $POSTGRES_HOST -U $POSTGRES_USER -Fc -Z9 --verbose waqiti > /tmp/${BACKUP_NAME}.backup
+              else
+                echo "No previous backup found, creating full logical backup"
+                pg_dump -h $POSTGRES_HOST -U $POSTGRES_USER -Fc -Z9 --verbose waqiti > /tmp/${BACKUP_NAME}.backup
+              fi
+              
+              # Upload to S3
+              aws s3 cp /tmp/${BACKUP_NAME}.backup s3://$S3_BUCKET/incremental-backups/${BACKUP_NAME}.backup \
+                --server-side-encryption AES256 \
+                --metadata "backup-type=incremental,timestamp=${TIMESTAMP},retention=7d"
+              
+              echo "Incremental backup completed: ${BACKUP_NAME}"
+              
+              # Cleanup old incremental backups (keep last 28 - 7 days * 4 per day)
+              aws s3 ls s3://$S3_BUCKET/incremental-backups/ | head -n -28 | awk '{print $4}' | while read file; do
+                if [ ! -z "$file" ]; then
+                  aws s3 rm s3://$S3_BUCKET/incremental-backups/$file
+                fi
+              done
+            env:
+            - name: POSTGRES_HOST
+              value: "waqiti-postgres-primary.database.svc.cluster.local"
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: username
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: password
+            - name: S3_BUCKET
+              value: "waqiti-postgres-backups"
+            - name: AWS_DEFAULT_REGION
+              value: "us-west-2"
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: backup-credentials
+                  key: ACCESS_KEY_ID
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: backup-credentials
+                  key: SECRET_ACCESS_KEY
+            resources:
+              requests:
+                memory: "256Mi"
+                cpu: "100m"
+              limits:
+                memory: "1Gi"
+                cpu: "500m"
+          restartPolicy: OnFailure
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: postgres-backup-sa
+  namespace: database
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: database
+  name: postgres-backup-role
+rules:
+- apiGroups: [""]
+  resources: ["secrets", "configmaps"]
+  verbs: ["get", "list"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: postgres-backup-binding
+  namespace: database
+subjects:
+- kind: ServiceAccount
+  name: postgres-backup-sa
+  namespace: database
+roleRef:
+  kind: Role
+  name: postgres-backup-role
+  apiGroup: rbac.authorization.k8s.io

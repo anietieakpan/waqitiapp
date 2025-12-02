@@ -1,0 +1,179 @@
+# Resilience4j Configuration for BNPL Service
+# Circuit breakers, retry logic, rate limiting, and bulkhead patterns
+
+resilience4j:
+  # Circuit Breaker Configuration
+  circuitbreaker:
+    configs:
+      default:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 100
+        minimumNumberOfCalls: 10
+        permittedNumberOfCallsInHalfOpenState: 5
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 60s
+        failureRateThreshold: 50
+        slowCallRateThreshold: 50
+        slowCallDurationThreshold: 5s
+        recordExceptions:
+          - org.springframework.web.client.HttpServerErrorException
+          - java.util.concurrent.TimeoutException
+          - java.io.IOException
+        ignoreExceptions:
+          - com.waqiti.bnpl.exception.InvalidRequestException
+          - com.waqiti.bnpl.exception.ResourceNotFoundException
+    instances:
+      creditBureau:
+        baseConfig: default
+        slidingWindowSize: 50
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 60
+        waitDurationInOpenState: 120s
+        slowCallDurationThreshold: 10s
+      bankingData:
+        baseConfig: default
+        slidingWindowSize: 50
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 60
+        waitDurationInOpenState: 120s
+        slowCallDurationThreshold: 15s
+      paymentGateway:
+        baseConfig: default
+        slidingWindowSize: 100
+        minimumNumberOfCalls: 10
+        failureRateThreshold: 40
+        waitDurationInOpenState: 30s
+        slowCallDurationThreshold: 3s
+      fraudDetection:
+        baseConfig: default
+        slidingWindowSize: 50
+        failureRateThreshold: 50
+        waitDurationInOpenState: 60s
+        slowCallDurationThreshold: 5s
+      kycService:
+        baseConfig: default
+        slidingWindowSize: 50
+        failureRateThreshold: 50
+        waitDurationInOpenState: 90s
+        slowCallDurationThreshold: 10s
+
+  # Retry Configuration
+  retry:
+    configs:
+      default:
+        maxAttempts: 3
+        waitDuration: 1000ms
+        retryExceptions:
+          - org.springframework.web.client.HttpServerErrorException
+          - java.util.concurrent.TimeoutException
+        ignoreExceptions:
+          - com.waqiti.bnpl.exception.InvalidRequestException
+          - com.waqiti.bnpl.exception.ResourceNotFoundException
+    instances:
+      creditBureau:
+        baseConfig: default
+        maxAttempts: 2
+        waitDuration: 2000ms
+        exponentialBackoffMultiplier: 2
+        enableExponentialBackoff: true
+      bankingData:
+        baseConfig: default
+        maxAttempts: 2
+        waitDuration: 2000ms
+        exponentialBackoffMultiplier: 2
+        enableExponentialBackoff: true
+      paymentGateway:
+        baseConfig: default
+        maxAttempts: 3
+        waitDuration: 500ms
+        exponentialBackoffMultiplier: 2
+        enableExponentialBackoff: true
+      fraudDetection:
+        baseConfig: default
+        maxAttempts: 2
+        waitDuration: 1000ms
+      kycService:
+        baseConfig: default
+        maxAttempts: 2
+        waitDuration: 1500ms
+
+  # Rate Limiter Configuration
+  ratelimiter:
+    configs:
+      default:
+        registerHealthIndicator: true
+        limitForPeriod: 100
+        limitRefreshPeriod: 1s
+        timeoutDuration: 5s
+    instances:
+      bnplApplication:
+        limitForPeriod: 10
+        limitRefreshPeriod: 1m
+        timeoutDuration: 0s
+      creditAssessment:
+        limitForPeriod: 50
+        limitRefreshPeriod: 1m
+        timeoutDuration: 2s
+      paymentProcessing:
+        limitForPeriod: 200
+        limitRefreshPeriod: 1m
+        timeoutDuration: 1s
+
+  # Bulkhead Configuration
+  bulkhead:
+    configs:
+      default:
+        maxConcurrentCalls: 10
+        maxWaitDuration: 100ms
+    instances:
+      creditBureau:
+        maxConcurrentCalls: 5
+        maxWaitDuration: 500ms
+      bankingData:
+        maxConcurrentCalls: 5
+        maxWaitDuration: 500ms
+      paymentGateway:
+        maxConcurrentCalls: 20
+        maxWaitDuration: 200ms
+      fraudDetection:
+        maxConcurrentCalls: 10
+        maxWaitDuration: 300ms
+
+  # Time Limiter Configuration
+  timelimiter:
+    configs:
+      default:
+        timeoutDuration: 5s
+        cancelRunningFuture: true
+    instances:
+      creditBureau:
+        timeoutDuration: 15s
+      bankingData:
+        timeoutDuration: 20s
+      paymentGateway:
+        timeoutDuration: 10s
+      fraudDetection:
+        timeoutDuration: 10s
+      kycService:
+        timeoutDuration: 15s
+
+# Management Endpoints for Resilience4j
+management:
+  health:
+    circuitbreakers:
+      enabled: true
+    ratelimiters:
+      enabled: true
+  metrics:
+    tags:
+      application: bnpl-service
+    distribution:
+      percentiles-histogram:
+        resilience4j.circuitbreaker.calls: true
+        resilience4j.ratelimiter.calls: true
+        resilience4j.retry.calls: true
+  endpoint:
+    health:
+      show-details: always
+      show-components: always

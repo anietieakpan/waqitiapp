@@ -1,0 +1,79 @@
+{
+  "type": "record",
+  "name": "FraudAlertCreated",
+  "namespace": "com.waqiti.events.fraud",
+  "doc": "Event published when fraud detection system creates an alert",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string"
+    },
+    {
+      "name": "eventTimestamp",
+      "type": "long",
+      "logicalType": "timestamp-millis"
+    },
+    {
+      "name": "alertId",
+      "type": "string",
+      "doc": "Fraud alert identifier"
+    },
+    {
+      "name": "transactionId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Transaction that triggered alert"
+    },
+    {
+      "name": "userId",
+      "type": "string",
+      "doc": "User associated with alert"
+    },
+    {
+      "name": "riskScore",
+      "type": "double",
+      "doc": "Fraud risk score (0.0 to 1.0)"
+    },
+    {
+      "name": "riskLevel",
+      "type": {
+        "type": "enum",
+        "name": "RiskLevel",
+        "symbols": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+      }
+    },
+    {
+      "name": "detectionMethod",
+      "type": {
+        "type": "enum",
+        "name": "DetectionMethod",
+        "symbols": ["RULE_BASED", "ML_MODEL", "NETWORK_ANALYSIS", "BEHAVIORAL", "HYBRID"]
+      }
+    },
+    {
+      "name": "modelName",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "ML model that detected fraud (e.g., tensorflow, pytorch)"
+    },
+    {
+      "name": "modelVersion",
+      "type": ["null", "string"],
+      "default": null
+    },
+    {
+      "name": "fraudIndicators",
+      "type": {
+        "type": "array",
+        "items": "string"
+      },
+      "default": [],
+      "doc": "List of fraud indicators found"
+    },
+    {
+      "name": "requiresManualReview",
+      "type": "boolean",
+      "default": false
+    }
+  ]
+}

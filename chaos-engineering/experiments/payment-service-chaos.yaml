@@ -1,0 +1,225 @@
+# Payment Service Chaos Experiments
+apiVersion: litmuschaos.io/v1alpha1
+kind: ChaosExperiment
+metadata:
+  name: payment-service-pod-delete
+  namespace: waqiti
+spec:
+  definition:
+    scope: Namespaced
+    permissions:
+      - apiGroups: [""]
+        resources: ["pods"]
+        verbs: ["create", "delete", "get", "list", "patch", "update", "deletecollection"]
+      - apiGroups: [""]
+        resources: ["pods/exec", "pods/log", "events"]
+        verbs: ["create", "get", "list", "patch", "update"]
+      - apiGroups: ["batch"]
+        resources: ["jobs"]
+        verbs: ["create", "list", "get", "delete", "deletecollection"]
+      - apiGroups: ["litmuschaos.io"]
+        resources: ["chaosengines", "chaosexperiments", "chaosresults"]
+        verbs: ["create", "list", "get", "patch", "update"]
+    image: "litmuschaos/go-runner:2.14.0"
+    imagePullPolicy: Always
+    args:
+    - -c
+    - ./experiments -name pod-delete
+    command:
+    - /bin/bash
+    env:
+    - name: TOTAL_CHAOS_DURATION
+      value: '60'
+    - name: CHAOS_INTERVAL
+      value: '10'
+    - name: FORCE
+      value: 'false'
+    labels:
+      name: pod-delete
+      app.kubernetes.io/part-of: litmus
+---
+apiVersion: litmuschaos.io/v1alpha1
+kind: ChaosEngine
+metadata:
+  name: payment-service-pod-delete-chaos
+  namespace: waqiti
+spec:
+  appinfo:
+    appns: waqiti
+    applabel: 'app=payment-service'
+    appkind: 'deployment'
+  annotationCheck: 'false'
+  engineState: 'active'
+  chaosServiceAccount: payment-service-chaos-sa
+  experiments:
+    - name: pod-delete
+      spec:
+        components:
+          env:
+            - name: TOTAL_CHAOS_DURATION
+              value: '60'
+            - name: CHAOS_INTERVAL
+              value: '10'
+            - name: FORCE
+              value: 'false'
+---
+# Payment Service Network Latency Experiment
+apiVersion: litmuschaos.io/v1alpha1
+kind: ChaosExperiment
+metadata:
+  name: payment-service-network-latency
+  namespace: waqiti
+spec:
+  definition:
+    scope: Namespaced
+    permissions:
+      - apiGroups: [""]
+        resources: ["pods"]
+        verbs: ["create", "delete", "get", "list", "patch", "update"]
+      - apiGroups: [""]
+        resources: ["pods/exec", "pods/log", "events"]
+        verbs: ["create", "get", "list", "patch", "update"]
+    image: "litmuschaos/go-runner:2.14.0"
+    imagePullPolicy: Always
+    args:
+    - -c
+    - ./experiments -name pod-network-latency
+    command:
+    - /bin/bash
+    env:
+    - name: TARGET_CONTAINER
+      value: ''
+    - name: NETWORK_INTERFACE
+      value: 'eth0'
+    - name: TC_IMAGE
+      value: 'gaiadocker/iproute2'
+    - name: NETWORK_LATENCY
+      value: '2000' # 2 seconds
+    - name: JITTER
+      value: '0'
+    - name: TOTAL_CHAOS_DURATION
+      value: '300' # 5 minutes
+    - name: RAMP_TIME
+      value: ''
+    labels:
+      name: pod-network-latency
+      app.kubernetes.io/part-of: litmus
+---
+# Payment Service CPU Stress Experiment
+apiVersion: litmuschaos.io/v1alpha1
+kind: ChaosExperiment
+metadata:
+  name: payment-service-cpu-stress
+  namespace: waqiti
+spec:
+  definition:
+    scope: Namespaced
+    permissions:
+      - apiGroups: [""]
+        resources: ["pods"]
+        verbs: ["create", "delete", "get", "list", "patch", "update"]
+      - apiGroups: [""]
+        resources: ["pods/exec", "pods/log", "events"]
+        verbs: ["create", "get", "list", "patch", "update"]
+    image: "litmuschaos/go-runner:2.14.0"
+    imagePullPolicy: Always
+    args:
+    - -c
+    - ./experiments -name pod-cpu-hog
+    command:
+    - /bin/bash
+    env:
+    - name: TOTAL_CHAOS_DURATION
+      value: '180' # 3 minutes
+    - name: CPU_CORES
+      value: '1'
+    - name: CPU_LOAD
+      value: '80' # 80% CPU load
+    - name: PODS_AFFECTED_PERC
+      value: '50' # Affect 50% of pods
+    labels:
+      name: pod-cpu-hog
+      app.kubernetes.io/part-of: litmus
+---
+# Payment Service Memory Stress Experiment
+apiVersion: litmuschaos.io/v1alpha1
+kind: ChaosExperiment
+metadata:
+  name: payment-service-memory-stress
+  namespace: waqiti
+spec:
+  definition:
+    scope: Namespaced
+    permissions:
+      - apiGroups: [""]
+        resources: ["pods"]
+        verbs: ["create", "delete", "get", "list", "patch", "update"]
+      - apiGroups: [""]
+        resources: ["pods/exec", "pods/log", "events"]
+        verbs: ["create", "get", "list", "patch", "update"]
+    image: "litmuschaos/go-runner:2.14.0"
+    imagePullPolicy: Always
+    args:
+    - -c
+    - ./experiments -name pod-memory-hog
+    command:
+    - /bin/bash
+    env:
+    - name: TOTAL_CHAOS_DURATION
+      value: '120' # 2 minutes
+    - name: MEMORY_CONSUMPTION
+      value: '500' # 500MB
+    - name: PODS_AFFECTED_PERC
+      value: '50'
+    labels:
+      name: pod-memory-hog
+      app.kubernetes.io/part-of: litmus
+---
+# Service Account for Chaos Experiments
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: payment-service-chaos-sa
+  namespace: waqiti
+  labels:
+    name: payment-service-chaos-sa
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: payment-service-chaos-sa
+  namespace: waqiti
+  labels:
+    name: payment-service-chaos-sa
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "configmaps", "services"]
+    verbs: ["create", "list", "get", "patch", "update", "delete"]
+  - apiGroups: [""]
+    resources: ["pods/exec", "pods/log", "events"]
+    verbs: ["create", "list", "get"]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["create", "list", "get", "delete"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "daemonsets", "replicasets"]
+    verbs: ["list", "get"]
+  - apiGroups: ["litmuschaos.io"]
+    resources: ["chaosengines", "chaosexperiments", "chaosresults"]
+    verbs: ["create", "list", "get", "patch", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: payment-service-chaos-sa
+  namespace: waqiti
+  labels:
+    name: payment-service-chaos-sa
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: payment-service-chaos-sa
+subjects:
+- kind: ServiceAccount
+  name: payment-service-chaos-sa
+  namespace: waqiti

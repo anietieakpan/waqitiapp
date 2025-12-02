@@ -1,0 +1,1453 @@
+{
+  "summary": {
+    "total_missing_imports": 5276,
+    "total_suspicious_methods": 5,
+    "total_missing_beans": 0,
+    "services_affected": 75,
+    "total_classes_found": 23527
+  },
+  "most_common_missing_classes": [
+    {
+      "class": "com.example.common.service.DlqService",
+      "occurrences": 20
+    },
+    {
+      "class": "com.example.common.utils.MDCUtil",
+      "occurrences": 20
+    },
+    {
+      "class": "com.example.compliance.metrics.ComplianceMetricsService",
+      "occurrences": 19
+    },
+    {
+      "class": "com.example.common.kafka.KafkaHealthIndicator",
+      "occurrences": 16
+    },
+    {
+      "class": "com.waqiti.security.service.ThreatResponseService",
+      "occurrences": 15
+    },
+    {
+      "class": "com.example.common.exception.SystemException",
+      "occurrences": 15
+    },
+    {
+      "class": "com.example.common.domain.BaseEntity",
+      "occurrences": 15
+    },
+    {
+      "class": "com.waqiti.kyc.model.KYCApplication",
+      "occurrences": 14
+    },
+    {
+      "class": "com.waqiti.kyc.repository.KYCApplicationRepository",
+      "occurrences": 14
+    },
+    {
+      "class": "com.waqiti.customer.entity.Customer",
+      "occurrences": 14
+    },
+    {
+      "class": "com.example.common.kafka.BaseConsumer",
+      "occurrences": 13
+    },
+    {
+      "class": "com.example.common.monitoring.CircuitBreaker",
+      "occurrences": 13
+    },
+    {
+      "class": "com.waqiti.risk.service.RiskMetricsService",
+      "occurrences": 13
+    },
+    {
+      "class": "com.waqiti.kyc.model.VerificationStatus",
+      "occurrences": 12
+    },
+    {
+      "class": "com.example.common.exception.PaymentProviderException",
+      "occurrences": 11
+    },
+    {
+      "class": "com.waqiti.payment.service.RefundService",
+      "occurrences": 11
+    },
+    {
+      "class": "com.example.common.events.PaymentStatusUpdatedEvent",
+      "occurrences": 10
+    },
+    {
+      "class": "com.waqiti.lending.metrics.LendingMetricsService",
+      "occurrences": 10
+    },
+    {
+      "class": "com.example.common.notification.NotificationTemplate",
+      "occurrences": 9
+    },
+    {
+      "class": "com.example.common.kafka.KafkaMessage",
+      "occurrences": 9
+    },
+    {
+      "class": "com.example.common.audit.domain.AuditLog.Severity",
+      "occurrences": 9
+    },
+    {
+      "class": "com.example.common.exception.KafkaRetryException",
+      "occurrences": 9
+    },
+    {
+      "class": "com.example.common.kafka.RetryableKafkaListener",
+      "occurrences": 9
+    },
+    {
+      "class": "com.waqiti.monitoring.service.InfrastructureMetricsService",
+      "occurrences": 9
+    },
+    {
+      "class": "com.waqiti.card.domain.Card",
+      "occurrences": 9
+    },
+    {
+      "class": "com.waqiti.card.metrics.CardMetricsService",
+      "occurrences": 9
+    },
+    {
+      "class": "com.waqiti.payment.exception.PaymentNotFoundException",
+      "occurrences": 9
+    },
+    {
+      "class": "com.waqiti.payment.exception.ServiceIntegrationException",
+      "occurrences": 9
+    },
+    {
+      "class": "com.example.common.config.VaultTemplate",
+      "occurrences": 9
+    },
+    {
+      "class": "com.example.common.security.AuthenticationFacade",
+      "occurrences": 8
+    },
+    {
+      "class": "com.waqiti.frauddetection.service.FraudInvestigationService",
+      "occurrences": 8
+    },
+    {
+      "class": "com.example.common.ratelimit.RateLimit.Priority",
+      "occurrences": 8
+    },
+    {
+      "class": "com.example.common.ratelimit.RateLimit.KeyType",
+      "occurrences": 8
+    },
+    {
+      "class": "com.example.common.kafka.KafkaHeaders",
+      "occurrences": 8
+    },
+    {
+      "class": "com.waqiti.user.model.User",
+      "occurrences": 8
+    },
+    {
+      "class": "com.example.common.saga.SagaStepStatus",
+      "occurrences": 8
+    },
+    {
+      "class": "com.waqiti.transaction.entity.Transaction",
+      "occurrences": 8
+    },
+    {
+      "class": "com.example.common.messaging.EventConsumer",
+      "occurrences": 7
+    },
+    {
+      "class": "com.waqiti.frauddetection.metrics.FraudMetricsService",
+      "occurrences": 7
+    },
+    {
+      "class": "com.example.common.cache.RedisCache",
+      "occurrences": 7
+    },
+    {
+      "class": "com.waqiti.security.service.IncidentResponseService",
+      "occurrences": 7
+    },
+    {
+      "class": "com.waqiti.security.metrics.SecurityMetricsService",
+      "occurrences": 7
+    },
+    {
+      "class": "com.example.common.events.PaymentFailedEvent",
+      "occurrences": 7
+    },
+    {
+      "class": "com.waqiti.currency.domain.ExchangeRate",
+      "occurrences": 7
+    },
+    {
+      "class": "com.waqiti.payment.service.PaymentGatewayService",
+      "occurrences": 7
+    },
+    {
+      "class": "com.example.compliance.service.ComplianceAlertService",
+      "occurrences": 7
+    },
+    {
+      "class": "com.example.compliance.service.ComplianceWorkflowService",
+      "occurrences": 7
+    },
+    {
+      "class": "com.waqiti.lending.service.LoanNotificationService",
+      "occurrences": 7
+    },
+    {
+      "class": "com.example.common.financial.BigDecimalMath",
+      "occurrences": 7
+    },
+    {
+      "class": "com.waqiti.frauddetection.service.FraudNotificationService",
+      "occurrences": 6
+    }
+  ],
+  "by_service": {
+    "payment-service": {
+      "missing_imports": 965,
+      "suspicious_methods": 0,
+      "missing_beans": 0,
+      "total": 965,
+      "samples": {
+        "missing_imports": [
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/payment/checkdeposit/PhotoCheckDepositService.java",
+            "import": "com.waqiti.payment.checkdeposit.validation.CheckValidator",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/payment/checkdeposit/PhotoCheckDepositService.java",
+            "import": "com.waqiti.payment.checkdeposit.repository.CheckDepositRepository",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/payment/checkdeposit/PhotoCheckDepositService.java",
+            "import": "com.example.common.exception.ReviewServiceException",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/payment/checkdeposit/PhotoCheckDepositService.java",
+            "import": "com.waqiti.payment.notification.NotificationService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/payment/checkdeposit/PhotoCheckDepositService.java",
+            "import": "com.waqiti.payment.wallet.WalletService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/payment/checkdeposit/CheckDepositProcessorService.java",
+            "import": "com.waqiti.payment.checkdeposit.repository.CheckDepositRepository",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/payment/checkdeposit/CheckDepositProcessorService.java",
+            "import": "com.waqiti.payment.checkdeposit.dto.DepositStatus",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/payment/checkdeposit/CheckDepositProcessorService.java",
+            "import": "com.waqiti.payment.checkdeposit.dto.CheckDeposit",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/payment/checkdeposit/CheckDepositProcessorService.java",
+            "import": "com.waqiti.payment.wallet.WalletService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/payment/checkdeposit/CheckDepositProcessorService.java",
+            "import": "com.waqiti.payment.notification.NotificationService",
+            "type": "MISSING_CLASS"
+          }
+        ],
+        "suspicious_methods": [],
+        "missing_beans": []
+      }
+    },
+    "compliance-service": {
+      "missing_imports": 492,
+      "suspicious_methods": 0,
+      "missing_beans": 0,
+      "total": 492,
+      "samples": {
+        "missing_imports": [
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/compliance-service/src/main/java/com/waqiti/compliance/pci/PciDssComplianceService.java",
+            "import": "com.example.compliance.repository.ComplianceRepository",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/compliance-service/src/main/java/com/waqiti/compliance/repository/LegalOrderRepository.java",
+            "import": "com.example.compliance.domain.LegalOrder.OrderStatus",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/compliance-service/src/main/java/com/waqiti/compliance/repository/LegalOrderRepository.java",
+            "import": "com.example.compliance.domain.LegalOrder.VerificationStatus",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/compliance-service/src/main/java/com/waqiti/compliance/repository/SanctionMatchRepository.java",
+            "import": "com.example.compliance.domain.SanctionMatch.MatchStatus",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/compliance-service/src/main/java/com/waqiti/compliance/ofac/SynchronousOFACScreeningService.java",
+            "import": "com.example.common.exception.ComplianceException",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/compliance-service/src/main/java/com/waqiti/compliance/ofac/SynchronousOFACScreeningService.java",
+            "import": "com.example.compliance.ofac.repository.OFACScreeningRepository",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/compliance-service/src/main/java/com/waqiti/compliance/ctr/CTRAutoFilingService.java",
+            "import": "com.example.compliance.ctr.repository.CTRRepository",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/compliance-service/src/main/java/com/waqiti/compliance/ctr/CTRAutoFilingService.java",
+            "import": "com.example.compliance.bsa.FinCENBSAEFilingClient",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/compliance-service/src/main/java/com/waqiti/compliance/scheduler/SARFilingScheduler.java",
+            "import": "com.example.compliance.repository.SarFilingStatusRepository",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/compliance-service/src/main/java/com/waqiti/compliance/controller/ComplianceAlertController.java",
+            "import": "com.example.compliance.service.ComplianceAlertService",
+            "type": "MISSING_CLASS"
+          }
+        ],
+        "suspicious_methods": [],
+        "missing_beans": []
+      }
+    },
+    "fraud-detection-service": {
+      "missing_imports": 263,
+      "suspicious_methods": 0,
+      "missing_beans": 0,
+      "total": 263,
+      "samples": {
+        "missing_imports": [
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/fraud-detection-service/src/main/java/com/waqiti/frauddetection/dto/CountryRiskAssessment.java",
+            "import": "com.waqiti.frauddetection.domain.RiskLevel",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/fraud-detection-service/src/main/java/com/waqiti/frauddetection/repository/FraudDetectionResultRepository.java",
+            "import": "com.waqiti.frauddetection.model.FraudDetectionResult",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/fraud-detection-service/src/main/java/com/waqiti/frauddetection/repository/FraudPatternRepository.java",
+            "import": "com.waqiti.frauddetection.model.FraudPattern",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/fraud-detection-service/src/main/java/com/waqiti/frauddetection/repository/ManualReviewCaseRepository.java",
+            "import": "com.waqiti.frauddetection.service.ManualReviewQueueService.ReviewStatus",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/fraud-detection-service/src/main/java/com/waqiti/frauddetection/repository/ManualReviewCaseRepository.java",
+            "import": "com.waqiti.frauddetection.service.ManualReviewQueueService.ReviewPriority",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/fraud-detection-service/src/main/java/com/waqiti/frauddetection/repository/FraudCaseRepository.java",
+            "import": "com.waqiti.frauddetection.entity.FraudCase.FraudCaseDecision",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/fraud-detection-service/src/main/java/com/waqiti/frauddetection/repository/TransactionFeatureRepository.java",
+            "import": "com.waqiti.frauddetection.model.TransactionFeature",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/fraud-detection-service/src/main/java/com/waqiti/frauddetection/repository/ModelPerformanceRepository.java",
+            "import": "com.waqiti.frauddetection.model.ModelPerformance",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/fraud-detection-service/src/main/java/com/waqiti/frauddetection/entity/ManualReviewCase.java",
+            "import": "com.waqiti.frauddetection.service.ManualReviewQueueService.ReviewDecision",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/fraud-detection-service/src/main/java/com/waqiti/frauddetection/entity/ManualReviewCase.java",
+            "import": "com.waqiti.frauddetection.service.ManualReviewQueueService.ReviewStatus",
+            "type": "MISSING_CLASS"
+          }
+        ],
+        "suspicious_methods": [],
+        "missing_beans": []
+      }
+    },
+    "security-service": {
+      "missing_imports": 244,
+      "suspicious_methods": 0,
+      "missing_beans": 0,
+      "total": 244,
+      "samples": {
+        "missing_imports": [
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/security-service/src/main/java/com/waqiti/security/encryption/PCIFieldEncryptionService.java",
+            "import": "com.waqiti.security.exception.PCIEncryptionException",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/security-service/src/main/java/com/waqiti/security/encryption/TokenizationService.java",
+            "import": "com.waqiti.security.exception.PCIEncryptionException",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/security-service/src/main/java/com/waqiti/security/keymanagement/EncryptionKeyManager.java",
+            "import": "com.waqiti.security.exception.PCIEncryptionException",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/security-service/src/main/java/com/waqiti/security/keymanagement/KeyRotationService.java",
+            "import": "com.waqiti.security.encryption.EncryptionService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/security-service/src/main/java/com/waqiti/security/mfa/MFACodeService.java",
+            "import": "com.waqiti.security.encryption.FieldEncryptionService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/security-service/src/main/java/com/waqiti/security/mfa/MFACodeService.java",
+            "import": "com.example.common.exception.MFAException",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/security-service/src/main/java/com/waqiti/security/mfa/TwilioSMSProvider.java",
+            "import": "com.example.common.exception.MFAException",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/security-service/src/main/java/com/waqiti/security/mfa/MFABackupCodeService.java",
+            "import": "com.waqiti.security.encryption.FieldEncryptionService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/security-service/src/main/java/com/waqiti/security/mfa/MFABackupCodeService.java",
+            "import": "com.example.common.exception.MFAException",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/security-service/src/main/java/com/waqiti/security/compliance/ComplianceService.java",
+            "import": "com.waqiti.security.aml.AMLMonitoringService.ComplianceCase",
+            "type": "MISSING_CLASS"
+          }
+        ],
+        "suspicious_methods": [],
+        "missing_beans": []
+      }
+    },
+    "account-service": {
+      "missing_imports": 188,
+      "suspicious_methods": 0,
+      "missing_beans": 0,
+      "total": 188,
+      "samples": {
+        "missing_imports": [
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/account-service/src/main/java/com/waqiti/account/repository/TransactionRepository.java",
+            "import": "com.waqiti.account.domain.TransactionStatus",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/account-service/src/main/java/com/waqiti/account/repository/TransactionRepository.java",
+            "import": "com.waqiti.account.domain.Transaction",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/account-service/src/main/java/com/waqiti/account/repository/AccountRepository.java",
+            "import": "com.waqiti.account.domain.Account.AccountType",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/account-service/src/main/java/com/waqiti/account/repository/AccountRepository.java",
+            "import": "com.waqiti.account.domain.Account.AccountStatus",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/account-service/src/main/java/com/waqiti/account/kafka/AccountControlConsumer.java",
+            "import": "com.example.common.events.AccountControlEvent",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/account-service/src/main/java/com/waqiti/account/kafka/AccountControlConsumer.java",
+            "import": "com.waqiti.account.service.AccountSecurityService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/account-service/src/main/java/com/waqiti/account/kafka/AccountControlConsumer.java",
+            "import": "com.waqiti.account.service.AccountControlService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/account-service/src/main/java/com/waqiti/account/kafka/AccountControlConsumer.java",
+            "import": "com.waqiti.account.domain.AccountControlAction",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/account-service/src/main/java/com/waqiti/account/kafka/AccountControlConsumer.java",
+            "import": "com.waqiti.account.repository.AccountControlActionRepository",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/account-service/src/main/java/com/waqiti/account/kafka/AccountLimitsUpdatesConsumer.java",
+            "import": "com.waqiti.account.service.AccountLimitsService",
+            "type": "MISSING_CLASS"
+          }
+        ],
+        "suspicious_methods": [],
+        "missing_beans": []
+      }
+    },
+    "lending-service": {
+      "missing_imports": 173,
+      "suspicious_methods": 0,
+      "missing_beans": 0,
+      "total": 173,
+      "samples": {
+        "missing_imports": [
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/lending-service/src/main/java/com/waqiti/lending/kafka/LoanRestructuringEventsConsumer.java",
+            "import": "com.waqiti.lending.service.DebtWorkoutService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/lending-service/src/main/java/com/waqiti/lending/kafka/LoanRestructuringEventsConsumer.java",
+            "import": "com.example.common.events.LoanRestructuringEvent",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/lending-service/src/main/java/com/waqiti/lending/kafka/LoanRestructuringEventsConsumer.java",
+            "import": "com.waqiti.lending.service.LoanRestructuringService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/lending-service/src/main/java/com/waqiti/lending/kafka/LoanRestructuringEventsConsumer.java",
+            "import": "com.waqiti.lending.repository.LoanRestructuringRepository",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/lending-service/src/main/java/com/waqiti/lending/kafka/LoanRestructuringEventsConsumer.java",
+            "import": "com.waqiti.lending.metrics.LendingMetricsService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/lending-service/src/main/java/com/waqiti/lending/kafka/LoanRestructuringEventsConsumer.java",
+            "import": "com.waqiti.lending.domain.LoanRestructuring",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/lending-service/src/main/java/com/waqiti/lending/kafka/StudentLoanEventsDlqConsumer.java",
+            "import": "com.waqiti.lending.repository.StudentLoanRepository",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/lending-service/src/main/java/com/waqiti/lending/kafka/StudentLoanEventsDlqConsumer.java",
+            "import": "com.waqiti.lending.service.StudentLoanService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/lending-service/src/main/java/com/waqiti/lending/kafka/LoanRefinanceEventsConsumer.java",
+            "import": "com.waqiti.lending.service.LoanRefinanceService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/lending-service/src/main/java/com/waqiti/lending/kafka/LoanRefinanceEventsConsumer.java",
+            "import": "com.waqiti.lending.service.LoanNotificationService",
+            "type": "MISSING_CLASS"
+          }
+        ],
+        "suspicious_methods": [],
+        "missing_beans": []
+      }
+    },
+    "monitoring-service": {
+      "missing_imports": 163,
+      "suspicious_methods": 0,
+      "missing_beans": 0,
+      "total": 163,
+      "samples": {
+        "missing_imports": [
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/monitoring-service/src/main/java/com/waqiti/monitoring/kafka/DatabasePerformanceConsumer.java",
+            "import": "com.example.common.kafka.KafkaRetryHandler",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/monitoring-service/src/main/java/com/waqiti/monitoring/kafka/DatabasePerformanceConsumer.java",
+            "import": "com.waqiti.monitoring.model.MonitoringEvent",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/monitoring-service/src/main/java/com/waqiti/monitoring/kafka/SystemEventConsumer.java",
+            "import": "com.waqiti.monitoring.service.IncidentManagementService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/monitoring-service/src/main/java/com/waqiti/monitoring/kafka/SystemEventConsumer.java",
+            "import": "com.waqiti.monitoring.service.MetricsCollectionService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/monitoring-service/src/main/java/com/waqiti/monitoring/kafka/SystemEventConsumer.java",
+            "import": "com.waqiti.monitoring.service.SystemHealthTrackingService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/monitoring-service/src/main/java/com/waqiti/monitoring/kafka/SecurityMonitoringConsumer.java",
+            "import": "com.waqiti.monitoring.repository.SecurityEventRepository",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/monitoring-service/src/main/java/com/waqiti/monitoring/kafka/SecurityMonitoringConsumer.java",
+            "import": "com.waqiti.monitoring.entity.SecurityEvent",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/monitoring-service/src/main/java/com/waqiti/monitoring/kafka/ConnectionPoolAlertsConsumer.java",
+            "import": "com.waqiti.monitoring.service.InfrastructureMetricsService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/monitoring-service/src/main/java/com/waqiti/monitoring/kafka/ConnectionPoolAlertsConsumer.java",
+            "import": "com.example.common.events.ConnectionPoolAlertEvent",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/monitoring-service/src/main/java/com/waqiti/monitoring/kafka/ConnectionPoolAlertsConsumer.java",
+            "import": "com.waqiti.monitoring.service.ConnectionPoolMonitoringService",
+            "type": "MISSING_CLASS"
+          }
+        ],
+        "suspicious_methods": [],
+        "missing_beans": []
+      }
+    },
+    "wallet-service": {
+      "missing_imports": 160,
+      "suspicious_methods": 0,
+      "missing_beans": 0,
+      "total": 160,
+      "samples": {
+        "missing_imports": [
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/wallet-service/src/main/java/com/waqiti/wallet/dto/BankAccountCreateRequest.java",
+            "import": "com.waqiti.wallet.domain.BankAccount",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/wallet-service/src/main/java/com/waqiti/wallet/reconciliation/AutomatedWalletReconciliationService.java",
+            "import": "com.example.common.events.WalletReconciliationEvent",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/wallet-service/src/main/java/com/waqiti/wallet/repository/ProcessedEventRepository.java",
+            "import": "com.waqiti.wallet.model.ProcessedEvent",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/wallet-service/src/main/java/com/waqiti/wallet/repository/ComplianceCheckRepository.java",
+            "import": "com.waqiti.wallet.entity.ComplianceCheck.RiskLevel",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/wallet-service/src/main/java/com/waqiti/wallet/repository/ComplianceCheckRepository.java",
+            "import": "com.waqiti.wallet.entity.ComplianceCheck.CheckStatus",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/wallet-service/src/main/java/com/waqiti/wallet/repository/TransactionRestrictionRepository.java",
+            "import": "com.waqiti.wallet.entity.TransactionRestriction.RestrictionStatus",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/wallet-service/src/main/java/com/waqiti/wallet/controller/WalletController.java",
+            "import": "com.waqiti.wallet.service.BalanceService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/wallet-service/src/main/java/com/waqiti/wallet/controller/WalletController.java",
+            "import": "com.waqiti.wallet.service.TransactionService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/wallet-service/src/main/java/com/waqiti/wallet/controller/CriticalWalletController.java",
+            "import": "com.example.common.ratelimit.RateLimit.Priority",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/wallet-service/src/main/java/com/waqiti/wallet/controller/CriticalWalletController.java",
+            "import": "com.example.common.ratelimit.RateLimit.KeyType",
+            "type": "MISSING_CLASS"
+          }
+        ],
+        "suspicious_methods": [],
+        "missing_beans": []
+      }
+    },
+    "customer-service": {
+      "missing_imports": 158,
+      "suspicious_methods": 0,
+      "missing_beans": 0,
+      "total": 158,
+      "samples": {
+        "missing_imports": [
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/customer-service/src/main/java/com/waqiti/customer/kafka/CustomerComplaintEventsConsumer.java",
+            "import": "com.waqiti.customer.service.CustomerComplaintService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/customer-service/src/main/java/com/waqiti/customer/kafka/CustomerComplaintEventsConsumer.java",
+            "import": "com.example.common.events.customer.CustomerComplaintEvent",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/customer-service/src/main/java/com/waqiti/customer/kafka/CustomerEventsDlqConsumer.java",
+            "import": "com.example.common.events.customer.CustomerEvent",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/customer-service/src/main/java/com/waqiti/customer/kafka/CustomerEventsDlqConsumer.java",
+            "import": "com.waqiti.customer.service.CustomerDlqService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/customer-service/src/main/java/com/waqiti/customer/kafka/CustomerSatisfactionAlertsConsumer.java",
+            "import": "com.waqiti.customer.service.CustomerRetentionService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/customer-service/src/main/java/com/waqiti/customer/kafka/CustomerSatisfactionAlertsConsumer.java",
+            "import": "com.waqiti.customer.domain.AlertSeverity",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/customer-service/src/main/java/com/waqiti/customer/kafka/CustomerSatisfactionAlertsConsumer.java",
+            "import": "com.waqiti.customer.service.CustomerExperienceService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/customer-service/src/main/java/com/waqiti/customer/kafka/CustomerSatisfactionAlertsConsumer.java",
+            "import": "com.waqiti.customer.entity.Customer",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/customer-service/src/main/java/com/waqiti/customer/kafka/CustomerSatisfactionAlertsConsumer.java",
+            "import": "com.waqiti.customer.service.SatisfactionAnalyticsService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/customer-service/src/main/java/com/waqiti/customer/kafka/CustomerSatisfactionAlertsConsumer.java",
+            "import": "com.waqiti.customer.entity.SatisfactionAlert",
+            "type": "MISSING_CLASS"
+          }
+        ],
+        "suspicious_methods": [],
+        "missing_beans": []
+      }
+    },
+    "merchant-service": {
+      "missing_imports": 145,
+      "suspicious_methods": 0,
+      "missing_beans": 0,
+      "total": 145,
+      "samples": {
+        "missing_imports": [
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/merchant-service/src/main/java/com/waqiti/merchant/kafka/MerchantRiskScoringDlqConsumer.java",
+            "import": "com.waqiti.merchant.service.MerchantEscalationService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/merchant-service/src/main/java/com/waqiti/merchant/kafka/MerchantRiskScoringDlqConsumer.java",
+            "import": "com.waqiti.merchant.repository.MerchantRiskAssessmentRepository",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/merchant-service/src/main/java/com/waqiti/merchant/kafka/MerchantRiskScoringDlqConsumer.java",
+            "import": "com.waqiti.merchant.metrics.MerchantMetricsService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/merchant-service/src/main/java/com/waqiti/merchant/kafka/MerchantRiskScoringDlqConsumer.java",
+            "import": "com.waqiti.merchant.domain.MerchantRiskAssessment",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/merchant-service/src/main/java/com/waqiti/merchant/kafka/MerchantRiskScoringDlqConsumer.java",
+            "import": "com.example.common.events.MerchantRiskScoringEvent",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/merchant-service/src/main/java/com/waqiti/merchant/kafka/MediationEventsConsumer.java",
+            "import": "com.waqiti.merchant.repository.MediationCaseRepository",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/merchant-service/src/main/java/com/waqiti/merchant/kafka/MediationEventsConsumer.java",
+            "import": "com.example.common.events.MediationEvent",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/merchant-service/src/main/java/com/waqiti/merchant/kafka/MediationEventsConsumer.java",
+            "import": "com.waqiti.merchant.service.MediationService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/merchant-service/src/main/java/com/waqiti/merchant/kafka/MediationEventsConsumer.java",
+            "import": "com.waqiti.merchant.service.DisputeResolutionService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/merchant-service/src/main/java/com/waqiti/merchant/kafka/MediationEventsConsumer.java",
+            "import": "com.waqiti.merchant.domain.MediationCase",
+            "type": "MISSING_CLASS"
+          }
+        ],
+        "suspicious_methods": [],
+        "missing_beans": []
+      }
+    },
+    "kyc-service": {
+      "missing_imports": 143,
+      "suspicious_methods": 0,
+      "missing_beans": 0,
+      "total": 143,
+      "samples": {
+        "missing_imports": [
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/kyc-service/src/main/java/com/waqiti/kyc/dto/DocumentVerificationRequest.java",
+            "import": "com.waqiti.kyc.model.DocumentType",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/kyc-service/src/main/java/com/waqiti/kyc/repository/ComplianceReportRepository.java",
+            "import": "com.waqiti.kyc.domain.ComplianceReport.ReportStatus",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/kyc-service/src/main/java/com/waqiti/kyc/repository/VerificationDocumentRepository.java",
+            "import": "com.waqiti.kyc.service.KYCDocumentVerificationService.DocumentType",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/kyc-service/src/main/java/com/waqiti/kyc/repository/AddressRepository.java",
+            "import": "com.waqiti.kyc.model.VerificationStatus",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/kyc-service/src/main/java/com/waqiti/kyc/repository/KYCVerificationRepository.java",
+            "import": "com.waqiti.kyc.domain.KYCVerification.KYCStatus",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/kyc-service/src/main/java/com/waqiti/kyc/repository/KYCVerificationRepository.java",
+            "import": "com.waqiti.kyc.domain.KYCVerification.VerificationLevel",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/kyc-service/src/main/java/com/waqiti/kyc/repository/KYCVerificationRepository.java",
+            "import": "com.waqiti.kyc.domain.KYCVerification.Status",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/kyc-service/src/main/java/com/waqiti/kyc/repository/AMLResultRepository.java",
+            "import": "com.waqiti.kyc.model.VerificationStatus",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/kyc-service/src/main/java/com/waqiti/kyc/repository/BatchKYCJobRepository.java",
+            "import": "com.waqiti.kyc.domain.BatchKYCJob.JobStatus",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/kyc-service/src/main/java/com/waqiti/kyc/repository/DocumentVerificationRepository.java",
+            "import": "com.waqiti.kyc.service.KYCDocumentVerificationService.DocumentType",
+            "type": "MISSING_CLASS"
+          }
+        ],
+        "suspicious_methods": [],
+        "missing_beans": []
+      }
+    },
+    "investment-service": {
+      "missing_imports": 133,
+      "suspicious_methods": 0,
+      "missing_beans": 0,
+      "total": 133,
+      "samples": {
+        "missing_imports": [
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/investment-service/src/main/java/com/waqiti/investment/controller/CriticalInvestmentController.java",
+            "import": "com.waqiti.investment.service.InvestmentOrderService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/investment-service/src/main/java/com/waqiti/investment/controller/CriticalInvestmentController.java",
+            "import": "com.example.common.ratelimit.RateLimit.Priority",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/investment-service/src/main/java/com/waqiti/investment/controller/CriticalInvestmentController.java",
+            "import": "com.example.common.ratelimit.RateLimit.KeyType",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/investment-service/src/main/java/com/waqiti/investment/kafka/DividendEventsConsumer.java",
+            "import": "com.waqiti.investment.service.DividendService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/investment-service/src/main/java/com/waqiti/investment/kafka/DividendEventsConsumer.java",
+            "import": "com.example.common.exception.InvestmentProcessingException",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/investment-service/src/main/java/com/waqiti/investment/kafka/DividendEventsConsumer.java",
+            "import": "com.waqiti.investment.service.TaxService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/investment-service/src/main/java/com/waqiti/investment/kafka/MarginCallEventConsumer.java",
+            "import": "com.waqiti.investment.entity.MarginCall",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/investment-service/src/main/java/com/waqiti/investment/kafka/MarginCallEventConsumer.java",
+            "import": "com.waqiti.investment.service.RiskManagementService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/investment-service/src/main/java/com/waqiti/investment/kafka/MarginCallEventConsumer.java",
+            "import": "com.waqiti.investment.service.MarginAccountService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/investment-service/src/main/java/com/waqiti/investment/kafka/PortfolioRebalancingEventConsumer.java",
+            "import": "com.waqiti.investment.service.TaxLotOptimizationService",
+            "type": "MISSING_CLASS"
+          }
+        ],
+        "suspicious_methods": [],
+        "missing_beans": []
+      }
+    },
+    "notification-service": {
+      "missing_imports": 128,
+      "suspicious_methods": 0,
+      "missing_beans": 0,
+      "total": 128,
+      "samples": {
+        "missing_imports": [
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/notification-service/src/main/java/com/waqiti/notification/dto/BulkCreateTopicsRequest.java",
+            "import": "com.example.common.validation.RateLimit",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/notification-service/src/main/java/com/waqiti/notification/dto/BulkUpdateTopicsRequest.java",
+            "import": "com.example.common.validation.RateLimit",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/notification-service/src/main/java/com/waqiti/notification/dto/BulkNotificationRequest.java",
+            "import": "com.example.common.validation.RateLimit",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/notification-service/src/main/java/com/waqiti/notification/websocket/WebSocketConfig.java",
+            "import": "com.waqiti.notification.security.JwtTokenProvider",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/notification-service/src/main/java/com/waqiti/notification/cache/NotificationCacheService.java",
+            "import": "com.waqiti.notification.exception.NotificationException",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/notification-service/src/main/java/com/waqiti/notification/cache/NotificationCacheService.java",
+            "import": "com.waqiti.notification.model.NotificationChannel",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/notification-service/src/main/java/com/waqiti/notification/integration/SendGridEmailProvider.java",
+            "import": "com.waqiti.notification.repository.SendGridWebhookEventRepository",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/notification-service/src/main/java/com/waqiti/notification/integration/SendGridEmailProvider.java",
+            "import": "com.waqiti.notification.domain.SendGridWebhookEvent",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/notification-service/src/main/java/com/waqiti/notification/kafka/EmailNotificationEventsConsumer.java",
+            "import": "com.waqiti.notification.service.EmailNotificationService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/notification-service/src/main/java/com/waqiti/notification/kafka/WebhookNotificationEventsConsumer.java",
+            "import": "com.waqiti.notification.service.WebhookNotificationService",
+            "type": "MISSING_CLASS"
+          }
+        ],
+        "suspicious_methods": [],
+        "missing_beans": []
+      }
+    },
+    "user-service": {
+      "missing_imports": 122,
+      "suspicious_methods": 0,
+      "missing_beans": 0,
+      "total": 122,
+      "samples": {
+        "missing_imports": [
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/user-service/src/main/java/com/waqiti/user/repository/NotificationPreferenceRepository.java",
+            "import": "com.waqiti.user.entity.NotificationPreference.NotificationChannel",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/user-service/src/main/java/com/waqiti/user/repository/GuardianApprovalRequestRepository.java",
+            "import": "com.waqiti.user.security.FamilyGuardianMfaService.GuardianActionType",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/user-service/src/main/java/com/waqiti/user/security/SecureTOTPService.java",
+            "import": "com.example.common.audit.SecurityAuditLogger",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/user-service/src/main/java/com/waqiti/user/controller/CriticalAuthController.java",
+            "import": "com.waqiti.user.service.PasswordResetService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/user-service/src/main/java/com/waqiti/user/controller/CriticalAuthController.java",
+            "import": "com.example.common.ratelimit.RateLimit.Priority",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/user-service/src/main/java/com/waqiti/user/controller/CriticalAuthController.java",
+            "import": "com.example.common.ratelimit.RateLimit.KeyType",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/user-service/src/main/java/com/waqiti/user/controller/CriticalAuthController.java",
+            "import": "com.waqiti.user.service.AuthenticationService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/user-service/src/main/java/com/waqiti/user/controller/CriticalAuthController.java",
+            "import": "com.waqiti.user.service.UserRegistrationService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/user-service/src/main/java/com/waqiti/user/kafka/PasswordResetEventsConsumer.java",
+            "import": "com.waqiti.user.service.PasswordPolicyService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/user-service/src/main/java/com/waqiti/user/kafka/PasswordResetEventsConsumer.java",
+            "import": "com.waqiti.user.model.PasswordResetStatus",
+            "type": "MISSING_CLASS"
+          }
+        ],
+        "suspicious_methods": [],
+        "missing_beans": []
+      }
+    },
+    "international-service": {
+      "missing_imports": 121,
+      "suspicious_methods": 0,
+      "missing_beans": 0,
+      "total": 121,
+      "samples": {
+        "missing_imports": [
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/international-service/src/main/java/com/waqiti/international/repository/InternationalTransferTemplateRepository.java",
+            "import": "com.waqiti.international.entity.InternationalTransferTemplate.TemplateType",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/international-service/src/main/java/com/waqiti/international/repository/InternationalTransferTemplateRepository.java",
+            "import": "com.waqiti.international.entity.InternationalTransferTemplate.TemplateStatus",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/international-service/src/main/java/com/waqiti/international/repository/LimitUsageHistoryRepository.java",
+            "import": "com.waqiti.international.entity.LimitUsageHistory.UsageStatus",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/international-service/src/main/java/com/waqiti/international/repository/LimitUsageHistoryRepository.java",
+            "import": "com.waqiti.international.entity.LimitUsageHistory.UsageType",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/international-service/src/main/java/com/waqiti/international/repository/UserTransferLimitsRepository.java",
+            "import": "com.waqiti.international.entity.UserTransferLimits.CustomerCategory",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/international-service/src/main/java/com/waqiti/international/repository/UserTransferLimitsRepository.java",
+            "import": "com.waqiti.international.entity.UserTransferLimits.KYCLevel",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/international-service/src/main/java/com/waqiti/international/repository/UserTransferLimitsRepository.java",
+            "import": "com.waqiti.international.entity.UserTransferLimits.RiskLevel",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/international-service/src/main/java/com/waqiti/international/repository/UserTransferLimitsRepository.java",
+            "import": "com.waqiti.international.entity.UserTransferLimits.LimitType",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/international-service/src/main/java/com/waqiti/international/repository/UserTransferLimitsRepository.java",
+            "import": "com.waqiti.international.entity.UserTransferLimits.LimitStatus",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/international-service/src/main/java/com/waqiti/international/repository/TemplateUsageHistoryRepository.java",
+            "import": "com.waqiti.international.entity.TemplateUsageHistory.UsageStatus",
+            "type": "MISSING_CLASS"
+          }
+        ],
+        "suspicious_methods": [],
+        "missing_beans": []
+      }
+    },
+    "crypto-service": {
+      "missing_imports": 109,
+      "suspicious_methods": 0,
+      "missing_beans": 0,
+      "total": 109,
+      "samples": {
+        "missing_imports": [
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/crypto-service/src/main/java/com/waqiti/crypto/dto/PriceHistoryRequest.java",
+            "import": "com.waqiti.crypto.domain.CryptoCurrency",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/crypto-service/src/main/java/com/waqiti/crypto/dto/PriceHistoryResponse.java",
+            "import": "com.waqiti.crypto.domain.CryptoCurrency",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/crypto-service/src/main/java/com/waqiti/crypto/lightning/LightningNetworkService.java",
+            "import": "com.waqiti.crypto.domain.CryptoWallet",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/crypto-service/src/main/java/com/waqiti/crypto/security/CryptoFraudDetectionService.java",
+            "import": "com.example.common.events.CryptoFraudAlertEvent",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/crypto-service/src/main/java/com/waqiti/crypto/security/EnhancedAWSKMSService.java",
+            "import": "com.waqiti.crypto.exception.KMSEncryptionException",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/crypto-service/src/main/java/com/waqiti/crypto/security/MultiSigWalletFactory.java",
+            "import": "com.waqiti.crypto.dto.MultiSigWallet",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/crypto-service/src/main/java/com/waqiti/crypto/compliance/ComplianceService.java",
+            "import": "com.waqiti.crypto.dto.SendCryptocurrencyRequest",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/crypto-service/src/main/java/com/waqiti/crypto/controller/CryptoTransactionController.java",
+            "import": "com.waqiti.crypto.entity.TransactionStatus",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/crypto-service/src/main/java/com/waqiti/crypto/controller/CryptoTradingController.java",
+            "import": "com.waqiti.crypto.dto.response.TradingOrderResponse",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/crypto-service/src/main/java/com/waqiti/crypto/controller/CryptoTradingController.java",
+            "import": "com.waqiti.crypto.dto.response.TradeResponse",
+            "type": "MISSING_CLASS"
+          }
+        ],
+        "suspicious_methods": [],
+        "missing_beans": []
+      }
+    },
+    "risk-service": {
+      "missing_imports": 105,
+      "suspicious_methods": 0,
+      "missing_beans": 0,
+      "total": 105,
+      "samples": {
+        "missing_imports": [
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/risk-service/src/main/java/com/waqiti/risk/kafka/RiskScoringConsumer.java",
+            "import": "com.example.common.cache.RedisCache",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/risk-service/src/main/java/com/waqiti/risk/kafka/RiskScoringConsumer.java",
+            "import": "com.example.common.notification.NotificationTemplate",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/risk-service/src/main/java/com/waqiti/risk/kafka/BehavioralAnalysisConsumer.java",
+            "import": "com.example.common.cache.RedisCache",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/risk-service/src/main/java/com/waqiti/risk/kafka/BehavioralAnalysisConsumer.java",
+            "import": "com.example.common.notification.NotificationTemplate",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/risk-service/src/main/java/com/waqiti/risk/kafka/AnomalyDetectionConsumer.java",
+            "import": "com.example.common.cache.RedisCache",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/risk-service/src/main/java/com/waqiti/risk/kafka/AnomalyDetectionConsumer.java",
+            "import": "com.example.common.notification.NotificationTemplate",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/risk-service/src/main/java/com/waqiti/risk/kafka/OperationalRiskEventConsumer.java",
+            "import": "com.waqiti.risk.service.OperationalRiskService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/risk-service/src/main/java/com/waqiti/risk/kafka/OperationalRiskEventConsumer.java",
+            "import": "com.waqiti.risk.service.RiskReportingService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/risk-service/src/main/java/com/waqiti/risk/kafka/OperationalRiskEventConsumer.java",
+            "import": "com.waqiti.risk.entity.OperationalRiskEvent",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/risk-service/src/main/java/com/waqiti/risk/kafka/OperationalRiskEventConsumer.java",
+            "import": "com.waqiti.risk.service.RiskAuditService",
+            "type": "MISSING_CLASS"
+          }
+        ],
+        "suspicious_methods": [],
+        "missing_beans": []
+      }
+    },
+    "insurance-service": {
+      "missing_imports": 90,
+      "suspicious_methods": 0,
+      "missing_beans": 0,
+      "total": 90,
+      "samples": {
+        "missing_imports": [
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/insurance-service/src/main/java/com/waqiti/insurance/kafka/InsurancePolicyCancellationEventConsumer.java",
+            "import": "com.waqiti.insurance.service.RefundCalculationService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/insurance-service/src/main/java/com/waqiti/insurance/kafka/InsurancePolicyCancellationEventConsumer.java",
+            "import": "com.waqiti.insurance.service.PolicyCancellationService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/insurance-service/src/main/java/com/waqiti/insurance/kafka/InsurancePolicyCancellationEventConsumer.java",
+            "import": "com.waqiti.insurance.entity.PolicyCancellation",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/insurance-service/src/main/java/com/waqiti/insurance/kafka/InsuranceClaimSubmissionEventsConsumer.java",
+            "import": "com.waqiti.insurance.repository.ClaimSubmissionRepository",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/insurance-service/src/main/java/com/waqiti/insurance/kafka/InsuranceClaimSubmissionEventsConsumer.java",
+            "import": "com.waqiti.insurance.service.DocumentValidationService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/insurance-service/src/main/java/com/waqiti/insurance/kafka/InsuranceClaimSubmissionEventsConsumer.java",
+            "import": "com.waqiti.insurance.repository.PolicyRepository",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/insurance-service/src/main/java/com/waqiti/insurance/kafka/InsuranceClaimSubmissionEventsConsumer.java",
+            "import": "com.waqiti.insurance.metrics.InsuranceMetricsService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/insurance-service/src/main/java/com/waqiti/insurance/kafka/InsuranceClaimSubmissionEventsConsumer.java",
+            "import": "com.waqiti.insurance.service.ClaimSubmissionService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/insurance-service/src/main/java/com/waqiti/insurance/kafka/InsuranceClaimSubmissionEventsConsumer.java",
+            "import": "com.waqiti.insurance.domain.ClaimSubmission",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/insurance-service/src/main/java/com/waqiti/insurance/kafka/InsuranceClaimSubmissionEventsConsumer.java",
+            "import": "com.example.common.events.InsuranceClaimSubmissionEvent",
+            "type": "MISSING_CLASS"
+          }
+        ],
+        "suspicious_methods": [],
+        "missing_beans": []
+      }
+    },
+    "common": {
+      "missing_imports": 87,
+      "suspicious_methods": 0,
+      "missing_beans": 0,
+      "total": 87,
+      "samples": {
+        "missing_imports": [
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/common/src/main/java/com/waqiti/common/transaction/DistributedTransactionService.java",
+            "import": "com.example.common.transaction.DistributedTransactionCoordinator.TwoPhaseCommitRequest",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/common/src/main/java/com/waqiti/common/transaction/DistributedTransactionService.java",
+            "import": "com.example.common.transaction.DistributedTransactionCoordinator.SagaTransactionRequest",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/common/src/main/java/com/waqiti/common/transaction/DistributedTransactionService.java",
+            "import": "com.example.common.transaction.DistributedTransactionCoordinator.DistributedTransactionState",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/common/src/main/java/com/waqiti/common/security/HybridSecretRotationService.java",
+            "import": "com.example.common.audit.AuditModels.SecurityAuditRequest",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/common/src/main/java/com/waqiti/common/security/SecureJwtTokenProvider.java",
+            "import": "com.example.common.auth.dto.DeviceAuthDTOs.TokenPair",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/common/src/main/java/com/waqiti/common/security/SecureJwtTokenProvider.java",
+            "import": "com.example.common.auth.dto.DeviceAuthDTOs.RefreshTokenFamily",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/common/src/main/java/com/waqiti/common/audit/AuditService.java",
+            "import": "com.example.common.audit.FinancialAuditLog.TransactionStatus",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/common/src/main/java/com/waqiti/common/ml/ModelPredictionService.java",
+            "import": "com.example.common.fraud.ComprehensiveFraudDetectionService.MLImageAnalysisResult",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/common/src/main/java/com/waqiti/common/ml/ModelPredictionService.java",
+            "import": "com.example.common.fraud.ComprehensiveFraudDetectionService.MLFraudScore",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/common/src/main/java/com/waqiti/common/ml/ImageAnalysisService.java",
+            "import": "com.example.common.fraud.ComprehensiveFraudDetectionService.MLImageAnalysisResult",
+            "type": "MISSING_CLASS"
+          }
+        ],
+        "suspicious_methods": [],
+        "missing_beans": []
+      }
+    },
+    "card-service": {
+      "missing_imports": 80,
+      "suspicious_methods": 0,
+      "missing_beans": 0,
+      "total": 80,
+      "samples": {
+        "missing_imports": [
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/card-service/src/main/java/com/waqiti/card/kafka/CardLifecycleEventsConsumer.java",
+            "import": "com.waqiti.card.domain.Card",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/card-service/src/main/java/com/waqiti/card/kafka/CardLifecycleEventsConsumer.java",
+            "import": "com.waqiti.card.metrics.CardMetricsService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/card-service/src/main/java/com/waqiti/card/kafka/CardLifecycleEventsConsumer.java",
+            "import": "com.waqiti.card.domain.CardStatusHistory",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/card-service/src/main/java/com/waqiti/card/kafka/CardLifecycleEventsConsumer.java",
+            "import": "com.example.common.events.CardLifecycleEvent",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/card-service/src/main/java/com/waqiti/card/kafka/CardLifecycleEventsConsumer.java",
+            "import": "com.waqiti.card.service.CardSecurityService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/card-service/src/main/java/com/waqiti/card/kafka/CardLifecycleEventsConsumer.java",
+            "import": "com.waqiti.card.service.CardActivationService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/card-service/src/main/java/com/waqiti/card/kafka/CardLifecycleEventsConsumer.java",
+            "import": "com.waqiti.card.repository.CardStatusHistoryRepository",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/card-service/src/main/java/com/waqiti/card/kafka/CardLifecycleEventsConsumer.java",
+            "import": "com.waqiti.card.service.CardReplacementService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/card-service/src/main/java/com/waqiti/card/kafka/CardTransactionEventConsumer.java",
+            "import": "com.waqiti.card.service.CardNotificationService",
+            "type": "MISSING_CLASS"
+          },
+          {
+            "file": "/Users/anietieakpan/git/waqiti-app/services/card-service/src/main/java/com/waqiti/card/kafka/CardControlsEventsConsumer.java",
+            "import": "com.waqiti.card.domain.Card",
+            "type": "MISSING_CLASS"
+          }
+        ],
+        "suspicious_methods": [],
+        "missing_beans": []
+      }
+    }
+  }
+}

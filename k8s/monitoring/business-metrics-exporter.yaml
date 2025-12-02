@@ -1,0 +1,428 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: business-metrics-config
+  namespace: monitoring
+  labels:
+    app: business-metrics-exporter
+    component: metrics
+data:
+  config.yml: |
+    server:
+      port: 8080
+      metrics_path: /metrics
+      health_path: /health
+    
+    database:
+      host: waqiti-postgres-primary.database.svc.cluster.local
+      port: 5432
+      database: waqiti
+      username: metrics_reader
+      password_file: /etc/secrets/db-password
+      ssl_mode: require
+      max_connections: 5
+      query_timeout: 30s
+    
+    metrics:
+      collection_interval: 30s
+      
+    queries:
+      # Financial Transaction Metrics
+      - name: daily_transaction_volume
+        help: "Total daily transaction volume in USD"
+        type: gauge
+        query: |
+          SELECT COALESCE(SUM(amount), 0) as value
+          FROM transactions 
+          WHERE created_at >= CURRENT_DATE 
+          AND status = 'COMPLETED'
+        labels: []
+        
+      - name: daily_transaction_count
+        help: "Total number of transactions today"
+        type: gauge
+        query: |
+          SELECT COUNT(*) as value
+          FROM transactions 
+          WHERE created_at >= CURRENT_DATE
+        labels: []
+        
+      - name: active_users_today
+        help: "Number of users active today"
+        type: gauge  
+        query: |
+          SELECT COUNT(DISTINCT user_id) as value
+          FROM transactions 
+          WHERE created_at >= CURRENT_DATE
+        labels: []
+        
+      - name: payment_method_usage
+        help: "Payment method usage distribution"
+        type: gauge
+        query: |
+          SELECT 
+            payment_method as label_payment_method,
+            COUNT(*) as value
+          FROM transactions 
+          WHERE created_at >= CURRENT_DATE - INTERVAL '1 hour'
+          GROUP BY payment_method
+        labels:
+          - payment_method
+          
+      - name: average_transaction_amount
+        help: "Average transaction amount by currency"
+        type: gauge
+        query: |
+          SELECT 
+            currency as label_currency,
+            AVG(amount) as value
+          FROM transactions 
+          WHERE created_at >= CURRENT_DATE - INTERVAL '1 hour'
+          AND status = 'COMPLETED'
+          GROUP BY currency
+        labels:
+          - currency
+          
+      # Wallet Metrics
+      - name: total_wallet_balance
+        help: "Total wallet balance across all users"
+        type: gauge
+        query: |
+          SELECT 
+            currency as label_currency,
+            SUM(balance) as value
+          FROM wallets 
+          WHERE status = 'ACTIVE'
+          GROUP BY currency
+        labels:
+          - currency
+          
+      - name: wallet_count_by_status
+        help: "Number of wallets by status"
+        type: gauge
+        query: |
+          SELECT 
+            status as label_status,
+            COUNT(*) as value
+          FROM wallets 
+          GROUP BY status
+        labels:
+          - status
+          
+      # User Registration Metrics
+      - name: daily_user_registrations
+        help: "Number of new user registrations today"
+        type: gauge
+        query: |
+          SELECT COUNT(*) as value
+          FROM users 
+          WHERE created_at >= CURRENT_DATE
+        labels: []
+        
+      - name: user_verification_status
+        help: "Distribution of user verification status"
+        type: gauge
+        query: |
+          SELECT 
+            kyc_status as label_kyc_status,
+            COUNT(*) as value
+          FROM users 
+          GROUP BY kyc_status
+        labels:
+          - kyc_status
+          
+      # Compliance Metrics
+      - name: pending_aml_screenings
+        help: "Number of pending AML screenings"
+        type: gauge
+        query: |
+          SELECT COUNT(*) as value
+          FROM aml_screenings 
+          WHERE status = 'PENDING'
+        labels: []
+        
+      - name: fraud_alerts_today
+        help: "Number of fraud alerts generated today"
+        type: gauge
+        query: |
+          SELECT 
+            risk_level as label_risk_level,
+            COUNT(*) as value
+          FROM fraud_alerts 
+          WHERE created_at >= CURRENT_DATE
+          GROUP BY risk_level
+        labels:
+          - risk_level
+          
+      - name: kyc_completion_rate
+        help: "KYC completion rate percentage"
+        type: gauge
+        query: |
+          SELECT 
+            ROUND(
+              (COUNT(*) FILTER (WHERE kyc_status = 'VERIFIED') * 100.0) / 
+              NULLIF(COUNT(*), 0), 2
+            ) as value
+          FROM users 
+          WHERE created_at >= CURRENT_DATE - INTERVAL '7 days'
+        labels: []
+        
+      # Revenue Metrics  
+      - name: daily_revenue
+        help: "Daily revenue from fees"
+        type: gauge
+        query: |
+          SELECT 
+            currency as label_currency,
+            COALESCE(SUM(fee_amount), 0) as value
+          FROM transactions 
+          WHERE created_at >= CURRENT_DATE 
+          AND status = 'COMPLETED'
+          AND fee_amount > 0
+          GROUP BY currency
+        labels:
+          - currency
+          
+      - name: monthly_recurring_revenue
+        help: "Monthly recurring revenue"
+        type: gauge
+        query: |
+          SELECT COALESCE(SUM(amount), 0) as value
+          FROM subscriptions s
+          JOIN subscription_payments sp ON s.id = sp.subscription_id
+          WHERE sp.created_at >= DATE_TRUNC('month', CURRENT_DATE)
+          AND sp.status = 'COMPLETED'
+        labels: []
+        
+      # Performance Metrics
+      - name: average_payment_processing_time
+        help: "Average payment processing time in seconds"
+        type: gauge
+        query: |
+          SELECT 
+            AVG(EXTRACT(EPOCH FROM (completed_at - created_at))) as value
+          FROM transactions 
+          WHERE completed_at IS NOT NULL
+          AND created_at >= CURRENT_DATE - INTERVAL '1 hour'
+        labels: []
+        
+      - name: failed_transaction_rate
+        help: "Failed transaction rate percentage"
+        type: gauge
+        query: |
+          SELECT 
+            ROUND(
+              (COUNT(*) FILTER (WHERE status = 'FAILED') * 100.0) / 
+              NULLIF(COUNT(*), 0), 2
+            ) as value
+          FROM transactions 
+          WHERE created_at >= CURRENT_DATE - INTERVAL '1 hour'
+        labels: []
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: business-metrics-exporter
+  namespace: monitoring
+  labels:
+    app: business-metrics-exporter
+    component: metrics
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: business-metrics-exporter
+  template:
+    metadata:
+      labels:
+        app: business-metrics-exporter
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: business-metrics-exporter
+      containers:
+      - name: business-metrics-exporter
+        image: waqiti/business-metrics-exporter:latest
+        ports:
+        - containerPort: 8080
+          name: metrics
+        env:
+        - name: CONFIG_FILE
+          value: /etc/config/config.yml
+        - name: LOG_LEVEL
+          value: info
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: business-metrics-secrets
+              key: db-password
+        volumeMounts:
+        - name: config
+          mountPath: /etc/config
+        - name: secrets
+          mountPath: /etc/secrets
+          readOnly: true
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 65534
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: config
+        configMap:
+          name: business-metrics-config
+      - name: secrets
+        secret:
+          secretName: business-metrics-secrets
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: business-metrics-exporter
+  namespace: monitoring
+  labels:
+    app: business-metrics-exporter
+    component: metrics
+spec:
+  ports:
+  - port: 8080
+    targetPort: 8080
+    name: metrics
+  selector:
+    app: business-metrics-exporter
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: business-metrics-exporter
+  namespace: monitoring
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: business-metrics-secrets
+  namespace: monitoring
+type: Opaque
+stringData:
+  db-password: "${vault.monitoring.database.metrics_reader.password:VAULT_SECRET_REQUIRED}"
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: business-metrics-validator
+  namespace: monitoring
+  labels:
+    app: business-metrics-validator
+    component: validation
+spec:
+  schedule: "0 */4 * * *"  # Every 4 hours
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: business-metrics-exporter
+          containers:
+          - name: validator
+            image: postgres:15-alpine
+            command:
+            - /bin/bash
+            - -c
+            - |
+              set -e
+              echo "Validating business metrics data consistency..."
+              
+              # Check for data anomalies
+              ANOMALIES=$(psql -h $POSTGRES_HOST -U $POSTGRES_USER -d $POSTGRES_DB -t -c "
+                WITH daily_stats AS (
+                  SELECT 
+                    DATE(created_at) as date,
+                    COUNT(*) as transaction_count,
+                    SUM(amount) as total_amount
+                  FROM transactions 
+                  WHERE created_at >= CURRENT_DATE - INTERVAL '7 days'
+                  GROUP BY DATE(created_at)
+                ),
+                anomalies AS (
+                  SELECT 
+                    date,
+                    transaction_count,
+                    total_amount,
+                    AVG(transaction_count) OVER () as avg_count,
+                    STDDEV(transaction_count) OVER () as stddev_count
+                  FROM daily_stats
+                )
+                SELECT COUNT(*) 
+                FROM anomalies 
+                WHERE ABS(transaction_count - avg_count) > 3 * stddev_count;
+              " | xargs)
+              
+              if [ "$ANOMALIES" -gt 0 ]; then
+                echo "WARNING: $ANOMALIES transaction anomalies detected in the last 7 days"
+                # Send alert via webhook
+                curl -X POST $WEBHOOK_URL -H "Content-Type: application/json" -d "{
+                  \"text\": \"Business metrics anomaly detected: $ANOMALIES unusual transaction patterns found\",
+                  \"channel\": \"#business-ops\",
+                  \"username\": \"metrics-validator\"
+                }"
+              else
+                echo "✓ No significant anomalies detected"
+              fi
+              
+              # Validate metric freshness
+              STALE_METRICS=$(psql -h $POSTGRES_HOST -U $POSTGRES_USER -d $POSTGRES_DB -t -c "
+                SELECT COUNT(*) 
+                FROM transactions 
+                WHERE created_at < CURRENT_TIMESTAMP - INTERVAL '5 minutes'
+                AND updated_at < CURRENT_TIMESTAMP - INTERVAL '5 minutes';
+              " | xargs)
+              
+              echo "Business metrics validation completed"
+            env:
+            - name: POSTGRES_HOST
+              value: waqiti-postgres-primary.database.svc.cluster.local
+            - name: POSTGRES_USER
+              value: metrics_reader
+            - name: POSTGRES_DB
+              value: waqiti
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: business-metrics-secrets
+                  key: db-password
+            - name: WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: business-metrics-secrets
+                  key: slack-webhook-url
+            resources:
+              requests:
+                memory: "64Mi"
+                cpu: "50m"
+              limits:
+                memory: "128Mi"
+                cpu: "100m"
+          restartPolicy: OnFailure

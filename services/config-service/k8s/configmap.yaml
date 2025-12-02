@@ -1,0 +1,66 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-service-config
+  namespace: waqiti
+  labels:
+    app: config-service
+data:
+  # Kafka configuration
+  kafka-bootstrap-servers: "kafka.waqiti.svc.cluster.local:9092"
+
+  # Vault configuration
+  vault-host: "vault.waqiti.svc.cluster.local"
+  vault-port: "8200"
+  vault-scheme: "https"
+
+  # Eureka configuration
+  eureka-server-url: "https://eureka-server.waqiti.svc.cluster.local:8761/eureka/"
+
+  # Keycloak configuration
+  keycloak-auth-server-url: "https://keycloak.waqiti.svc.cluster.local:8080"
+
+  # CORS allowed origins
+  cors-allowed-origins: "https://app.example.com,https://admin.example.com"
+
+  # Application configuration
+  application.yaml: |
+    spring:
+      application:
+        name: config-service
+      profiles:
+        active: production
+
+    # Cache configuration
+    config:
+      cache:
+        enabled: true
+        ttl: 300
+        max-size: 10000
+
+    # Encryption configuration
+    config:
+      encryption:
+        enabled: true
+        algorithm: AES/GCM/NoPadding
+        key:
+          size: 256
+
+    # Rate limiting
+    resilience4j:
+      ratelimiter:
+        instances:
+          configApi:
+            limitForPeriod: 100
+            limitRefreshPeriod: 1s
+          adminApi:
+            limitForPeriod: 50
+            limitRefreshPeriod: 1s
+
+    # Logging
+    logging:
+      level:
+        root: INFO
+        com.waqiti.config: DEBUG
+      pattern:
+        console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

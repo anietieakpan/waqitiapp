@@ -1,0 +1,134 @@
+spring:
+  application:
+    name: saga-orchestration-service-test
+
+  profiles:
+    active: test
+
+  # TestContainers will override these with dynamic ports
+  datasource:
+    url: jdbc:tc:postgresql:15:///waqiti_saga_test
+    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 10000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+    show-sql: false
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:29092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.trusted.packages: "*"
+        enable.idempotence: true
+        acks: all
+    consumer:
+      group-id: saga-orchestration-service-test
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 1000ms
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    clean-disabled: false
+    locations: classpath:db/migration
+
+# Disable Eureka for tests
+eureka:
+  client:
+    enabled: false
+    register-with-eureka: false
+    fetch-registry: false
+
+# Disable Keycloak for tests
+keycloak:
+  enabled: false
+
+spring.security:
+  oauth2:
+    resourceserver:
+      jwt:
+        issuer-uri: http://localhost:8080/realms/waqiti
+
+# Test-specific saga configuration
+saga:
+  orchestration:
+    max-retry-attempts: 2
+    retry-delay-ms: 100
+    compensation-timeout-ms: 5000
+    step-timeout-ms: 2000
+    enable-distributed-locking: true
+    enable-idempotency: true
+    enable-audit-logging: true
+
+  transaction-types:
+    - P2P_TRANSFER
+    - MERCHANT_PAYMENT
+    - BILL_PAYMENT
+    - INTERNATIONAL_TRANSFER
+    - CRYPTO_EXCHANGE
+    - LOAN_DISBURSEMENT
+    - INVESTMENT_PURCHASE
+    - GROUP_PAYMENT
+
+  compensation-strategy:
+    automatic: true
+    manual-intervention-threshold: 3
+    notification-on-failure: true
+
+# Resilience4j test configuration
+resilience4j:
+  circuitbreaker:
+    instances:
+      saga-step:
+        failure-rate-threshold: 50
+        slow-call-rate-threshold: 50
+        slow-call-duration-threshold: 1s
+        wait-duration-in-open-state: 5s
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+  retry:
+    instances:
+      saga-step:
+        max-attempts: 2
+        wait-duration: 100ms
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        randomized-wait-factor: 0.5
+
+# Actuator endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.waqiti.saga: DEBUG
+    org.springframework.kafka: WARN
+    org.hibernate.SQL: DEBUG
+    org.testcontainers: INFO

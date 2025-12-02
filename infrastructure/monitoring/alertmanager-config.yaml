@@ -1,0 +1,224 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config
+  namespace: monitoring
+data:
+  alertmanager.yml: |
+    global:
+      resolve_timeout: 5m
+      slack_api_url: '${SLACK_WEBHOOK_URL}'
+
+    # Route configuration
+    route:
+      receiver: 'default'
+      group_by: ['alertname', 'cluster', 'service']
+      group_wait: 10s
+      group_interval: 10s
+      repeat_interval: 12h
+
+      routes:
+        # Critical alerts - immediate notification
+        - match:
+            severity: critical
+          receiver: 'critical-alerts'
+          group_wait: 0s
+          repeat_interval: 5m
+
+        # Payment alerts - payments team
+        - match:
+            team: payments
+          receiver: 'payments-team'
+          repeat_interval: 30m
+
+        # Security alerts - security team
+        - match:
+            team: security
+          receiver: 'security-team'
+          repeat_interval: 15m
+
+        # Compliance alerts - compliance team
+        - match:
+            team: compliance
+          receiver: 'compliance-team'
+          repeat_interval: 30m
+
+        # Database alerts - database team
+        - match:
+            team: database
+          receiver: 'database-team'
+          repeat_interval: 30m
+
+    # Inhibition rules
+    inhibit_rules:
+      # Silence lower severity alerts if higher severity exists
+      - source_match:
+          severity: 'critical'
+        target_match:
+          severity: 'warning'
+        equal: ['alertname', 'service_name']
+
+    # Receivers
+    receivers:
+      - name: 'default'
+        slack_configs:
+          - channel: '#waqiti-alerts'
+            title: '{{ .GroupLabels.alertname }}'
+            text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+
+      - name: 'critical-alerts'
+        slack_configs:
+          - channel: '#waqiti-critical'
+            title: '🚨 CRITICAL: {{ .GroupLabels.alertname }}'
+            text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+            send_resolved: true
+        pagerduty_configs:
+          - service_key: '${PAGERDUTY_SERVICE_KEY}'
+            description: '{{ .GroupLabels.alertname }}'
+        email_configs:
+          - to: 'oncall@example.com'
+            from: 'alerts@example.com'
+            smarthost: 'smtp.gmail.com:587'
+            auth_username: '${SMTP_USERNAME}'
+            auth_password: '${SMTP_PASSWORD}'
+            headers:
+              Subject: 'CRITICAL ALERT: {{ .GroupLabels.alertname }}'
+
+      - name: 'payments-team'
+        slack_configs:
+          - channel: '#payments-alerts'
+            title: '💰 Payment Alert: {{ .GroupLabels.alertname }}'
+            text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+        email_configs:
+          - to: 'payments-team@example.com'
+
+      - name: 'security-team'
+        slack_configs:
+          - channel: '#security-alerts'
+            title: '🔒 Security Alert: {{ .GroupLabels.alertname }}'
+            text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+        email_configs:
+          - to: 'security@example.com'
+
+      - name: 'compliance-team'
+        slack_configs:
+          - channel: '#compliance-alerts'
+            title: '📋 Compliance Alert: {{ .GroupLabels.alertname }}'
+            text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+        email_configs:
+          - to: 'compliance@example.com'
+
+      - name: 'database-team'
+        slack_configs:
+          - channel: '#database-alerts'
+            title: '🗄️ Database Alert: {{ .GroupLabels.alertname }}'
+            text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+        email_configs:
+          - to: 'database-team@example.com'
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alertmanager
+  namespace: monitoring
+  labels:
+    app: alertmanager
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: alertmanager
+  template:
+    metadata:
+      labels:
+        app: alertmanager
+    spec:
+      containers:
+        - name: alertmanager
+          image: prom/alertmanager:v0.26.0
+          args:
+            - '--config.file=/etc/alertmanager/alertmanager.yml'
+            - '--storage.path=/alertmanager'
+            - '--cluster.listen-address=0.0.0.0:9094'
+            - '--cluster.peer=alertmanager-0.alertmanager:9094'
+            - '--cluster.peer=alertmanager-1.alertmanager:9094'
+          ports:
+            - name: web
+              containerPort: 9093
+            - name: cluster
+              containerPort: 9094
+
+          env:
+            - name: SLACK_WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: alertmanager-secrets
+                  key: slack-webhook-url
+            - name: PAGERDUTY_SERVICE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: alertmanager-secrets
+                  key: pagerduty-service-key
+            - name: SMTP_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: alertmanager-secrets
+                  key: smtp-username
+            - name: SMTP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: alertmanager-secrets
+                  key: smtp-password
+
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+
+          volumeMounts:
+            - name: config
+              mountPath: /etc/alertmanager
+            - name: storage
+              mountPath: /alertmanager
+
+      volumes:
+        - name: config
+          configMap:
+            name: alertmanager-config
+        - name: storage
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager
+  namespace: monitoring
+  labels:
+    app: alertmanager
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: web
+      port: 9093
+      targetPort: 9093
+    - name: cluster
+      port: 9094
+      targetPort: 9094
+  selector:
+    app: alertmanager
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: alertmanager-secrets
+  namespace: monitoring
+type: Opaque
+stringData:
+  slack-webhook-url: "CHANGE_ME"
+  pagerduty-service-key: "CHANGE_ME"
+  smtp-username: "CHANGE_ME"
+  smtp-password: "CHANGE_ME"

@@ -1,0 +1,66 @@
+{
+  "namespace": "com.waqiti.events.v1.wallet",
+  "type": "record",
+  "name": "WalletFreezeRequestedEvent",
+  "doc": "CRITICAL SECURITY EVENT: Wallet freeze requested due to fraud detection or compliance requirements",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "Unique identifier for this event (UUID)"
+    },
+    {
+      "name": "eventType",
+      "type": "string",
+      "default": "wallet.freeze.requested",
+      "doc": "Type of event"
+    },
+    {
+      "name": "eventVersion",
+      "type": "string",
+      "default": "1.0.0",
+      "doc": "Event schema version"
+    },
+    {
+      "name": "requestedAt",
+      "type": "long",
+      "logicalType": "timestamp-millis",
+      "doc": "Freeze request timestamp"
+    },
+    {
+      "name": "correlationId",
+      "type": "string",
+      "doc": "Fraud case or compliance case ID for tracking"
+    },
+    {
+      "name": "userId",
+      "type": "string",
+      "doc": "User whose wallet should be frozen (UUID)"
+    },
+    {
+      "name": "walletId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Specific wallet to freeze (UUID). If null, freeze all user wallets"
+    },
+    {
+      "name": "fraudCaseId",
+      "type": "string",
+      "doc": "Associated fraud case identifier (UUID)"
+    },
+    {
+      "name": "reason",
+      "type": "string",
+      "doc": "Human-readable reason for freeze"
+    },
+    {
+      "name": "severity",
+      "type": {
+        "type": "enum",
+        "name": "FraudSeverity",
+        "symbols": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+      },
+      "doc": "Severity level of the fraud/security issue"
+    }
+  ]
+}

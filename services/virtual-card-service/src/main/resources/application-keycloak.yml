@@ -1,0 +1,115 @@
+# Keycloak Configuration for Virtual Card Service
+
+keycloak:
+  enabled: true
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  ssl-required: external
+  resource: virtual-card-service
+  bearer-only: true
+  credentials:
+    secret: ${VIRTUAL_CARD_SERVICE_CLIENT_SECRET}
+  use-resource-role-mappings: true
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# Virtual Card Service Security Configuration
+virtual-card:
+  security:
+    # Public endpoints that don't require authentication
+    public-endpoints:
+      - /actuator/health
+      - /actuator/info
+      - /swagger-ui/**
+      - /v3/api-docs/**
+    
+    # Service-to-service endpoints
+    service-endpoints:
+      - /internal/virtual-card/**
+    
+    # Required roles for virtual card operations
+    required-roles:
+      read:
+        - USER
+        - CARD_USER
+      card-create:
+        - USER
+        - CARD_USER
+      card-manage:
+        - USER
+        - CARD_USER
+      card-activate:
+        - USER
+        - CARD_USER
+      card-deactivate:
+        - USER
+        - CARD_USER
+      card-freeze:
+        - USER
+        - CARD_USER
+      spending-controls:
+        - USER
+        - CARD_USER
+      transaction-monitoring:
+        - CARD_MONITOR
+        - FRAUD_ANALYST
+      card-issuance:
+        - CARD_ISSUER
+        - CARD_MANAGER
+      management:
+        - CARD_MANAGER
+        - CARD_OPERATOR
+      admin:
+        - CARD_ADMIN
+        - SYSTEM_ADMIN
+    
+    # Required scopes for operations
+    required-scopes:
+      card-read: card:read
+      card-write: card:write
+      card-activate: card:activate
+      card-deactivate: card:deactivate
+      spending-controls: card:spending:controls
+      transaction-monitoring: card:transaction:monitor
+      card-issuance: card:issuance
+      fraud-monitoring: card:fraud:monitor
+      admin: card:admin
+      management: card:manage
+    
+    # Virtual card security features
+    features:
+      dynamic-cvv-enabled: true
+      spending-limits-enabled: true
+      merchant-restrictions-enabled: true
+      real-time-fraud-detection: true
+      transaction-notifications-enabled: true
+      card-tokenization-enabled: true
+      
+    # Virtual card limits and thresholds
+    limits:
+      max-cards-per-user: 20
+      max-daily-spend: 10000.00
+      max-monthly-spend: 50000.00
+      max-transaction-amount: 5000.00
+      
+    # Security thresholds requiring verification
+    verification-thresholds:
+      high-value-transaction: 2000.00
+      suspicious-merchant-category: true
+      velocity-limit-breach: 5
+      foreign-transaction: true
+      
+    # Advanced security features
+    advanced-security:
+      require-3ds-authentication: true
+      real-time-authorization-controls: true
+      ml-based-fraud-detection: true
+      merchant-category-blocking: true
+      geographic-restrictions: true
+      tokenization-security: true

@@ -1,0 +1,117 @@
+# Keycloak Configuration for Savings Service
+
+keycloak:
+  enabled: true
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  ssl-required: external
+  resource: savings-service
+  bearer-only: true
+  credentials:
+    secret: ${SAVINGS_SERVICE_CLIENT_SECRET}
+  use-resource-role-mappings: true
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# Savings Service Security Configuration
+savings:
+  security:
+    # Public endpoints that don't require authentication
+    public-endpoints:
+      - /actuator/health
+      - /actuator/info
+      - /api/v1/savings/products/public
+      - /api/v1/savings/rates/current
+      - /swagger-ui/**
+      - /v3/api-docs/**
+    
+    # Service-to-service endpoints
+    service-endpoints:
+      - /internal/savings/**
+    
+    # Required roles for savings operations
+    required-roles:
+      read:
+        - USER
+        - SAVINGS_USER
+      account-create:
+        - USER
+        - SAVINGS_USER
+      account-manage:
+        - USER
+        - SAVINGS_USER
+      deposit:
+        - USER
+        - SAVINGS_USER
+      withdrawal:
+        - USER
+        - SAVINGS_USER
+      goal-management:
+        - USER
+        - SAVINGS_USER
+      interest-calculation:
+        - INTEREST_CALCULATOR
+        - SAVINGS_MANAGER
+      product-management:
+        - PRODUCT_MANAGER
+        - SAVINGS_MANAGER
+      compliance:
+        - COMPLIANCE_OFFICER
+        - REGULATORY_OFFICER
+      management:
+        - SAVINGS_MANAGER
+        - SAVINGS_OPERATOR
+      admin:
+        - SAVINGS_ADMIN
+        - SYSTEM_ADMIN
+    
+    # Required scopes for operations
+    required-scopes:
+      account-read: savings:account:read
+      account-write: savings:account:write
+      deposit: savings:deposit
+      withdrawal: savings:withdrawal
+      goal-tracking: savings:goal:tracking
+      interest-calculation: savings:interest:calculate
+      product-management: savings:product:manage
+      compliance: savings:compliance
+      admin: savings:admin
+      management: savings:manage
+    
+    # Savings security features
+    features:
+      goal-tracking-enabled: true
+      automatic-savings-enabled: true
+      interest-calculation-enabled: true
+      withdrawal-restrictions-enabled: true
+      compliance-monitoring-enabled: true
+      fraud-detection-enabled: true
+      
+    # Savings limits and thresholds
+    limits:
+      max-savings-accounts-per-user: 10
+      max-daily-withdrawal: 10000.00
+      max-monthly-deposits: 50000.00
+      min-account-balance: 0.00
+      
+    # Security thresholds requiring verification
+    verification-thresholds:
+      large-withdrawal: 5000.00
+      suspicious-deposit-pattern: 10000.00
+      rapid-goal-changes: 5
+      unusual-activity-pattern: 3
+      
+    # Advanced security features
+    advanced-security:
+      require-verification-large-withdrawals: true
+      automated-goal-progress-tracking: true
+      compliance-rule-enforcement: true
+      interest-rate-protection: true
+      deposit-pattern-monitoring: true
+      regulatory-reporting-automation: true

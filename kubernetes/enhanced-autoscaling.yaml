@@ -1,0 +1,397 @@
+# Enhanced Kubernetes autoscaling configuration
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: example-production
+  labels:
+    app: waqiti
+    environment: production
+
+---
+# Vertical Pod Autoscaler for resource optimization
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: user-service-vpa
+  namespace: example-production
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: user-service
+  updatePolicy:
+    updateMode: "Auto"
+  resourcePolicy:
+    containerPolicies:
+    - containerName: user-service
+      minAllowed:
+        cpu: 100m
+        memory: 256Mi
+      maxAllowed:
+        cpu: 4000m
+        memory: 8Gi
+      controlledResources: ["cpu", "memory"]
+      controlledValues: RequestsAndLimits
+
+---
+# Enhanced HPA with multiple metrics
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: payment-service-hpa
+  namespace: example-production
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: payment-service
+  minReplicas: 5
+  maxReplicas: 100
+  metrics:
+  # CPU utilization
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  # Memory utilization
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  # Custom metric: API requests per second
+  - type: Pods
+    pods:
+      metric:
+        name: http_requests_per_second
+      target:
+        type: AverageValue
+        averageValue: "100"
+  # Custom metric: Queue depth
+  - type: External
+    external:
+      metric:
+        name: kafka_consumer_lag
+        selector:
+          matchLabels:
+            topic: payment-events
+      target:
+        type: AverageValue
+        averageValue: "10"
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+      - type: Pods
+        value: 4
+        periodSeconds: 15
+      selectPolicy: Max
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 60
+      - type: Pods
+        value: 2
+        periodSeconds: 60
+      selectPolicy: Min
+
+---
+# Enhanced deployment with resource requests/limits
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-service
+  namespace: example-production
+  labels:
+    app: payment-service
+    version: v1
+spec:
+  replicas: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 25%
+      maxSurge: 25%
+  selector:
+    matchLabels:
+      app: payment-service
+  template:
+    metadata:
+      labels:
+        app: payment-service
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      serviceAccountName: payment-service
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+      - name: payment-service
+        image: waqiti/payment-service:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+          name: http
+        - containerPort: 8081
+          name: management
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "production,kubernetes"
+        - name: JVM_OPTS
+          value: "-XX:+UseG1GC -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0"
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          value: "kafka-cluster:9092"
+        - name: REDIS_CLUSTER_NODES
+          value: "redis-cluster:6379"
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+            ephemeral-storage: "1Gi"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+            ephemeral-storage: "5Gi"
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8081
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8081
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8081
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        - name: logs
+          mountPath: /app/logs
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      - name: logs
+        emptyDir: {}
+      nodeSelector:
+        node-type: application
+      tolerations:
+      - key: "high-memory"
+        operator: "Equal"
+        value: "true"
+        effect: "NoSchedule"
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - payment-service
+              topologyKey: kubernetes.io/hostname
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            preference:
+              matchExpressions:
+              - key: node-type
+                operator: In
+                values:
+                - application
+      terminationGracePeriodSeconds: 30
+
+---
+# Pod Disruption Budget for high availability
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: payment-service-pdb
+  namespace: example-production
+spec:
+  minAvailable: 60%
+  selector:
+    matchLabels:
+      app: payment-service
+
+---
+# Custom metrics for autoscaling
+apiVersion: v1
+kind: Service
+metadata:
+  name: custom-metrics-api
+  namespace: example-production
+  labels:
+    app: custom-metrics-api
+spec:
+  ports:
+  - port: 443
+    targetPort: 6443
+  selector:
+    app: custom-metrics-api
+
+---
+# Cluster Autoscaler configuration
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cluster-autoscaler
+  namespace: kube-system
+  labels:
+    app: cluster-autoscaler
+spec:
+  selector:
+    matchLabels:
+      app: cluster-autoscaler
+  template:
+    metadata:
+      labels:
+        app: cluster-autoscaler
+    spec:
+      serviceAccountName: cluster-autoscaler
+      containers:
+      - image: k8s.gcr.io/autoscaling/cluster-autoscaler:v1.21.0
+        name: cluster-autoscaler
+        resources:
+          limits:
+            cpu: 100m
+            memory: 300Mi
+          requests:
+            cpu: 100m
+            memory: 300Mi
+        command:
+        - ./cluster-autoscaler
+        - --v=4
+        - --stderrthreshold=info
+        - --cloud-provider=aws
+        - --skip-nodes-with-local-storage=false
+        - --expander=least-waste
+        - --node-group-auto-discovery=asg:tag=k8s.io/cluster-autoscaler/enabled,k8s.io/cluster-autoscaler/waqiti-cluster
+        - --balance-similar-node-groups
+        - --scale-down-enabled=true
+        - --scale-down-delay-after-add=10m
+        - --scale-down-unneeded-time=10m
+        - --scale-down-delay-after-delete=10s
+        - --scale-down-delay-after-failure=3m
+        - --scale-down-utilization-threshold=0.5
+        - --skip-nodes-with-system-pods=false
+        env:
+        - name: AWS_REGION
+          value: us-west-2
+        volumeMounts:
+        - name: ssl-certs
+          mountPath: /etc/ssl/certs/ca-certificates.crt
+          readOnly: true
+      volumes:
+      - name: ssl-certs
+        hostPath:
+          path: "/etc/ssl/certs/ca-bundle.crt"
+
+---
+# Resource quotas for namespace
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: example-production-quota
+  namespace: example-production
+spec:
+  hard:
+    requests.cpu: "50"
+    requests.memory: 100Gi
+    requests.storage: 500Gi
+    limits.cpu: "100"
+    limits.memory: 200Gi
+    persistentvolumeclaims: "20"
+    services: "20"
+    secrets: "50"
+    configmaps: "50"
+
+---
+# Limit ranges for pods
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: example-production-limits
+  namespace: example-production
+spec:
+  limits:
+  - default:
+      cpu: "1000m"
+      memory: "2Gi"
+      ephemeral-storage: "2Gi"
+    defaultRequest:
+      cpu: "100m"
+      memory: "256Mi"
+      ephemeral-storage: "512Mi"
+    min:
+      cpu: "50m"
+      memory: "128Mi"
+      ephemeral-storage: "256Mi"
+    max:
+      cpu: "8000m"
+      memory: "16Gi"
+      ephemeral-storage: "10Gi"
+    type: Container
+  - default:
+      storage: "10Gi"
+    min:
+      storage: "1Gi"
+    max:
+      storage: "100Gi"
+    type: PersistentVolumeClaim
+
+---
+# Priority classes for workload prioritization
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: high-priority
+value: 1000
+globalDefault: false
+description: "High priority class for critical services"
+
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: medium-priority
+value: 500
+globalDefault: true
+description: "Medium priority class for standard services"
+
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: low-priority
+value: 100
+globalDefault: false
+description: "Low priority class for background services"

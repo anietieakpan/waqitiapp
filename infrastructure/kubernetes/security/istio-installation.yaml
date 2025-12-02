@@ -1,0 +1,346 @@
+# Istio Service Mesh Installation for Zero Trust Architecture
+# This configuration enables comprehensive zero trust security across all microservices
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: istio-system
+  labels:
+    istio-injection: disabled
+
+---
+# Istio Control Plane Configuration
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+metadata:
+  name: waqiti-control-plane
+  namespace: istio-system
+spec:
+  values:
+    global:
+      meshID: waqiti-mesh
+      multiCluster:
+        clusterName: waqiti-primary
+      network: waqiti-network
+      proxy:
+        # Enable automatic mTLS
+        autoInject: enabled
+        # Set resource limits for sidecars
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+      # Enable distributed tracing
+      tracer:
+        zipkin:
+          address: jaeger-collector.example-monitoring:14268
+    pilot:
+      # Enable workload entry auto registration
+      env:
+        EXTERNAL_ISTIOD: false
+        PILOT_ENABLE_WORKLOAD_ENTRY_AUTOREGISTRATION: true
+        PILOT_ENABLE_CROSS_CLUSTER_WORKLOAD_ENTRY: true
+        PILOT_ENABLE_NETWORK_POLICY: true
+        PILOT_ENABLE_REMOTE_JWKS: true
+    gateways:
+      istio-ingressgateway:
+        enabled: true
+        type: LoadBalancer
+        autoscaleEnabled: true
+        autoscaleMin: 2
+        autoscaleMax: 10
+        resources:
+          requests:
+            cpu: 200m
+            memory: 256Mi
+          limits:
+            cpu: 1000m
+            memory: 512Mi
+        # Security hardening
+        env:
+          ISTIO_META_ROUTER_MODE: sni-dnat
+          ISTIO_META_REQUESTED_NETWORK_VIEW: waqiti-network
+      istio-egressgateway:
+        enabled: true
+        autoscaleEnabled: true
+        autoscaleMin: 1
+        autoscaleMax: 5
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+  components:
+    pilot:
+      k8s:
+        resources:
+          requests:
+            cpu: 200m
+            memory: 256Mi
+          limits:
+            cpu: 1000m
+            memory: 1Gi
+        # High availability
+        replicaCount: 2
+        env:
+          - name: PILOT_ENABLE_DESTINATION_RULE_INHERITANCE
+            value: "true"
+          - name: PILOT_ENABLE_NETWORK_POLICY
+            value: "true"
+    ingressGateways:
+    - name: istio-ingressgateway
+      enabled: true
+      k8s:
+        service:
+          type: LoadBalancer
+          annotations:
+            # AWS specific annotations for enhanced security
+            service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+            service.beta.kubernetes.io/aws-load-balancer-backend-protocol: "tcp"
+            service.beta.kubernetes.io/aws-load-balancer-ssl-cert: "arn:aws:acm:us-west-2:123456789012:certificate/abcd1234"
+            service.beta.kubernetes.io/aws-load-balancer-ssl-ports: "https"
+    egressGateways:
+    - name: istio-egressgateway
+      enabled: true
+      k8s:
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+
+---
+# Telemetry Configuration for Observability
+apiVersion: telemetry.istio.io/v1alpha1
+kind: Telemetry
+metadata:
+  name: default
+  namespace: istio-system
+spec:
+  metrics:
+  - providers:
+    - name: prometheus
+  - overrides:
+    - match:
+        metric: ALL_METRICS
+      tagOverrides:
+        request_protocol:
+          value: "%{REQUEST_PROTOCOL}"
+        response_code:
+          value: "%{RESPONSE_CODE}"
+        source_app:
+          value: "%{SOURCE_APP}"
+        destination_app:
+          value: "%{DESTINATION_APP}"
+        business_operation:
+          value: "%{REQUEST_HEADERS['x-business-operation']}"
+        user_id:
+          value: "%{REQUEST_HEADERS['x-user-id']}"
+        transaction_id:
+          value: "%{REQUEST_HEADERS['x-transaction-id']}"
+  tracing:
+  - providers:
+    - name: jaeger
+  accessLogging:
+  - providers:
+    - name: otel
+
+---
+# Default Security Policy - Deny All
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: deny-all
+  namespace: istio-system
+spec:
+  # This policy denies all traffic by default
+  # Specific allow policies must be created for each service
+
+---
+# mTLS Configuration - Enforce strict mTLS
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: istio-system
+spec:
+  mtls:
+    mode: STRICT
+
+---
+# Gateway for External Traffic
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: waqiti-gateway
+  namespace: istio-system
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  - port:
+      number: 443
+      name: https
+      protocol: HTTPS
+    tls:
+      mode: SIMPLE
+      credentialName: waqiti-tls-cert
+    hosts:
+    - "api.example.com"
+    - "app.example.com"
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "api.example.com"
+    - "app.example.com"
+    # Redirect HTTP to HTTPS
+    redirect:
+      httpsRedirect: true
+
+---
+# Egress Gateway for External Services
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: waqiti-egress-gateway
+  namespace: istio-system
+spec:
+  selector:
+    istio: egressgateway
+  servers:
+  - port:
+      number: 443
+      name: tls
+      protocol: TLS
+    tls:
+      mode: PASSTHROUGH
+    hosts:
+    - "api.stripe.com"
+    - "api.paypal.com"
+    - "*.amazonaws.com"
+    - "vault.example.com"
+
+---
+# Service Monitor for Istio Metrics
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: istio-proxy
+  namespace: istio-system
+  labels:
+    app: istio-proxy
+spec:
+  selector:
+    matchLabels:
+      app: istio-proxy
+  endpoints:
+  - port: http-monitoring
+    interval: 15s
+    path: /stats/prometheus
+  - port: http-monitoring
+    interval: 15s
+    path: /stats/prometheus
+    params:
+      filter: ['cluster_outbound', 'cluster_inbound', 'server', 'listener']
+
+---
+# Istio Control Plane ServiceMonitor
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: istio-control-plane
+  namespace: istio-system
+spec:
+  selector:
+    matchLabels:
+      app: istiod
+  endpoints:
+  - port: http-monitoring
+    interval: 15s
+    path: /metrics
+
+---
+# Network Policy for Istio System Namespace
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: istio-system-netpol
+  namespace: istio-system
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Allow ingress from anywhere to ingress gateway
+  - from: []
+    ports:
+    - protocol: TCP
+      port: 80
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 15021  # Health check
+  # Allow pilot discovery traffic
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: waqiti
+    ports:
+    - protocol: TCP
+      port: 15010
+    - protocol: TCP
+      port: 15011
+    - protocol: TCP
+      port: 15017
+  egress:
+  # Allow DNS
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+  # Allow Kubernetes API
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443
+  # Allow external certificate validation
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443
+
+---
+# Pod Disruption Budget for Control Plane
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: istiod-pdb
+  namespace: istio-system
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: istiod
+
+---
+# Pod Disruption Budget for Ingress Gateway
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: istio-ingressgateway-pdb
+  namespace: istio-system
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: istio-ingressgateway

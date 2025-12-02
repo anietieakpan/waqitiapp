@@ -1,0 +1,55 @@
+# Multi-stage Dockerfile for building Waqiti microservices
+FROM maven:3.9-eclipse-temurin-17 AS builder
+
+# Set the working directory
+WORKDIR /build
+
+# Copy the parent pom.xml
+COPY pom.xml .
+
+# Copy all service modules to leverage Docker cache better
+COPY services/ ./services/
+
+# Download dependencies for all modules
+RUN mvn dependency:go-offline -B
+
+# Build common module first as other services depend on it
+RUN mvn install -pl services/common -DskipTests
+
+# Argument to specify which service to build
+ARG SERVICE_PATH
+ARG SERVICE_NAME
+
+# Build the specific service
+RUN mvn package -pl ${SERVICE_PATH} -am -DskipTests
+
+# Runtime stage
+FROM eclipse-temurin:17-jre-alpine
+
+WORKDIR /app
+
+# Create non-root user
+RUN addgroup -g 1000 spring && \
+    adduser -u 1000 -G spring -s /bin/sh -D spring
+
+# Copy the built JAR from builder stage
+ARG SERVICE_PATH
+COPY --from=builder /build/${SERVICE_PATH}/target/*.jar app.jar
+
+# Change ownership
+RUN chown -R spring:spring /app
+
+USER spring
+
+# Expose ports
+EXPOSE 8080 8090
+
+# JVM optimizations for containers
+ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:InitialRAMPercentage=50.0 -XX:+UseG1GC"
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health || exit 1
+
+# Run the application
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]

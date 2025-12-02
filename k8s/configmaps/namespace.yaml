@@ -1,0 +1,48 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: example-prod
+  labels:
+    name: example-prod
+    environment: production
+    monitoring: enabled
+    
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: example-prod-limits
+  namespace: example-prod
+spec:
+  limits:
+  - type: Container
+    default:
+      memory: "512Mi"
+      cpu: "500m"
+    defaultRequest:
+      memory: "256Mi"
+      cpu: "100m"
+    max:
+      memory: "4Gi"
+      cpu: "2000m"
+    min:
+      memory: "64Mi"
+      cpu: "50m"
+      
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: example-prod-quota
+  namespace: example-prod
+spec:
+  hard:
+    requests.cpu: "50"
+    requests.memory: 100Gi
+    limits.cpu: "200"
+    limits.memory: 400Gi
+    pods: "500"
+    services: "200"
+    secrets: "200"
+    configmaps: "200"
+    persistentvolumeclaims: "50"

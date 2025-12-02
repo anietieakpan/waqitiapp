@@ -1,0 +1,190 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: vault
+  namespace: waqiti-system
+  labels:
+    app: vault
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8200
+      targetPort: 8200
+      protocol: TCP
+      name: vault
+    - port: 8201
+      targetPort: 8201
+      protocol: TCP
+      name: cluster
+  selector:
+    app: vault
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vault-ui
+  namespace: waqiti-system
+  labels:
+    app: vault
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 8200
+      targetPort: 8200
+      protocol: TCP
+      name: vault
+  selector:
+    app: vault
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: vault
+  namespace: waqiti-system
+spec:
+  serviceName: vault
+  replicas: 3
+  selector:
+    matchLabels:
+      app: vault
+  template:
+    metadata:
+      labels:
+        app: vault
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - vault
+              topologyKey: kubernetes.io/hostname
+      containers:
+        - name: vault
+          image: hashicorp/vault:1.15.0
+          ports:
+            - containerPort: 8200
+              name: vault
+            - containerPort: 8201
+              name: cluster
+          env:
+            - name: VAULT_LOCAL_CONFIG
+              value: |
+                ui = true
+                
+                listener "tcp" {
+                  tls_disable = 1
+                  address = "[::]:8200"
+                  cluster_address = "[::]:8201"
+                }
+                
+                storage "raft" {
+                  path = "/vault/data"
+                  node_id = "$HOSTNAME"
+                }
+                
+                service_registration "kubernetes" {
+                  namespace = "waqiti-system"
+                  pod_name = "$HOSTNAME"
+                }
+                
+                seal "awskms" {
+                  region     = "us-east-1"
+                  kms_key_id = "alias/vault-unseal"
+                }
+                
+                telemetry {
+                  prometheus_retention_time = "30s"
+                  disable_hostname = true
+                }
+            - name: VAULT_ADDR
+              value: "http://127.0.0.1:8200"
+            - name: VAULT_API_ADDR
+              value: "http://$(POD_IP):8200"
+            - name: VAULT_CLUSTER_ADDR
+              value: "https://$(POD_IP):8201"
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: VAULT_K8S_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: VAULT_K8S_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: AWS_REGION
+              value: "us-east-1"
+          securityContext:
+            capabilities:
+              add:
+                - IPC_LOCK
+          volumeMounts:
+            - name: data
+              mountPath: /vault/data
+            - name: config
+              mountPath: /vault/config
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /v1/sys/health?standbyok=true
+              port: 8200
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /v1/sys/health?standbyok=true&sealedcode=204&uninitcode=204
+              port: 8200
+            initialDelaySeconds: 10
+            periodSeconds: 5
+      volumes:
+        - name: config
+          configMap:
+            name: vault-config
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 10Gi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vault-config
+  namespace: waqiti-system
+data:
+  extraconfig-from-values.hcl: |
+    disable_mlock = true
+    ui = true
+    
+    listener "tcp" {
+      tls_disable = 1
+      address = "[::]:8200"
+      cluster_address = "[::]:8201"
+    }
+    
+    storage "raft" {
+      path = "/vault/data"
+    }
+    
+    service_registration "kubernetes" {
+      namespace = "waqiti-system"
+    }

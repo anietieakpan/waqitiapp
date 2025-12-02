@@ -1,0 +1,231 @@
+# Production-grade Keycloak Security Configuration
+# This configuration ensures all Keycloak communications use HTTPS with proper SSL/TLS settings
+
+# ==================== Keycloak Core Configuration ====================
+keycloak:
+  # CRITICAL SECURITY: Always use HTTPS in production
+  auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:https://auth.example.com}
+  realm: ${KEYCLOAK_REALM:waqiti}
+  ssl-required: all  # CRITICAL: Enforce SSL for all requests
+  confidential-port: 8443
+  disable-trust-manager: false  # CRITICAL: Enable certificate validation
+  verify-hostname: true  # CRITICAL: Verify SSL certificate hostname
+  
+  # Connection pool settings for high availability
+  connection-pool-size: 20
+  socket-timeout: 60000
+  connection-timeout: 60000
+  connection-ttl: 600
+  
+  # Client credentials (should be externalized in production)
+  resource: ${KEYCLOAK_CLIENT_ID:waqiti-service}
+  credentials:
+    secret: ${KEYCLOAK_CLIENT_SECRET}
+  
+  # Role mappings
+  use-resource-role-mappings: true
+  principal-attribute: preferred_username
+  
+  # Token validation
+  bearer-only: true
+  autodetect-bearer-only: true
+  token-minimum-time-to-live: 10
+  min-time-between-jwks-requests: 10
+  public-key-cache-ttl: 86400
+  
+  # Policy enforcement
+  policy-enforcer:
+    enforcement-mode: ENFORCING
+    lazy-load-paths: false
+    paths:
+      - path: /api/v1/payments/*
+        methods:
+          - method: POST
+            scopes:
+              - payment:create
+          - method: GET
+            scopes:
+              - payment:read
+      - path: /api/v1/admin/*
+        methods:
+          - method: "*"
+            scopes:
+              - admin:all
+
+# ==================== Spring Security OAuth2 Configuration ====================
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # CRITICAL: Always use HTTPS for issuer URI
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://auth.example.com/realms/waqiti}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:https://auth.example.com/realms/waqiti/protocol/openid-connect/certs}
+          
+          # JWT validation settings
+          audiences:
+            - ${KEYCLOAK_CLIENT_ID:waqiti-service}
+            - account
+          
+      client:
+        registration:
+          keycloak:
+            client-id: ${KEYCLOAK_CLIENT_ID:waqiti-service}
+            client-secret: ${KEYCLOAK_CLIENT_SECRET}
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            scope:
+              - openid
+              - profile
+              - email
+              - roles
+              
+        provider:
+          keycloak:
+            # CRITICAL: Always use HTTPS URLs
+            authorization-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://auth.example.com}/realms/${KEYCLOAK_REALM:waqiti}/protocol/openid-connect/auth
+            token-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://auth.example.com}/realms/${KEYCLOAK_REALM:waqiti}/protocol/openid-connect/token
+            user-info-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://auth.example.com}/realms/${KEYCLOAK_REALM:waqiti}/protocol/openid-connect/userinfo
+            jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://auth.example.com}/realms/${KEYCLOAK_REALM:waqiti}/protocol/openid-connect/certs
+            user-name-attribute: preferred_username
+
+# ==================== SSL/TLS Configuration ====================
+server:
+  ssl:
+    enabled: true
+    key-store: ${SSL_KEYSTORE_PATH:/opt/waqiti/keystore/keystore.p12}
+    key-store-password: ${SSL_KEYSTORE_PASSWORD}
+    key-store-type: PKCS12
+    key-alias: ${SSL_KEY_ALIAS:waqiti}
+    
+    # TLS Configuration
+    enabled-protocols:
+      - TLSv1.3
+      - TLSv1.2
+    ciphers:
+      - TLS_AES_256_GCM_SHA384
+      - TLS_AES_128_GCM_SHA256
+      - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+      - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+      
+    # Client authentication
+    client-auth: want
+    trust-store: ${SSL_TRUSTSTORE_PATH:/opt/waqiti/keystore/truststore.p12}
+    trust-store-password: ${SSL_TRUSTSTORE_PASSWORD}
+    trust-store-type: PKCS12
+
+# ==================== HTTP Security Headers ====================
+security:
+  headers:
+    # HSTS - HTTP Strict Transport Security
+    hsts:
+      enabled: true
+      max-age: 31536000
+      include-sub-domains: true
+      preload: true
+      
+    # Content Security Policy
+    content-security-policy: "default-src 'self'; script-src 'self' 'unsafe-inline' https://auth.example.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://auth.example.com"
+    
+    # Other security headers
+    x-frame-options: DENY
+    x-content-type-options: nosniff
+    x-xss-protection: "1; mode=block"
+    referrer-policy: strict-origin-when-cross-origin
+    
+# ==================== Certificate Validation ====================
+certificate:
+  validation:
+    # Certificate pinning for Keycloak
+    pinning:
+      enabled: true
+      pins:
+        - host: auth.example.com
+          pins:
+            - sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+            - sha256/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=
+      max-age: 5184000  # 60 days
+      
+    # OCSP stapling
+    ocsp:
+      enabled: true
+      responder-url: ${OCSP_RESPONDER_URL:http://ocsp.example.com}
+      
+    # Certificate revocation checking
+    revocation:
+      enabled: true
+      check-all: true
+      prefer-crls: false
+      
+# ==================== Rate Limiting for Auth Endpoints ====================
+rate-limiting:
+  auth-endpoints:
+    login:
+      limit: 10
+      duration: 60s
+      key-resolver: ip
+      
+    token-refresh:
+      limit: 30
+      duration: 60s
+      key-resolver: user
+      
+    logout:
+      limit: 5
+      duration: 60s
+      key-resolver: user
+      
+# ==================== Session Management ====================
+session:
+  cookie:
+    secure: true  # CRITICAL: Only send cookies over HTTPS
+    http-only: true
+    same-site: strict
+    max-age: 1800  # 30 minutes
+    
+  timeout: 30m
+  max-concurrent-sessions: 3
+  
+# ==================== CORS Configuration ====================
+cors:
+  allowed-origins:
+    - https://app.example.com
+    - https://admin.example.com
+  allowed-methods:
+    - GET
+    - POST
+    - PUT
+    - DELETE
+    - OPTIONS
+  allowed-headers:
+    - "*"
+  exposed-headers:
+    - X-Total-Count
+    - X-Request-ID
+  allow-credentials: true
+  max-age: 3600
+  
+# ==================== Monitoring and Health Checks ====================
+management:
+  health:
+    keycloak:
+      enabled: true
+      
+  metrics:
+    tags:
+      security: keycloak
+      
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+        
+# ==================== Logging Configuration ====================
+logging:
+  level:
+    org.keycloak: INFO
+    org.springframework.security: INFO
+    org.springframework.security.oauth2: DEBUG
+    
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [SECURITY] %logger{36} - %msg%n"

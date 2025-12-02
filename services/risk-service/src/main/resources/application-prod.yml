@@ -1,0 +1,127 @@
+spring:
+  # MongoDB Configuration (Production)
+  data:
+    mongodb:
+      uri: ${MONGODB_URI}
+      # Production-optimized settings
+      connection-per-host: 100
+      max-connection-idle-time: 60000
+      max-connection-life-time: 120000
+
+  # Redis Configuration (Production)
+  redis:
+    host: ${REDIS_HOST}
+    port: ${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD}
+    ssl: true
+    lettuce:
+      pool:
+        max-active: 16
+        max-idle: 8
+        min-idle: 4
+
+  # Kafka Configuration (Production)
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    properties:
+      security.protocol: SASL_SSL
+      sasl.mechanism: PLAIN
+      sasl.jaas.config: ${KAFKA_SASL_JAAS_CONFIG}
+    consumer:
+      properties:
+        max.poll.records: 1000
+        max.poll.interval.ms: 300000
+    producer:
+      acks: all
+      retries: 3
+      compression-type: snappy
+
+# Server Configuration (Production)
+server:
+  port: ${SERVER_PORT:8090}
+  shutdown: graceful
+  tomcat:
+    threads:
+      max: 200
+      min-spare: 10
+    max-connections: 10000
+    accept-count: 100
+
+# Eureka Configuration (Production)
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER}
+    registry-fetch-interval-seconds: 30
+  instance:
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+
+# Actuator Configuration (Production)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+        step: 1m
+
+# Resilience4j (Production-optimized)
+resilience4j:
+  circuitbreaker:
+    instances:
+      risk-ml-model:
+        sliding-window-size: 200
+        failure-rate-threshold: 40
+        wait-duration-in-open-state: 120s
+      rule-engine:
+        sliding-window-size: 100
+        failure-rate-threshold: 40
+        wait-duration-in-open-state: 60s
+
+# Risk Service Configuration (Production)
+risk:
+  scoring:
+    ml:
+      enabled: true
+      model-path: ${ML_MODEL_PATH:/app/models/risk-model.pkl}
+      confidence-threshold: 0.75
+    cache:
+      ttl: 300
+    high-risk-threshold: 0.7
+    medium-risk-threshold: 0.4
+  rules:
+    reload:
+      interval: 600000 # 10 minutes
+  ml:
+    batch-size: 200
+    prediction-timeout-ms: 3000
+
+# Kafka Topics (Production)
+kafka:
+  consumer:
+    concurrency: 5
+    max-poll-records: 1000
+
+# Logging Configuration (Production)
+logging:
+  level:
+    root: WARN
+    com.waqiti.risk: INFO
+    org.springframework.kafka: WARN
+    org.springframework.data.mongodb: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} %-5level [%thread] %logger{36} - %msg%n"
+  file:
+    name: /var/log/waqiti/risk-service.log
+    max-size: 200MB
+    max-history: 60
+
+# Production-specific settings
+debug: false

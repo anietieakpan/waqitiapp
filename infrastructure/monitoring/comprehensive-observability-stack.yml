@@ -1,0 +1,502 @@
+# Production-Grade Comprehensive Observability Stack
+# 
+# Implements enterprise-level monitoring, observability, and alerting with:
+# - Prometheus for metrics collection and alerting
+# - Grafana for visualization and dashboards  
+# - Jaeger for distributed tracing
+# - ElasticSearch + Kibana for centralized logging
+# - OpenTelemetry for unified observability
+# - AlertManager for intelligent alert routing
+# - Victoria Metrics for long-term storage
+# - ServiceMesh observability with Istio
+# 
+# Monitoring Capabilities:
+# - Application performance monitoring (APM)
+# - Infrastructure monitoring and alerting
+# - Business metrics and SLA tracking
+# - Security monitoring and incident response
+# - Distributed tracing and request flow analysis
+# - Log aggregation and analysis
+# - Custom metrics and dashboards
+# - Automated alert escalation
+# 
+# SRE Best Practices:
+# - Four Golden Signals monitoring
+# - Error budgets and SLI/SLO tracking
+# - Capacity planning and forecasting
+# - Incident management and response
+# - Change monitoring and rollback detection
+# - Performance regression detection
+# 
+# @author Waqiti Platform SRE Team  
+# @version 3.0.0
+# @since 2025-01-17
+
+version: '3.8'
+
+services:
+  # Prometheus - Metrics collection and alerting
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    container_name: waqiti-prometheus
+    hostname: prometheus.example.internal
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus/alerts:/etc/prometheus/alerts
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--storage.tsdb.retention.size=50GB'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+      - '--log.level=info'
+      - '--alertmanager.url=http://alertmanager:9093'
+    networks:
+      - waqiti-monitoring
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2'
+        reservations:
+          memory: 2G
+          cpus: '1'
+    restart: unless-stopped
+    labels:
+      - "prometheus.io/scrape=true"
+      - "prometheus.io/port=9090"
+
+  # AlertManager - Alert routing and management
+  alertmanager:
+    image: prom/alertmanager:v0.26.0
+    container_name: waqiti-alertmanager
+    hostname: alertmanager.example.internal
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+      - ./alertmanager/templates:/etc/alertmanager/templates
+      - alertmanager-data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=http://alertmanager.example.internal:9093'
+      - '--log.level=info'
+    networks:
+      - waqiti-monitoring
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+    restart: unless-stopped
+
+  # Grafana - Visualization and dashboards
+  grafana:
+    image: grafana/grafana:10.0.3
+    container_name: waqiti-grafana
+    hostname: grafana.example.internal
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD is required}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_USERS_DEFAULT_THEME=dark
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel,grafana-worldmap-panel,grafana-clock-panel
+      - GF_SECURITY_SECRET_KEY=${GRAFANA_SECRET_KEY}
+      - GF_DATABASE_TYPE=postgres
+      - GF_DATABASE_HOST=grafana-db:5432
+      - GF_DATABASE_NAME=grafana
+      - GF_DATABASE_USER=grafana
+      - GF_DATABASE_PASSWORD=${GRAFANA_DB_PASSWORD}
+      - GF_SESSION_PROVIDER=postgres
+      - GF_SESSION_PROVIDER_CONFIG=user=grafana password=${GRAFANA_DB_PASSWORD} host=grafana-db port=5432 dbname=grafana sslmode=require
+      - GF_ALERTING_ENABLED=true
+      - GF_UNIFIED_ALERTING_ENABLED=true
+      - GF_SMTP_ENABLED=true
+      - GF_SMTP_HOST=${SMTP_HOST}
+      - GF_SMTP_USER=${SMTP_USER}
+      - GF_SMTP_PASSWORD=${SMTP_PASSWORD}
+      - GF_SMTP_FROM_ADDRESS=alerts@example.com
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - prometheus
+      - grafana-db
+    networks:
+      - waqiti-monitoring
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1'
+    restart: unless-stopped
+
+  # Grafana Database
+  grafana-db:
+    image: postgres:15-alpine
+    container_name: waqiti-grafana-db
+    environment:
+      - POSTGRES_DB=grafana
+      - POSTGRES_USER=grafana
+      - POSTGRES_PASSWORD=${GRAFANA_DB_PASSWORD}
+    volumes:
+      - grafana-db-data:/var/lib/postgresql/data
+    networks:
+      - waqiti-monitoring
+    restart: unless-stopped
+
+  # Jaeger - Distributed tracing
+  jaeger:
+    image: jaegertracing/all-in-one:1.47
+    container_name: waqiti-jaeger
+    hostname: jaeger.example.internal
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "14268:14268"  # HTTP collector
+      - "9411:9411"    # Zipkin compatibility
+      - "14250:14250"  # gRPC collector
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+      - COLLECTOR_ZIPKIN_HOST_PORT=:9411
+      - SPAN_STORAGE_TYPE=elasticsearch
+      - ES_SERVER_URLS=http://elasticsearch:9200
+      - ES_USERNAME=${ELASTIC_USERNAME}
+      - ES_PASSWORD=${ELASTIC_PASSWORD}
+      - JAEGER_DISABLED=false
+    depends_on:
+      - elasticsearch
+    networks:
+      - waqiti-monitoring
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1'
+    restart: unless-stopped
+
+  # Elasticsearch - Log storage and search
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.9.0
+    container_name: waqiti-elasticsearch
+    hostname: elasticsearch.example.internal
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=true
+      - ELASTIC_USERNAME=${ELASTIC_USERNAME:-elastic}
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+      - ES_JAVA_OPTS=-Xms2g -Xmx2g
+      - xpack.security.http.ssl.enabled=false
+      - xpack.security.transport.ssl.enabled=false
+      - cluster.name=waqiti-logs
+      - node.name=waqiti-node-1
+      - path.data=/usr/share/elasticsearch/data
+      - path.logs=/usr/share/elasticsearch/logs
+      - http.port=9200
+      - transport.tcp.port=9300
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+      - elasticsearch-logs:/usr/share/elasticsearch/logs
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    networks:
+      - waqiti-monitoring
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2'
+        reservations:
+          memory: 2G
+          cpus: '1'
+    restart: unless-stopped
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+
+  # Kibana - Log visualization and analysis
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.9.0
+    container_name: waqiti-kibana
+    hostname: kibana.example.internal
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=${ELASTIC_USERNAME:-elastic}
+      - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD}
+      - SERVER_NAME=kibana.example.internal
+      - SERVER_HOST=0.0.0.0
+      - LOGGING_ROOT_LEVEL=warn
+    volumes:
+      - kibana-data:/usr/share/kibana/data
+      - ./kibana/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
+    depends_on:
+      - elasticsearch
+    networks:
+      - waqiti-monitoring
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1'
+    restart: unless-stopped
+
+  # Logstash - Log processing and forwarding
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.9.0
+    container_name: waqiti-logstash
+    hostname: logstash.example.internal
+    ports:
+      - "5044:5044"  # Beats input
+      - "9600:9600"  # Logstash monitoring
+    environment:
+      - LS_JAVA_OPTS=-Xmx1g -Xms1g
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=${ELASTIC_USERNAME:-elastic}
+      - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD}
+    volumes:
+      - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
+      - ./logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
+      - logstash-data:/usr/share/logstash/data
+    depends_on:
+      - elasticsearch
+    networks:
+      - waqiti-monitoring
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1'
+    restart: unless-stopped
+
+  # Filebeat - Log shipping agent
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.9.0
+    container_name: waqiti-filebeat
+    hostname: filebeat.example.internal
+    user: root
+    volumes:
+      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - filebeat-data:/usr/share/filebeat/data
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=${ELASTIC_USERNAME:-elastic}
+      - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD}
+      - LOGSTASH_HOSTS=logstash:5044
+    depends_on:
+      - elasticsearch
+      - logstash
+    networks:
+      - waqiti-monitoring
+    restart: unless-stopped
+
+  # OpenTelemetry Collector - Unified observability data collection
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.84.0
+    container_name: waqiti-otel-collector
+    hostname: otel-collector.example.internal
+    ports:
+      - "4317:4317"  # OTLP gRPC receiver
+      - "4318:4318"  # OTLP HTTP receiver
+      - "8889:8889"  # Prometheus metrics endpoint
+      - "13133:13133" # Health check
+    volumes:
+      - ./otel-collector/otel-collector.yml:/etc/otelcol-contrib/otel-collector.yml
+    command: ["--config=/etc/otelcol-contrib/otel-collector.yml"]
+    depends_on:
+      - prometheus
+      - jaeger
+    networks:
+      - waqiti-monitoring
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+    restart: unless-stopped
+
+  # Victoria Metrics - Long-term metrics storage
+  victoria-metrics:
+    image: victoriametrics/victoria-metrics:v1.93.1
+    container_name: waqiti-victoria-metrics
+    hostname: victoria-metrics.example.internal
+    ports:
+      - "8428:8428"
+    volumes:
+      - victoria-metrics-data:/victoria-metrics-data
+    command:
+      - '--storageDataPath=/victoria-metrics-data'
+      - '--retentionPeriod=12'
+      - '--httpListenAddr=:8428'
+      - '--promscrape.config=/etc/prometheus/prometheus.yml'
+      - '--memory.allowedPercent=80'
+    networks:
+      - waqiti-monitoring
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2'
+    restart: unless-stopped
+
+  # Redis for caching monitoring data
+  redis-monitoring:
+    image: redis:7-alpine
+    container_name: waqiti-redis-monitoring
+    hostname: redis-monitoring.example.internal
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis-monitoring-data:/data
+      - ./redis/redis.conf:/etc/redis/redis.conf
+    command: redis-server /etc/redis/redis.conf
+    networks:
+      - waqiti-monitoring
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+    restart: unless-stopped
+
+  # Node Exporter - System metrics
+  node-exporter:
+    image: prom/node-exporter:v1.6.1
+    container_name: waqiti-node-exporter
+    hostname: node-exporter.example.internal
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    networks:
+      - waqiti-monitoring
+    restart: unless-stopped
+
+  # cAdvisor - Container metrics
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.47.2
+    container_name: waqiti-cadvisor
+    hostname: cadvisor.example.internal
+    ports:
+      - "8080:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    privileged: true
+    devices:
+      - /dev/kmsg:/dev/kmsg
+    networks:
+      - waqiti-monitoring
+    restart: unless-stopped
+
+  # Blackbox Exporter - Endpoint monitoring
+  blackbox-exporter:
+    image: prom/blackbox-exporter:v0.24.0
+    container_name: waqiti-blackbox-exporter
+    hostname: blackbox-exporter.example.internal
+    ports:
+      - "9115:9115"
+    volumes:
+      - ./blackbox-exporter/blackbox.yml:/etc/blackbox_exporter/config.yml
+    networks:
+      - waqiti-monitoring
+    restart: unless-stopped
+
+  # PostgreSQL Exporter - Database metrics
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.13.2
+    container_name: waqiti-postgres-exporter
+    hostname: postgres-exporter.example.internal
+    ports:
+      - "9187:9187"
+    environment:
+      - DATA_SOURCE_NAME=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/waqiti?sslmode=disable
+    networks:
+      - waqiti-monitoring
+    restart: unless-stopped
+
+  # Redis Exporter - Redis metrics
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.52.0
+    container_name: waqiti-redis-exporter
+    hostname: redis-exporter.example.internal
+    ports:
+      - "9121:9121"
+    environment:
+      - REDIS_ADDR=redis://redis:6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    networks:
+      - waqiti-monitoring
+    restart: unless-stopped
+
+  # Kafka Exporter - Kafka metrics
+  kafka-exporter:
+    image: danielqsj/kafka-exporter:v1.6.0
+    container_name: waqiti-kafka-exporter
+    hostname: kafka-exporter.example.internal
+    ports:
+      - "9308:9308"
+    command:
+      - '--kafka.server=kafka:9092'
+      - '--web.listen-address=:9308'
+    networks:
+      - waqiti-monitoring
+    restart: unless-stopped
+
+volumes:
+  prometheus-data:
+    driver: local
+  alertmanager-data:
+    driver: local
+  grafana-data:
+    driver: local
+  grafana-db-data:
+    driver: local
+  elasticsearch-data:
+    driver: local
+  elasticsearch-logs:
+    driver: local
+  kibana-data:
+    driver: local
+  logstash-data:
+    driver: local
+  filebeat-data:
+    driver: local
+  victoria-metrics-data:
+    driver: local
+  redis-monitoring-data:
+    driver: local
+
+networks:
+  waqiti-monitoring:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

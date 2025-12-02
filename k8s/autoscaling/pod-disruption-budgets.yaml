@@ -1,0 +1,167 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: payment-service-pdb
+  namespace: default
+  labels:
+    app: payment-service
+    component: availability
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: payment-service
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: wallet-service-pdb
+  namespace: default
+  labels:
+    app: wallet-service
+    component: availability
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: wallet-service
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: user-service-pdb
+  namespace: default
+  labels:
+    app: user-service
+    component: availability
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: user-service
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ledger-service-pdb
+  namespace: default
+  labels:
+    app: ledger-service
+    component: availability
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: ledger-service
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: fraud-service-pdb
+  namespace: default
+  labels:
+    app: fraud-service
+    component: availability
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: fraud-service
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: compliance-service-pdb
+  namespace: default
+  labels:
+    app: compliance-service
+    component: availability
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: compliance-service
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: kyc-service-pdb
+  namespace: default
+  labels:
+    app: kyc-service
+    component: availability
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: kyc-service
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: notification-service-pdb
+  namespace: default
+  labels:
+    app: notification-service
+    component: availability
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: notification-service
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: reconciliation-service-pdb
+  namespace: default
+  labels:
+    app: reconciliation-service
+    component: availability
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: reconciliation-service
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: analytics-service-pdb
+  namespace: default
+  labels:
+    app: analytics-service
+    component: availability
+spec:
+  maxUnavailable: 50%
+  selector:
+    matchLabels:
+      app: analytics-service
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: redis-pdb
+  namespace: default
+  labels:
+    app: redis
+    component: cache
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: redis
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: kafka-pdb
+  namespace: default
+  labels:
+    app: kafka
+    component: messaging
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: kafka

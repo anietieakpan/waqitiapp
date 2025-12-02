@@ -1,0 +1,473 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: istio-system
+  labels:
+    name: istio-system
+    istio-injection: disabled
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: waqiti
+  labels:
+    name: waqiti
+    istio-injection: enabled
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: example-monitoring
+  labels:
+    name: example-monitoring
+    istio-injection: enabled
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: keycloak
+  labels:
+    name: keycloak
+    istio-injection: enabled
+---
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+metadata:
+  name: waqiti-istio-control-plane
+  namespace: istio-system
+spec:
+  values:
+    global:
+      meshID: waqiti-mesh
+      multiCluster:
+        clusterName: waqiti-production
+      network: waqiti-network
+      proxy:
+        tracer: "jaeger"
+        accessLogFile: /dev/stdout
+        accessLogFormat: |
+          {
+            "@timestamp": "%START_TIME%",
+            "method": "%REQ(:METHOD)%",
+            "path": "%REQ(X-ENVOY-ORIGINAL-PATH?:PATH)%",
+            "protocol": "%PROTOCOL%",
+            "response_code": "%RESPONSE_CODE%",
+            "response_flags": "%RESPONSE_FLAGS%",
+            "bytes_received": "%BYTES_RECEIVED%",
+            "bytes_sent": "%BYTES_SENT%",
+            "duration": "%DURATION%",
+            "user_id": "%REQ(X-USER-ID)%",
+            "correlation_id": "%REQ(X-CORRELATION-ID)%",
+            "service": "example-platform"
+          }
+      proxy_init:
+        image:
+          tag: 1.18.2-distroless
+      proxy:
+        image:
+          tag: 1.18.2-distroless
+    pilot:
+      image:
+        tag: 1.18.2-distroless
+      env:
+        PILOT_ENABLE_WORKLOAD_ENTRY_AUTOREGISTRATION: true
+        PILOT_ENABLE_CROSS_CLUSTER_WORKLOAD_ENTRY: true
+        EXTERNAL_ISTIOD: false
+        PILOT_TRACE_SAMPLING: 1.0
+  components:
+    pilot:
+      k8s:
+        resources:
+          requests:
+            cpu: 200m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        hpaSpec:
+          minReplicas: 2
+          maxReplicas: 5
+          metrics:
+          - type: Resource
+            resource:
+              name: cpu
+              target:
+                type: Utilization
+                averageUtilization: 80
+        env:
+        - name: PILOT_ENABLE_WORKLOAD_ENTRY_AUTOREGISTRATION
+          value: "true"
+        - name: PILOT_ENABLE_CROSS_CLUSTER_WORKLOAD_ENTRY
+          value: "true"
+        - name: PILOT_TRACE_SAMPLING
+          value: "1.0"
+    ingressGateways:
+    - name: istio-ingressgateway
+      enabled: true
+      k8s:
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 2000m
+            memory: 1024Mi
+        hpaSpec:
+          minReplicas: 2
+          maxReplicas: 10
+          metrics:
+          - type: Resource
+            resource:
+              name: cpu
+              target:
+                type: Utilization
+                averageUtilization: 70
+        service:
+          type: LoadBalancer
+          ports:
+          - port: 15021
+            targetPort: 15021
+            name: status-port
+            protocol: TCP
+          - port: 80
+            targetPort: 8080
+            name: http2
+            protocol: TCP
+          - port: 443
+            targetPort: 8443
+            name: https
+            protocol: TCP
+        overlays:
+        - apiVersion: v1
+          kind: Service
+          name: istio-ingressgateway
+          patches:
+          - path: spec.ports
+            value:
+            - port: 15021
+              targetPort: 15021
+              name: status-port
+              protocol: TCP
+            - port: 80
+              targetPort: 8080
+              name: http2
+              protocol: TCP
+            - port: 443
+              targetPort: 8443
+              name: https
+              protocol: TCP
+    egressGateways:
+    - name: istio-egressgateway
+      enabled: true
+      k8s:
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+        hpaSpec:
+          minReplicas: 1
+          maxReplicas: 3
+          metrics:
+          - type: Resource
+            resource:
+              name: cpu
+              target:
+                type: Utilization
+                averageUtilization: 80
+  meshConfig:
+    accessLogFile: /dev/stdout
+    accessLogFormat: |
+      {
+        "@timestamp": "%START_TIME%",
+        "method": "%REQ(:METHOD)%",
+        "path": "%REQ(X-ENVOY-ORIGINAL-PATH?:PATH)%",
+        "protocol": "%PROTOCOL%",
+        "response_code": "%RESPONSE_CODE%",
+        "response_flags": "%RESPONSE_FLAGS%",
+        "bytes_received": "%BYTES_RECEIVED%",
+        "bytes_sent": "%BYTES_SENT%",
+        "duration": "%DURATION%",
+        "upstream_service_time": "%RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)%",
+        "x_forwarded_for": "%REQ(X-FORWARDED-FOR)%",
+        "user_agent": "%REQ(USER-AGENT)%",
+        "request_id": "%REQ(X-REQUEST-ID)%",
+        "authority": "%REQ(:AUTHORITY)%",
+        "upstream_host": "%UPSTREAM_HOST%",
+        "user_id": "%REQ(X-USER-ID)%",
+        "correlation_id": "%REQ(X-CORRELATION-ID)%",
+        "device_id": "%REQ(X-DEVICE-ID)%",
+        "payment_id": "%REQ(X-PAYMENT-ID)%",
+        "service": "example-platform"
+      }
+    defaultConfig:
+      proxyStatsMatcher:
+        inclusionRegexps:
+        - ".*outlier_detection.*"
+        - ".*circuit_breakers.*"
+        - ".*upstream_rq_retry.*"
+        - ".*upstream_rq_pending.*"
+        - ".*_cx_.*"
+        - ".*waqiti.*"
+        exclusionRegexps:
+        - ".*osconfig.*"
+      tracing:
+        sampling: 100.0
+        max_path_tag_length: 256
+        custom_tags:
+          user_id:
+            header:
+              name: x-user-id
+          correlation_id:
+            header:
+              name: x-correlation-id
+          device_id:
+            header:
+              name: x-device-id
+          payment_id:
+            header:
+              name: x-payment-id
+          transaction_type:
+            header:
+              name: x-transaction-type
+    extensionProviders:
+    - name: jaeger
+      envoyOtelAls:
+        service: jaeger-collector.istio-system.svc.cluster.local
+        port: 14250
+    - name: prometheus
+      prometheus:
+        configOverride:
+          metric_relabeling_configs:
+          - source_labels: [__name__]
+            regex: 'istio_request_(total|duration_milliseconds)'
+            target_label: waqiti_metric
+          - source_labels: [destination_service_name]
+            regex: '(.*)-service'
+            target_label: waqiti_service
+            replacement: '${1}'
+    - name: otel
+      envoyOtelAls:
+        service: opentelemetry-collector.istio-system.svc.cluster.local
+        port: 4317
+    trustDomain: cluster.local
+    defaultProviders:
+      metrics:
+      - prometheus
+      tracing:
+      - jaeger
+      accessLogging:
+      - otel
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: waqiti-tls-cert
+  namespace: istio-system
+  labels:
+    security.example.com/component: tls-cert
+type: kubernetes.io/tls
+data:
+  tls.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCi0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0=
+  tls.key: LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tCi0tLS0tRU5EIFBSSVZBVEUgS0VZLS0tLS0=
+---
+apiVersion: networking.istio.io/v1beta1
+kind: Sidecar
+metadata:
+  name: waqiti-sidecar-config
+  namespace: waqiti
+  labels:
+    config.example.com/component: sidecar
+spec:
+  workloadSelector:
+    labels:
+      app: waqiti-service
+  ingress:
+  - port:
+      number: 8443
+      protocol: HTTPS
+      name: https
+    defaultEndpoint: 0.0.0.0:8443
+    captureMode: IPTABLES
+  - port:
+      number: 8080
+      protocol: HTTP
+      name: http
+    defaultEndpoint: 0.0.0.0:8080
+    captureMode: IPTABLES
+  egress:
+  - hosts:
+    - "./*"
+    - "istio-system/*"
+    - "example-monitoring/*"
+    - "keycloak/*"
+  - port:
+      number: 443
+      protocol: HTTPS
+      name: external-https
+    hosts:
+    - "api.stripe.com"
+    - "api.paypal.com"
+    - "api.onfido.com"
+    - "api.wise.com"
+    - "api.sanctions.io"
+    - "api.worldcheck.refinitiv.com"
+  - port:
+      number: 53
+      protocol: UDP
+      name: dns
+    hosts:
+    - "*"
+  outboundTrafficPolicy:
+    mode: REGISTRY_ONLY
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: istio-deployment-script
+  namespace: istio-system
+  labels:
+    deployment.example.com/component: installation
+data:
+  deploy-istio.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    
+    echo "Starting Istio deployment for Waqiti platform..."
+    
+    # Install Istio if not already installed
+    if ! kubectl get namespace istio-system > /dev/null 2>&1; then
+      echo "Installing Istio..."
+      curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.18.2 sh -
+      cd istio-1.18.2
+      export PATH=$PWD/bin:$PATH
+      
+      # Install Istio with our custom configuration
+      istioctl install --set values.pilot.env.EXTERNAL_ISTIOD=false -y
+    else
+      echo "Istio already installed, updating configuration..."
+    fi
+    
+    # Apply custom IstioOperator configuration
+    echo "Applying Waqiti IstioOperator configuration..."
+    kubectl apply -f /configs/istio-deployment.yaml
+    
+    # Wait for Istio components to be ready
+    echo "Waiting for Istio components to be ready..."
+    kubectl wait --for=condition=Ready pod -l app=istiod -n istio-system --timeout=300s
+    kubectl wait --for=condition=Ready pod -l app=istio-ingressgateway -n istio-system --timeout=300s
+    
+    # Apply security policies
+    echo "Applying Istio security policies..."
+    kubectl apply -f /configs/istio-security-policies.yaml
+    
+    # Apply traffic management
+    echo "Applying traffic management configuration..."
+    kubectl apply -f /configs/istio-traffic-management.yaml
+    
+    # Apply observability configuration
+    echo "Applying observability configuration..."
+    kubectl apply -f /configs/istio-observability.yaml
+    
+    # Apply gateway configuration
+    echo "Applying gateway configuration..."
+    kubectl apply -f /configs/istio-gateway.yaml
+    
+    # Enable automatic sidecar injection for Waqiti namespaces
+    echo "Enabling automatic sidecar injection..."
+    kubectl label namespace waqiti istio-injection=enabled --overwrite
+    kubectl label namespace example-monitoring istio-injection=enabled --overwrite
+    kubectl label namespace keycloak istio-injection=enabled --overwrite
+    
+    # Restart deployments to inject sidecars
+    echo "Restarting deployments to inject sidecars..."
+    for ns in waqiti example-monitoring keycloak; do
+      if kubectl get namespace $ns > /dev/null 2>&1; then
+        kubectl rollout restart deployment -n $ns || true
+      fi
+    done
+    
+    echo "Istio deployment completed successfully!"
+    
+    # Verify installation
+    echo "Verifying Istio installation..."
+    istioctl verify-install
+    
+    echo "Istio service mesh is ready for Waqiti platform!"
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: istio-deployment-job
+  namespace: istio-system
+  labels:
+    deployment.example.com/component: installation
+spec:
+  template:
+    metadata:
+      labels:
+        deployment.example.com/component: installation
+    spec:
+      serviceAccountName: istio-deployment-admin
+      restartPolicy: OnFailure
+      containers:
+      - name: istio-deployer
+        image: istio/istioctl:1.18.2
+        command:
+        - /bin/bash
+        - /scripts/deploy-istio.sh
+        volumeMounts:
+        - name: deployment-scripts
+          mountPath: /scripts
+          readOnly: true
+        - name: istio-configs
+          mountPath: /configs
+          readOnly: true
+        env:
+        - name: KUBECONFIG
+          value: /var/run/secrets/kubernetes.io/serviceaccount/token
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+      volumes:
+      - name: deployment-scripts
+        configMap:
+          name: istio-deployment-script
+          defaultMode: 0755
+      - name: istio-configs
+        configMap:
+          name: istio-configs
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: istio-deployment-admin
+  namespace: istio-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: istio-deployment-admin
+rules:
+- apiGroups: ["*"]
+  resources: ["*"]
+  verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: istio-deployment-admin
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: istio-deployment-admin
+subjects:
+- kind: ServiceAccount
+  name: istio-deployment-admin
+  namespace: istio-system

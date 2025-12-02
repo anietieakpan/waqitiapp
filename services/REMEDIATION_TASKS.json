@@ -1,0 +1,545 @@
+{
+  "project": "Waqiti Platform - Internal Reference Remediation",
+  "total_issues": 5276,
+  "estimated_hours": 236,
+  "priority": "P0 - BLOCKER",
+  "phases": [
+    {
+      "phase": 1,
+      "name": "Critical Infrastructure",
+      "duration_hours": 40,
+      "priority": "P0",
+      "start_week": 1,
+      "epic": "WAQITI-INFRA-001",
+      "tasks": [
+        {
+          "id": "INFRA-001",
+          "title": "Create com.example.common.domain.BaseEntity",
+          "description": "Create base JPA entity class with common fields (id, createdAt, updatedAt, version) that all domain entities will extend",
+          "priority": "P0",
+          "estimate_hours": 4,
+          "references": 15,
+          "acceptance_criteria": [
+            "BaseEntity class exists with @MappedSuperclass",
+            "Contains id, createdAt, updatedAt, version fields",
+            "Has proper equals/hashCode implementation",
+            "All 15 references compile successfully"
+          ],
+          "files_to_create": [
+            "services/common/src/main/java/com/waqiti/common/domain/BaseEntity.java"
+          ]
+        },
+        {
+          "id": "INFRA-002",
+          "title": "Create com.example.common.exception.SystemException",
+          "description": "Create base runtime exception class for all system-level exceptions",
+          "priority": "P0",
+          "estimate_hours": 3,
+          "references": 15,
+          "acceptance_criteria": [
+            "SystemException extends RuntimeException",
+            "Includes error code, message, and cause constructors",
+            "Has proper serialization support",
+            "All 15 references compile successfully"
+          ],
+          "files_to_create": [
+            "services/common/src/main/java/com/waqiti/common/exception/SystemException.java"
+          ]
+        },
+        {
+          "id": "INFRA-003",
+          "title": "Create com.example.common.exception.PaymentProviderException",
+          "description": "Create payment-specific exception class for provider integration errors",
+          "priority": "P0",
+          "estimate_hours": 2,
+          "references": 11,
+          "acceptance_criteria": [
+            "PaymentProviderException extends SystemException",
+            "Includes provider name, error code fields",
+            "All 11 references compile successfully"
+          ],
+          "files_to_create": [
+            "services/common/src/main/java/com/waqiti/common/exception/PaymentProviderException.java"
+          ]
+        },
+        {
+          "id": "INFRA-004",
+          "title": "Create com.example.common.utils.MDCUtil",
+          "description": "Create MDC (Mapped Diagnostic Context) utility for distributed tracing and log correlation",
+          "priority": "P0",
+          "estimate_hours": 4,
+          "references": 20,
+          "acceptance_criteria": [
+            "MDCUtil provides static methods for setting/getting correlation IDs",
+            "Supports user context, transaction IDs",
+            "Thread-safe implementation",
+            "All 20 references compile successfully"
+          ],
+          "files_to_create": [
+            "services/common/src/main/java/com/waqiti/common/utils/MDCUtil.java"
+          ]
+        },
+        {
+          "id": "INFRA-005",
+          "title": "Create com.example.common.service.DlqService",
+          "description": "Create Dead Letter Queue service for handling failed message processing",
+          "priority": "P0",
+          "estimate_hours": 8,
+          "references": 20,
+          "acceptance_criteria": [
+            "DlqService interface with sendToDlq, retry, abandon methods",
+            "Default implementation with Kafka DLQ topics",
+            "Proper Spring @Service annotation",
+            "All 20 references compile successfully"
+          ],
+          "files_to_create": [
+            "services/common/src/main/java/com/waqiti/common/service/DlqService.java",
+            "services/common/src/main/java/com/waqiti/common/service/impl/KafkaDlqService.java"
+          ]
+        },
+        {
+          "id": "INFRA-006",
+          "title": "Create com.example.common.kafka.BaseConsumer",
+          "description": "Create base Kafka consumer class with retry logic and error handling",
+          "priority": "P0",
+          "estimate_hours": 6,
+          "references": 13,
+          "acceptance_criteria": [
+            "BaseConsumer abstract class with retry configuration",
+            "Includes DLQ integration",
+            "Proper error handling and logging",
+            "All 13 references compile successfully"
+          ],
+          "files_to_create": [
+            "services/common/src/main/java/com/waqiti/common/kafka/BaseConsumer.java"
+          ]
+        },
+        {
+          "id": "INFRA-007",
+          "title": "Create com.example.common.kafka.KafkaMessage",
+          "description": "Create standard Kafka message envelope/wrapper class",
+          "priority": "P0",
+          "estimate_hours": 3,
+          "references": 9,
+          "acceptance_criteria": [
+            "KafkaMessage generic class with payload, headers, metadata",
+            "Includes correlation ID, timestamp fields",
+            "Proper serialization annotations",
+            "All 9 references compile successfully"
+          ],
+          "files_to_create": [
+            "services/common/src/main/java/com/waqiti/common/kafka/KafkaMessage.java"
+          ]
+        },
+        {
+          "id": "INFRA-008",
+          "title": "Create com.example.common.kafka.KafkaHealthIndicator",
+          "description": "Create Spring Boot health indicator for Kafka connectivity",
+          "priority": "P0",
+          "estimate_hours": 4,
+          "references": 16,
+          "acceptance_criteria": [
+            "KafkaHealthIndicator implements HealthIndicator",
+            "Checks Kafka broker connectivity",
+            "Returns UP/DOWN status",
+            "All 16 references compile successfully"
+          ],
+          "files_to_create": [
+            "services/common/src/main/java/com/waqiti/common/kafka/KafkaHealthIndicator.java"
+          ]
+        },
+        {
+          "id": "INFRA-009",
+          "title": "Verify Common Module Compilation",
+          "description": "Run Maven compile on all services using common module",
+          "priority": "P0",
+          "estimate_hours": 6,
+          "references": 0,
+          "acceptance_criteria": [
+            "All common module classes compile",
+            "At least 30 services now compile successfully",
+            "No ClassNotFoundException for common classes",
+            "Unit tests for common classes pass"
+          ],
+          "command": "cd services/common && mvn clean compile && mvn test"
+        }
+      ]
+    },
+    {
+      "phase": 2,
+      "name": "Domain Model Restoration",
+      "duration_hours": 60,
+      "priority": "P0",
+      "start_week": 2,
+      "epic": "WAQITI-DOMAIN-001",
+      "tasks": [
+        {
+          "id": "DOMAIN-001",
+          "title": "Restore com.waqiti.kyc.model.KYCApplication",
+          "description": "Restore or recreate KYCApplication domain entity",
+          "priority": "P0",
+          "estimate_hours": 12,
+          "references": 14,
+          "acceptance_criteria": [
+            "KYCApplication entity with proper JPA annotations",
+            "Includes all required fields (applicantId, status, documents, etc.)",
+            "Extends BaseEntity",
+            "All 14 references compile successfully"
+          ],
+          "files_to_create": [
+            "services/kyc-service/src/main/java/com/waqiti/kyc/model/KYCApplication.java"
+          ],
+          "dependencies": ["INFRA-001"]
+        },
+        {
+          "id": "DOMAIN-002",
+          "title": "Create com.waqiti.kyc.repository.KYCApplicationRepository",
+          "description": "Create Spring Data JPA repository for KYCApplication",
+          "priority": "P0",
+          "estimate_hours": 4,
+          "references": 14,
+          "acceptance_criteria": [
+            "Repository interface extends JpaRepository",
+            "Includes custom query methods",
+            "Proper @Repository annotation",
+            "All 14 references compile successfully"
+          ],
+          "files_to_create": [
+            "services/kyc-service/src/main/java/com/waqiti/kyc/repository/KYCApplicationRepository.java"
+          ],
+          "dependencies": ["DOMAIN-001"]
+        },
+        {
+          "id": "DOMAIN-003",
+          "title": "Create com.waqiti.kyc.model.VerificationStatus",
+          "description": "Create VerificationStatus enum for KYC workflow",
+          "priority": "P0",
+          "estimate_hours": 2,
+          "references": 12,
+          "acceptance_criteria": [
+            "Enum with states: PENDING, IN_PROGRESS, VERIFIED, REJECTED, EXPIRED",
+            "All 12 references compile successfully"
+          ],
+          "files_to_create": [
+            "services/kyc-service/src/main/java/com/waqiti/kyc/model/VerificationStatus.java"
+          ]
+        },
+        {
+          "id": "DOMAIN-004",
+          "title": "Resolve com.waqiti.customer.entity.Customer references",
+          "description": "Determine if Customer entity was renamed to User and update all references",
+          "priority": "P0",
+          "estimate_hours": 12,
+          "references": 14,
+          "acceptance_criteria": [
+            "Customer entity exists OR all references updated to User",
+            "Consistent usage across all services",
+            "All 14 references compile successfully",
+            "No duplicate Customer/User entities"
+          ],
+          "investigation_needed": true
+        },
+        {
+          "id": "DOMAIN-005",
+          "title": "Restore com.waqiti.card.domain.Card",
+          "description": "Restore Card domain entity",
+          "priority": "P0",
+          "estimate_hours": 10,
+          "references": 9,
+          "acceptance_criteria": [
+            "Card entity with cardNumber, status, limits, etc.",
+            "Proper PCI-DSS field encryption annotations",
+            "All 9 references compile successfully"
+          ],
+          "files_to_create": [
+            "services/card-service/src/main/java/com/waqiti/card/domain/Card.java"
+          ],
+          "dependencies": ["INFRA-001"]
+        },
+        {
+          "id": "DOMAIN-006",
+          "title": "Restore com.waqiti.transaction.entity.Transaction",
+          "description": "Restore Transaction domain entity",
+          "priority": "P0",
+          "estimate_hours": 10,
+          "references": 8,
+          "acceptance_criteria": [
+            "Transaction entity with all required fields",
+            "Proper audit trail fields",
+            "All 8 references compile successfully"
+          ],
+          "files_to_create": [
+            "services/transaction-service/src/main/java/com/waqiti/transaction/entity/Transaction.java"
+          ],
+          "dependencies": ["INFRA-001"]
+        },
+        {
+          "id": "DOMAIN-007",
+          "title": "Verify Domain Model Compilation",
+          "description": "Compile all services with domain model dependencies",
+          "priority": "P0",
+          "estimate_hours": 10,
+          "references": 0,
+          "acceptance_criteria": [
+            "KYC service compiles successfully",
+            "Card service compiles successfully",
+            "Transaction service compiles successfully",
+            "Customer/User services compile successfully",
+            "At least 50 services now compile"
+          ]
+        }
+      ]
+    },
+    {
+      "phase": 3,
+      "name": "Business Services Implementation",
+      "duration_hours": 80,
+      "priority": "P1",
+      "start_week": 3,
+      "epic": "WAQITI-SERVICES-001",
+      "tasks": [
+        {
+          "id": "SERVICE-001",
+          "title": "Implement com.example.compliance.metrics.ComplianceMetricsService",
+          "description": "Create compliance metrics aggregation service",
+          "priority": "P1",
+          "estimate_hours": 12,
+          "references": 19,
+          "acceptance_criteria": [
+            "Service collects compliance events",
+            "Generates compliance reports",
+            "Integrates with monitoring",
+            "All 19 references compile successfully"
+          ]
+        },
+        {
+          "id": "SERVICE-002",
+          "title": "Implement com.waqiti.security.service.ThreatResponseService",
+          "description": "Create security threat response orchestration service",
+          "priority": "P1",
+          "estimate_hours": 16,
+          "references": 15,
+          "acceptance_criteria": [
+            "Automated threat response workflows",
+            "Integration with fraud detection",
+            "Incident creation and tracking",
+            "All 15 references compile successfully"
+          ]
+        },
+        {
+          "id": "SERVICE-003",
+          "title": "Implement com.waqiti.risk.service.RiskMetricsService",
+          "description": "Create risk assessment and metrics service",
+          "priority": "P1",
+          "estimate_hours": 12,
+          "references": 13,
+          "acceptance_criteria": [
+            "Risk score calculation",
+            "Portfolio risk aggregation",
+            "Real-time risk monitoring",
+            "All 13 references compile successfully"
+          ]
+        },
+        {
+          "id": "SERVICE-004",
+          "title": "Implement com.waqiti.payment.service.RefundService",
+          "description": "Create payment refund orchestration service",
+          "priority": "P1",
+          "estimate_hours": 16,
+          "references": 11,
+          "acceptance_criteria": [
+            "Full/partial refund processing",
+            "Refund workflow state management",
+            "Integration with payment gateways",
+            "All 11 references compile successfully"
+          ]
+        },
+        {
+          "id": "SERVICE-005",
+          "title": "Implement remaining MetricsService classes",
+          "description": "Create all missing *MetricsService implementations",
+          "priority": "P1",
+          "estimate_hours": 24,
+          "references": 45,
+          "acceptance_criteria": [
+            "LendingMetricsService implemented",
+            "FraudMetricsService implemented",
+            "CardMetricsService implemented",
+            "SecurityMetricsService implemented",
+            "All metrics services compile and integrate"
+          ]
+        }
+      ]
+    },
+    {
+      "phase": 4,
+      "name": "Verification & Testing",
+      "duration_hours": 40,
+      "priority": "P0",
+      "start_week": 5,
+      "epic": "WAQITI-TEST-001",
+      "tasks": [
+        {
+          "id": "TEST-001",
+          "title": "Full Platform Compilation Test",
+          "description": "Compile all 85 services from scratch",
+          "priority": "P0",
+          "estimate_hours": 4,
+          "acceptance_criteria": [
+            "All 85 services compile with zero errors",
+            "No ClassNotFoundException",
+            "No import errors"
+          ],
+          "command": "./mvnw clean compile -DskipTests"
+        },
+        {
+          "id": "TEST-002",
+          "title": "Spring Context Startup Test",
+          "description": "Verify all services start successfully",
+          "priority": "P0",
+          "estimate_hours": 12,
+          "acceptance_criteria": [
+            "All services Spring contexts load",
+            "No bean creation errors",
+            "No circular dependency errors",
+            "All health checks pass"
+          ]
+        },
+        {
+          "id": "TEST-003",
+          "title": "Integration Test Suite",
+          "description": "Run critical flow integration tests",
+          "priority": "P0",
+          "estimate_hours": 16,
+          "acceptance_criteria": [
+            "Payment flow tests pass",
+            "KYC verification tests pass",
+            "Fraud detection tests pass",
+            "Account creation tests pass"
+          ]
+        },
+        {
+          "id": "TEST-004",
+          "title": "Run Final Reference Validation",
+          "description": "Execute validation scripts to verify zero issues",
+          "priority": "P0",
+          "estimate_hours": 2,
+          "acceptance_criteria": [
+            "deep_validation.py reports 0 broken imports",
+            "No circular dependencies",
+            "All Spring beans properly configured"
+          ],
+          "command": "python3 services/deep_validation.py"
+        },
+        {
+          "id": "TEST-005",
+          "title": "Documentation Update",
+          "description": "Update architecture documentation with fixes",
+          "priority": "P1",
+          "estimate_hours": 6,
+          "acceptance_criteria": [
+            "Architecture diagrams updated",
+            "Dependency graph updated",
+            "Development guide updated"
+          ]
+        }
+      ]
+    },
+    {
+      "phase": 5,
+      "name": "Automation & Prevention",
+      "duration_hours": 16,
+      "priority": "P1",
+      "start_week": 5,
+      "epic": "WAQITI-AUTO-001",
+      "tasks": [
+        {
+          "id": "AUTO-001",
+          "title": "Pre-commit Hook Integration",
+          "description": "Add reference validation to pre-commit hooks",
+          "priority": "P1",
+          "estimate_hours": 4,
+          "acceptance_criteria": [
+            "Pre-commit hook runs validation",
+            "Blocks commits with broken references",
+            "Fast execution (< 30 seconds)"
+          ]
+        },
+        {
+          "id": "AUTO-002",
+          "title": "CI/CD Pipeline Integration",
+          "description": "Add validation to GitHub Actions/Jenkins",
+          "priority": "P1",
+          "estimate_hours": 6,
+          "acceptance_criteria": [
+            "Validation runs on every PR",
+            "Build fails if broken references found",
+            "Reports attached to PR"
+          ]
+        },
+        {
+          "id": "AUTO-003",
+          "title": "Weekly Validation Report",
+          "description": "Schedule automated weekly validation emails",
+          "priority": "P1",
+          "estimate_hours": 4,
+          "acceptance_criteria": [
+            "Cron job configured",
+            "Reports emailed to architecture team",
+            "Dashboard showing trends"
+          ]
+        },
+        {
+          "id": "AUTO-004",
+          "title": "IDE Configuration Templates",
+          "description": "Create shared IntelliJ IDEA inspection profiles",
+          "priority": "P2",
+          "estimate_hours": 2,
+          "acceptance_criteria": [
+            "Inspection profile detects broken references",
+            "Shared via VCS",
+            "Team adoption > 80%"
+          ]
+        }
+      ]
+    }
+  ],
+  "acceptance_criteria": {
+    "must_have": [
+      "Zero broken imports (0/5276)",
+      "All 85 services compile successfully",
+      "All services start without errors",
+      "Critical business flows functional"
+    ],
+    "should_have": [
+      "Automated validation in CI/CD",
+      "Pre-commit hooks enabled",
+      "Weekly validation reports"
+    ],
+    "nice_to_have": [
+      "Architecture documentation updated",
+      "Team training on new base classes",
+      "Code cleanup and refactoring"
+    ]
+  },
+  "risks": [
+    {
+      "risk": "Hidden transitive dependencies",
+      "impact": "High",
+      "mitigation": "Thorough testing after each phase",
+      "probability": "Medium"
+    },
+    {
+      "risk": "Data migration required for domain models",
+      "impact": "High",
+      "mitigation": "Review database schemas before restoring entities",
+      "probability": "Medium"
+    },
+    {
+      "risk": "Integration test failures reveal more issues",
+      "impact": "Medium",
+      "mitigation": "Allocate buffer time in testing phase",
+      "probability": "High"
+    }
+  ]
+}

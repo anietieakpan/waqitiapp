@@ -1,0 +1,92 @@
+{
+  "type": "record",
+  "name": "KycVerificationInitiatedEvent",
+  "namespace": "com.waqiti.events.v1",
+  "doc": "Event published when KYC verification is initiated",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "Unique event identifier (UUID)"
+    },
+    {
+      "name": "eventType",
+      "type": "string",
+      "default": "kyc-verification-initiated",
+      "doc": "Type of event"
+    },
+    {
+      "name": "timestamp",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "Event timestamp in epoch milliseconds"
+    },
+    {
+      "name": "correlationId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Correlation ID for distributed tracing"
+    },
+    {
+      "name": "version",
+      "type": "string",
+      "default": "1.0",
+      "doc": "Schema version"
+    },
+    {
+      "name": "kycVerificationId",
+      "type": "string",
+      "doc": "Unique KYC verification identifier (UUID)"
+    },
+    {
+      "name": "userId",
+      "type": "string",
+      "doc": "User ID (UUID)"
+    },
+    {
+      "name": "verificationType",
+      "type": {
+        "type": "enum",
+        "name": "VerificationType",
+        "symbols": ["IDENTITY", "ADDRESS", "DOCUMENT", "ENHANCED_DUE_DILIGENCE", "BIOMETRIC"]
+      },
+      "doc": "Type of KYC verification"
+    },
+    {
+      "name": "kycLevel",
+      "type": {
+        "type": "enum",
+        "name": "KycLevel",
+        "symbols": ["TIER_1", "TIER_2", "TIER_3", "ENHANCED"]
+      },
+      "default": "TIER_1",
+      "doc": "KYC tier level"
+    },
+    {
+      "name": "provider",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "KYC verification provider name"
+    },
+    {
+      "name": "documents",
+      "type": {
+        "type": "array",
+        "items": "string"
+      },
+      "default": [],
+      "doc": "List of document IDs submitted"
+    },
+    {
+      "name": "metadata",
+      "type": ["null", {
+        "type": "map",
+        "values": "string"
+      }],
+      "default": null,
+      "doc": "Additional metadata"
+    }
+  ]
+}

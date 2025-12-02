@@ -1,0 +1,115 @@
+{
+  "type": "record",
+  "name": "WalletBalanceUpdatedEvent",
+  "namespace": "com.waqiti.events.v1",
+  "doc": "Event published when wallet balance is updated",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "Unique event identifier (UUID)"
+    },
+    {
+      "name": "eventType",
+      "type": "string",
+      "default": "wallet-balance-updated",
+      "doc": "Type of event"
+    },
+    {
+      "name": "timestamp",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "Event timestamp in epoch milliseconds"
+    },
+    {
+      "name": "correlationId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Correlation ID for distributed tracing"
+    },
+    {
+      "name": "version",
+      "type": "string",
+      "default": "1.0",
+      "doc": "Schema version"
+    },
+    {
+      "name": "walletId",
+      "type": "string",
+      "doc": "Wallet identifier (UUID)"
+    },
+    {
+      "name": "userId",
+      "type": "string",
+      "doc": "User ID (UUID)"
+    },
+    {
+      "name": "transactionId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Associated transaction ID (UUID)"
+    },
+    {
+      "name": "previousBalance",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 19,
+        "scale": 4
+      },
+      "doc": "Balance before update"
+    },
+    {
+      "name": "newBalance",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 19,
+        "scale": 4
+      },
+      "doc": "Balance after update"
+    },
+    {
+      "name": "changeAmount",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 19,
+        "scale": 4
+      },
+      "doc": "Amount of change (positive for credit, negative for debit)"
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "default": "USD",
+      "doc": "Currency code (ISO 4217)"
+    },
+    {
+      "name": "changeType",
+      "type": {
+        "type": "enum",
+        "name": "BalanceChangeType",
+        "symbols": ["CREDIT", "DEBIT", "ADJUSTMENT", "FREEZE", "UNFREEZE"]
+      },
+      "doc": "Type of balance change"
+    },
+    {
+      "name": "reason",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Reason for balance update"
+    },
+    {
+      "name": "metadata",
+      "type": ["null", {
+        "type": "map",
+        "values": "string"
+      }],
+      "default": null,
+      "doc": "Additional metadata"
+    }
+  ]
+}

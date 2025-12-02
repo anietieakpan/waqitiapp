@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Waqiti API Developer Portal</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .code-block {
+            background-color: #2d2d2d;
+            border-radius: 8px;
+            padding: 1rem;
+            overflow-x: auto;
+        }
+        .api-endpoint {
+            font-family: 'Courier New', monospace;
+            background-color: #f3f4f6;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+        }
+        .method-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+        .method-get { background-color: #60a5fa; color: white; }
+        .method-post { background-color: #34d399; color: white; }
+        .method-put { background-color: #fbbf24; color: white; }
+        .method-delete { background-color: #f87171; color: white; }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <h1 class="text-2xl font-bold text-gray-900">Waqiti API</h1>
+                    <span class="ml-2 text-sm text-gray-500">v1.0</span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="#getting-started" class="text-gray-700 hover:text-purple-600">Getting Started</a>
+                    <a href="#api-reference" class="text-gray-700 hover:text-purple-600">API Reference</a>
+                    <a href="#sdks" class="text-gray-700 hover:text-purple-600">SDKs</a>
+                    <a href="#webhooks" class="text-gray-700 hover:text-purple-600">Webhooks</a>
+                    <a href="#support" class="text-gray-700 hover:text-purple-600">Support</a>
+                    <a href="https://app.example.com/developer" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700">
+                        Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="gradient-bg text-white py-20">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center">
+                <h2 class="text-4xl font-bold mb-4">Build with Waqiti APIs</h2>
+                <p class="text-xl mb-8">Powerful payment infrastructure for modern applications</p>
+                <div class="flex justify-center space-x-4">
+                    <a href="#getting-started" class="bg-white text-purple-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100">
+                        Get Started
+                    </a>
+                    <a href="/api-documentation/openapi/payment-service.yaml" class="border-2 border-white text-white px-6 py-3 rounded-lg font-semibold hover:bg-white hover:text-purple-600">
+                        View OpenAPI Spec
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <!-- Getting Started -->
+        <section id="getting-started" class="mb-16">
+            <h2 class="text-3xl font-bold mb-8">Getting Started</h2>
+            
+            <div class="grid md:grid-cols-3 gap-6 mb-8">
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <div class="text-purple-600 text-3xl mb-4">
+                        <i class="fas fa-key"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-2">1. Get API Keys</h3>
+                    <p class="text-gray-600">Sign up for a developer account and generate your API keys from the dashboard.</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <div class="text-purple-600 text-3xl mb-4">
+                        <i class="fas fa-code"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-2">2. Install SDK</h3>
+                    <p class="text-gray-600">Choose your preferred language and install our official SDK for quick integration.</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <div class="text-purple-600 text-3xl mb-4">
+                        <i class="fas fa-rocket"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-2">3. Make First Call</h3>
+                    <p class="text-gray-600">Start with a simple payment request to test your integration.</p>
+                </div>
+            </div>
+
+            <!-- Quick Start Code -->
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h3 class="text-xl font-semibold mb-4">Quick Start Example</h3>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Select Language:</label>
+                    <select id="language-selector" class="border border-gray-300 rounded px-3 py-2">
+                        <option value="curl">cURL</option>
+                        <option value="javascript">JavaScript</option>
+                        <option value="python">Python</option>
+                        <option value="java">Java</option>
+                        <option value="go">Go</option>
+                    </select>
+                </div>
+                
+                <div id="code-examples">
+                    <!-- cURL Example -->
+                    <div class="code-example" data-language="curl">
+                        <pre class="code-block"><code class="language-bash">curl -X POST https://api.example.com/v1/payments \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "p2p",
+    "amount": 5000,
+    "currency": "USD",
+    "recipient": {
+      "type": "email",
+      "value": "friend@example.com"
+    },
+    "description": "Lunch money"
+  }'</code></pre>
+                    </div>
+
+                    <!-- JavaScript Example -->
+                    <div class="code-example hidden" data-language="javascript">
+                        <pre class="code-block"><code class="language-javascript">import { WaqitiClient } from '@waqiti/sdk';
+
+const client = new WaqitiClient('YOUR_API_KEY');
+
+const payment = await client.payments.create({
+  type: 'p2p',
+  amount: 5000,
+  currency: 'USD',
+  recipient: {
+    type: 'email',
+    value: 'friend@example.com'
+  },
+  description: 'Lunch money'
+});
+
+console.log('Payment created:', payment.id);</code></pre>
+                    </div>
+
+                    <!-- Python Example -->
+                    <div class="code-example hidden" data-language="python">
+                        <pre class="code-block"><code class="language-python">import waqiti
+
+client = waqiti.Client(api_key='YOUR_API_KEY')
+
+payment = client.payments.create(
+    type='p2p',
+    amount=5000,
+    currency='USD',
+    recipient={
+        'type': 'email',
+        'value': 'friend@example.com'
+    },
+    description='Lunch money'
+)
+
+print(f'Payment created: {payment.id}')</code></pre>
+                    </div>
+
+                    <!-- Java Example -->
+                    <div class="code-example hidden" data-language="java">
+                        <pre class="code-block"><code class="language-java">import com.waqiti.sdk.WaqitiClient;
+import com.waqiti.sdk.models.*;
+
+WaqitiClient client = new WaqitiClient("YOUR_API_KEY");
+
+CreatePaymentRequest request = CreatePaymentRequest.builder()
+    .type(PaymentType.P2P)
+    .amount(5000)
+    .currency("USD")
+    .recipient(Recipient.builder()
+        .type(RecipientType.EMAIL)
+        .value("friend@example.com")
+        .build())
+    .description("Lunch money")
+    .build();
+
+Payment payment = client.payments().create(request);
+System.out.println("Payment created: " + payment.getId());</code></pre>
+                    </div>
+
+                    <!-- Go Example -->
+                    <div class="code-example hidden" data-language="go">
+                        <pre class="code-block"><code class="language-go">package main
+
+import (
+    "fmt"
+    "github.com/waqiti/waqiti-go"
+)
+
+func main() {
+    client := waqiti.NewClient("YOUR_API_KEY")
+    
+    payment, err := client.Payments.Create(&waqiti.PaymentParams{
+        Type:     "p2p",
+        Amount:   5000,
+        Currency: "USD",
+        Recipient: &waqiti.Recipient{
+            Type:  "email",
+            Value: "friend@example.com",
+        },
+        Description: "Lunch money",
+    })
+    
+    if err != nil {
+        panic(err)
+    }
+    
+    fmt.Printf("Payment created: %s\n", payment.ID)
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- API Reference -->
+        <section id="api-reference" class="mb-16">
+            <h2 class="text-3xl font-bold mb-8">API Reference</h2>
+            
+            <!-- Base URL -->
+            <div class="bg-white p-6 rounded-lg shadow mb-6">
+                <h3 class="text-xl font-semibold mb-4">Base URL</h3>
+                <div class="grid md:grid-cols-3 gap-4">
+                    <div>
+                        <p class="font-medium mb-1">Production</p>
+                        <p class="api-endpoint">https://api.example.com/v1</p>
+                    </div>
+                    <div>
+                        <p class="font-medium mb-1">Staging</p>
+                        <p class="api-endpoint">https://staging-api.example.com/v1</p>
+                    </div>
+                    <div>
+                        <p class="font-medium mb-1">Sandbox</p>
+                        <p class="api-endpoint">https://sandbox-api.example.com/v1</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Authentication -->
+            <div class="bg-white p-6 rounded-lg shadow mb-6">
+                <h3 class="text-xl font-semibold mb-4">Authentication</h3>
+                <p class="mb-4">All API requests require authentication using a Bearer token in the Authorization header:</p>
+                <pre class="code-block"><code class="language-http">Authorization: Bearer YOUR_API_KEY</code></pre>
+                <div class="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded">
+                    <p class="text-sm"><strong>Security Note:</strong> Always keep your API keys secure and never expose them in client-side code.</p>
+                </div>
+            </div>
+
+            <!-- Endpoints -->
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h3 class="text-xl font-semibold mb-4">Core Endpoints</h3>
+                
+                <!-- Payments -->
+                <div class="mb-6">
+                    <h4 class="text-lg font-semibold mb-3">Payments</h4>
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between p-3 border rounded hover:bg-gray-50">
+                            <div class="flex items-center space-x-3">
+                                <span class="method-badge method-post">POST</span>
+                                <code class="text-sm">/payments</code>
+                                <span class="text-gray-600">Create a payment</span>
+                            </div>
+                            <a href="#" class="text-purple-600 hover:text-purple-700">
+                                <i class="fas fa-arrow-right"></i>
+                            </a>
+                        </div>
+                        <div class="flex items-center justify-between p-3 border rounded hover:bg-gray-50">
+                            <div class="flex items-center space-x-3">
+                                <span class="method-badge method-get">GET</span>
+                                <code class="text-sm">/payments</code>
+                                <span class="text-gray-600">List payments</span>
+                            </div>
+                            <a href="#" class="text-purple-600 hover:text-purple-700">
+                                <i class="fas fa-arrow-right"></i>
+                            </a>
+                        </div>
+                        <div class="flex items-center justify-between p-3 border rounded hover:bg-gray-50">
+                            <div class="flex items-center space-x-3">
+                                <span class="method-badge method-get">GET</span>
+                                <code class="text-sm">/payments/{id}</code>
+                                <span class="text-gray-600">Get payment details</span>
+                            </div>
+                            <a href="#" class="text-purple-600 hover:text-purple-700">
+                                <i class="fas fa-arrow-right"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Payment Methods -->
+                <div class="mb-6">
+                    <h4 class="text-lg font-semibold mb-3">Payment Methods</h4>
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between p-3 border rounded hover:bg-gray-50">
+                            <div class="flex items-center space-x-3">
+                                <span class="method-badge method-post">POST</span>
+                                <code class="text-sm">/payment-methods</code>
+                                <span class="text-gray-600">Add payment method</span>
+                            </div>
+                            <a href="#" class="text-purple-600 hover:text-purple-700">
+                                <i class="fas fa-arrow-right"></i>
+                            </a>
+                        </div>
+                        <div class="flex items-center justify-between p-3 border rounded hover:bg-gray-50">
+                            <div class="flex items-center space-x-3">
+                                <span class="method-badge method-get">GET</span>
+                                <code class="text-sm">/payment-methods</code>
+                                <span class="text-gray-600">List payment methods</span>
+                            </div>
+                            <a href="#" class="text-purple-600 hover:text-purple-700">
+                                <i class="fas fa-arrow-right"></i>
+                            </a>
+                        </div>
+                        <div class="flex items-center justify-between p-3 border rounded hover:bg-gray-50">
+                            <div class="flex items-center space-x-3">
+                                <span class="method-badge method-delete">DELETE</span>
+                                <code class="text-sm">/payment-methods/{id}</code>
+                                <span class="text-gray-600">Remove payment method</span>
+                            </div>
+                            <a href="#" class="text-purple-600 hover:text-purple-700">
+                                <i class="fas fa-arrow-right"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-6">
+                    <a href="/api-documentation/openapi/payment-service.yaml" class="text-purple-600 hover:text-purple-700 font-medium">
+                        View Full API Reference →
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- SDKs -->
+        <section id="sdks" class="mb-16">
+            <h2 class="text-3xl font-bold mb-8">Official SDKs</h2>
+            
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- JavaScript SDK -->
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <div class="flex items-center mb-4">
+                        <i class="fab fa-js text-yellow-500 text-3xl mr-3"></i>
+                        <h3 class="text-xl font-semibold">JavaScript / TypeScript</h3>
+                    </div>
+                    <p class="text-gray-600 mb-4">Full TypeScript support with modern async/await API</p>
+                    <pre class="code-block mb-4"><code class="language-bash">npm install @waqiti/sdk</code></pre>
+                    <div class="flex space-x-3">
+                        <a href="https://github.com/waqiti/waqiti-js" class="text-purple-600 hover:text-purple-700">
+                            <i class="fab fa-github"></i> GitHub
+                        </a>
+                        <a href="/docs/sdk/javascript" class="text-purple-600 hover:text-purple-700">
+                            <i class="fas fa-book"></i> Docs
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Python SDK -->
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <div class="flex items-center mb-4">
+                        <i class="fab fa-python text-blue-500 text-3xl mr-3"></i>
+                        <h3 class="text-xl font-semibold">Python</h3>
+                    </div>
+                    <p class="text-gray-600 mb-4">Pythonic API with type hints and async support</p>
+                    <pre class="code-block mb-4"><code class="language-bash">pip install waqiti</code></pre>
+                    <div class="flex space-x-3">
+                        <a href="https://github.com/waqiti/waqiti-python" class="text-purple-600 hover:text-purple-700">
+                            <i class="fab fa-github"></i> GitHub
+                        </a>
+                        <a href="/docs/sdk/python" class="text-purple-600 hover:text-purple-700">
+                            <i class="fas fa-book"></i> Docs
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Java SDK -->
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <div class="flex items-center mb-4">
+                        <i class="fab fa-java text-red-600 text-3xl mr-3"></i>
+                        <h3 class="text-xl font-semibold">Java</h3>
+                    </div>
+                    <p class="text-gray-600 mb-4">Enterprise-ready SDK with Spring Boot integration</p>
+                    <pre class="code-block mb-4"><code class="language-xml">&lt;dependency&gt;
+  &lt;groupId&gt;com.waqiti&lt;/groupId&gt;
+  &lt;artifactId&gt;waqiti-java&lt;/artifactId&gt;
+  &lt;version&gt;1.0.0&lt;/version&gt;
+&lt;/dependency&gt;</code></pre>
+                    <div class="flex space-x-3">
+                        <a href="https://github.com/waqiti/waqiti-java" class="text-purple-600 hover:text-purple-700">
+                            <i class="fab fa-github"></i> GitHub
+                        </a>
+                        <a href="/docs/sdk/java" class="text-purple-600 hover:text-purple-700">
+                            <i class="fas fa-book"></i> Docs
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Go SDK -->
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <div class="flex items-center mb-4">
+                        <i class="fab fa-golang text-cyan-500 text-3xl mr-3"></i>
+                        <h3 class="text-xl font-semibold">Go</h3>
+                    </div>
+                    <p class="text-gray-600 mb-4">Idiomatic Go with context support</p>
+                    <pre class="code-block mb-4"><code class="language-bash">go get github.com/waqiti/waqiti-go</code></pre>
+                    <div class="flex space-x-3">
+                        <a href="https://github.com/waqiti/waqiti-go" class="text-purple-600 hover:text-purple-700">
+                            <i class="fab fa-github"></i> GitHub
+                        </a>
+                        <a href="/docs/sdk/go" class="text-purple-600 hover:text-purple-700">
+                            <i class="fas fa-book"></i> Docs
+                        </a>
+                    </div>
+                </div>
+
+                <!-- PHP SDK -->
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <div class="flex items-center mb-4">
+                        <i class="fab fa-php text-purple-500 text-3xl mr-3"></i>
+                        <h3 class="text-xl font-semibold">PHP</h3>
+                    </div>
+                    <p class="text-gray-600 mb-4">PSR compliant with Laravel integration</p>
+                    <pre class="code-block mb-4"><code class="language-bash">composer require waqiti/waqiti-php</code></pre>
+                    <div class="flex space-x-3">
+                        <a href="https://github.com/waqiti/waqiti-php" class="text-purple-600 hover:text-purple-700">
+                            <i class="fab fa-github"></i> GitHub
+                        </a>
+                        <a href="/docs/sdk/php" class="text-purple-600 hover:text-purple-700">
+                            <i class="fas fa-book"></i> Docs
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Ruby SDK -->
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <div class="flex items-center mb-4">
+                        <i class="fas fa-gem text-red-500 text-3xl mr-3"></i>
+                        <h3 class="text-xl font-semibold">Ruby</h3>
+                    </div>
+                    <p class="text-gray-600 mb-4">Ruby gem with Rails helpers</p>
+                    <pre class="code-block mb-4"><code class="language-bash">gem install waqiti</code></pre>
+                    <div class="flex space-x-3">
+                        <a href="https://github.com/waqiti/waqiti-ruby" class="text-purple-600 hover:text-purple-700">
+                            <i class="fab fa-github"></i> GitHub
+                        </a>
+                        <a href="/docs/sdk/ruby" class="text-purple-600 hover:text-purple-700">
+                            <i class="fas fa-book"></i> Docs
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Webhooks -->
+        <section id="webhooks" class="mb-16">
+            <h2 class="text-3xl font-bold mb-8">Webhooks</h2>
+            
+            <div class="bg-white p-6 rounded-lg shadow">
+                <p class="mb-6">Webhooks allow you to receive real-time notifications about events in your Waqiti account.</p>
+                
+                <div class="grid md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <h3 class="text-lg font-semibold mb-3">Available Events</h3>
+                        <ul class="space-y-2">
+                            <li class="flex items-center">
+                                <i class="fas fa-check text-green-500 mr-2"></i>
+                                <code class="text-sm">payment.created</code>
+                            </li>
+                            <li class="flex items-center">
+                                <i class="fas fa-check text-green-500 mr-2"></i>
+                                <code class="text-sm">payment.completed</code>
+                            </li>
+                            <li class="flex items-center">
+                                <i class="fas fa-check text-green-500 mr-2"></i>
+                                <code class="text-sm">payment.failed</code>
+                            </li>
+                            <li class="flex items-center">
+                                <i class="fas fa-check text-green-500 mr-2"></i>
+                                <code class="text-sm">payment.refunded</code>
+                            </li>
+                            <li class="flex items-center">
+                                <i class="fas fa-check text-green-500 mr-2"></i>
+                                <code class="text-sm">money_request.created</code>
+                            </li>
+                            <li class="flex items-center">
+                                <i class="fas fa-check text-green-500 mr-2"></i>
+                                <code class="text-sm">money_request.paid</code>
+                            </li>
+                        </ul>
+                    </div>
+                    
+                    <div>
+                        <h3 class="text-lg font-semibold mb-3">Webhook Security</h3>
+                        <p class="text-gray-600 mb-3">All webhooks are signed using HMAC-SHA256. Verify the signature to ensure the webhook is from Waqiti:</p>
+                        <pre class="code-block"><code class="language-javascript">const crypto = require('crypto');
+
+function verifyWebhook(payload, signature, secret) {
+  const hmac = crypto.createHmac('sha256', secret);
+  const digest = hmac.update(payload).digest('hex');
+  return digest === signature;
+}</code></pre>
+                    </div>
+                </div>
+                
+                <div class="mt-6">
+                    <a href="/docs/webhooks" class="text-purple-600 hover:text-purple-700 font-medium">
+                        Learn more about webhooks →
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Error Handling -->
+        <section id="errors" class="mb-16">
+            <h2 class="text-3xl font-bold mb-8">Error Handling</h2>
+            
+            <div class="bg-white p-6 rounded-lg shadow">
+                <p class="mb-6">The API uses standard HTTP status codes and returns detailed error objects:</p>
+                
+                <pre class="code-block mb-6"><code class="language-json">{
+  "error": {
+    "code": "validation_error",
+    "message": "The provided data failed validation",
+    "field": "amount",
+    "details": {
+      "amount": "Amount must be greater than 0"
+    },
+    "requestId": "req_abc123"
+  }
+}</code></pre>
+                
+                <h3 class="text-lg font-semibold mb-3">Common Error Codes</h3>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm">400</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-mono">invalid_request</td>
+                                <td class="px-6 py-4 text-sm">The request is missing required parameters</td>
+                            </tr>
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm">401</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-mono">unauthorized</td>
+                                <td class="px-6 py-4 text-sm">Invalid or missing authentication token</td>
+                            </tr>
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm">403</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-mono">forbidden</td>
+                                <td class="px-6 py-4 text-sm">You do not have permission to access this resource</td>
+                            </tr>
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm">404</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-mono">not_found</td>
+                                <td class="px-6 py-4 text-sm">The requested resource was not found</td>
+                            </tr>
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm">422</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-mono">validation_error</td>
+                                <td class="px-6 py-4 text-sm">The provided data failed validation</td>
+                            </tr>
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm">429</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-mono">rate_limit_exceeded</td>
+                                <td class="px-6 py-4 text-sm">Too many requests</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Support -->
+        <section id="support" class="mb-16">
+            <h2 class="text-3xl font-bold mb-8">Support</h2>
+            
+            <div class="grid md:grid-cols-3 gap-6">
+                <div class="bg-white p-6 rounded-lg shadow text-center">
+                    <i class="fas fa-book text-purple-600 text-4xl mb-4"></i>
+                    <h3 class="text-xl font-semibold mb-2">Documentation</h3>
+                    <p class="text-gray-600 mb-4">Comprehensive guides and API reference</p>
+                    <a href="/docs" class="text-purple-600 hover:text-purple-700">View Docs →</a>
+                </div>
+                
+                <div class="bg-white p-6 rounded-lg shadow text-center">
+                    <i class="fas fa-comments text-purple-600 text-4xl mb-4"></i>
+                    <h3 class="text-xl font-semibold mb-2">Community</h3>
+                    <p class="text-gray-600 mb-4">Join our developer community on Discord</p>
+                    <a href="https://discord.gg/waqiti" class="text-purple-600 hover:text-purple-700">Join Discord →</a>
+                </div>
+                
+                <div class="bg-white p-6 rounded-lg shadow text-center">
+                    <i class="fas fa-envelope text-purple-600 text-4xl mb-4"></i>
+                    <h3 class="text-xl font-semibold mb-2">Email Support</h3>
+                    <p class="text-gray-600 mb-4">Get help from our support team</p>
+                    <a href="mailto:api-support@example.com" class="text-purple-600 hover:text-purple-700">Contact Us →</a>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 text-white py-8">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center">
+                <p>&copy; 2024 Waqiti. All rights reserved.</p>
+                <div class="flex space-x-6">
+                    <a href="/terms" class="hover:text-purple-400">Terms</a>
+                    <a href="/privacy" class="hover:text-purple-400">Privacy</a>
+                    <a href="/security" class="hover:text-purple-400">Security</a>
+                    <a href="https://status.example.com" class="hover:text-purple-400">API Status</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-java.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-go.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-http.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markup.min.js"></script>
+    
+    <script>
+        // Language selector
+        document.getElementById('language-selector').addEventListener('change', function(e) {
+            const language = e.target.value;
+            document.querySelectorAll('.code-example').forEach(example => {
+                if (example.dataset.language === language) {
+                    example.classList.remove('hidden');
+                } else {
+                    example.classList.add('hidden');
+                }
+            });
+        });
+
+        // Smooth scrolling
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+    </script>
+</body>
+</html>

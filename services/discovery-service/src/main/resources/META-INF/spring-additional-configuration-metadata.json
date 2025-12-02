@@ -1,0 +1,51 @@
+{
+  "properties": [
+    {
+      "name": "eureka.server.enable-self-preservation",
+      "type": "java.lang.Boolean",
+      "description": "Enable Eureka self-preservation mode",
+      "defaultValue": false
+    },
+    {
+      "name": "eureka.server.eviction-interval-timer-in-ms",
+      "type": "java.lang.Long",
+      "description": "Eviction interval timer in milliseconds",
+      "defaultValue": 60000
+    },
+    {
+      "name": "discovery.security.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable discovery service security",
+      "defaultValue": true
+    },
+    {
+      "name": "discovery.peer-awareness.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable peer awareness",
+      "defaultValue": false
+    },
+    {
+      "name": "discovery.dashboard.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Eureka dashboard",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "OAuth2 client ID for service",
+      "defaultValue": "discovery-service"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "OAuth2 client secret for service"
+    }
+  ]
+}

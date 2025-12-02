@@ -1,0 +1,196 @@
+# Resilience4j Circuit Breaker Configuration
+# Applied to all Feign clients for fault tolerance
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        # Failure rate threshold
+        failure-rate-threshold: 50
+        slow-call-rate-threshold: 50
+        slow-call-duration-threshold: 2s
+
+        # Sliding window
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+
+        # State transitions
+        wait-duration-in-open-state: 60s
+        permitted-number-of-calls-in-half-open-state: 5
+        automatic-transition-from-open-to-half-open-enabled: true
+
+        # Record exceptions
+        record-exceptions:
+          - org.springframework.web.client.HttpServerErrorException
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+          - feign.RetryableException
+
+        ignore-exceptions:
+          - java.lang.IllegalArgumentException
+
+      financial:
+        # Stricter thresholds for financial services
+        failure-rate-threshold: 30
+        slow-call-rate-threshold: 40
+        slow-call-duration-threshold: 3s
+        sliding-window-size: 20
+        minimum-number-of-calls: 10
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+
+      compliance:
+        # More lenient for compliance services (KYC can be slow)
+        failure-rate-threshold: 60
+        slow-call-rate-threshold: 60
+        slow-call-duration-threshold: 8s
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        wait-duration-in-open-state: 120s
+        permitted-number-of-calls-in-half-open-state: 3
+
+    instances:
+      core-banking-service:
+        base-config: financial
+        register-health-indicator: true
+        event-consumer-buffer-size: 100
+
+      ledger-service:
+        base-config: financial
+        register-health-indicator: true
+
+      compliance-service:
+        base-config: compliance
+        register-health-indicator: true
+
+      kyc-service:
+        base-config: compliance
+        register-health-indicator: true
+
+  # Retry configuration
+  retry:
+    configs:
+      default:
+        max-attempts: 3
+        wait-duration: 100ms
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - org.springframework.web.client.HttpServerErrorException
+          - java.io.IOException
+          - feign.RetryableException
+        ignore-exceptions:
+          - java.lang.IllegalArgumentException
+
+    instances:
+      core-banking-service:
+        base-config: default
+        max-attempts: 3
+
+      compliance-service:
+        base-config: default
+        max-attempts: 2  # Fewer retries for compliance
+
+  # Rate limiter configuration
+  ratelimiter:
+    configs:
+      default:
+        limit-for-period: 100
+        limit-refresh-period: 1s
+        timeout-duration: 0s  # Fail immediately if limit reached
+
+    instances:
+      core-banking-service:
+        base-config: default
+        limit-for-period: 200  # Higher limit for financial ops
+
+  # Time limiter configuration
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 3s
+        cancel-running-future: true
+
+      financial:
+        timeout-duration: 5s
+        cancel-running-future: true
+
+      compliance:
+        timeout-duration: 10s
+        cancel-running-future: true
+
+    instances:
+      core-banking-service:
+        base-config: financial
+
+      ledger-service:
+        base-config: financial
+
+      compliance-service:
+        base-config: compliance
+
+# Feign configuration
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 5000
+        readTimeout: 10000
+        loggerLevel: basic
+
+      core-banking-service:
+        connectTimeout: 5000
+        readTimeout: 15000  # Longer for financial ops
+        loggerLevel: full
+
+      compliance-service:
+        connectTimeout: 5000
+        readTimeout: 20000  # Longest for KYC
+        loggerLevel: full
+
+  circuitbreaker:
+    enabled: true
+    alphanumeric-ids:
+      enabled: true
+
+# Management endpoints for circuit breaker monitoring
+management:
+  health:
+    circuitbreakers:
+      enabled: true
+  endpoint:
+    health:
+      show-details: always
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,circuitbreakers,ratelimiters
+
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+# DLQ Alert thresholds
+dlq:
+  alerts:
+    enabled: true
+    pagerduty:
+      enabled: ${PAGERDUTY_ENABLED:false}
+      integration-key: ${PAGERDUTY_INTEGRATION_KEY:}
+      api-url: https://events.pagerduty.com/v2/enqueue
+    slack:
+      enabled: ${SLACK_ENABLED:false}
+      webhook-url: ${SLACK_WEBHOOK_URL:}
+      channel: ${SLACK_CHANNEL:#account-service-alerts}
+
+  retry:
+    polling-interval-ms: 10000
+    batch-size: 100
+    success-retention-hours: 24
+    cleanup-cron: "0 0 2 * * ?"
+    backoff-multiplier: 2
+    initial-backoff-ms: 5000
+
+  manual-review:
+    sla-check-interval-ms: 60000

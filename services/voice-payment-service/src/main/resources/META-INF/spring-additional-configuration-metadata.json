@@ -1,0 +1,57 @@
+{
+  "properties": [
+    {
+      "name": "voice-payment.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable voice payment functionality",
+      "defaultValue": true
+    },
+    {
+      "name": "voice-payment.provider",
+      "type": "java.lang.String",
+      "description": "Voice recognition provider",
+      "defaultValue": "AMAZON_ALEXA"
+    },
+    {
+      "name": "voice-payment.biometric-auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable voice biometric authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "voice-payment.limits.max-amount",
+      "type": "java.math.BigDecimal",
+      "description": "Maximum voice payment amount",
+      "defaultValue": "100.00"
+    },
+    {
+      "name": "voice-payment.security.confidence-threshold",
+      "type": "java.lang.Double",
+      "description": "Voice recognition confidence threshold",
+      "defaultValue": 0.85
+    },
+    {
+      "name": "voice-payment.fallback.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable fallback to other payment methods",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "OAuth2 client ID for service",
+      "defaultValue": "voice-payment-service"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "OAuth2 client secret for service"
+    }
+  ]
+}

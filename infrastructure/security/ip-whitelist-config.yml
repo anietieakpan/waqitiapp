@@ -1,0 +1,417 @@
+# IP Whitelist Security Configuration
+# Comprehensive IP-based access control for Waqiti platform
+# Provides multi-layered IP filtering with advanced threat detection
+
+# Core IP Whitelist Settings
+security:
+  ip-whitelist:
+    # Enable/disable IP whitelist functionality
+    enabled: true
+    
+    # Strict mode - only whitelisted IPs allowed
+    strict-mode: true
+    
+    # Default behavior when IP not found in whitelist (if strict-mode is false)
+    default-allowed: false
+    
+    # Maximum number of whitelist entries
+    max-entries: 10000
+    
+    # Cache settings
+    cache:
+      ttl-seconds: 300
+      max-size: 5000
+      hit-rate-threshold: 0.95
+    
+    # Filter Configuration
+    filter:
+      enabled: true
+      
+      # Paths that bypass IP filtering
+      bypass-paths: "/health,/metrics,/actuator/**,/swagger-ui/**,/api-docs/**"
+      
+      # Include user agent in validation
+      include-user-agent: true
+      
+      # Detailed request logging
+      detailed-logging: true
+      
+      # Add security headers to responses
+      response-headers: true
+      
+      # Response type for blocked requests (json|html|text)
+      block-response-type: "json"
+    
+    # Rate Limiting
+    rate-limit:
+      enabled: true
+      requests-per-minute: 100
+      burst-capacity: 150
+      
+      # Per-user rate limiting
+      per-user-limit: 200
+      per-user-burst: 250
+      
+      # IP-based rate limiting windows
+      windows:
+        - duration: "1m"
+          limit: 100
+        - duration: "5m" 
+          limit: 400
+        - duration: "1h"
+          limit: 2000
+    
+    # Geographic Blocking
+    geo-blocking:
+      enabled: true
+      
+      # Countries to block (ISO 3166-1 alpha-2 codes)
+      blocked-countries: "CN,RU,KP,IR,SY,AF"
+      
+      # High-risk countries with increased monitoring
+      high-risk-countries: "BY,MM,SD,VE,ZW"
+      
+      # Allow specific regions within blocked countries
+      country-exceptions:
+        enabled: true
+        # Format: country:region or country:city
+        allowed-regions: []
+    
+    # Threat Intelligence
+    threat-intelligence:
+      enabled: true
+      
+      # External threat feeds
+      feeds:
+        - name: "malware-ips"
+          url: "https://threat-intel.example.com/malware-ips"
+          update-interval: "1h"
+          weight: 0.8
+        
+        - name: "tor-exit-nodes"
+          url: "https://threat-intel.example.com/tor-exits"
+          update-interval: "6h"
+          weight: 0.6
+      
+      # Threat scoring
+      scoring:
+        malware: 100
+        botnet: 90
+        tor-exit: 70
+        vpn: 40
+        proxy: 30
+        scanner: 80
+        
+      # Auto-blacklist based on threat score
+      auto-blacklist:
+        enabled: true
+        threshold: 80
+        duration: "24h"
+    
+    # Auto-blacklisting Rules
+    auto-blacklist:
+      enabled: true
+      
+      # Failed request threshold
+      failed-requests:
+        threshold: 10
+        window: "5m"
+        duration: "1h"
+      
+      # Suspicious patterns
+      suspicious-patterns:
+        - pattern: "SQL injection attempts"
+          threshold: 5
+          duration: "12h"
+        
+        - pattern: "XSS attempts"
+          threshold: 8
+          duration: "6h"
+        
+        - pattern: "Path traversal"
+          threshold: 3
+          duration: "24h"
+      
+      # Rapid requests
+      rapid-requests:
+        threshold: 500
+        window: "1m"
+        duration: "30m"
+    
+    # API Management
+    api:
+      enabled: true
+      base-path: "/api/security/ip-whitelist"
+      
+      # Authentication required for all endpoints
+      require-auth: true
+      
+      # Rate limiting for API endpoints
+      rate-limit:
+        requests-per-minute: 60
+        burst-capacity: 100
+      
+      # Audit all API operations
+      audit-operations: true
+
+# Environment-specific configurations
+environments:
+  development:
+    security:
+      ip-whitelist:
+        strict-mode: false
+        default-allowed: true
+        geo-blocking:
+          enabled: false
+        threat-intelligence:
+          enabled: false
+        detailed-logging: true
+  
+  staging:
+    security:
+      ip-whitelist:
+        strict-mode: true
+        default-allowed: false
+        geo-blocking:
+          enabled: true
+        threat-intelligence:
+          enabled: true
+        detailed-logging: true
+  
+  production:
+    security:
+      ip-whitelist:
+        strict-mode: true
+        default-allowed: false
+        geo-blocking:
+          enabled: true
+        threat-intelligence:
+          enabled: true
+        detailed-logging: false
+        filter:
+          detailed-logging: false
+
+# Predefined IP Ranges
+predefined-ranges:
+  # Corporate networks
+  corporate:
+    - ip: "10.0.0.0/8"
+      description: "Private network range A"
+      category: "corporate"
+    
+    - ip: "172.16.0.0/12"
+      description: "Private network range B"
+      category: "corporate"
+    
+    - ip: "192.168.0.0/16"
+      description: "Private network range C"
+      category: "corporate"
+  
+  # Cloud providers
+  cloud-providers:
+    aws:
+      - ip: "3.0.0.0/8"
+        description: "AWS IP range"
+        category: "cloud"
+    
+    azure:
+      - ip: "13.64.0.0/11"
+        description: "Azure IP range"
+        category: "cloud"
+    
+    gcp:
+      - ip: "34.64.0.0/10"
+        description: "Google Cloud IP range"
+        category: "cloud"
+  
+  # CDN networks
+  cdn:
+    cloudflare:
+      - ip: "173.245.48.0/20"
+        description: "Cloudflare range 1"
+        category: "cdn"
+      
+      - ip: "103.21.244.0/22"
+        description: "Cloudflare range 2"
+        category: "cdn"
+    
+    akamai:
+      - ip: "23.32.0.0/11"
+        description: "Akamai range"
+        category: "cdn"
+
+# Monitoring and Alerting
+monitoring:
+  ip-whitelist:
+    metrics:
+      enabled: true
+      export-to-prometheus: true
+      
+      # Custom metrics
+      custom-metrics:
+        - name: "ip_whitelist_requests_total"
+          type: "counter"
+          labels: ["ip", "status", "country"]
+        
+        - name: "ip_whitelist_response_time"
+          type: "histogram"
+          buckets: [0.001, 0.01, 0.1, 1.0, 10.0]
+        
+        - name: "ip_blacklist_hits_total"
+          type: "counter"
+          labels: ["ip", "reason"]
+    
+    alerts:
+      # High number of blocked requests
+      blocked-requests:
+        threshold: 1000
+        window: "5m"
+        severity: "warning"
+      
+      # Blacklist growing rapidly
+      blacklist-growth:
+        threshold: 100
+        window: "1h"
+        severity: "critical"
+      
+      # Geographic anomalies
+      geo-anomalies:
+        enabled: true
+        sensitivity: "medium"
+        severity: "warning"
+      
+      # Cache performance
+      cache-performance:
+        hit-rate-threshold: 0.85
+        severity: "warning"
+
+# Logging Configuration
+logging:
+  ip-whitelist:
+    level: INFO
+    
+    # Log formats
+    formats:
+      access: "IP: {ip} | User: {user} | Path: {path} | Status: {status} | Country: {country} | Risk: {risk}"
+      blocked: "BLOCKED - IP: {ip} | Reason: {reason} | Path: {path} | User: {user}"
+      admin: "ADMIN - Action: {action} | IP: {ip} | Admin: {admin} | Reason: {reason}"
+    
+    # Log destinations
+    destinations:
+      - type: "file"
+        file: "/var/log/waqiti/ip-whitelist.log"
+        rotation: "daily"
+        retention: "30d"
+      
+      - type: "elasticsearch"
+        index: "waqiti-security-ips"
+        enabled: true
+      
+      - type: "siem"
+        endpoint: "${SIEM_ENDPOINT:http://siem.internal:9200}"
+        enabled: true
+
+# Integration Settings
+integrations:
+  # SIEM integration
+  siem:
+    enabled: true
+    format: "cef"
+    endpoint: "${SIEM_ENDPOINT}"
+    
+    # Events to send to SIEM
+    events:
+      - "ip_blocked"
+      - "whitelist_updated"
+      - "blacklist_updated"
+      - "threat_detected"
+      - "geo_block"
+  
+  # Threat intelligence platforms
+  tip:
+    enabled: true
+    platforms:
+      - name: "misp"
+        endpoint: "${MISP_ENDPOINT}"
+        api-key: "${MISP_API_KEY}"
+      
+      - name: "opencti"
+        endpoint: "${OPENCTI_ENDPOINT}"
+        token: "${OPENCTI_TOKEN}"
+  
+  # Notification systems
+  notifications:
+    enabled: true
+    
+    channels:
+      - type: "slack"
+        webhook: "${SLACK_WEBHOOK_URL}"
+        events: ["critical_block", "mass_blacklist"]
+      
+      - type: "email"
+        smtp-server: "${SMTP_SERVER}"
+        recipients: ["security@example.com"]
+        events: ["geo_anomaly", "threat_spike"]
+      
+      - type: "pagerduty"
+        integration-key: "${PAGERDUTY_KEY}"
+        events: ["system_failure", "emergency_disable"]
+
+# Backup and Recovery
+backup:
+  whitelist:
+    enabled: true
+    schedule: "0 2 * * *"  # Daily at 2 AM
+    retention: "90d"
+    location: "/backup/ip-whitelist"
+    
+    # Backup formats
+    formats: ["json", "csv"]
+    
+    # Encryption
+    encryption:
+      enabled: true
+      key-id: "${BACKUP_ENCRYPTION_KEY_ID}"
+  
+  blacklist:
+    enabled: true
+    schedule: "0 3 * * *"  # Daily at 3 AM
+    retention: "30d"
+    location: "/backup/ip-blacklist"
+
+# Performance Tuning
+performance:
+  # Connection pooling for external services
+  connection-pools:
+    threat-intel:
+      max-connections: 20
+      connection-timeout: "5s"
+      read-timeout: "10s"
+    
+    geo-ip:
+      max-connections: 10
+      connection-timeout: "3s"
+      read-timeout: "5s"
+  
+  # Async processing
+  async:
+    thread-pool-size: 10
+    queue-capacity: 1000
+    
+    # Async tasks
+    tasks:
+      - "threat-intel-lookup"
+      - "geo-location"
+      - "statistics-calculation"
+  
+  # Circuit breaker patterns
+  circuit-breakers:
+    threat-intel:
+      failure-threshold: 5
+      timeout: "10s"
+      reset-timeout: "60s"
+    
+    geo-service:
+      failure-threshold: 3
+      timeout: "5s"
+      reset-timeout: "30s"

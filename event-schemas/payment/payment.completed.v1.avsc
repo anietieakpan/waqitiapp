@@ -1,0 +1,61 @@
+{
+  "type": "record",
+  "name": "PaymentCompleted",
+  "namespace": "com.waqiti.events.payment",
+  "doc": "Event published when a payment successfully completes",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "Unique event identifier"
+    },
+    {
+      "name": "eventTimestamp",
+      "type": "long",
+      "logicalType": "timestamp-millis",
+      "doc": "Event timestamp"
+    },
+    {
+      "name": "paymentId",
+      "type": "string",
+      "doc": "Payment identifier"
+    },
+    {
+      "name": "userId",
+      "type": "string",
+      "doc": "User ID"
+    },
+    {
+      "name": "amount",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 19,
+        "scale": 4
+      }
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "default": "USD"
+    },
+    {
+      "name": "completedAt",
+      "type": "long",
+      "logicalType": "timestamp-millis",
+      "doc": "Payment completion timestamp"
+    },
+    {
+      "name": "transactionId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Associated transaction ID"
+    },
+    {
+      "name": "confirmationNumber",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Payment confirmation number"
+    }
+  ]
+}

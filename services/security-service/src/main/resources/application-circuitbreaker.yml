@@ -1,0 +1,228 @@
+# Circuit Breaker Configuration for Security Service
+# Provides resilience when calling compliance-service via Feign client
+
+spring:
+  cloud:
+    circuitbreaker:
+      enabled: true
+      resilience4j:
+        enabled: true
+
+# Resilience4j Circuit Breaker Configuration
+resilience4j:
+  circuitbreaker:
+    configs:
+      # Default configuration for all circuit breakers
+      default:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 30s
+        failureRateThreshold: 50
+        slowCallDurationThreshold: 2s
+        slowCallRateThreshold: 50
+        recordExceptions:
+          - org.springframework.web.client.HttpServerErrorException
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+          - feign.RetryableException
+        ignoreExceptions:
+          - java.lang.IllegalArgumentException
+          - java.lang.IllegalStateException
+
+    instances:
+      # Circuit breaker for compliance-service
+      compliance-service:
+        baseConfig: default
+        registerHealthIndicator: true
+        slidingWindowSize: 20  # Larger window for better accuracy
+        minimumNumberOfCalls: 10  # Require more calls before calculating failure rate
+        permittedNumberOfCallsInHalfOpenState: 5
+        waitDurationInOpenState: 60s  # Wait 1 minute before attempting recovery
+        failureRateThreshold: 40  # More sensitive - trip at 40% failure rate
+        slowCallDurationThreshold: 3s  # Compliance validation can take time
+        slowCallRateThreshold: 60
+        # Additional settings for compliance-service
+        eventConsumerBufferSize: 20
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+
+      # Circuit breaker for other critical services (can be customized)
+      default:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        waitDurationInOpenState: 30s
+        failureRateThreshold: 50
+
+  # Retry Configuration
+  retry:
+    configs:
+      default:
+        maxAttempts: 3
+        waitDuration: 1s
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - org.springframework.web.client.HttpServerErrorException
+          - java.io.IOException
+          - feign.RetryableException
+        ignoreExceptions:
+          - java.lang.IllegalArgumentException
+          - feign.FeignException.BadRequest
+          - feign.FeignException.NotFound
+
+    instances:
+      compliance-service:
+        baseConfig: default
+        maxAttempts: 3
+        waitDuration: 2s
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+
+  # Bulkhead Configuration (Limit concurrent calls)
+  bulkhead:
+    configs:
+      default:
+        maxConcurrentCalls: 25
+        maxWaitDuration: 5s
+
+    instances:
+      compliance-service:
+        maxConcurrentCalls: 50  # Higher limit for compliance service
+        maxWaitDuration: 10s
+
+  # Rate Limiter Configuration
+  ratelimiter:
+    configs:
+      default:
+        registerHealthIndicator: true
+        limitForPeriod: 100
+        limitRefreshPeriod: 1s
+        timeoutDuration: 5s
+
+    instances:
+      compliance-service:
+        limitForPeriod: 200  # Allow 200 calls per second to compliance-service
+        limitRefreshPeriod: 1s
+        timeoutDuration: 10s
+
+  # Time Limiter Configuration
+  timelimiter:
+    configs:
+      default:
+        timeoutDuration: 10s
+        cancelRunningFuture: true
+
+    instances:
+      compliance-service:
+        timeoutDuration: 30s  # Compliance validations may take longer
+        cancelRunningFuture: true
+
+# Feign Client Configuration
+feign:
+  circuitbreaker:
+    enabled: true
+    alphanumeric-ids:
+      enabled: true
+  client:
+    config:
+      default:
+        connectTimeout: 5000  # 5 seconds
+        readTimeout: 10000  # 10 seconds
+        loggerLevel: BASIC
+
+      compliance-service:
+        connectTimeout: 10000  # 10 seconds for compliance
+        readTimeout: 30000  # 30 seconds for compliance (validation can take time)
+        loggerLevel: FULL  # Detailed logging for compliance operations
+        errorDecoder: com.waqiti.security.config.ComplianceServiceErrorDecoder
+        requestInterceptors:
+          - com.waqiti.security.config.FeignRequestInterceptor
+
+  compression:
+    request:
+      enabled: true
+      mime-types:
+        - application/json
+        - application/xml
+      min-request-size: 2048
+    response:
+      enabled: true
+
+# Management endpoints for circuit breaker monitoring
+management:
+  endpoints:
+    web:
+      exposure:
+        include:
+          - health
+          - metrics
+          - circuitbreakers
+          - circuitbreakerevents
+          - retries
+          - retryevents
+
+  endpoint:
+    health:
+      show-details: always
+      show-components: always
+      probes:
+        enabled: true
+
+  health:
+    circuitbreakers:
+      enabled: true
+    ratelimiters:
+      enabled: true
+
+  metrics:
+    distribution:
+      percentiles-histogram:
+        resilience4j.circuitbreaker.calls: true
+        resilience4j.circuitbreaker.calls.slow: true
+    tags:
+      application: ${spring.application.name}
+    export:
+      prometheus:
+        enabled: true
+
+# Logging Configuration for Circuit Breaker
+logging:
+  level:
+    io.github.resilience4j: DEBUG
+    io.github.resilience4j.circuitbreaker: INFO
+    io.github.resilience4j.retry: INFO
+    com.waqiti.security.aml: DEBUG
+    com.example.compliance.contracts.client: DEBUG
+    feign.Logger: DEBUG
+
+---
+# Production Profile Overrides
+spring:
+  config:
+    activate:
+      on-profile: production
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      compliance-service:
+        slidingWindowSize: 50  # Larger window in production
+        minimumNumberOfCalls: 20
+        waitDurationInOpenState: 120s  # Wait 2 minutes in production
+        slowCallDurationThreshold: 5s
+
+  retry:
+    instances:
+      compliance-service:
+        maxAttempts: 5  # More retries in production
+        waitDuration: 3s
+
+logging:
+  level:
+    io.github.resilience4j: INFO  # Less verbose in production
+    io.github.resilience4j.circuitbreaker: WARN
+    io.github.resilience4j.retry: WARN

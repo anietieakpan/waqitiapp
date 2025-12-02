@@ -1,0 +1,297 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vault-config
+  namespace: waqiti-system
+data:
+  vault.hcl: |
+    ui = true
+    
+    listener "tcp" {
+      address     = "0.0.0.0:8200"
+      tls_cert_file = "/vault/tls/server.crt"
+      tls_key_file  = "/vault/tls/server.key"
+      tls_client_ca_file = "/vault/tls/ca.crt"
+    }
+    
+    storage "raft" {
+      path = "/vault/data"
+      node_id = "VAULT_RAFT_NODE_ID"
+      
+      retry_join {
+        leader_api_addr = "https://vault-0.vault-internal.waqiti-system.svc.cluster.local:8200"
+      }
+      retry_join {
+        leader_api_addr = "https://vault-1.vault-internal.waqiti-system.svc.cluster.local:8200"
+      }
+      retry_join {
+        leader_api_addr = "https://vault-2.vault-internal.waqiti-system.svc.cluster.local:8200"
+      }
+    }
+    
+    seal "awskms" {
+      region     = "us-east-1"
+      kms_key_id = "VAULT_KMS_KEY_ID"
+    }
+    
+    api_addr = "https://vault.waqiti-system.svc.cluster.local:8200"
+    cluster_addr = "https://vault.waqiti-system.svc.cluster.local:8201"
+    
+    log_level = "Info"
+    log_format = "json"
+    
+    telemetry {
+      prometheus_retention_time = "30s"
+      disable_hostname = true
+    }
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: vault
+  namespace: waqiti-system
+  labels:
+    app: vault
+spec:
+  serviceName: vault-internal
+  replicas: 3
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: vault
+  template:
+    metadata:
+      labels:
+        app: vault
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 100
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+      - name: vault
+        image: hashicorp/vault:1.15.2
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8200
+          name: vault-port
+        - containerPort: 8201
+          name: cluster-port
+        env:
+        - name: VAULT_ADDR
+          value: "https://127.0.0.1:8200"
+        - name: VAULT_API_ADDR
+          value: "https://vault.waqiti-system.svc.cluster.local:8200"
+        - name: VAULT_CLUSTER_ADDR
+          value: "https://vault.waqiti-system.svc.cluster.local:8201"
+        - name: VAULT_RAFT_NODE_ID
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: VAULT_KMS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: vault-kms
+              key: kms-key-id
+        - name: AWS_REGION
+          value: "us-east-1"
+        - name: VAULT_CACERT
+          value: "/vault/tls/ca.crt"
+        command:
+        - /bin/sh
+        - -ec
+        args:
+        - |
+          cp /vault/config/vault.hcl /tmp/vault.hcl
+          sed -i "s/VAULT_RAFT_NODE_ID/${VAULT_RAFT_NODE_ID}/g" /tmp/vault.hcl
+          sed -i "s/VAULT_KMS_KEY_ID/${VAULT_KMS_KEY_ID}/g" /tmp/vault.hcl
+          exec vault server -config=/tmp/vault.hcl
+        volumeMounts:
+        - name: vault-data
+          mountPath: /vault/data
+        - name: vault-config
+          mountPath: /vault/config
+        - name: vault-tls
+          mountPath: /vault/tls
+        readinessProbe:
+          httpGet:
+            path: /v1/sys/health
+            port: 8200
+            scheme: HTTPS
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /v1/sys/health
+            port: 8200
+            scheme: HTTPS
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+        resources:
+          requests:
+            cpu: 200m
+            memory: 512Mi
+          limits:
+            cpu: 1000m
+            memory: 1Gi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            add:
+            - IPC_LOCK
+            drop:
+            - ALL
+      volumes:
+      - name: vault-config
+        configMap:
+          name: vault-config
+      - name: vault-tls
+        secret:
+          secretName: vault-tls
+      serviceAccountName: vault
+  volumeClaimTemplates:
+  - metadata:
+      name: vault-data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      storageClassName: fast-ssd
+      resources:
+        requests:
+          storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vault-internal
+  namespace: waqiti-system
+  labels:
+    app: vault
+spec:
+  clusterIP: None
+  ports:
+  - name: vault-port
+    port: 8200
+    targetPort: 8200
+  - name: cluster-port
+    port: 8201
+    targetPort: 8201
+  selector:
+    app: vault
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vault
+  namespace: waqiti-system
+  labels:
+    app: vault
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: nlb
+    service.beta.kubernetes.io/aws-load-balancer-scheme: internal
+spec:
+  type: LoadBalancer
+  ports:
+  - name: vault-port
+    port: 8200
+    targetPort: 8200
+  selector:
+    app: vault
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vault
+  namespace: waqiti-system
+  annotations:
+    eks.amazonaws.com/role-arn: "VAULT_IAM_ROLE_ARN"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: vault
+rules:
+- apiGroups: [""]
+  resources: ["pods", "serviceaccounts"]
+  verbs: ["list", "get"]
+- apiGroups: [""]
+  resources: ["serviceaccounts/token"]
+  verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: vault
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: vault
+subjects:
+- kind: ServiceAccount
+  name: vault
+  namespace: waqiti-system
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: vault-pdb
+  namespace: waqiti-system
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: vault
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: vault-network-policy
+  namespace: waqiti-system
+spec:
+  podSelector:
+    matchLabels:
+      app: vault
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: waqiti
+    ports:
+    - protocol: TCP
+      port: 8200
+  - from:
+    - podSelector:
+        matchLabels:
+          app: vault
+    ports:
+    - protocol: TCP
+      port: 8200
+    - protocol: TCP
+      port: 8201
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app: vault
+    ports:
+    - protocol: TCP
+      port: 8200
+    - protocol: TCP
+      port: 8201
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443  # AWS KMS
+    - protocol: TCP
+      port: 53   # DNS
+    - protocol: UDP
+      port: 53   # DNS

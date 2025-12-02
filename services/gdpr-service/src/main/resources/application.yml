@@ -1,0 +1,305 @@
+spring:
+  application:
+    name: gdpr-service
+  
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  
+  cloud:
+    config:
+      uri: ${CONFIG_SERVER_URL:http://localhost:8888}
+      fail-fast: true
+      retry:
+        initial-interval: 2000
+        max-attempts: 20
+  
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/waqiti_gdpr}
+    username: ${DATABASE_USERNAME:waqiti}
+    password: ${DATABASE_PASSWORD:${VAULT_DATABASE_PASSWORD}}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      connection-timeout: 30000
+      maximum-pool-size: 50
+      minimum-idle: 10
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      leak-detection-threshold: 60000
+      validation-timeout: 5000
+      initialization-fail-timeout: 30000
+  
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+    show-sql: false
+  
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.trusted.packages: "*"
+    consumer:
+      group-id: gdpr-service
+      enable-auto-commit: false  # Manual acknowledgment for DLQ support
+      max-poll-records: 50  # Batch size control
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+      auto-offset-reset: earliest
+  
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+  
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+  
+  quartz:
+    job-store-type: jdbc
+    properties:
+      org:
+        quartz:
+          scheduler:
+            instanceName: GDPRScheduler
+            instanceId: AUTO
+          jobStore:
+            driverDelegateClass: org.quartz.impl.jdbcjobstore.PostgreSQLDelegate
+            useProperties: false
+            misfireThreshold: 60000
+            isClustered: true
+            clusterCheckinInterval: 20000
+          threadPool:
+            threadCount: 10
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:${EUREKA_SERVER_URL:https://discovery-service:8761/eureka}/}
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+    metadata-map:
+      version: ${info.version}
+
+# GDPR Privacy Configuration
+gdpr:
+  # General
+  response-deadline-days: 30  # Article 15 - 30 days for data access requests
+  retention:
+    default-years: 7
+
+  # Data Breach Notification (Articles 33-34)
+  breach:
+    notification:
+      regulatory-email: ${DPA_EMAIL:dpa@supervisory-authority.eu}
+      dpo-email: ${DPO_EMAIL:dpo@company.com}
+      legal-email: ${LEGAL_EMAIL:legal@company.com}
+      user-notification-enabled: true
+    deadline-check:
+      cron: "0 */15 * * * *"  # Every 15 minutes
+
+  # Data Privacy Impact Assessment (Article 35)
+  dpia:
+    review-frequency-months: 12
+    dpo-consultation-required: true
+    review-check:
+      cron: "0 0 9 * * *"  # Daily at 9 AM
+
+  # Data Export
+  export:
+    download-link-expiry-days: 7
+    max-size-bytes: 1073741824  # 1 GB
+    encryption-algorithm: AES-256-GCM
+
+  # Encryption
+  encryption:
+    algorithm: AES
+    key-size: 256
+    transformation: AES/GCM/NoPadding
+    gcm-tag-length: 128
+    enabled: true
+
+  # Compression
+  compression:
+    enabled: true
+
+  # Storage
+  storage:
+    type: filesystem  # Options: filesystem, s3, azure
+    base-path: ${GDPR_STORAGE_PATH:${java.io.tmpdir}/gdpr-exports}
+    url-expiry-hours: 168  # 7 days
+
+  # Scheduled Jobs
+  cleanup:
+    export-retention-days: 30
+    audit-retention-years: 7
+    exports:
+      cron: "0 0 2 * * ?"  # Daily at 2 AM
+    audit:
+      cron: "0 0 3 * * SUN"  # Weekly on Sunday at 3 AM
+
+  monitoring:
+    deadlines:
+      cron: "0 0 * * * ?"  # Every hour
+
+  reporting:
+    daily-metrics:
+      cron: "0 0 6 * * ?"  # Daily at 6 AM
+
+  health-check:
+    cron: "0 */5 * * * *"  # Every 5 minutes
+
+  # Audit
+  audit:
+    cleanup:
+      cron: "0 0 2 * * ?"  # Daily at 2 AM
+      region: ${DEPLOYMENT_REGION:us-east-1}
+
+server:
+  port: ${PORT:8095}
+  servlet:
+    context-path: /api/v1
+  error:
+    include-message: always
+    include-binding-errors: always
+
+# Keycloak Configuration - CRITICAL SECURITY IMPLEMENTATION  
+keycloak:
+  enabled: true
+  realm: waqiti-fintech
+  auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}
+  ssl-required: external
+  resource: gdpr-service
+  bearer-only: true
+  use-resource-role-mappings: true
+  cors: true
+  cors-allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+  cors-allowed-headers: Authorization,Content-Type,X-Requested-With,X-GDPR-Request-Id
+  cors-max-age: 3600
+  public-client: false
+  credentials:
+    secret: ${KEYCLOAK_CLIENT_SECRET:}
+
+# Spring Security OAuth2 Configuration
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti
+          jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/certs
+      client:
+        registration:
+          keycloak:
+            client-id: gdpr-service
+            client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+            authorization-grant-type: client_credentials
+            scope: openid,profile,email,gdpr
+        provider:
+          keycloak:
+            issuer-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti
+            token-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/token
+            authorization-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/auth
+            userinfo-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/userinfo
+            jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/certs
+
+# Service-to-Service Authentication
+service:
+  auth:
+    enabled: true
+    client-id: gdpr-service
+    client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+
+gdpr:
+  consent:
+    default-retention-days: 365
+    minor-age-threshold: 16
+  
+  request:
+    processing-deadline-days: 30
+    export-retention-days: 7
+    verification-token-expiry-hours: 24
+  
+  encryption:
+    algorithm: AES/GCM/NoPadding
+    key-size: 256
+  
+  email:
+    from: privacy@example.com
+    dpo-email: dpo@example.com
+  
+  storage:
+    export-path: ${EXPORT_PATH:/var/waqiti/gdpr/exports}
+    document-path: ${DOCUMENT_PATH:/var/waqiti/gdpr/documents}
+
+# Feign client configuration
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 5000
+        readTimeout: 5000
+        loggerLevel: FULL
+      user-service:
+        url: ${USER_SERVICE_URL:http://user-service/api/v1}
+      notification-service:
+        url: ${NOTIFICATION_SERVICE_URL:http://notification-service/api/v1}
+      audit-service:
+        url: ${AUDIT_SERVICE_URL:http://audit-service/api/v1}
+
+# Kafka topics
+kafka:
+  topics:
+    gdpr-request-created: gdpr-request-created
+    gdpr-request-processed: gdpr-request-processed
+    data-export-completed: data-export-completed
+    data-deletion-completed: data-deletion-completed
+    consent-updated: consent-updated
+    notification: notification-events
+
+# Logging
+logging:
+  level:
+    com.waqiti.gdpr: INFO
+    org.springframework.web: INFO
+    org.springframework.kafka: INFO
+    org.hibernate.SQL: INFO
+    org.hibernate.type.descriptor.sql.BasicBinder: INFO
+    org.springframework.security: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %logger{36} - %msg [%X{userId}] [%X{requestId}]%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg [%X{userId}] [%X{requestId}]%n"

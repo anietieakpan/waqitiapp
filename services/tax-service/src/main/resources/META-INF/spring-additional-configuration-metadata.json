@@ -1,0 +1,61 @@
+{
+  "properties": [
+    {
+      "name": "tax.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable tax calculation functionality",
+      "defaultValue": true
+    },
+    {
+      "name": "tax.providers",
+      "type": "java.util.List",
+      "description": "Available tax calculation providers"
+    },
+    {
+      "name": "tax.reporting.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable tax reporting",
+      "defaultValue": true
+    },
+    {
+      "name": "tax.forms.supported",
+      "type": "java.util.List",
+      "description": "Supported tax forms"
+    },
+    {
+      "name": "tax.withholding.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable tax withholding",
+      "defaultValue": false
+    },
+    {
+      "name": "tax.year.current",
+      "type": "java.lang.Integer",
+      "description": "Current tax year",
+      "defaultValue": 2025
+    },
+    {
+      "name": "tax.rates.auto-update",
+      "type": "java.lang.Boolean",
+      "description": "Enable automatic tax rate updates",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "OAuth2 client ID for service",
+      "defaultValue": "tax-service"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "OAuth2 client secret for service"
+    }
+  ]
+}

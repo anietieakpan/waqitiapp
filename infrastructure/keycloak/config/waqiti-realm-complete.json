@@ -1,0 +1,267 @@
+{
+  "realm": "waqiti-fintech",
+  "enabled": true,
+  "displayName": "Waqiti Fintech Platform",
+  "displayNameHtml": "<strong>Waqiti</strong> Fintech Platform",
+  "sslRequired": "all",
+  "registrationAllowed": true,
+  "registrationEmailAsUsername": true,
+  "rememberMe": true,
+  "verifyEmail": true,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "maxFailureWaitSeconds": 900,
+  "minimumQuickLoginWaitSeconds": 60,
+  "waitIncrementSeconds": 300,
+  "quickLoginCheckMilliSeconds": 1000,
+  "maxDeltaTimeSeconds": 43200,
+  "failureFactor": 5,
+  "defaultSignatureAlgorithm": "RS256",
+  "offlineSessionMaxLifespanEnabled": true,
+  "offlineSessionMaxLifespan": 5184000,
+  "accessTokenLifespan": 300,
+  "accessTokenLifespanForImplicitFlow": 900,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "actionTokenGeneratedByAdminLifespan": 43200,
+  "actionTokenGeneratedByUserLifespan": 300,
+  "internationalizationEnabled": true,
+  "supportedLocales": ["en", "es", "fr", "de", "ar", "zh", "pt", "hi"],
+  "defaultLocale": "en",
+  "eventsEnabled": true,
+  "eventsListeners": ["jboss-logging", "metrics-listener"],
+  "enabledEventTypes": [
+    "LOGIN", "LOGIN_ERROR", "LOGOUT", "LOGOUT_ERROR",
+    "REGISTER", "REGISTER_ERROR", "CODE_TO_TOKEN", "CODE_TO_TOKEN_ERROR",
+    "REFRESH_TOKEN", "REFRESH_TOKEN_ERROR", "UPDATE_PASSWORD", "UPDATE_PASSWORD_ERROR",
+    "UPDATE_TOTP", "REMOVE_TOTP", "SEND_VERIFY_EMAIL", "VERIFY_EMAIL"
+  ],
+  "adminEventsEnabled": true,
+  "adminEventsDetailsEnabled": true,
+  "passwordPolicy": "length(12) and upperCase(2) and lowerCase(2) and digits(2) and specialChars(2) and notUsername() and notEmail()",
+  "otpPolicyType": "totp",
+  "otpPolicyAlgorithm": "HmacSHA256",
+  "otpPolicyDigits": 6,
+  "otpPolicyLookAheadWindow": 1,
+  "otpPolicyPeriod": 30,
+  "attributes": {
+    "frontendUrl": "https://auth.example.com",
+    "acr.loa.map": "{\"loa1\":\"1\",\"loa2\":\"2\",\"loa3\":\"3\"}"
+  },
+  "roles": {
+    "realm": [
+      {
+        "name": "user",
+        "description": "Standard user role",
+        "composite": false
+      },
+      {
+        "name": "premium_user",
+        "description": "Premium user with enhanced features",
+        "composite": true,
+        "composites": {
+          "realm": ["user"]
+        }
+      },
+      {
+        "name": "merchant",
+        "description": "Merchant role for business users",
+        "composite": true,
+        "composites": {
+          "realm": ["user"]
+        }
+      },
+      {
+        "name": "admin",
+        "description": "Administrator role",
+        "composite": true,
+        "composites": {
+          "realm": ["user", "premium_user"]
+        }
+      },
+      {
+        "name": "super_admin",
+        "description": "Super administrator with full access",
+        "composite": true,
+        "composites": {
+          "realm": ["admin"]
+        }
+      },
+      {
+        "name": "support_agent",
+        "description": "Customer support agent",
+        "composite": true,
+        "composites": {
+          "realm": ["user"]
+        }
+      },
+      {
+        "name": "compliance_officer",
+        "description": "Compliance and regulatory officer",
+        "composite": true,
+        "composites": {
+          "realm": ["user"]
+        }
+      },
+      {
+        "name": "finance_manager",
+        "description": "Financial operations manager",
+        "composite": true,
+        "composites": {
+          "realm": ["user"]
+        }
+      },
+      {
+        "name": "developer",
+        "description": "API developer role",
+        "composite": false
+      },
+      {
+        "name": "auditor",
+        "description": "System auditor role",
+        "composite": false
+      }
+    ]
+  },
+  "groups": [
+    {
+      "name": "Standard Users",
+      "path": "/standard-users",
+      "realmRoles": ["user"]
+    },
+    {
+      "name": "Premium Users",
+      "path": "/premium-users",
+      "realmRoles": ["premium_user"]
+    },
+    {
+      "name": "Merchants",
+      "path": "/merchants",
+      "realmRoles": ["merchant"]
+    },
+    {
+      "name": "Administrators",
+      "path": "/administrators",
+      "subGroups": [
+        {
+          "name": "System Admins",
+          "path": "/administrators/system-admins",
+          "realmRoles": ["admin"]
+        },
+        {
+          "name": "Super Admins",
+          "path": "/administrators/super-admins",
+          "realmRoles": ["super_admin"]
+        }
+      ]
+    },
+    {
+      "name": "Support Team",
+      "path": "/support-team",
+      "realmRoles": ["support_agent"]
+    },
+    {
+      "name": "Compliance Team",
+      "path": "/compliance-team",
+      "realmRoles": ["compliance_officer"]
+    }
+  ],
+  "defaultGroups": [
+    "/standard-users"
+  ],
+  "clients": [
+    {
+      "clientId": "waqiti-web-app",
+      "name": "Waqiti Web Application",
+      "description": "Main web application for end users",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "authorizationServicesEnabled": false,
+      "protocol": "openid-connect",
+      "bearerOnly": false,
+      "consentRequired": false,
+      "rootUrl": "https://app.example.com",
+      "baseUrl": "/",
+      "redirectUris": [
+        "https://app.example.com/*",
+        "http://localhost:3000/*"
+      ],
+      "webOrigins": [
+        "https://app.example.com",
+        "http://localhost:3000"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "https://app.example.com/*##http://localhost:3000/*"
+      },
+      "defaultClientScopes": ["web-origins", "profile", "roles", "email"],
+      "optionalClientScopes": ["address", "phone", "offline_access", "microprofile-jwt"]
+    },
+    {
+      "clientId": "waqiti-mobile-app",
+      "name": "Waqiti Mobile Application",
+      "description": "Mobile application for iOS and Android",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "protocol": "openid-connect",
+      "bearerOnly": false,
+      "consentRequired": false,
+      "redirectUris": [
+        "waqiti://auth/callback",
+        "com.waqiti.app://auth/callback"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "use.refresh.tokens": "true",
+        "client.offline.access": "true"
+      },
+      "defaultClientScopes": ["profile", "roles", "email", "offline_access"],
+      "optionalClientScopes": ["address", "phone", "microprofile-jwt"]
+    },
+    {
+      "clientId": "waqiti-admin-dashboard",
+      "name": "Waqiti Admin Dashboard",
+      "description": "Administrative dashboard for system management",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "protocol": "openid-connect",
+      "bearerOnly": false,
+      "consentRequired": false,
+      "rootUrl": "https://admin.example.com",
+      "baseUrl": "/",
+      "redirectUris": [
+        "https://admin.example.com/*",
+        "http://localhost:3001/*"
+      ],
+      "webOrigins": [
+        "https://admin.example.com",
+        "http://localhost:3001"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "https://admin.example.com/*##http://localhost:3001/*"
+      },
+      "defaultClientScopes": ["web-origins", "profile", "roles", "email"],
+      "optionalClientScopes": ["address", "phone", "offline_access"]
+    }
+  ]
+}

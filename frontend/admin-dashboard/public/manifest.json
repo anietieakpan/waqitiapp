@@ -1,0 +1,134 @@
+{
+  "name": "Waqiti Admin Dashboard",
+  "short_name": "Waqiti Admin",
+  "description": "Administrative dashboard for Waqiti P2P payment platform",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1976d2",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "en-US",
+  "icons": [
+    {
+      "src": "/icons/icon-72x72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-96x96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-128x128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-144x144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-152x152.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-384x384.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    }
+  ],
+  "categories": ["finance", "business", "productivity"],
+  "screenshots": [
+    {
+      "src": "/screenshots/dashboard-wide.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Admin Dashboard Overview"
+    },
+    {
+      "src": "/screenshots/dashboard-narrow.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Mobile Admin Dashboard"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "View main dashboard",
+      "url": "/dashboard",
+      "icons": [
+        {
+          "src": "/icons/dashboard-icon.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "short_name": "Users",
+      "description": "Manage users",
+      "url": "/users",
+      "icons": [
+        {
+          "src": "/icons/users-icon.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Transactions",
+      "short_name": "Transactions",
+      "description": "View transactions",
+      "url": "/transactions",
+      "icons": [
+        {
+          "src": "/icons/transactions-icon.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Reports",
+      "short_name": "Reports",
+      "description": "Generate reports",
+      "url": "/reports",
+      "icons": [
+        {
+          "src": "/icons/reports-icon.png",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ],
+  "prefer_related_applications": false,
+  "related_applications": [],
+  "edge_side_panel": {
+    "preferred_width": 480
+  }
+}

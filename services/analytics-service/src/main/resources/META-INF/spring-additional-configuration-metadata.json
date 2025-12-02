@@ -1,0 +1,482 @@
+{
+  "properties": [
+    {
+      "name": "analytics.processing.batch-size",
+      "type": "java.lang.Integer",
+      "description": "Batch size for data processing",
+      "defaultValue": 10000
+    },
+    {
+      "name": "analytics.processing.parallel-processing",
+      "type": "java.lang.Boolean",
+      "description": "Enable parallel processing",
+      "defaultValue": true
+    },
+    {
+      "name": "analytics.processing.max-threads",
+      "type": "java.lang.Integer",
+      "description": "Maximum threads for processing",
+      "defaultValue": 10
+    },
+    {
+      "name": "analytics.processing.chunk-size",
+      "type": "java.lang.Integer",
+      "description": "Chunk size for data processing",
+      "defaultValue": 1000
+    },
+    {
+      "name": "analytics.processing.retention-days",
+      "type": "java.lang.Integer",
+      "description": "Data retention period in days",
+      "defaultValue": 2555
+    },
+    {
+      "name": "analytics.real-time.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable real-time analytics",
+      "defaultValue": true
+    },
+    {
+      "name": "analytics.real-time.window-size-minutes",
+      "type": "java.lang.Integer",
+      "description": "Window size for real-time analytics in minutes",
+      "defaultValue": 5
+    },
+    {
+      "name": "analytics.real-time.aggregation-interval-seconds",
+      "type": "java.lang.Integer",
+      "description": "Aggregation interval in seconds",
+      "defaultValue": 30
+    },
+    {
+      "name": "analytics.real-time.alert-thresholds.transaction-volume",
+      "type": "java.lang.Integer",
+      "description": "Transaction volume alert threshold",
+      "defaultValue": 1000
+    },
+    {
+      "name": "analytics.real-time.alert-thresholds.error-rate",
+      "type": "java.lang.Double",
+      "description": "Error rate alert threshold",
+      "defaultValue": 0.05
+    },
+    {
+      "name": "analytics.real-time.alert-thresholds.response-time-ms",
+      "type": "java.lang.Integer",
+      "description": "Response time alert threshold in milliseconds",
+      "defaultValue": 5000
+    },
+    {
+      "name": "analytics.ml.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable machine learning features",
+      "defaultValue": true
+    },
+    {
+      "name": "analytics.ml.model-training.auto-retrain",
+      "type": "java.lang.Boolean",
+      "description": "Enable automatic model retraining",
+      "defaultValue": true
+    },
+    {
+      "name": "analytics.ml.model-training.retrain-interval-hours",
+      "type": "java.lang.Integer",
+      "description": "Model retraining interval in hours",
+      "defaultValue": 24
+    },
+    {
+      "name": "analytics.ml.model-training.min-data-points",
+      "type": "java.lang.Integer",
+      "description": "Minimum data points for model training",
+      "defaultValue": 10000
+    },
+    {
+      "name": "analytics.ml.fraud-detection.model-path",
+      "type": "java.lang.String",
+      "description": "Path to fraud detection model",
+      "defaultValue": "/opt/ml/models/fraud-detection"
+    },
+    {
+      "name": "analytics.ml.fraud-detection.threshold",
+      "type": "java.lang.Double",
+      "description": "Fraud detection threshold",
+      "defaultValue": 0.75
+    },
+    {
+      "name": "analytics.ml.fraud-detection.feature-extraction",
+      "type": "java.lang.Boolean",
+      "description": "Enable feature extraction for fraud detection",
+      "defaultValue": true
+    },
+    {
+      "name": "analytics.ml.recommendation.model-path",
+      "type": "java.lang.String",
+      "description": "Path to recommendation model",
+      "defaultValue": "/opt/ml/models/recommendation"
+    },
+    {
+      "name": "analytics.ml.recommendation.collaborative-filtering",
+      "type": "java.lang.Boolean",
+      "description": "Enable collaborative filtering",
+      "defaultValue": true
+    },
+    {
+      "name": "analytics.ml.recommendation.content-based",
+      "type": "java.lang.Boolean",
+      "description": "Enable content-based recommendations",
+      "defaultValue": true
+    },
+    {
+      "name": "analytics.etl.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable ETL processes",
+      "defaultValue": true
+    },
+    {
+      "name": "analytics.etl.schedule",
+      "type": "java.lang.String",
+      "description": "ETL schedule cron expression",
+      "defaultValue": "0 0 2 * * ?"
+    },
+    {
+      "name": "analytics.etl.parallel-jobs",
+      "type": "java.lang.Integer",
+      "description": "Number of parallel ETL jobs",
+      "defaultValue": 5
+    },
+    {
+      "name": "analytics.etl.data-sources.user-service",
+      "type": "java.lang.Boolean",
+      "description": "Enable user service data source",
+      "defaultValue": true
+    },
+    {
+      "name": "analytics.etl.data-sources.wallet-service",
+      "type": "java.lang.Boolean",
+      "description": "Enable wallet service data source",
+      "defaultValue": true
+    },
+    {
+      "name": "analytics.etl.data-sources.payment-service",
+      "type": "java.lang.Boolean",
+      "description": "Enable payment service data source",
+      "defaultValue": true
+    },
+    {
+      "name": "analytics.etl.data-sources.security-service",
+      "type": "java.lang.Boolean",
+      "description": "Enable security service data source",
+      "defaultValue": true
+    },
+    {
+      "name": "analytics.etl.data-sources.core-banking-service",
+      "type": "java.lang.Boolean",
+      "description": "Enable core banking service data source",
+      "defaultValue": true
+    },
+    {
+      "name": "analytics.etl.transformations.data-cleansing",
+      "type": "java.lang.Boolean",
+      "description": "Enable data cleansing transformation",
+      "defaultValue": true
+    },
+    {
+      "name": "analytics.etl.transformations.data-enrichment",
+      "type": "java.lang.Boolean",
+      "description": "Enable data enrichment transformation",
+      "defaultValue": true
+    },
+    {
+      "name": "analytics.etl.transformations.feature-engineering",
+      "type": "java.lang.Boolean",
+      "description": "Enable feature engineering transformation",
+      "defaultValue": true
+    },
+    {
+      "name": "analytics.reporting.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable reporting features",
+      "defaultValue": true
+    },
+    {
+      "name": "analytics.reporting.formats",
+      "type": "java.util.List",
+      "description": "Supported report formats"
+    },
+    {
+      "name": "analytics.reporting.scheduled-reports.daily-summary",
+      "type": "java.lang.String",
+      "description": "Daily summary report schedule",
+      "defaultValue": "0 0 8 * * ?"
+    },
+    {
+      "name": "analytics.reporting.scheduled-reports.weekly-report",
+      "type": "java.lang.String",
+      "description": "Weekly report schedule",
+      "defaultValue": "0 0 8 ? * MON"
+    },
+    {
+      "name": "analytics.reporting.scheduled-reports.monthly-report",
+      "type": "java.lang.String",
+      "description": "Monthly report schedule",
+      "defaultValue": "0 0 8 1 * ?"
+    },
+    {
+      "name": "analytics.reporting.distribution.email",
+      "type": "java.lang.Boolean",
+      "description": "Enable email distribution",
+      "defaultValue": true
+    },
+    {
+      "name": "analytics.reporting.distribution.dashboard",
+      "type": "java.lang.Boolean",
+      "description": "Enable dashboard distribution",
+      "defaultValue": true
+    },
+    {
+      "name": "analytics.reporting.distribution.api",
+      "type": "java.lang.Boolean",
+      "description": "Enable API distribution",
+      "defaultValue": true
+    },
+    {
+      "name": "analytics.dashboard.refresh-interval-seconds",
+      "type": "java.lang.Integer",
+      "description": "Dashboard refresh interval in seconds",
+      "defaultValue": 30
+    },
+    {
+      "name": "analytics.dashboard.cache-duration-minutes",
+      "type": "java.lang.Integer",
+      "description": "Dashboard cache duration in minutes",
+      "defaultValue": 5
+    },
+    {
+      "name": "analytics.dashboard.real-time-updates",
+      "type": "java.lang.Boolean",
+      "description": "Enable real-time dashboard updates",
+      "defaultValue": true
+    },
+    {
+      "name": "analytics.dashboard.max-data-points",
+      "type": "java.lang.Integer",
+      "description": "Maximum data points per dashboard widget",
+      "defaultValue": 1000
+    },
+    {
+      "name": "analytics.dashboard.widgets.transaction-volume",
+      "type": "java.lang.Boolean",
+      "description": "Enable transaction volume widget",
+      "defaultValue": true
+    },
+    {
+      "name": "analytics.dashboard.widgets.revenue-metrics",
+      "type": "java.lang.Boolean",
+      "description": "Enable revenue metrics widget",
+      "defaultValue": true
+    },
+    {
+      "name": "analytics.dashboard.widgets.user-growth",
+      "type": "java.lang.Boolean",
+      "description": "Enable user growth widget",
+      "defaultValue": true
+    },
+    {
+      "name": "analytics.dashboard.widgets.fraud-alerts",
+      "type": "java.lang.Boolean",
+      "description": "Enable fraud alerts widget",
+      "defaultValue": true
+    },
+    {
+      "name": "analytics.dashboard.widgets.system-health",
+      "type": "java.lang.Boolean",
+      "description": "Enable system health widget",
+      "defaultValue": true
+    },
+    {
+      "name": "analytics.retention.raw-data-days",
+      "type": "java.lang.Integer",
+      "description": "Raw data retention period in days",
+      "defaultValue": 90
+    },
+    {
+      "name": "analytics.retention.aggregated-data-days",
+      "type": "java.lang.Integer",
+      "description": "Aggregated data retention period in days",
+      "defaultValue": 2555
+    },
+    {
+      "name": "analytics.retention.ml-training-data-days",
+      "type": "java.lang.Integer",
+      "description": "ML training data retention period in days",
+      "defaultValue": 365
+    },
+    {
+      "name": "analytics.retention.audit-logs-days",
+      "type": "java.lang.Integer",
+      "description": "Audit logs retention period in days",
+      "defaultValue": 2555
+    },
+    {
+      "name": "analytics.retention.cleanup-schedule",
+      "type": "java.lang.String",
+      "description": "Data cleanup schedule cron expression",
+      "defaultValue": "0 0 3 * * ?"
+    },
+    {
+      "name": "analytics.performance.query-timeout-seconds",
+      "type": "java.lang.Integer",
+      "description": "Query timeout in seconds",
+      "defaultValue": 300
+    },
+    {
+      "name": "analytics.performance.connection-pool-size",
+      "type": "java.lang.Integer",
+      "description": "Connection pool size",
+      "defaultValue": 20
+    },
+    {
+      "name": "analytics.performance.cache-size-mb",
+      "type": "java.lang.Integer",
+      "description": "Cache size in MB",
+      "defaultValue": 512
+    },
+    {
+      "name": "analytics.performance.index-optimization",
+      "type": "java.lang.Boolean",
+      "description": "Enable index optimization",
+      "defaultValue": true
+    },
+    {
+      "name": "analytics.performance.query-optimization",
+      "type": "java.lang.Boolean",
+      "description": "Enable query optimization",
+      "defaultValue": true
+    },
+    {
+      "name": "analytics.quality.validation-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable data quality validation",
+      "defaultValue": true
+    },
+    {
+      "name": "analytics.quality.anomaly-detection",
+      "type": "java.lang.Boolean",
+      "description": "Enable anomaly detection",
+      "defaultValue": true
+    },
+    {
+      "name": "analytics.quality.data-profiling",
+      "type": "java.lang.Boolean",
+      "description": "Enable data profiling",
+      "defaultValue": true
+    },
+    {
+      "name": "analytics.quality.completeness-threshold",
+      "type": "java.lang.Double",
+      "description": "Data completeness threshold",
+      "defaultValue": 0.95
+    },
+    {
+      "name": "analytics.quality.accuracy-threshold",
+      "type": "java.lang.Double",
+      "description": "Data accuracy threshold",
+      "defaultValue": 0.98
+    },
+    {
+      "name": "influxdb.url",
+      "type": "java.lang.String",
+      "description": "InfluxDB URL",
+      "defaultValue": "http://localhost:8086"
+    },
+    {
+      "name": "influxdb.token",
+      "type": "java.lang.String",
+      "description": "InfluxDB authentication token"
+    },
+    {
+      "name": "influxdb.org",
+      "type": "java.lang.String",
+      "description": "InfluxDB organization",
+      "defaultValue": "waqiti"
+    },
+    {
+      "name": "influxdb.bucket",
+      "type": "java.lang.String",
+      "description": "InfluxDB bucket",
+      "defaultValue": "analytics"
+    },
+    {
+      "name": "spark.app-name",
+      "type": "java.lang.String",
+      "description": "Spark application name",
+      "defaultValue": "Waqiti Analytics Service"
+    },
+    {
+      "name": "spark.master",
+      "type": "java.lang.String",
+      "description": "Spark master URL",
+      "defaultValue": "local[*]"
+    },
+    {
+      "name": "spark.sql.adaptive.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Spark SQL adaptive execution",
+      "defaultValue": true
+    },
+    {
+      "name": "spark.sql.adaptive.coalescePartitions.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable partition coalescing",
+      "defaultValue": true
+    },
+    {
+      "name": "spark.executor.memory",
+      "type": "java.lang.String",
+      "description": "Spark executor memory",
+      "defaultValue": "2g"
+    },
+    {
+      "name": "spark.executor.cores",
+      "type": "java.lang.Integer",
+      "description": "Spark executor cores",
+      "defaultValue": 2
+    },
+    {
+      "name": "spark.driver.memory",
+      "type": "java.lang.String",
+      "description": "Spark driver memory",
+      "defaultValue": "1g"
+    },
+    {
+      "name": "health.circuit-breaker.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable circuit breaker health check",
+      "defaultValue": true
+    },
+    {
+      "name": "health.rate-limiter.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable rate limiter health check",
+      "defaultValue": true
+    },
+    {
+      "name": "feature.flags.dual-auth-mode.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable dual authentication mode",
+      "defaultValue": false
+    },
+    {
+      "name": "feature.flags.keycloak-only.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Keycloak-only mode",
+      "defaultValue": true
+    },
+    {
+      "name": "feature.flags.legacy-jwt-deprecation-warning.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable legacy JWT deprecation warning",
+      "defaultValue": true
+    }
+  ]
+}

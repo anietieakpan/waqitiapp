@@ -1,0 +1,133 @@
+# Keycloak Configuration for Integration Service
+
+keycloak:
+  enabled: true
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  resource: integration-service
+  bearer-only: true
+  credentials:
+    secret: ${INTEGRATION_SERVICE_CLIENT_SECRET:CHANGE_ME_SECURE_SECRET_REQUIRED}
+  use-resource-role-mappings: true
+  ssl-required: external
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# Integration Service Security Configuration
+integration:
+  security:
+    # Public endpoints that don't require authentication
+    # Service-to-service endpoints
+    # Required roles for integration operations
+    required-roles:
+      read:
+        - INTEGRATION_USER
+        - SERVICE_USER
+      api-integration:
+        - INTEGRATION_USER
+        - API_USER
+      webhook-management:
+        - INTEGRATION_USER
+        - WEBHOOK_MANAGER
+      data-sync:
+        - INTEGRATION_USER
+        - DATA_SYNC_USER
+      third-party-connect:
+        - INTEGRATION_USER
+        - THIRD_PARTY_USER
+      batch-processing:
+        - INTEGRATION_USER
+        - BATCH_PROCESSOR
+      monitoring:
+        - INTEGRATION_MONITOR
+        - SYSTEM_MONITOR
+      management:
+        - INTEGRATION_MANAGER
+        - INTEGRATION_OPERATOR
+      admin:
+        - INTEGRATION_ADMIN
+        - SYSTEM_ADMIN
+    
+    # Required scopes for operations
+    required-scopes:
+      api-integration: integration:api
+      webhook-management: integration:webhook:manage
+      data-sync: integration:data:sync
+      third-party-connect: integration:third-party:connect
+      batch-processing: integration:batch:process
+      monitoring: integration:monitoring
+      transformation: integration:data:transform
+      orchestration: integration:orchestration
+      admin: integration:admin
+      management: integration:manage
+    
+    # Integration security features
+    features:
+      api-rate-limiting-enabled: true
+      webhook-signature-validation: true
+      data-transformation-validation: true
+      third-party-authentication: true
+      batch-processing-monitoring: true
+      integration-health-checking: true
+      
+    # Integration limits and thresholds
+    limits:
+      max-api-calls-per-minute: 1000
+      max-webhook-endpoints: 50
+      max-batch-size: 10000
+      max-concurrent-integrations: 20
+      integration-timeout-seconds: 300
+      
+    # Security thresholds requiring monitoring
+    monitoring-thresholds:
+      api-error-rate: 0.05
+      webhook-failure-rate: 0.1
+      data-sync-failure-rate: 0.02
+      integration-latency-ms: 5000
+      
+    # Advanced security features
+    advanced-security:
+      require-mutual-tls-third-party: true
+      automatic-retry-with-backoff: true
+      circuit-breaker-enabled: true
+      data-encryption-in-transit: true
+      audit-trail-comprehensive: true
+      anomaly-detection-enabled: true
+      
+    # Required roles for specific operations
+    required-roles-read: INTEGRATION_USER,SERVICE_USER
+    required-roles-admin: INTEGRATION_ADMIN,SYSTEM_ADMIN
+    required-roles-data-sync: INTEGRATION_USER,DATA_SYNC_USER
+    required-roles-api-integration: INTEGRATION_USER,API_USER
+    required-roles-third-party-connect: INTEGRATION_USER,THIRD_PARTY_USER
+    required-roles-management: INTEGRATION_MANAGER,INTEGRATION_OPERATOR
+    required-roles-monitoring: INTEGRATION_MONITOR,SYSTEM_MONITOR
+    
+    # Required scopes for specific operations
+    required-scopes-data-sync: integration:data:sync
+    required-scopes-api-integration: integration:api
+    required-scopes-third-party-connect: integration:third-party:connect
+    required-scopes-monitoring: integration:monitoring
+    required-scopes-batch-processing: integration:batch:process
+    required-scopes-management: integration:manage
+    required-scopes-admin: integration:admin
+    
+    # Service endpoints configuration
+    service-endpoints:
+      internal-integration: /internal/integration/**
+      max-webhook-endpoints: 50
+    
+    # Public endpoints configuration
+    public-endpoints: /actuator/health,/actuator/info,/api/v1/integration/webhook/public/**,/swagger-ui/**,/v3/api-docs/**
+    
+    # Security features configuration
+
+    # Limits configuration
+
+    # Monitoring thresholds

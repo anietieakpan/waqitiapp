@@ -1,0 +1,255 @@
+# Production Configuration Template
+# This file defines all externalized configuration parameters for production deployment
+# All sensitive values should be stored in HashiCorp Vault and referenced via environment variables
+
+# Global Configuration
+global:
+  environment: production
+  region: ${DEPLOYMENT_REGION:us-east-1}
+  availability_zones: ${AZ_LIST:us-east-1a,us-east-1b,us-east-1c}
+  domain: ${DOMAIN_NAME:api.example.com}
+  
+# Service Discovery Configuration
+discovery:
+  eureka:
+    instances:
+      - ${EUREKA_PRIMARY_URL:https://discovery-1.example.internal:8761/eureka}
+      - ${EUREKA_SECONDARY_URL:https://discovery-2.example.internal:8761/eureka}
+      - ${EUREKA_TERTIARY_URL:https://discovery-3.example.internal:8761/eureka}
+    prefer_same_zone: true
+    registry_fetch_interval: 5
+    
+# Database Configuration
+database:
+  primary:
+    host: ${DB_PRIMARY_HOST:waqiti-db-primary.cluster.amazonaws.com}
+    port: ${DB_PORT:5432}
+    name: ${DB_NAME:waqiti_production}
+    schema: ${DB_SCHEMA:public}
+    ssl_mode: ${DB_SSL_MODE:require}
+    connection_pool:
+      min_size: ${DB_POOL_MIN:10}
+      max_size: ${DB_POOL_MAX:30}
+      timeout_ms: ${DB_TIMEOUT:30000}
+      idle_timeout_ms: ${DB_IDLE_TIMEOUT:600000}
+      max_lifetime_ms: ${DB_MAX_LIFETIME:1800000}
+      leak_detection_ms: ${DB_LEAK_DETECTION:60000}
+  read_replicas:
+    - host: ${DB_REPLICA1_HOST:waqiti-db-replica1.cluster.amazonaws.com}
+      port: ${DB_PORT:5432}
+      weight: 50
+    - host: ${DB_REPLICA2_HOST:waqiti-db-replica2.cluster.amazonaws.com}
+      port: ${DB_PORT:5432}
+      weight: 50
+      
+# Redis Configuration
+redis:
+  mode: ${REDIS_MODE:cluster}
+  cluster:
+    nodes:
+      - ${REDIS_NODE1:waqiti-redis-1.cache.amazonaws.com:6379}
+      - ${REDIS_NODE2:waqiti-redis-2.cache.amazonaws.com:6379}
+      - ${REDIS_NODE3:waqiti-redis-3.cache.amazonaws.com:6379}
+      - ${REDIS_NODE4:waqiti-redis-4.cache.amazonaws.com:6379}
+      - ${REDIS_NODE5:waqiti-redis-5.cache.amazonaws.com:6379}
+      - ${REDIS_NODE6:waqiti-redis-6.cache.amazonaws.com:6379}
+    password: ${REDIS_PASSWORD:vault:secret/redis/password}
+    ssl_enabled: ${REDIS_SSL:true}
+    max_redirects: ${REDIS_MAX_REDIRECTS:3}
+  connection_pool:
+    max_total: ${REDIS_POOL_MAX:100}
+    max_idle: ${REDIS_POOL_IDLE:50}
+    min_idle: ${REDIS_POOL_MIN:10}
+    test_on_borrow: true
+    
+# Kafka Configuration
+kafka:
+  bootstrap_servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka-1.example.internal:9093,kafka-2.example.internal:9093,kafka-3.example.internal:9093}
+  security:
+    protocol: ${KAFKA_SECURITY_PROTOCOL:SSL}
+    ssl:
+      truststore: ${KAFKA_TRUSTSTORE_PATH:/etc/kafka/ssl/kafka.client.truststore.jks}
+      truststore_password: ${KAFKA_TRUSTSTORE_PASSWORD:vault:secret/kafka/truststore}
+      keystore: ${KAFKA_KEYSTORE_PATH:/etc/kafka/ssl/kafka.client.keystore.jks}
+      keystore_password: ${KAFKA_KEYSTORE_PASSWORD:vault:secret/kafka/keystore}
+      key_password: ${KAFKA_KEY_PASSWORD:vault:secret/kafka/key}
+  producer:
+    acks: ${KAFKA_PRODUCER_ACKS:all}
+    retries: ${KAFKA_PRODUCER_RETRIES:3}
+    batch_size: ${KAFKA_BATCH_SIZE:16384}
+    linger_ms: ${KAFKA_LINGER_MS:10}
+    compression: ${KAFKA_COMPRESSION:snappy}
+    idempotence: ${KAFKA_IDEMPOTENCE:true}
+  consumer:
+    group_id_prefix: ${KAFKA_GROUP_PREFIX:waqiti-prod}
+    auto_offset_reset: ${KAFKA_OFFSET_RESET:earliest}
+    enable_auto_commit: ${KAFKA_AUTO_COMMIT:false}
+    max_poll_records: ${KAFKA_MAX_POLL:500}
+    session_timeout: ${KAFKA_SESSION_TIMEOUT:30000}
+    
+# Keycloak Configuration
+keycloak:
+  auth_server_url: ${KEYCLOAK_URL:https://auth.example.com}
+  realm: ${KEYCLOAK_REALM:waqiti}
+  resource: ${KEYCLOAK_RESOURCE:waqiti-backend}
+  ssl_required: ${KEYCLOAK_SSL:all}
+  confidential_port: ${KEYCLOAK_PORT:8443}
+  use_resource_role_mappings: true
+  bearer_only: true
+  cors:
+    allowed_origins: ${CORS_ORIGINS:https://app.example.com,https://admin.example.com}
+    allowed_methods: ${CORS_METHODS:GET,POST,PUT,DELETE,OPTIONS}
+    allowed_headers: ${CORS_HEADERS:Authorization,Content-Type,X-Request-ID}
+    
+# Vault Configuration
+vault:
+  enabled: true
+  address: ${VAULT_ADDR:https://vault.example.internal:8200}
+  token: ${VAULT_TOKEN:vault:auth/token}
+  namespace: ${VAULT_NAMESPACE:production}
+  ssl:
+    enabled: true
+    verify: true
+    cert_path: ${VAULT_CERT_PATH:/etc/vault/ssl/cert.pem}
+    key_path: ${VAULT_KEY_PATH:/etc/vault/ssl/key.pem}
+    ca_path: ${VAULT_CA_PATH:/etc/vault/ssl/ca.pem}
+  secret_paths:
+    database: ${VAULT_DB_PATH:secret/data/database/production}
+    redis: ${VAULT_REDIS_PATH:secret/data/redis/production}
+    kafka: ${VAULT_KAFKA_PATH:secret/data/kafka/production}
+    jwt: ${VAULT_JWT_PATH:secret/data/jwt/production}
+    encryption: ${VAULT_ENCRYPTION_PATH:secret/data/encryption/production}
+    
+# Monitoring Configuration
+monitoring:
+  prometheus:
+    endpoint: ${PROMETHEUS_ENDPOINT:https://prometheus.example.internal:9090}
+    pushgateway: ${PROMETHEUS_PUSHGATEWAY:https://pushgateway.example.internal:9091}
+    scrape_interval: ${PROMETHEUS_SCRAPE:15s}
+  grafana:
+    url: ${GRAFANA_URL:https://grafana.example.com}
+    api_key: ${GRAFANA_API_KEY:vault:secret/grafana/apikey}
+  jaeger:
+    endpoint: ${JAEGER_ENDPOINT:https://jaeger.example.internal:14268/api/traces}
+    sampler_type: ${JAEGER_SAMPLER:probabilistic}
+    sampler_param: ${JAEGER_SAMPLE_RATE:0.1}
+  elasticsearch:
+    hosts: 
+      - ${ES_HOST1:https://es-1.example.internal:9200}
+      - ${ES_HOST2:https://es-2.example.internal:9200}
+      - ${ES_HOST3:https://es-3.example.internal:9200}
+    username: ${ES_USERNAME:vault:secret/elasticsearch/username}
+    password: ${ES_PASSWORD:vault:secret/elasticsearch/password}
+    
+# Service Endpoints
+services:
+  api_gateway:
+    url: ${API_GATEWAY_URL:https://api.example.com}
+    internal: ${API_GATEWAY_INTERNAL:https://api-gateway.example.internal:8080}
+  user_service:
+    url: ${USER_SERVICE_URL:https://user-service.example.internal:8081}
+  wallet_service:
+    url: ${WALLET_SERVICE_URL:https://wallet-service.example.internal:8082}
+  payment_service:
+    url: ${PAYMENT_SERVICE_URL:https://payment-service.example.internal:8083}
+  notification_service:
+    url: ${NOTIFICATION_SERVICE_URL:https://notification-service.example.internal:8084}
+  kyc_service:
+    url: ${KYC_SERVICE_URL:https://kyc-service.example.internal:8085}
+  compliance_service:
+    url: ${COMPLIANCE_SERVICE_URL:https://compliance-service.example.internal:8086}
+  fraud_service:
+    url: ${FRAUD_SERVICE_URL:https://fraud-service.example.internal:8087}
+  crypto_service:
+    url: ${CRYPTO_SERVICE_URL:https://crypto-service.example.internal:8088}
+    
+# External Service Integrations
+external_services:
+  stripe:
+    api_url: ${STRIPE_API_URL:https://api.stripe.com}
+    webhook_endpoint: ${STRIPE_WEBHOOK_ENDPOINT:https://api.example.com/webhooks/stripe}
+  paypal:
+    api_url: ${PAYPAL_API_URL:https://api.paypal.com}
+    environment: ${PAYPAL_ENV:production}
+  plaid:
+    api_url: ${PLAID_API_URL:https://production.plaid.com}
+    environment: ${PLAID_ENV:production}
+  twilio:
+    api_url: ${TWILIO_API_URL:https://api.twilio.com}
+  sendgrid:
+    api_url: ${SENDGRID_API_URL:https://api.sendgrid.com}
+    
+# Security Configuration
+security:
+  jwt:
+    issuer: ${JWT_ISSUER:https://auth.example.com}
+    audience: ${JWT_AUDIENCE:waqiti-api}
+    expiration_minutes: ${JWT_EXPIRATION:30}
+    refresh_expiration_days: ${JWT_REFRESH_EXPIRATION:7}
+  encryption:
+    algorithm: ${ENCRYPTION_ALGORITHM:AES/GCM/NoPadding}
+    key_size: ${ENCRYPTION_KEY_SIZE:256}
+  rate_limiting:
+    enabled: true
+    requests_per_minute: ${RATE_LIMIT_RPM:100}
+    requests_per_hour: ${RATE_LIMIT_RPH:5000}
+    burst_capacity: ${RATE_LIMIT_BURST:200}
+  cors:
+    enabled: true
+    allowed_origins: ${CORS_ALLOWED_ORIGINS:https://*.example.com}
+    
+# Performance Tuning
+performance:
+  thread_pool:
+    core_size: ${THREAD_POOL_CORE:50}
+    max_size: ${THREAD_POOL_MAX:200}
+    queue_capacity: ${THREAD_POOL_QUEUE:1000}
+  async:
+    core_pool_size: ${ASYNC_POOL_CORE:10}
+    max_pool_size: ${ASYNC_POOL_MAX:50}
+  cache:
+    default_ttl_seconds: ${CACHE_TTL:300}
+    max_entries: ${CACHE_MAX_ENTRIES:10000}
+    
+# Circuit Breaker Configuration
+resilience:
+  circuit_breaker:
+    failure_rate_threshold: ${CB_FAILURE_RATE:50}
+    slow_call_rate_threshold: ${CB_SLOW_RATE:80}
+    slow_call_duration_ms: ${CB_SLOW_DURATION:3000}
+    sliding_window_size: ${CB_WINDOW_SIZE:100}
+    wait_duration_open_ms: ${CB_WAIT_DURATION:30000}
+  retry:
+    max_attempts: ${RETRY_MAX:3}
+    wait_duration_ms: ${RETRY_WAIT:1000}
+    retry_exceptions:
+      - java.net.SocketTimeoutException
+      - org.springframework.web.client.ResourceAccessException
+  bulkhead:
+    max_concurrent_calls: ${BULKHEAD_MAX_CALLS:100}
+    max_wait_duration_ms: ${BULKHEAD_WAIT:10000}
+    
+# Feature Flags
+features:
+  voice_payments:
+    enabled: ${FEATURE_VOICE_PAYMENTS:true}
+  crypto_trading:
+    enabled: ${FEATURE_CRYPTO_TRADING:true}
+  international_transfers:
+    enabled: ${FEATURE_INTERNATIONAL:true}
+  biometric_auth:
+    enabled: ${FEATURE_BIOMETRIC:true}
+  ar_payments:
+    enabled: ${FEATURE_AR_PAYMENTS:false}
+  
+# Deployment Configuration
+deployment:
+  blue_green:
+    enabled: ${BLUE_GREEN_ENABLED:true}
+    traffic_shift_percentage: ${TRAFFIC_SHIFT:10}
+  canary:
+    enabled: ${CANARY_ENABLED:true}
+    percentage: ${CANARY_PERCENTAGE:5}
+  rollback:
+    automatic: ${AUTO_ROLLBACK:true}
+    error_threshold: ${ROLLBACK_ERROR_THRESHOLD:5}

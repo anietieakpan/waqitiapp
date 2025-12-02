@@ -1,0 +1,327 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly scan on Sunday midnight
+
+env:
+  JAVA_VERSION: '17'
+  NODE_VERSION: '18'
+
+jobs:
+  # Static Application Security Testing (SAST)
+  sast-scan:
+    name: SAST Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+
+      - name: Run SpotBugs
+        run: |
+          mvn com.github.spotbugs:spotbugs-maven-plugin:check
+          
+      - name: Run PMD
+        run: |
+          mvn pmd:check
+
+      - name: Run Checkmarx SAST
+        uses: checkmarx-ts/checkmarx-github-action@v1.0.3
+        with:
+          project: waqiti-app
+          team: /CxServer/Waqiti
+          checkmarx_url: ${{ secrets.CHECKMARX_URL }}
+          checkmarx_username: ${{ secrets.CHECKMARX_USERNAME }}
+          checkmarx_password: ${{ secrets.CHECKMARX_PASSWORD }}
+          checkmarx_client_secret: ${{ secrets.CHECKMARX_CLIENT_SECRET }}
+
+      - name: Upload SAST results
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: checkmarx.sarif
+
+  # Software Composition Analysis (SCA)
+  dependency-scan:
+    name: Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - type: java
+            directory: ./services
+          - type: javascript
+            directory: ./frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run OWASP Dependency Check (Java)
+        if: matrix.type == 'java'
+        uses: dependency-check/Dependency-Check_Action@main
+        with:
+          project: 'waqiti-${{ matrix.type }}'
+          path: ${{ matrix.directory }}
+          format: 'ALL'
+          args: >
+            --enableRetired
+            --enableExperimental
+            --nvdApiKey ${{ secrets.NVD_API_KEY }}
+            
+      - name: Run npm audit (JavaScript)
+        if: matrix.type == 'javascript'
+        run: |
+          cd ${{ matrix.directory }}
+          for dir in */; do
+            if [ -f "$dir/package.json" ]; then
+              echo "Scanning $dir"
+              cd "$dir"
+              npm audit --production --audit-level=moderate
+              cd ..
+            fi
+          done
+
+      - name: Run Snyk Security Scan
+        uses: snyk/actions/node@master
+        with:
+          args: --severity-threshold=high --file=${{ matrix.directory }}/package.json
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      - name: Upload dependency check results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: dependency-check-${{ matrix.type }}
+          path: reports/
+
+  # Container Security Scanning
+  container-scan:
+    name: Container Security Scan
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [
+          'api-gateway',
+          'auth-service',
+          'payment-service',
+          'notification-service'
+        ]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: |
+          docker build -t waqiti/${{ matrix.service }}:scan ./services/${{ matrix.service }}
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: waqiti/${{ matrix.service }}:scan
+          format: 'sarif'
+          output: 'trivy-${{ matrix.service }}.sarif'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+          
+      - name: Run Grype vulnerability scanner
+        uses: anchore/scan-action@v3
+        with:
+          image: waqiti/${{ matrix.service }}:scan
+          fail-build: true
+          severity-cutoff: high
+          
+      - name: Run Docker Bench Security
+        run: |
+          docker run --rm --net host --pid host --userns host --cap-add audit_control \
+            -v /var/lib:/var/lib:ro \
+            -v /var/run/docker.sock:/var/run/docker.sock:ro \
+            -v /etc:/etc:ro \
+            docker/docker-bench-security
+
+      - name: Upload Trivy results
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: trivy-${{ matrix.service }}.sarif
+
+  # Infrastructure as Code Security
+  iac-scan:
+    name: IaC Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Checkov
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: ./infrastructure
+          framework: terraform,kubernetes,dockerfile
+          output_format: sarif
+          output_file_path: checkov.sarif
+          
+      - name: Run Terrascan
+        run: |
+          docker run --rm -v "$(pwd):/src" \
+            accurics/terrascan scan -t aws -f infrastructure/terraform
+
+      - name: Run tfsec
+        uses: aquasecurity/tfsec-action@v1.0.0
+        with:
+          working_directory: ./infrastructure/terraform
+          
+      - name: Upload IaC scan results
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: checkov.sarif
+
+  # Secret Scanning
+  secret-scan:
+    name: Secret Detection
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Run TruffleHog
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          
+      - name: Run detect-secrets
+        run: |
+          pip install detect-secrets
+          detect-secrets scan --baseline .secrets.baseline
+          detect-secrets audit .secrets.baseline
+
+  # API Security Testing
+  api-security-test:
+    name: API Security Testing
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start services
+        run: |
+          docker-compose -f docker-compose.test.yml up -d
+          ./scripts/wait-for-services.sh
+
+      - name: Run OWASP ZAP API Scan
+        uses: zaproxy/action-api-scan@v0.4.0
+        with:
+          target: 'http://localhost:8080/api/v1'
+          format: openapi
+          rules_file_name: '.zap/rules.tsv'
+          cmd_options: '-a'
+          
+      - name: Run Nuclei security scanner
+        uses: projectdiscovery/nuclei-action@main
+        with:
+          target: http://localhost:8080
+          templates: cves,vulnerabilities,misconfiguration
+          
+      - name: Run API Fuzzing with RESTler
+        run: |
+          docker run --rm -v $(pwd):/workspace \
+            mcr.microsoft.com/restlerfuzzer/restler:latest \
+            compile /workspace/api-spec.json
+          docker run --rm -v $(pwd):/workspace \
+            mcr.microsoft.com/restlerfuzzer/restler:latest \
+            test --grammar_file /workspace/Compile/grammar.py \
+            --target_ip localhost --target_port 8080
+
+  # Compliance Scanning
+  compliance-scan:
+    name: Compliance & Policy Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Open Policy Agent (OPA) tests
+        run: |
+          docker run --rm -v $(pwd):/project \
+            openpolicyagent/opa test /project/policies
+
+      - name: PCI DSS Compliance Check
+        run: |
+          # Run PCI DSS compliance checks
+          ./scripts/compliance/pci-dss-check.sh
+
+      - name: GDPR Compliance Check
+        run: |
+          # Run GDPR compliance checks
+          ./scripts/compliance/gdpr-check.sh
+
+      - name: SOC 2 Compliance Check
+        run: |
+          # Run SOC 2 compliance checks
+          ./scripts/compliance/soc2-check.sh
+
+  # Security Report Generation
+  security-report:
+    name: Generate Security Report
+    needs: [sast-scan, dependency-scan, container-scan, iac-scan, secret-scan, api-security-test, compliance-scan]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+
+      - name: Generate consolidated security report
+        run: |
+          python scripts/security/generate_security_report.py \
+            --output security-report.html
+
+      - name: Upload security report
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-report
+          path: security-report.html
+
+      - name: Send security report to Slack
+        if: github.event_name == 'schedule'
+        uses: 8398a7/action-slack@v3
+        with:
+          status: custom
+          custom_payload: |
+            {
+              text: "Weekly Security Scan Complete",
+              attachments: [{
+                color: '${{ job.status }}' === 'success' ? 'good' : 'danger',
+                text: 'Security scan results are available. Check the artifacts for detailed report.'
+              }]
+            }
+          webhook_url: ${{ secrets.SLACK_WEBHOOK_SECURITY }}
+
+      - name: Create Security Issue if Critical
+        if: failure()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: 'Critical Security Vulnerabilities Detected',
+              body: 'Critical security vulnerabilities were detected in the latest scan. Please review the security report and address immediately.',
+              labels: ['security', 'critical', 'bug']
+            })

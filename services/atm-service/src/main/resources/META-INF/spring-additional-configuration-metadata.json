@@ -1,0 +1,45 @@
+{
+  "properties": [
+    {
+      "name": "atm.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable ATM functionality",
+      "defaultValue": true
+    },
+    {
+      "name": "atm.limits.daily-withdrawal",
+      "type": "java.math.BigDecimal",
+      "description": "Daily ATM withdrawal limit",
+      "defaultValue": "1000.00"
+    },
+    {
+      "name": "atm.limits.transaction-limit",
+      "type": "java.math.BigDecimal",
+      "description": "Single ATM transaction limit",
+      "defaultValue": "500.00"
+    },
+    {
+      "name": "atm.security.pin-required",
+      "type": "java.lang.Boolean",
+      "description": "Require PIN for ATM transactions",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "OAuth2 client ID for service",
+      "defaultValue": "atm-service"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "OAuth2 client secret for service"
+    }
+  ]
+}

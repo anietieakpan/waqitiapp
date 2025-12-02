@@ -1,0 +1,152 @@
+keycloak:
+  enabled: true
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  resource: bank-integration-service
+  auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}
+  ssl-required: ${KEYCLOAK_SSL_REQUIRED:external}
+  public-client: false
+  credentials:
+    secret: ${KEYCLOAK_CLIENT_SECRET:${vault.keycloak.bank-integration-service.client-secret}}
+  use-resource-role-mappings: true
+  bearer-only: true
+  autodetect-bearer-only: true
+  enable-cors: true
+  
+  # Critical financial service scopes
+  scopes:
+    # Account operations
+    - bank:account:verify
+    - bank:account:balance
+    - bank:account:details
+    
+    # Link operations
+    - bank:link:initiate
+    - bank:link:confirm
+    - bank:link:read
+    - bank:link:remove
+    
+    # Transfer operations (highly sensitive)
+    - bank:transfer:initiate
+    - bank:transfer:confirm
+    - bank:transfer:cancel
+    - bank:transfer:read
+    - bank:transfer:history
+    
+    # Payment method operations
+    - bank:ach:manage
+    - bank:wire:manage
+    - bank:direct_debit:manage
+    
+    # Provider-specific scopes
+    - bank:plaid:access
+    - bank:yodlee:access
+    - bank:finicity:access
+    - bank:open_banking:access
+    
+    # Webhook scopes
+    - bank:webhook:plaid
+    - bank:webhook:yodlee
+    - bank:webhook:finicity
+    
+    # Compliance
+    - bank:compliance:read
+    
+    # Service-to-service
+    - service:internal
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8080/realms/waqiti}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:https://auth.example.com/realms/waqiti/protocol/openid-connect/certs}
+      client:
+        registration:
+          bank-integration-service:
+            client-id: bank-integration-service
+            client-secret: ${KEYCLOAK_CLIENT_SECRET:${vault.keycloak.bank-integration-service.client-secret}}
+            authorization-grant-type: client_credentials
+            scope: openid
+        provider:
+          keycloak:
+            issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8080/realms/waqiti}
+
+# Enhanced security for financial operations
+security:
+  headers:
+    frame-options: DENY
+    xss-protection: 1; mode=block
+    content-type-options: nosniff
+    referrer-policy: strict-origin-when-cross-origin
+    permissions-policy: geolocation=(), microphone=(), camera=()
+    content-security-policy: default-src 'self'; frame-ancestors 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';
+    strict-transport-security: max-age=31536000; includeSubDomains; preload
+  
+  # PCI DSS compliance headers
+  pci-compliance:
+    enabled: true
+    enforce-https: true
+    require-secure-cookies: true
+    
+# Financial data encryption
+encryption:
+  sensitive-data:
+    enabled: true
+    algorithm: AES-256-GCM
+    key-rotation-days: 90
+    
+  # Bank account encryption
+  bank-accounts:
+    encrypt-account-numbers: true
+    encrypt-routing-numbers: true
+    encrypt-bank-names: false
+
+# Audit logging for financial operations
+audit:
+  enabled: true
+  include-request-body: true
+  include-response-body: false
+  sensitive-fields:
+    - account_number
+    - routing_number
+    - ssn
+    - tax_id
+  events:
+    - BANK_ACCOUNT_LINKED
+    - BANK_ACCOUNT_UNLINKED
+    - BANK_TRANSFER_INITIATED
+    - BANK_TRANSFER_COMPLETED
+    - BANK_TRANSFER_FAILED
+    - COMPLIANCE_CHECK_PERFORMED
+
+# Rate limiting for financial operations
+rate-limiting:
+  bank-operations:
+    transfers-per-hour: 10
+    link-attempts-per-hour: 5
+    balance-checks-per-minute: 30
+  
+  webhooks:
+    plaid-webhooks-per-minute: 100
+    yodlee-webhooks-per-minute: 50
+
+# Circuit breaker configuration for external bank APIs
+resilience4j:
+  circuitbreaker:
+    instances:
+      plaid-api:
+        sliding-window-size: 20
+        failure-rate-threshold: 25
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 5
+      yodlee-api:
+        sliding-window-size: 15
+        failure-rate-threshold: 30
+        wait-duration-in-open-state: 45s
+        permitted-number-of-calls-in-half-open-state: 3
+      finicity-api:
+        sliding-window-size: 10
+        failure-rate-threshold: 40
+        wait-duration-in-open-state: 60s
+        permitted-number-of-calls-in-half-open-state: 3

@@ -1,0 +1,209 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-gateway-config
+  namespace: waqiti
+  labels:
+    app: api-gateway
+    component: gateway
+data:
+  application.yaml: |
+    spring:
+      application:
+        name: api-gateway
+      cloud:
+        gateway:
+          default-filters:
+            - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin
+          globalcors:
+            corsConfigurations:
+              '[/**]':
+                allowedOrigins:
+                  - "http://localhost:3000"
+                  - "https://app.example.com"
+                  - "https://example.com"
+                allowedMethods:
+                  - GET
+                  - POST
+                  - PUT
+                  - DELETE
+                  - OPTIONS
+                allowedHeaders:
+                  - "*"
+                allowCredentials: true
+                maxAge: 3600
+          routes:
+            # User Service Routes
+            - id: user-service
+              uri: lb://user-service
+              predicates:
+                - Path=/api/v1/users/**
+              filters:
+                - RewritePath=/api/v1/users/(?<path>.*), /$\{path}
+                - CircuitBreaker=user-service
+                - name: Retry
+                  args:
+                    retries: 3
+                    statuses: BAD_GATEWAY,GATEWAY_TIMEOUT
+                    methods: GET,POST
+                    backoff:
+                      firstBackoff: 10ms
+                      maxBackoff: 50ms
+                      factor: 2
+                      basedOnPreviousValue: false
+            
+            # Payment Service Routes
+            - id: payment-service
+              uri: lb://payment-service
+              predicates:
+                - Path=/api/v1/payments/**
+              filters:
+                - RewritePath=/api/v1/payments/(?<path>.*), /$\{path}
+                - CircuitBreaker=payment-service
+                - name: RequestRateLimiter
+                  args:
+                    redis-rate-limiter.replenishRate: 100
+                    redis-rate-limiter.burstCapacity: 200
+                    redis-rate-limiter.requestedTokens: 1
+            
+            # Wallet Service Routes
+            - id: wallet-service
+              uri: lb://wallet-service
+              predicates:
+                - Path=/api/v1/wallets/**
+              filters:
+                - RewritePath=/api/v1/wallets/(?<path>.*), /$\{path}
+                - CircuitBreaker=wallet-service
+                - name: RequestRateLimiter
+                  args:
+                    redis-rate-limiter.replenishRate: 100
+                    redis-rate-limiter.burstCapacity: 200
+            
+            # Transaction Service Routes
+            - id: transaction-service
+              uri: lb://transaction-service
+              predicates:
+                - Path=/api/v1/transactions/**
+              filters:
+                - RewritePath=/api/v1/transactions/(?<path>.*), /$\{path}
+                - CircuitBreaker=transaction-service
+            
+            # Notification Service Routes
+            - id: notification-service
+              uri: lb://notification-service
+              predicates:
+                - Path=/api/v1/notifications/**
+              filters:
+                - RewritePath=/api/v1/notifications/(?<path>.*), /$\{path}
+                - CircuitBreaker=notification-service
+            
+            # Analytics Service Routes
+            - id: analytics-service
+              uri: lb://analytics-service
+              predicates:
+                - Path=/api/v1/analytics/**
+              filters:
+                - RewritePath=/api/v1/analytics/(?<path>.*), /$\{path}
+                - CircuitBreaker=analytics-service
+            
+            # WebSocket Service Routes
+            - id: websocket-service
+              uri: lb:ws://websocket-service
+              predicates:
+                - Path=/ws/**
+              filters:
+                - CircuitBreaker=websocket-service
+            
+            # International Transfer Service Routes
+            - id: international-transfer-service
+              uri: lb://international-transfer-service
+              predicates:
+                - Path=/api/v1/international/**
+              filters:
+                - RewritePath=/api/v1/international/(?<path>.*), /$\{path}
+                - CircuitBreaker=international-transfer-service
+            
+            # Rewards Service Routes
+            - id: rewards-service
+              uri: lb://rewards-service
+              predicates:
+                - Path=/api/v1/rewards/**
+              filters:
+                - RewritePath=/api/v1/rewards/(?<path>.*), /$\{path}
+                - CircuitBreaker=rewards-service
+            
+            # Virtual Card Service Routes
+            - id: virtual-card-service
+              uri: lb://virtual-card-service
+              predicates:
+                - Path=/api/v1/cards/**
+              filters:
+                - RewritePath=/api/v1/cards/(?<path>.*), /$\{path}
+                - CircuitBreaker=virtual-card-service
+      
+      security:
+        oauth2:
+          resourceserver:
+            jwt:
+              jwk-set-uri: ${SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI}/protocol/openid-connect/certs
+    
+    resilience4j:
+      circuitbreaker:
+        configs:
+          default:
+            slidingWindowSize: 10
+            minimumNumberOfCalls: 5
+            permittedNumberOfCallsInHalfOpenState: 3
+            automaticTransitionFromOpenToHalfOpenEnabled: true
+            waitDurationInOpenState: 5s
+            failureRateThreshold: 50
+            eventConsumerBufferSize: 10
+        instances:
+          user-service:
+            baseConfig: default
+          payment-service:
+            baseConfig: default
+          wallet-service:
+            baseConfig: default
+          transaction-service:
+            baseConfig: default
+    
+    management:
+      endpoints:
+        web:
+          exposure:
+            include: health,info,metrics,prometheus,circuitbreakers,gateway
+      endpoint:
+        health:
+          show-details: always
+          probes:
+            enabled: true
+      metrics:
+        export:
+          prometheus:
+            enabled: true
+        tags:
+          application: ${spring.application.name}
+    
+    logging:
+      level:
+        org.springframework.cloud.gateway: DEBUG
+        org.springframework.cloud.loadbalancer: DEBUG
+        reactor.netty: DEBUG
+      pattern:
+        console: "%d{yyyy-MM-dd HH:mm:ss} - %logger{36} - %msg%n"
+    
+  rate-limit-config.yaml: |
+    rate-limits:
+      - key: "user-api"
+        limit: 1000
+        duration: 60
+        unit: SECONDS
+      - key: "payment-api"
+        limit: 100
+        duration: 60
+        unit: SECONDS
+      - key: "public-api"
+        limit: 100
+        duration: 60
+        unit: SECONDS

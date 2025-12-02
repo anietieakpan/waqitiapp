@@ -1,0 +1,1401 @@
+openapi: 3.0.3
+info:
+  title: Waqiti User Service API
+  description: |
+    The User Service handles user registration, authentication, profile management,
+    KYC verification, and user-related operations for the Waqiti platform.
+    
+    ## Authentication
+    Most endpoints require Bearer token authentication. Public endpoints like registration
+    and password reset do not require authentication.
+    
+    ## Rate Limiting
+    - Authentication endpoints: 10 requests per minute per IP
+    - Profile endpoints: 60 requests per minute per user
+    - KYC endpoints: 20 requests per minute per user
+    
+    ## Security Features
+    - MFA (Multi-Factor Authentication) support
+    - Device tracking and management
+    - Session management
+    - Biometric authentication support
+  version: 1.0.0
+  contact:
+    name: Waqiti API Support
+    email: api-support@example.com
+    url: https://developers.example.com/support
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+
+servers:
+  - url: https://api.example.com/v1/users
+    description: Production
+  - url: https://staging-api.example.com/v1/users
+    description: Staging
+  - url: https://sandbox-api.example.com/v1/users
+    description: Sandbox
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Authentication
+    description: User authentication and authorization
+  - name: Registration
+    description: User registration and onboarding
+  - name: Profile
+    description: User profile management
+  - name: KYC
+    description: Know Your Customer verification
+  - name: Security
+    description: Security settings and MFA
+  - name: Devices
+    description: Device management
+  - name: Sessions
+    description: Session management
+
+paths:
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: User login
+      description: |
+        Authenticates a user with email/username and password. Returns JWT tokens
+        and user information. Supports MFA if enabled for the user.
+      security: []
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            examples:
+              basicLogin:
+                summary: Basic Login
+                value:
+                  email: "john.doe@example.com"
+                  password: "SecurePassword123!"
+                  deviceId: "device-uuid-12345"
+              mfaLogin:
+                summary: Login with MFA
+                value:
+                  email: "john.doe@example.com"
+                  password: "SecurePassword123!"
+                  deviceId: "device-uuid-12345"
+                  mfaCode: "123456"
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '428':
+          description: MFA Required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MFARequiredResponse'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /auth/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: Refresh access token
+      description: Refreshes an access token using a valid refresh token
+      security: []
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: User logout
+      description: Logs out the user and invalidates the current session
+      operationId: logout
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Logged out successfully"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /register:
+    post:
+      tags:
+        - Registration
+      summary: Register new user
+      description: |
+        Creates a new user account. Initiates email verification process.
+        Some fields like date of birth and address may be required based on
+        regulatory requirements in the user's jurisdiction.
+      security: []
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            examples:
+              personalAccount:
+                summary: Personal Account Registration
+                value:
+                  firstName: "John"
+                  lastName: "Doe"
+                  email: "john.doe@example.com"
+                  phoneNumber: "+1234567890"
+                  password: "SecurePassword123!"
+                  dateOfBirth: "1990-01-15"
+                  address:
+                    street: "123 Main St"
+                    city: "New York"
+                    state: "NY"
+                    postalCode: "10001"
+                    country: "US"
+                  acceptTerms: true
+                  acceptPrivacy: true
+              businessAccount:
+                summary: Business Account Registration
+                value:
+                  firstName: "Jane"
+                  lastName: "Smith"
+                  email: "jane.smith@company.com"
+                  phoneNumber: "+1234567890"
+                  password: "SecurePassword123!"
+                  accountType: "BUSINESS"
+                  businessName: "Tech Solutions Inc"
+                  businessType: "LLC"
+                  taxId: "12-3456789"
+                  acceptTerms: true
+                  acceptPrivacy: true
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: User already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: user_exists
+                  message: A user with this email already exists
+                  field: email
+
+  /profile:
+    get:
+      tags:
+        - Profile
+      summary: Get user profile
+      description: Retrieves the current user's profile information
+      operationId: getUserProfile
+      responses:
+        '200':
+          description: User profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    put:
+      tags:
+        - Profile
+      summary: Update user profile
+      description: |
+        Updates user profile information. Some fields like email and phone
+        may require verification before the change takes effect.
+      operationId: updateUserProfile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /profile/avatar:
+    post:
+      tags:
+        - Profile
+      summary: Upload profile avatar
+      description: Uploads a new profile avatar image
+      operationId: uploadAvatar
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                avatar:
+                  type: string
+                  format: binary
+                  description: Avatar image file (JPG, PNG, max 5MB)
+      responses:
+        '200':
+          description: Avatar uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  avatarUrl:
+                    type: string
+                    format: uri
+                    description: URL of the uploaded avatar
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '413':
+          description: File too large
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /verify/email:
+    post:
+      tags:
+        - Registration
+      summary: Verify email address
+      description: Verifies user's email address using the verification code
+      security: []
+      operationId: verifyEmail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyEmailRequest'
+      responses:
+        '200':
+          description: Email verified successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Email verified successfully"
+                  verified:
+                    type: boolean
+                    example: true
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          description: Invalid verification code
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /verify/email/resend:
+    post:
+      tags:
+        - Registration
+      summary: Resend email verification
+      description: Resends the email verification code
+      operationId: resendEmailVerification
+      responses:
+        '200':
+          description: Verification email sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Verification email sent"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /kyc/status:
+    get:
+      tags:
+        - KYC
+      summary: Get KYC verification status
+      description: Returns the current KYC verification status and requirements
+      operationId: getKYCStatus
+      responses:
+        '200':
+          description: KYC status retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KYCStatus'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /kyc/documents:
+    post:
+      tags:
+        - KYC
+      summary: Upload KYC document
+      description: |
+        Uploads a KYC document for verification. Supported document types
+        include passport, driver's license, national ID, and proof of address.
+      operationId: uploadKYCDocument
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - documentType
+                - file
+              properties:
+                documentType:
+                  type: string
+                  enum: [passport, drivers_license, national_id, proof_of_address, utility_bill]
+                  description: Type of document being uploaded
+                file:
+                  type: string
+                  format: binary
+                  description: Document image file (JPG, PNG, PDF, max 10MB)
+                side:
+                  type: string
+                  enum: [front, back]
+                  description: Side of the document (for two-sided documents)
+      responses:
+        '201':
+          description: Document uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KYCDocument'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '413':
+          description: File too large
+
+    get:
+      tags:
+        - KYC
+      summary: List uploaded KYC documents
+      description: Returns a list of all uploaded KYC documents and their status
+      operationId: listKYCDocuments
+      responses:
+        '200':
+          description: KYC documents retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  documents:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/KYCDocument'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /security/mfa/setup:
+    post:
+      tags:
+        - Security
+      summary: Setup MFA
+      description: |
+        Initiates MFA setup process. Returns QR code for TOTP apps
+        and backup codes for recovery.
+      operationId: setupMFA
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MFASetupRequest'
+      responses:
+        '200':
+          description: MFA setup initiated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MFASetupResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /security/mfa/verify:
+    post:
+      tags:
+        - Security
+      summary: Verify MFA setup
+      description: Verifies and enables MFA using the verification code
+      operationId: verifyMFA
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MFAVerifyRequest'
+      responses:
+        '200':
+          description: MFA verified and enabled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  enabled:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "MFA enabled successfully"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /security/mfa/disable:
+    post:
+      tags:
+        - Security
+      summary: Disable MFA
+      description: Disables MFA for the user account
+      operationId: disableMFA
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - mfaCode
+              properties:
+                mfaCode:
+                  type: string
+                  description: Current MFA code to confirm disable action
+      responses:
+        '200':
+          description: MFA disabled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  disabled:
+                    type: boolean
+                    example: true
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /security/password:
+    put:
+      tags:
+        - Security
+      summary: Change password
+      description: Changes the user's password
+      operationId: changePassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '200':
+          description: Password changed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Password changed successfully"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /security/sessions:
+    get:
+      tags:
+        - Sessions
+      summary: List active sessions
+      description: Returns all active sessions for the user
+      operationId: listSessions
+      responses:
+        '200':
+          description: Sessions retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sessions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UserSession'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /security/sessions/{sessionId}:
+    delete:
+      tags:
+        - Sessions
+      summary: Terminate session
+      description: Terminates a specific user session
+      operationId: terminateSession
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          description: Session ID to terminate
+          schema:
+            type: string
+            pattern: '^sess_[a-zA-Z0-9]{20}$'
+      responses:
+        '200':
+          description: Session terminated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Session terminated"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /devices:
+    get:
+      tags:
+        - Devices
+      summary: List registered devices
+      description: Returns all devices registered to the user account
+      operationId: listDevices
+      responses:
+        '200':
+          description: Devices retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  devices:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UserDevice'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - Devices
+      summary: Register new device
+      description: Registers a new device for the user
+      operationId: registerDevice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterDeviceRequest'
+      responses:
+        '201':
+          description: Device registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDevice'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /devices/{deviceId}:
+    delete:
+      tags:
+        - Devices
+      summary: Remove device
+      description: Removes a device from the user account
+      operationId: removeDevice
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          description: Device ID to remove
+          schema:
+            type: string
+            pattern: '^dev_[a-zA-Z0-9]{20}$'
+      responses:
+        '200':
+          description: Device removed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Device removed successfully"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    LoginRequest:
+      type: object
+      required:
+        - password
+        - deviceId
+      properties:
+        email:
+          type: string
+          format: email
+          description: User's email address
+        username:
+          type: string
+          description: User's username (alternative to email)
+        password:
+          type: string
+          minLength: 8
+          description: User's password
+        deviceId:
+          type: string
+          description: Unique device identifier
+        mfaCode:
+          type: string
+          pattern: '^\d{6}$'
+          description: MFA code (required if MFA is enabled)
+        rememberMe:
+          type: boolean
+          default: false
+          description: Extend session duration
+
+    LoginResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+          description: JWT access token
+        refreshToken:
+          type: string
+          description: JWT refresh token
+        tokenType:
+          type: string
+          example: "Bearer"
+        expiresIn:
+          type: integer
+          example: 3600
+          description: Token expiration time in seconds
+        user:
+          $ref: '#/components/schemas/UserProfile'
+
+    MFARequiredResponse:
+      type: object
+      properties:
+        mfaRequired:
+          type: boolean
+          example: true
+        challengeId:
+          type: string
+          description: Challenge ID for MFA verification
+        methods:
+          type: array
+          items:
+            type: string
+            enum: [totp, sms, email]
+          description: Available MFA methods
+
+    RefreshTokenRequest:
+      type: object
+      required:
+        - refreshToken
+      properties:
+        refreshToken:
+          type: string
+          description: Valid refresh token
+
+    TokenResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        tokenType:
+          type: string
+          example: "Bearer"
+        expiresIn:
+          type: integer
+          example: 3600
+
+    RegisterRequest:
+      type: object
+      required:
+        - firstName
+        - lastName
+        - email
+        - password
+        - acceptTerms
+        - acceptPrivacy
+      properties:
+        firstName:
+          type: string
+          maxLength: 50
+        lastName:
+          type: string
+          maxLength: 50
+        email:
+          type: string
+          format: email
+        phoneNumber:
+          type: string
+          pattern: '^\+[1-9]\d{1,14}$'
+          description: International phone number format
+        password:
+          type: string
+          minLength: 8
+          pattern: '^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$'
+          description: Password with at least 8 chars, 1 uppercase, 1 lowercase, 1 digit, 1 special char
+        dateOfBirth:
+          type: string
+          format: date
+          description: Date of birth (required for some jurisdictions)
+        address:
+          $ref: '#/components/schemas/Address'
+        accountType:
+          type: string
+          enum: [PERSONAL, BUSINESS]
+          default: PERSONAL
+        businessName:
+          type: string
+          maxLength: 100
+          description: Required for business accounts
+        businessType:
+          type: string
+          enum: [LLC, CORPORATION, PARTNERSHIP, SOLE_PROPRIETORSHIP]
+          description: Required for business accounts
+        taxId:
+          type: string
+          description: Tax identification number for business accounts
+        acceptTerms:
+          type: boolean
+          description: Must be true
+        acceptPrivacy:
+          type: boolean
+          description: Must be true
+        marketingOptIn:
+          type: boolean
+          default: false
+
+    RegisterResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          pattern: '^usr_[a-zA-Z0-9]{20}$'
+        email:
+          type: string
+          format: email
+        emailVerified:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: "Registration successful. Please verify your email."
+        verificationEmailSent:
+          type: boolean
+          example: true
+
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          pattern: '^usr_[a-zA-Z0-9]{20}$'
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        emailVerified:
+          type: boolean
+        phoneNumber:
+          type: string
+        phoneVerified:
+          type: boolean
+        firstName:
+          type: string
+        lastName:
+          type: string
+        displayName:
+          type: string
+        avatar:
+          type: string
+          format: uri
+        dateOfBirth:
+          type: string
+          format: date
+        address:
+          $ref: '#/components/schemas/Address'
+        accountType:
+          type: string
+          enum: [PERSONAL, BUSINESS]
+        businessInfo:
+          $ref: '#/components/schemas/BusinessInfo'
+        kycStatus:
+          type: string
+          enum: [NOT_STARTED, PENDING, UNDER_REVIEW, APPROVED, REJECTED]
+        mfaEnabled:
+          type: boolean
+        status:
+          type: string
+          enum: [ACTIVE, SUSPENDED, DEACTIVATED]
+        createdAt:
+          type: string
+          format: date-time
+        lastLoginAt:
+          type: string
+          format: date-time
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        firstName:
+          type: string
+          maxLength: 50
+        lastName:
+          type: string
+          maxLength: 50
+        displayName:
+          type: string
+          maxLength: 100
+        phoneNumber:
+          type: string
+          pattern: '^\+[1-9]\d{1,14}$'
+        address:
+          $ref: '#/components/schemas/Address'
+        businessInfo:
+          $ref: '#/components/schemas/BusinessInfo'
+        preferences:
+          $ref: '#/components/schemas/UserPreferences'
+
+    VerifyEmailRequest:
+      type: object
+      required:
+        - email
+        - verificationCode
+      properties:
+        email:
+          type: string
+          format: email
+        verificationCode:
+          type: string
+          pattern: '^\d{6}$'
+
+    KYCStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [NOT_STARTED, PENDING, UNDER_REVIEW, APPROVED, REJECTED]
+        level:
+          type: string
+          enum: [BASIC, ENHANCED, PREMIUM]
+        requirements:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                enum: [identity_document, proof_of_address, selfie_verification, enhanced_due_diligence]
+              status:
+                type: string
+                enum: [REQUIRED, SUBMITTED, APPROVED, REJECTED]
+              description:
+                type: string
+        verificationLimits:
+          type: object
+          properties:
+            dailyTransactionLimit:
+              type: integer
+              description: Daily transaction limit in cents
+            monthlyTransactionLimit:
+              type: integer
+              description: Monthly transaction limit in cents
+            walletBalanceLimit:
+              type: integer
+              description: Maximum wallet balance in cents
+        lastUpdated:
+          type: string
+          format: date-time
+
+    KYCDocument:
+      type: object
+      properties:
+        id:
+          type: string
+          pattern: '^doc_[a-zA-Z0-9]{20}$'
+        type:
+          type: string
+          enum: [passport, drivers_license, national_id, proof_of_address, utility_bill]
+        side:
+          type: string
+          enum: [front, back]
+        status:
+          type: string
+          enum: [UPLOADED, PROCESSING, APPROVED, REJECTED]
+        fileName:
+          type: string
+        fileSize:
+          type: integer
+          description: File size in bytes
+        uploadedAt:
+          type: string
+          format: date-time
+        reviewedAt:
+          type: string
+          format: date-time
+        rejectionReason:
+          type: string
+          description: Reason for rejection if status is REJECTED
+
+    MFASetupRequest:
+      type: object
+      required:
+        - method
+      properties:
+        method:
+          type: string
+          enum: [totp, sms]
+          description: MFA method to set up
+        phoneNumber:
+          type: string
+          pattern: '^\+[1-9]\d{1,14}$'
+          description: Required for SMS method
+
+    MFASetupResponse:
+      type: object
+      properties:
+        method:
+          type: string
+          enum: [totp, sms]
+        setupKey:
+          type: string
+          description: Secret key for TOTP apps
+        qrCodeUrl:
+          type: string
+          format: uri
+          description: QR code URL for easy TOTP setup
+        backupCodes:
+          type: array
+          items:
+            type: string
+          description: One-time backup codes for recovery
+
+    MFAVerifyRequest:
+      type: object
+      required:
+        - code
+      properties:
+        code:
+          type: string
+          pattern: '^\d{6}$'
+          description: 6-digit MFA code
+
+    ChangePasswordRequest:
+      type: object
+      required:
+        - currentPassword
+        - newPassword
+      properties:
+        currentPassword:
+          type: string
+          description: Current password for verification
+        newPassword:
+          type: string
+          minLength: 8
+          pattern: '^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$'
+          description: New password meeting security requirements
+        mfaCode:
+          type: string
+          pattern: '^\d{6}$'
+          description: MFA code if MFA is enabled
+
+    UserSession:
+      type: object
+      properties:
+        id:
+          type: string
+          pattern: '^sess_[a-zA-Z0-9]{20}$'
+        deviceId:
+          type: string
+        deviceName:
+          type: string
+          description: Human-readable device name
+        deviceType:
+          type: string
+          enum: [mobile, tablet, desktop, unknown]
+        browser:
+          type: string
+          description: Browser information
+        operatingSystem:
+          type: string
+          description: Operating system
+        ipAddress:
+          type: string
+          format: ipv4
+        location:
+          type: object
+          properties:
+            country:
+              type: string
+            city:
+              type: string
+            region:
+              type: string
+        current:
+          type: boolean
+          description: Whether this is the current session
+        createdAt:
+          type: string
+          format: date-time
+        lastActiveAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+
+    UserDevice:
+      type: object
+      properties:
+        id:
+          type: string
+          pattern: '^dev_[a-zA-Z0-9]{20}$'
+        name:
+          type: string
+          description: User-defined device name
+        deviceId:
+          type: string
+          description: Unique device identifier
+        deviceType:
+          type: string
+          enum: [mobile, tablet, desktop, unknown]
+        platform:
+          type: string
+          enum: [ios, android, web, windows, macos, linux]
+        model:
+          type: string
+          description: Device model information
+        trusted:
+          type: boolean
+          description: Whether device is trusted (bypasses some security checks)
+        pushTokens:
+          type: array
+          items:
+            type: string
+          description: Push notification tokens
+        lastSeen:
+          type: string
+          format: date-time
+        registeredAt:
+          type: string
+          format: date-time
+
+    RegisterDeviceRequest:
+      type: object
+      required:
+        - deviceId
+        - name
+        - deviceType
+        - platform
+      properties:
+        deviceId:
+          type: string
+          description: Unique device identifier
+        name:
+          type: string
+          maxLength: 100
+          description: User-defined device name
+        deviceType:
+          type: string
+          enum: [mobile, tablet, desktop]
+        platform:
+          type: string
+          enum: [ios, android, web, windows, macos, linux]
+        model:
+          type: string
+          maxLength: 100
+          description: Device model
+        pushToken:
+          type: string
+          description: Push notification token
+
+    Address:
+      type: object
+      properties:
+        street:
+          type: string
+          maxLength: 100
+        city:
+          type: string
+          maxLength: 50
+        state:
+          type: string
+          maxLength: 50
+        postalCode:
+          type: string
+          maxLength: 20
+        country:
+          type: string
+          pattern: '^[A-Z]{2}$'
+          description: ISO 3166-1 alpha-2 country code
+
+    BusinessInfo:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        legalName:
+          type: string
+          maxLength: 100
+        type:
+          type: string
+          enum: [LLC, CORPORATION, PARTNERSHIP, SOLE_PROPRIETORSHIP]
+        taxId:
+          type: string
+          maxLength: 50
+        registrationNumber:
+          type: string
+          maxLength: 50
+        industry:
+          type: string
+          maxLength: 100
+        website:
+          type: string
+          format: uri
+        description:
+          type: string
+          maxLength: 500
+
+    UserPreferences:
+      type: object
+      properties:
+        language:
+          type: string
+          pattern: '^[a-z]{2}$'
+          default: "en"
+        timezone:
+          type: string
+          description: IANA timezone identifier
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          default: "USD"
+        notifications:
+          $ref: '#/components/schemas/NotificationPreferences'
+        privacy:
+          $ref: '#/components/schemas/PrivacyPreferences'
+
+    NotificationPreferences:
+      type: object
+      properties:
+        push:
+          type: boolean
+          default: true
+        email:
+          type: boolean
+          default: true
+        sms:
+          type: boolean
+          default: false
+        transactionAlerts:
+          type: boolean
+          default: true
+        securityAlerts:
+          type: boolean
+          default: true
+        marketingCommunications:
+          type: boolean
+          default: false
+        newsletterSubscription:
+          type: boolean
+          default: false
+
+    PrivacyPreferences:
+      type: object
+      properties:
+        profileVisibility:
+          type: string
+          enum: [PUBLIC, FRIENDS, PRIVATE]
+          default: FRIENDS
+        shareTransactionHistory:
+          type: boolean
+          default: false
+        allowFriendRequests:
+          type: boolean
+          default: true
+        showOnlineStatus:
+          type: boolean
+          default: true
+
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+              description: Error code for programmatic handling
+            message:
+              type: string
+              description: Human-readable error message
+            field:
+              type: string
+              description: Field that caused the error (for validation errors)
+            details:
+              type: object
+              additionalProperties: true
+              description: Additional error details
+            requestId:
+              type: string
+              description: Unique request ID for support
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: invalid_request
+              message: The request contains invalid parameters
+              field: email
+              details:
+                email: Invalid email format
+              requestId: req_abc123
+
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: unauthorized
+              message: Invalid or missing authentication token
+              requestId: req_abc123
+
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: not_found
+              message: The requested resource was not found
+              requestId: req_abc123
+
+    TooManyRequests:
+      description: Too many requests
+      headers:
+        X-RateLimit-Limit:
+          description: Request limit per minute
+          schema:
+            type: integer
+        X-RateLimit-Remaining:
+          description: Remaining requests
+          schema:
+            type: integer
+        X-RateLimit-Reset:
+          description: Time when limit resets (Unix timestamp)
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: rate_limit_exceeded
+              message: Too many requests. Please retry after some time
+              requestId: req_abc123

@@ -1,0 +1,174 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: transaction-service-config
+  namespace: waqiti
+  labels:
+    app: transaction-service
+    component: backend
+data:
+  application.yaml: |
+    spring:
+      application:
+        name: transaction-service
+      datasource:
+        hikari:
+          connection-timeout: 30000
+          maximum-pool-size: 30
+          minimum-idle: 10
+          idle-timeout: 600000
+          max-lifetime: 1800000
+      jpa:
+        hibernate:
+          ddl-auto: validate
+        properties:
+          hibernate:
+            dialect: org.hibernate.dialect.PostgreSQL10Dialect
+            format_sql: true
+            use_sql_comments: true
+            generate_statistics: true
+            jdbc:
+              batch_size: 25
+              batch_versioned_data: true
+            order_inserts: true
+            order_updates: true
+            cache:
+              use_second_level_cache: true
+              use_query_cache: true
+              region.factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
+      cache:
+        type: redis
+        redis:
+          time-to-live: 3600000
+          cache-null-values: false
+      kafka:
+        producer:
+          key-serializer: org.apache.kafka.common.serialization.StringSerializer
+          value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+          properties:
+            spring.json.type.mapping: transaction:com.waqiti.transaction.event.TransactionEvent
+            enable.idempotence: true
+            acks: all
+            retries: 3
+            max.in.flight.requests.per.connection: 5
+        consumer:
+          group-id: transaction-service
+          auto-offset-reset: earliest
+          key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+          value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+          properties:
+            spring.json.trusted.packages: "*"
+            isolation.level: read_committed
+    
+    transaction:
+      processing:
+        batch-size: 100
+        batch-timeout: 5000
+        max-concurrent-batches: 10
+        retry-attempts: 3
+        retry-delay: 1000
+      validation:
+        strict-mode: true
+        duplicate-check-window: 86400
+        signature-verification: true
+      types:
+        - code: P2P
+          name: "Peer to Peer"
+          fee-percentage: 0
+          instant-available: true
+        - code: PAYMENT
+          name: "Payment"
+          fee-percentage: 2.9
+          fee-fixed: 0.30
+          instant-available: false
+        - code: DEPOSIT
+          name: "Deposit"
+          fee-percentage: 0
+          instant-available: false
+        - code: WITHDRAWAL
+          name: "Withdrawal"
+          fee-percentage: 1.5
+          fee-minimum: 0.25
+          instant-available: true
+        - code: REFUND
+          name: "Refund"
+          fee-percentage: 0
+          instant-available: true
+      status-transitions:
+        PENDING:
+          - PROCESSING
+          - CANCELLED
+        PROCESSING:
+          - COMPLETED
+          - FAILED
+          - REVERSED
+        COMPLETED:
+          - REVERSED
+        FAILED: []
+        CANCELLED: []
+        REVERSED: []
+      reconciliation:
+        enabled: true
+        schedule: "0 0 * * * *"
+        tolerance: 0.01
+    
+    resilience4j:
+      circuitbreaker:
+        instances:
+          wallet-service:
+            sliding-window-size: 10
+            minimum-number-of-calls: 5
+            permitted-number-of-calls-in-half-open-state: 3
+            automatic-transition-from-open-to-half-open-enabled: true
+            wait-duration-in-open-state: 30s
+            failure-rate-threshold: 50
+          payment-service:
+            sliding-window-size: 10
+            minimum-number-of-calls: 5
+            permitted-number-of-calls-in-half-open-state: 3
+            automatic-transition-from-open-to-half-open-enabled: true
+            wait-duration-in-open-state: 30s
+            failure-rate-threshold: 50
+      retry:
+        instances:
+          transaction-processing:
+            max-attempts: 3
+            wait-duration: 2s
+            retry-exceptions:
+              - java.net.SocketTimeoutException
+              - org.springframework.dao.OptimisticLockingFailureException
+      bulkhead:
+        instances:
+          transaction-processing:
+            max-concurrent-calls: 200
+            max-wait-duration: 10s
+    
+    management:
+      endpoints:
+        web:
+          exposure:
+            include: health,info,metrics,prometheus,circuitbreakers
+      endpoint:
+        health:
+          show-details: always
+          probes:
+            enabled: true
+      metrics:
+        export:
+          prometheus:
+            enabled: true
+        distribution:
+          percentiles-histogram:
+            http.server.requests: true
+            transaction.processing.time: true
+        tags:
+          application: ${spring.application.name}
+    
+    logging:
+      level:
+        com.waqiti.transaction: DEBUG
+        org.springframework.web: INFO
+        org.hibernate.SQL: DEBUG
+        org.hibernate.type: TRACE
+      pattern:
+        console: "%d{yyyy-MM-dd HH:mm:ss} - %logger{36} - %msg%n"

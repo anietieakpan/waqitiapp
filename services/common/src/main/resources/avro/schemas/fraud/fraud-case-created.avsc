@@ -1,0 +1,118 @@
+{
+  "type": "record",
+  "name": "FraudCaseCreatedEvent",
+  "namespace": "com.waqiti.events.v1",
+  "doc": "Event published when a fraud case is created",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "Unique event identifier (UUID)"
+    },
+    {
+      "name": "eventType",
+      "type": "string",
+      "default": "fraud-case-created",
+      "doc": "Type of event"
+    },
+    {
+      "name": "timestamp",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "Event timestamp in epoch milliseconds"
+    },
+    {
+      "name": "correlationId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Correlation ID for distributed tracing"
+    },
+    {
+      "name": "version",
+      "type": "string",
+      "default": "1.0",
+      "doc": "Schema version"
+    },
+    {
+      "name": "caseId",
+      "type": "string",
+      "doc": "Unique fraud case identifier (UUID)"
+    },
+    {
+      "name": "userId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "User ID associated with fraud case (UUID)"
+    },
+    {
+      "name": "transactionId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Transaction ID if fraud detected on transaction (UUID)"
+    },
+    {
+      "name": "fraudType",
+      "type": {
+        "type": "enum",
+        "name": "FraudType",
+        "symbols": ["ACCOUNT_TAKEOVER", "PAYMENT_FRAUD", "IDENTITY_THEFT", "CARD_FRAUD", "TRANSACTION_FRAUD", "SYNTHETIC_IDENTITY", "MONEY_LAUNDERING", "OTHER"]
+      },
+      "doc": "Type of fraud detected"
+    },
+    {
+      "name": "riskScore",
+      "type": "double",
+      "doc": "Fraud risk score (0.0 to 1.0)"
+    },
+    {
+      "name": "severity",
+      "type": {
+        "type": "enum",
+        "name": "FraudSeverity",
+        "symbols": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+      },
+      "doc": "Severity level of fraud case"
+    },
+    {
+      "name": "detectionMethod",
+      "type": "string",
+      "doc": "Method used to detect fraud (e.g., ML_MODEL, RULE_ENGINE, MANUAL_REVIEW)"
+    },
+    {
+      "name": "indicators",
+      "type": {
+        "type": "array",
+        "items": "string"
+      },
+      "default": [],
+      "doc": "List of fraud indicators detected"
+    },
+    {
+      "name": "status",
+      "type": {
+        "type": "enum",
+        "name": "FraudCaseStatus",
+        "symbols": ["OPEN", "INVESTIGATING", "CONFIRMED", "FALSE_POSITIVE", "CLOSED"]
+      },
+      "default": "OPEN",
+      "doc": "Status of fraud case"
+    },
+    {
+      "name": "assignedTo",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Analyst or team assigned to investigate"
+    },
+    {
+      "name": "metadata",
+      "type": ["null", {
+        "type": "map",
+        "values": "string"
+      }],
+      "default": null,
+      "doc": "Additional metadata"
+    }
+  ]
+}

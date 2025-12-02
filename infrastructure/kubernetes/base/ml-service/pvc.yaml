@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ml-models-pvc
+  namespace: waqiti-system
+  labels:
+    app: ml-service
+    component: storage
+    tier: data
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: fast-ssd
+  volumeMode: Filesystem
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: model-backups-pvc
+  namespace: waqiti-system
+  labels:
+    app: ml-service
+    component: storage
+    tier: backup
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 100Gi
+  storageClassName: standard
+  volumeMode: Filesystem

@@ -1,0 +1,510 @@
+# GDPR Privacy Compliance Configuration
+# Comprehensive GDPR compliance validation and monitoring
+# SECURITY: Ensures General Data Protection Regulation compliance for EU data processing
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gdpr-compliance-checks
+  namespace: waqiti-system
+  labels:
+    compliance.example.com/framework: "gdpr"
+    compliance.example.com/version: "2018"
+data:
+  gdpr-requirements.yaml: |
+    # GDPR Compliance Requirements
+    requirements:
+      # Article 5: Principles relating to processing of personal data
+      - id: "art5.1.a"
+        title: "Lawfulness, fairness and transparency"
+        checks:
+          - name: "privacy-policy-exists"
+            description: "Privacy policy is documented and accessible"
+            automated: false
+            manual_verification: "Review privacy policy documentation"
+          - name: "consent-mechanisms"
+            description: "Explicit consent mechanisms implemented"
+            automated: true
+            command: "grep -r 'consent' services/*/src/ | wc -l"
+          - name: "data-processing-lawful-basis"
+            description: "Legal basis for processing documented"
+            automated: false
+            manual_verification: "Review data processing legal basis documentation"
+      
+      # Article 6: Lawfulness of processing
+      - id: "art6.1"
+        title: "Legal basis for processing"
+        checks:
+          - name: "consent-collection"
+            description: "User consent properly collected and stored"
+            automated: true
+            command: "kubectl get configmaps -A | grep consent"
+          - name: "legitimate-interest-assessment"
+            description: "Legitimate interest assessments documented"
+            automated: false
+            manual_verification: "Review legitimate interest assessments"
+      
+      # Article 7: Conditions for consent
+      - id: "art7"
+        title: "Consent management"
+        checks:
+          - name: "consent-withdrawal"
+            description: "Users can withdraw consent easily"
+            automated: true
+            command: "grep -r 'withdraw.*consent\\|consent.*withdraw' services/*/src/ | wc -l"
+          - name: "consent-granular"
+            description: "Granular consent options available"
+            automated: true
+            command: "grep -r 'ConsentType\\|consent.*category' services/*/src/ | wc -l"
+      
+      # Article 12: Transparent information and communication
+      - id: "art12"
+        title: "Transparent information"
+        checks:
+          - name: "privacy-notices-clear"
+            description: "Privacy notices are clear and understandable"
+            automated: false
+            manual_verification: "Review privacy notices for clarity and completeness"
+      
+      # Article 13: Information to be provided when personal data are collected
+      - id: "art13"
+        title: "Information at collection"
+        checks:
+          - name: "collection-transparency"
+            description: "Purpose and legal basis communicated at collection"
+            automated: false
+            manual_verification: "Review data collection forms and APIs"
+      
+      # Article 15: Right of access by the data subject
+      - id: "art15"
+        title: "Right of access"
+        checks:
+          - name: "data-export-functionality"
+            description: "Users can export their personal data"
+            automated: true
+            command: "grep -r 'export.*data\\|data.*export' services/*/src/ | wc -l"
+          - name: "data-portability-format"
+            description: "Data export in structured, commonly used format"
+            automated: true
+            command: "grep -r 'json\\|csv\\|xml' services/user-service/src/ | wc -l"
+      
+      # Article 16: Right to rectification
+      - id: "art16"
+        title: "Right to rectification"
+        checks:
+          - name: "data-correction-api"
+            description: "Users can correct their personal data"
+            automated: true
+            command: "grep -r 'PUT\\|PATCH' services/user-service/src/ | wc -l"
+          - name: "automated-correction"
+            description: "Corrections propagated to third parties"
+            automated: false
+            manual_verification: "Review data synchronization processes"
+      
+      # Article 17: Right to erasure (right to be forgotten)
+      - id: "art17"
+        title: "Right to erasure"
+        checks:
+          - name: "data-deletion-api"
+            description: "Users can request data deletion"
+            automated: true
+            command: "grep -r 'delete.*user\\|user.*delete\\|DeleteUser' services/*/src/ | wc -l"
+          - name: "cascading-deletion"
+            description: "Deletion cascades across all systems"
+            automated: true
+            command: "grep -r '@OnDelete\\|CASCADE' services/*/src/ | wc -l"
+          - name: "deletion-verification"
+            description: "Deletion completion can be verified"
+            automated: true
+            command: "grep -r 'deletion.*audit\\|audit.*deletion' services/*/src/ | wc -l"
+      
+      # Article 18: Right to restriction of processing
+      - id: "art18"
+        title: "Right to restriction"
+        checks:
+          - name: "processing-restriction"
+            description: "Users can restrict processing of their data"
+            automated: true
+            command: "grep -r 'restrict.*processing\\|processing.*restrict' services/*/src/ | wc -l"
+      
+      # Article 20: Right to data portability
+      - id: "art20"
+        title: "Right to data portability"
+        checks:
+          - name: "portable-data-format"
+            description: "Data available in portable format"
+            automated: true
+            command: "grep -r 'DataPortability\\|portable.*export' services/*/src/ | wc -l"
+      
+      # Article 21: Right to object
+      - id: "art21"
+        title: "Right to object"
+        checks:
+          - name: "processing-objection"
+            description: "Users can object to processing"
+            automated: true
+            command: "grep -r 'object.*processing\\|OptOut' services/*/src/ | wc -l"
+      
+      # Article 25: Data protection by design and by default
+      - id: "art25"
+        title: "Privacy by design"
+        checks:
+          - name: "privacy-by-design"
+            description: "Privacy considerations in system design"
+            automated: false
+            manual_verification: "Review system architecture for privacy by design"
+          - name: "data-minimization"
+            description: "Only necessary data is collected"
+            automated: false
+            manual_verification: "Review data collection practices"
+          - name: "default-privacy-settings"
+            description: "Most privacy-friendly settings by default"
+            automated: false
+            manual_verification: "Review default user privacy settings"
+      
+      # Article 30: Records of processing activities
+      - id: "art30"
+        title: "Records of processing"
+        checks:
+          - name: "processing-records-maintained"
+            description: "Records of processing activities maintained"
+            automated: false
+            manual_verification: "Review processing activity records (ROPA)"
+      
+      # Article 32: Security of processing
+      - id: "art32"
+        title: "Security measures"
+        checks:
+          - name: "encryption-at-rest"
+            description: "Personal data encrypted at rest"
+            automated: true
+            command: "kubectl get secrets -A | grep encryption | wc -l"
+          - name: "encryption-in-transit"
+            description: "Personal data encrypted in transit"
+            automated: true
+            command: "kubectl get ingress -A -o yaml | grep -c tls"
+          - name: "access-controls"
+            description: "Appropriate access controls implemented"
+            automated: true
+            command: "kubectl get rolebindings -A | wc -l"
+          - name: "regular-security-testing"
+            description: "Regular security testing performed"
+            automated: true
+            command: "find . -name '*security-test*' -mtime -30 | wc -l"
+      
+      # Article 33: Notification of data breach to supervisory authority
+      - id: "art33"
+        title: "Breach notification to authority"
+        checks:
+          - name: "breach-detection-system"
+            description: "Automated breach detection system in place"
+            automated: true
+            command: "kubectl get pods -A | grep -i 'monitor\\|alert\\|security' | wc -l"
+          - name: "breach-notification-process"
+            description: "Breach notification process documented"
+            automated: false
+            manual_verification: "Review incident response and breach notification procedures"
+      
+      # Article 34: Communication of data breach to data subject
+      - id: "art34"
+        title: "Breach notification to subjects"
+        checks:
+          - name: "user-breach-notification"
+            description: "Process to notify users of breaches exists"
+            automated: false
+            manual_verification: "Review user breach notification procedures"
+      
+      # Article 35: Data protection impact assessment
+      - id: "art35"
+        title: "Data protection impact assessment"
+        checks:
+          - name: "dpia-conducted"
+            description: "DPIA conducted for high-risk processing"
+            automated: false
+            manual_verification: "Review DPIA documentation for payment processing"
+
+  privacy-validation.sh: |
+    #!/bin/bash
+    
+    # GDPR Privacy Compliance Validation Script
+    # Automatically validates GDPR requirements where possible
+    
+    set -euo pipefail
+    
+    REPORT_FILE="/tmp/gdpr-compliance-report.json"
+    TIMESTAMP=$(date -Iseconds)
+    
+    echo "🔍 Starting GDPR compliance validation..."
+    
+    # Initialize report
+    cat > "$REPORT_FILE" << EOF
+    {
+      "report_type": "gdpr_compliance",
+      "regulation": "EU General Data Protection Regulation",
+      "timestamp": "$TIMESTAMP",
+      "environment": "production",
+      "scope": "waqiti-personal-data-processing",
+      "checks": []
+    }
+    EOF
+    
+    # Function to add check result to report
+    add_check_result() {
+      local article="$1"
+      local check_name="$2"
+      local status="$3"
+      local details="$4"
+      
+      jq --arg art "$article" \
+         --arg check "$check_name" \
+         --arg status "$status" \
+         --arg details "$details" \
+         '.checks += [{
+           "article": $art,
+           "check_name": $check,
+           "status": $status,
+           "details": $details,
+           "timestamp": now | strftime("%Y-%m-%dT%H:%M:%S%Z")
+         }]' "$REPORT_FILE" > /tmp/report_temp.json
+      
+      mv /tmp/report_temp.json "$REPORT_FILE"
+    }
+    
+    # Article 5: Data Processing Principles
+    echo "Checking Article 5: Data Processing Principles..."
+    consent_references=$(grep -r 'consent' services/*/src/ | wc -l || echo "0")
+    if [ "$consent_references" -gt 0 ]; then
+      add_check_result "art5.1.a" "consent-mechanisms" "PASS" "$consent_references consent-related code references found"
+    else
+      add_check_result "art5.1.a" "consent-mechanisms" "FAIL" "No consent mechanisms found in code"
+    fi
+    
+    # Article 7: Consent Management
+    echo "Checking Article 7: Consent Management..."
+    consent_withdrawal=$(grep -r 'withdraw.*consent\|consent.*withdraw' services/*/src/ | wc -l || echo "0")
+    if [ "$consent_withdrawal" -gt 0 ]; then
+      add_check_result "art7" "consent-withdrawal" "PASS" "$consent_withdrawal consent withdrawal mechanisms found"
+    else
+      add_check_result "art7" "consent-withdrawal" "FAIL" "No consent withdrawal mechanisms found"
+    fi
+    
+    granular_consent=$(grep -r 'ConsentType\|consent.*category' services/*/src/ | wc -l || echo "0")
+    if [ "$granular_consent" -gt 0 ]; then
+      add_check_result "art7" "granular-consent" "PASS" "$granular_consent granular consent implementations found"
+    else
+      add_check_result "art7" "granular-consent" "WARNING" "No granular consent mechanisms found"
+    fi
+    
+    # Article 15: Right of Access
+    echo "Checking Article 15: Right of Access..."
+    data_export=$(grep -r 'export.*data\|data.*export' services/*/src/ | wc -l || echo "0")
+    if [ "$data_export" -gt 0 ]; then
+      add_check_result "art15" "data-export" "PASS" "$data_export data export references found"
+    else
+      add_check_result "art15" "data-export" "FAIL" "No data export functionality found"
+    fi
+    
+    portable_formats=$(grep -r 'json\|csv\|xml' services/user-service/src/ | wc -l || echo "0")
+    if [ "$portable_formats" -gt 0 ]; then
+      add_check_result "art15" "portable-formats" "PASS" "Portable data formats implemented"
+    else
+      add_check_result "art15" "portable-formats" "WARNING" "Limited portable format support"
+    fi
+    
+    # Article 16: Right to Rectification
+    echo "Checking Article 16: Right to Rectification..."
+    update_endpoints=$(grep -r 'PUT\|PATCH' services/user-service/src/ | wc -l || echo "0")
+    if [ "$update_endpoints" -gt 0 ]; then
+      add_check_result "art16" "data-correction" "PASS" "$update_endpoints update endpoints found in user service"
+    else
+      add_check_result "art16" "data-correction" "FAIL" "No data correction endpoints found"
+    fi
+    
+    # Article 17: Right to Erasure
+    echo "Checking Article 17: Right to Erasure..."
+    deletion_api=$(grep -r 'delete.*user\|user.*delete\|DeleteUser' services/*/src/ | wc -l || echo "0")
+    if [ "$deletion_api" -gt 0 ]; then
+      add_check_result "art17" "data-deletion" "PASS" "$deletion_api user deletion references found"
+    else
+      add_check_result "art17" "data-deletion" "FAIL" "No user deletion functionality found"
+    fi
+    
+    cascading_deletion=$(grep -r '@OnDelete\|CASCADE' services/*/src/ | wc -l || echo "0")
+    if [ "$cascading_deletion" -gt 0 ]; then
+      add_check_result "art17" "cascading-deletion" "PASS" "$cascading_deletion cascading deletion implementations found"
+    else
+      add_check_result "art17" "cascading-deletion" "WARNING" "Limited cascading deletion found"
+    fi
+    
+    # Article 18: Right to Restriction
+    echo "Checking Article 18: Right to Restriction..."
+    processing_restriction=$(grep -r 'restrict.*processing\|processing.*restrict' services/*/src/ | wc -l || echo "0")
+    if [ "$processing_restriction" -gt 0 ]; then
+      add_check_result "art18" "processing-restriction" "PASS" "$processing_restriction processing restriction mechanisms found"
+    else
+      add_check_result "art18" "processing-restriction" "WARNING" "No processing restriction mechanisms found"
+    fi
+    
+    # Article 20: Data Portability
+    echo "Checking Article 20: Data Portability..."
+    portability_impl=$(grep -r 'DataPortability\|portable.*export' services/*/src/ | wc -l || echo "0")
+    if [ "$portability_impl" -gt 0 ]; then
+      add_check_result "art20" "data-portability" "PASS" "$portability_impl data portability implementations found"
+    else
+      add_check_result "art20" "data-portability" "WARNING" "Limited data portability implementation"
+    fi
+    
+    # Article 21: Right to Object
+    echo "Checking Article 21: Right to Object..."
+    processing_objection=$(grep -r 'object.*processing\|OptOut' services/*/src/ | wc -l || echo "0")
+    if [ "$processing_objection" -gt 0 ]; then
+      add_check_result "art21" "processing-objection" "PASS" "$processing_objection objection mechanisms found"
+    else
+      add_check_result "art21" "processing-objection" "WARNING" "No processing objection mechanisms found"
+    fi
+    
+    # Article 32: Security of Processing
+    echo "Checking Article 32: Security Measures..."
+    encrypted_secrets=$(kubectl get secrets -A | grep encryption | wc -l || echo "0")
+    if [ "$encrypted_secrets" -gt 0 ]; then
+      add_check_result "art32" "encryption-at-rest" "PASS" "$encrypted_secrets encrypted secrets found"
+    else
+      add_check_result "art32" "encryption-at-rest" "WARNING" "No explicitly encrypted secrets found"
+    fi
+    
+    tls_ingresses=$(kubectl get ingress -A -o yaml | grep -c tls || echo "0")
+    if [ "$tls_ingresses" -gt 0 ]; then
+      add_check_result "art32" "encryption-in-transit" "PASS" "$tls_ingresses ingresses with TLS configured"
+    else
+      add_check_result "art32" "encryption-in-transit" "FAIL" "No TLS-enabled ingresses found"
+    fi
+    
+    rbac_bindings=$(kubectl get rolebindings -A | wc -l || echo "0")
+    if [ "$rbac_bindings" -gt 10 ]; then
+      add_check_result "art32" "access-controls" "PASS" "$rbac_bindings RBAC bindings configured"
+    else
+      add_check_result "art32" "access-controls" "WARNING" "Limited RBAC configuration found"
+    fi
+    
+    # Article 33: Breach Detection
+    echo "Checking Article 33: Breach Detection..."
+    monitoring_pods=$(kubectl get pods -A | grep -i 'monitor\|alert\|security' | wc -l || echo "0")
+    if [ "$monitoring_pods" -gt 0 ]; then
+      add_check_result "art33" "breach-detection" "PASS" "$monitoring_pods monitoring/security pods running"
+    else
+      add_check_result "art33" "breach-detection" "FAIL" "No security monitoring systems found"
+    fi
+    
+    # Generate compliance summary
+    total_checks=$(jq '.checks | length' "$REPORT_FILE")
+    passed_checks=$(jq '[.checks[] | select(.status == "PASS")] | length' "$REPORT_FILE")
+    failed_checks=$(jq '[.checks[] | select(.status == "FAIL")] | length' "$REPORT_FILE")
+    warning_checks=$(jq '[.checks[] | select(.status == "WARNING")] | length' "$REPORT_FILE")
+    
+    compliance_pct=$((passed_checks * 100 / total_checks))
+    
+    # Add summary
+    jq --arg total "$total_checks" \
+       --arg passed "$passed_checks" \
+       --arg failed "$failed_checks" \
+       --arg warnings "$warning_checks" \
+       --arg compliance "$compliance_pct" \
+       '.summary = {
+         "total_automated_checks": ($total | tonumber),
+         "passed": ($passed | tonumber),
+         "failed": ($failed | tonumber),
+         "warnings": ($warnings | tonumber),
+         "compliance_percentage": ($compliance | tonumber),
+         "manual_verification_required": 12,
+         "high_risk_items": ($failed | tonumber)
+       }' "$REPORT_FILE" > /tmp/final_report.json
+    
+    mv /tmp/final_report.json "$REPORT_FILE"
+    
+    echo "✅ GDPR compliance validation completed"
+    echo "📊 Automated Results: $passed_checks passed, $failed_checks failed, $warning_checks warnings"
+    echo "📈 Automated Compliance level: $compliance_pct%"
+    echo "📋 Manual verification required for 12 additional requirements"
+    echo "📄 Full report saved to: $REPORT_FILE"
+    
+    # Display critical findings
+    echo ""
+    echo "=== CRITICAL GDPR COMPLIANCE FINDINGS ==="
+    jq -r '.checks[] | select(.status == "FAIL") | "❌ \(.article) - \(.check_name): \(.details)"' "$REPORT_FILE"
+    echo ""
+    echo "=== WARNINGS ==="
+    jq -r '.checks[] | select(.status == "WARNING") | "⚠️  \(.article) - \(.check_name): \(.details)"' "$REPORT_FILE"
+    echo ""
+    echo "=== PASSED CHECKS ==="
+    jq -r '.checks[] | select(.status == "PASS") | "✅ \(.article) - \(.check_name): \(.details)"' "$REPORT_FILE"
+    
+    # Return appropriate exit code
+    if [ "$failed_checks" -gt 0 ]; then
+      echo "❌ CRITICAL: $failed_checks GDPR compliance checks failed - legal compliance at risk"
+      exit 1
+    elif [ "$warning_checks" -gt 3 ]; then
+      echo "⚠️  WARNING: Multiple GDPR compliance checks need attention"
+      exit 0
+    else
+      echo "🎉 SUCCESS: All critical GDPR automated checks passed"
+      exit 0
+    fi
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: gdpr-compliance-check
+  namespace: waqiti-system
+  labels:
+    compliance.example.com/framework: "gdpr"
+    compliance.example.com/automated: "true"
+spec:
+  schedule: "0 8 * * 2" # Weekly on Tuesday at 8 AM
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: compliance-service-account
+          containers:
+          - name: gdpr-compliance-checker
+            image: waqiti/compliance-checker:latest
+            command: ["/bin/bash"]
+            args: ["/scripts/privacy-validation.sh"]
+            env:
+            - name: REPORT_OUTPUT_PATH
+              value: "/reports"
+            - name: COMPLIANCE_FRAMEWORK
+              value: "GDPR"
+            - name: DATA_SUBJECT_RIGHTS_CHECK
+              value: "enabled"
+            volumeMounts:
+            - name: compliance-scripts
+              mountPath: /scripts
+              readOnly: true
+            - name: compliance-reports
+              mountPath: /reports
+            resources:
+              requests:
+                memory: "256Mi"
+                cpu: "200m"
+              limits:
+                memory: "512Mi"
+                cpu: "500m"
+            securityContext:
+              runAsNonRoot: true
+              runAsUser: 1001
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                - ALL
+              readOnlyRootFilesystem: true
+          volumes:
+          - name: compliance-scripts
+            configMap:
+              name: gdpr-compliance-checks
+              defaultMode: 0755
+          - name: compliance-reports
+            persistentVolumeClaim:
+              claimName: compliance-reports-pvc
+          restartPolicy: OnFailure

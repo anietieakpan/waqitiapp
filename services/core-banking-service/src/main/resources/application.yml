@@ -1,0 +1,425 @@
+# Core Banking Service Configuration
+# This service provides internal banking functionality replacing external solutions
+
+server:
+  port: 8088
+  servlet:
+    context-path: /api/core-banking
+    # Request size limits for security
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+spring:
+  application:
+    name: core-banking-service
+  
+  # OAuth2 Resource Server Configuration for Keycloak
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:https://auth.example.com/realms/waqiti-fintech/protocol/openid-connect/certs}
+  
+  # Database Configuration
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:waqiti_core_banking}?ssl=${DB_SSL_ENABLED:true}&sslmode=${DB_SSL_MODE:require}
+    username: ${DB_USERNAME:waqiti_user}
+    password: ${DATABASE_PASSWORD:${VAULT_DATABASE_PASSWORD}}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      leak-detection-threshold: 60000
+
+  # JPA Configuration
+  jpa:
+    hibernate:
+      ddl-auto: validate
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.SnakeCasePhysicalNamingStrategy
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        show_sql: false
+        generate_statistics: true
+        # Query timeout in milliseconds (10 seconds)
+        jakarta:
+          persistence:
+            query:
+              timeout: 10000
+        # Batch processing configuration
+        jdbc:
+          batch_size: 50
+          fetch_size: 50
+        order_inserts: true
+        order_updates: true
+        batch_versioned_data: true
+        cache:
+          use_second_level_cache: true
+          use_query_cache: true
+          region:
+            factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
+    show-sql: false
+
+  # Transaction timeout configuration (30 seconds)
+  transaction:
+    default-timeout: 30
+
+  # Flyway Configuration
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    validate-on-migrate: true
+    locations: classpath:db/migration
+    schemas: public
+
+  # Redis Configuration
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: ${REDIS_PASSWORD:}
+      timeout: 5000ms
+      jedis:
+        pool:
+          max-active: 20
+          max-idle: 8
+          min-idle: 2
+          max-wait: 5000ms
+
+  # Kafka Configuration
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false
+        enable.idempotence: true
+        acks: all
+        retries: 3
+        max.in.flight.requests.per.connection: 1
+    consumer:
+      group-id: core-banking-service
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.example.common.events,com.waqiti.corebanking.events"
+        enable.auto.commit: false
+      enable-auto-commit: false
+      auto-offset-reset: earliest
+
+  # Cache Configuration
+  cache:
+    type: redis
+    redis:
+      time-to-live: 300000 # 5 minutes
+      # Service-specific cache TTLs
+      cache-names: accounts,transactions,fees,exchangeRates
+      cache-configurations:
+        accounts: 600000 # 10 minutes
+        transactions: 300000 # 5 minutes
+        fees: 86400000 # 24 hours
+        exchangeRates: 3600000 # 1 hour
+
+# Feign Client Configuration
+feign:
+  client:
+    config:
+      # Default configuration for all Feign clients
+      default:
+        connectTimeout: 5000 # 5 seconds
+        readTimeout: 10000 # 10 seconds
+        loggerLevel: BASIC
+        errorDecoder: com.waqiti.corebanking.client.FeignClientConfiguration.CustomErrorDecoder
+        requestInterceptors:
+          - com.waqiti.corebanking.client.FeignClientConfiguration
+        retryer: com.waqiti.corebanking.client.FeignClientConfiguration
+
+      # Ledger Service specific configuration
+      ledger-service:
+        connectTimeout: 3000 # 3 seconds - fast internal service
+        readTimeout: 8000 # 8 seconds
+        loggerLevel: FULL # Detailed logging for financial operations
+
+      # Compliance Service specific configuration
+      compliance-service:
+        connectTimeout: 5000 # 5 seconds
+        readTimeout: 15000 # 15 seconds - compliance checks can be slower
+        loggerLevel: FULL
+
+      # Notification Service specific configuration
+      notification-service:
+        connectTimeout: 3000 # 3 seconds
+        readTimeout: 5000 # 5 seconds - fire and forget pattern
+        loggerLevel: BASIC
+
+  # Feign compression
+  compression:
+    request:
+      enabled: true
+      mime-types: text/xml,application/xml,application/json
+      min-request-size: 2048
+    response:
+      enabled: true
+
+  # Feign HTTP client
+  httpclient:
+    enabled: true
+    max-connections: 200
+    max-connections-per-route: 50
+    time-to-live: 900
+    time-to-live-unit: seconds
+    connection-timeout: 5000
+    connection-timer-repeat: 3000
+
+
+# Eureka Configuration
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:https://discovery-service:8761/eureka}/
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${server.port}
+
+# Management Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  tracing:
+    sampling:
+      probability: 0.1
+
+# Core Banking Specific Configuration
+core-banking:
+  # MIGRATION: Fully activated internal banking
+  migration-mode: FULLY_MIGRATED
+  cyclos-integration: false
+  
+  # Account Configuration
+  accounts:
+    auto-approval: true  # Enable for seamless migration
+    default-currency: USD
+    minimum-balance:
+      wallet: 0.00
+      savings: 100.00
+      credit: 0.00
+    daily-limits:
+      standard: 5000.00
+      premium: 25000.00
+      business: 100000.00
+    monthly-limits:
+      standard: 50000.00
+      premium: 250000.00
+      business: 1000000.00
+  
+  # Transaction Configuration
+  transactions:
+    batch-size: 1000
+    timeout-seconds: 30
+    retry-attempts: 3
+    fee-calculation: true
+    auto-reconciliation: true
+  
+  # Double Entry Configuration
+  double-entry:
+    enforce-balance: true
+    audit-all-entries: true
+    reconciliation-interval: "0 */15 * * * *" # Every 15 minutes
+  
+  # Compliance Configuration
+  compliance:
+    aml-checks: true
+    transaction-monitoring: true
+    suspicious-activity-threshold: 10000.00
+    kyc-required-threshold: 1000.00
+  
+  # Interest Calculation Configuration
+  interest:
+    enabled: true
+    batch-size: 100
+    calculation-days: 365
+    cron: "0 0 2 * * ?" # Daily at 2 AM
+    default-savings-rate: 0.50 # 0.50% annual
+    default-fixed-deposit-rate: 2.50 # 2.50% annual
+    default-money-market-rate: 1.25 # 1.25% annual
+  
+  # Statement Generation Configuration
+  statements:
+    enabled: true
+    auto-generate: true
+    batch-size: 50
+    cron: "0 0 1 1 * ?" # 1st of every month at midnight
+    formats:
+      - PDF
+      - CSV
+      - JSON
+    retention-years: 7
+    email-delivery: true
+  
+  # Currency Exchange Configuration
+  currency:
+    exchange-api-key: ${EXCHANGE_API_KEY:PRODUCTION_EXCHANGE_KEY_REQUIRED}
+    fallback-api-key: ${FALLBACK_EXCHANGE_API_KEY:SECONDARY_EXCHANGE_KEY_REQUIRED}
+    base-currency: USD
+    cache-duration-minutes: 60
+    refresh-rate-ms: 3600000 # 1 hour
+    spread-percentage: 0.5 # 0.5% spread for customer conversions
+    supported-currencies:
+      - USD
+      - EUR
+      - GBP
+      - CAD
+      - AUD
+      - JPY
+      - CHF
+      - CNY
+      - INR
+      - NGN
+      - KES
+      - GHS
+  
+  # Comprehensive Security Configuration
+  security:
+    enable-encryption: true
+    encryption-algorithm: AES-256-GCM
+    enable-audit-logging: true
+    session-timeout: 1800 # 30 minutes
+    
+    # Transaction limits and controls
+    limits:
+      max-transaction-amount: 1000000.00
+      max-daily-transaction-volume: 10000000.00
+      transaction-batch-size: 1000
+      max-accounts-per-customer: 10
+    
+    # Required roles for different operations
+    required-roles:
+      transaction-create: "BANKING_USER,TRANSACTION_PROCESSOR"
+      transaction-read: "BANKING_USER,BANKING_VIEWER"
+      account-create: "BANKING_USER,ACCOUNT_MANAGER"
+      account-read: "BANKING_USER,BANKING_VIEWER"
+      account-manage: "ACCOUNT_MANAGER,BANKING_ADMIN"
+      ledger-read: "LEDGER_VIEWER,BANKING_ADMIN"
+      ledger-write: "LEDGER_MANAGER,BANKING_ADMIN"
+      scopes:
+        transaction-read: "banking:transaction:read"
+        ledger-read: "banking:ledger:read"
+        reconciliation: "banking:reconciliation"
+        account-read: "banking:account:read"
+        fee-calculation: "banking:fee:calculate"
+        balance-read: "banking:balance:read"
+        admin: "banking:admin"
+        ledger-write: "banking:ledger:write"
+    
+    # Feature flags
+    features:
+      transaction-validation-enabled: true
+      balance-verification-enabled: true
+      interest-calculation-enabled: true
+      fee-calculation-enabled: true
+      regulatory-reporting-enabled: true
+      double-entry-validation-enabled: true
+    
+    # Verification thresholds
+    verification-thresholds:
+      high-value-transaction: 50000.00
+      suspicious-transaction-pattern: 10
+      large-balance-transfer: 100000.00
+      dormant-account-activation: true
+    
+    # Advanced security features
+    advanced-security:
+      require-dual-authorization-high-value: true
+      require-manager-approval-settlements: true
+      automatic-fraud-detection: true
+      real-time-balance-monitoring: true
+      transaction-pattern-analysis: true
+      regulatory-compliance-monitoring: true
+    
+    # Authentication and authorization
+    authentication:
+      user-resource-role-mappings: true
+
+# Logging Configuration
+logging:
+  level:
+    com.waqiti.corebanking: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.transaction: DEBUG
+    org.springframework.data.jpa: DEBUG
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+  pattern:
+    console: "%clr(%d{yyyy-MM-dd HH:mm:ss}){faint} %clr(${LOG_LEVEL_PATTERN:-%5p}) %clr([%t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n${LOG_EXCEPTION_CONVERSION_WORD:-%wEx}"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# Health Check Configuration
+health:
+  circuit-breaker:
+    enabled: true
+  rate-limiter:
+    enabled: true
+
+# OpenAPI Configuration
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+
+# Authentication Mode Configuration
+authentication:
+  mode: ${AUTH_MODE:KEYCLOAK}
+  legacy-jwt-enabled: ${LEGACY_JWT_ENABLED:false}
+  keycloak-enabled: ${KEYCLOAK_ENABLED:true}
+  circuit-breaker:
+    failure-threshold: 5
+    timeout-duration: 10000
+    half-open-requests: 3
+
+# Keycloak Configuration
+keycloak:
+  enabled: ${KEYCLOAK_ENABLED:true}
+  auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8180}
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  resource: core-banking-service
+  bearer-only: true
+  ssl-required: ${KEYCLOAK_SSL_REQUIRED:external}
+  use-resource-role-mappings: true
+  principal-attribute: preferred_username
+  credentials:
+    secret: ${KEYCLOAK_CLIENT_SECRET:${vault.keycloak.core-banking-service.client-secret}}
+  public-client: false
+  verify-token-audience: true
+
+# Feature Flags for Authentication Migration
+features:
+  auth:
+    mode: ${AUTH_MODE:KEYCLOAK}  # KEYCLOAK only - Legacy JWT retired
+    keycloak:
+      enabled: ${KEYCLOAK_ENABLED:true}
+    legacy:
+      enabled: ${LEGACY_AUTH_ENABLED:false}

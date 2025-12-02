@@ -1,0 +1,15 @@
+{
+  "timestamp": "2025-07-30T11:25:56.768334",
+  "dry_run": true,
+  "project_root": "/home/aniix/git/waqiti-app",
+  "statistics": {
+    "files_processed": 1875,
+    "files_modified": 290,
+    "files_failed": 0,
+    "javax_imports_fixed": 419,
+    "type_annotations_fixed": 76,
+    "security_configs_fixed": 4,
+    "errors": []
+  },
+  "backup_location": null
+}

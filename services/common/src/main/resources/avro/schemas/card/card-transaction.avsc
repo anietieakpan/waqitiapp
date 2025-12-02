@@ -1,0 +1,130 @@
+{
+  "type": "record",
+  "name": "CardTransactionEvent",
+  "namespace": "com.waqiti.events.v1",
+  "doc": "Event published for card transactions",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "Unique event identifier (UUID)"
+    },
+    {
+      "name": "eventType",
+      "type": "string",
+      "default": "card-transaction",
+      "doc": "Type of event"
+    },
+    {
+      "name": "timestamp",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "Event timestamp in epoch milliseconds"
+    },
+    {
+      "name": "correlationId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Correlation ID for distributed tracing"
+    },
+    {
+      "name": "version",
+      "type": "string",
+      "default": "1.0",
+      "doc": "Schema version"
+    },
+    {
+      "name": "transactionId",
+      "type": "string",
+      "doc": "Unique transaction identifier (UUID)"
+    },
+    {
+      "name": "cardId",
+      "type": "string",
+      "doc": "Card identifier (UUID)"
+    },
+    {
+      "name": "userId",
+      "type": "string",
+      "doc": "User ID (UUID)"
+    },
+    {
+      "name": "amount",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 19,
+        "scale": 4
+      },
+      "doc": "Transaction amount"
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "default": "USD",
+      "doc": "Currency code (ISO 4217)"
+    },
+    {
+      "name": "merchantName",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Merchant name"
+    },
+    {
+      "name": "merchantId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Merchant identifier"
+    },
+    {
+      "name": "mcc",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Merchant Category Code"
+    },
+    {
+      "name": "transactionType",
+      "type": {
+        "type": "enum",
+        "name": "CardTransactionType",
+        "symbols": ["PURCHASE", "REFUND", "REVERSAL", "AUTHORIZATION", "SETTLEMENT", "DECLINE"]
+      },
+      "doc": "Type of card transaction"
+    },
+    {
+      "name": "status",
+      "type": {
+        "type": "enum",
+        "name": "CardTransactionStatus",
+        "symbols": ["APPROVED", "DECLINED", "PENDING", "COMPLETED"]
+      },
+      "doc": "Transaction status"
+    },
+    {
+      "name": "declineReason",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Reason for decline if applicable"
+    },
+    {
+      "name": "location",
+      "type": ["null", {
+        "type": "map",
+        "values": "string"
+      }],
+      "default": null,
+      "doc": "Transaction location data"
+    },
+    {
+      "name": "metadata",
+      "type": ["null", {
+        "type": "map",
+        "values": "string"
+      }],
+      "default": null,
+      "doc": "Additional metadata"
+    }
+  ]
+}

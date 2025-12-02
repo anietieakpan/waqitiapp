@@ -1,0 +1,128 @@
+# Keycloak Configuration for Audit Service
+
+keycloak:
+  enabled: true
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  ssl-required: external
+  resource: audit-service
+  bearer-only: true
+  credentials:
+    secret: ${AUDIT_SERVICE_CLIENT_SECRET:CHANGE_ME_SECURE_SECRET_REQUIRED}
+  use-resource-role-mappings: true
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# Audit Service Security Configuration
+audit:
+  security:
+    # Public endpoints that don't require authentication
+    public-endpoints:
+      - /actuator/health
+      - /actuator/info
+      - /swagger-ui/**
+      - /v3/api-docs/**
+    
+    # Service-to-service endpoints
+    service-endpoints:
+      - /internal/audit/**
+    
+    # Required roles for audit operations
+    required-roles:
+      read:
+        - AUDIT_USER
+        - AUDIT_VIEWER
+        - COMPLIANCE_OFFICER
+      write:
+        - AUDIT_USER
+        - AUDIT_ANALYST
+      management:
+        - AUDIT_MANAGER
+        - AUDIT_OPERATOR
+      admin:
+        - AUDIT_ADMIN
+        - SYSTEM_ADMIN
+        - COMPLIANCE_ADMIN
+    
+    # Required scopes for operations
+    required-scopes:
+      read: audit:read
+      write: audit:write
+      query: audit:query
+      search: audit:search
+      export: audit:export
+      trail: audit:trail
+      compliance: audit:compliance
+      forensics: audit:forensics
+      archive: audit:archive
+      purge: audit:purge
+      alert: audit:alert
+      monitoring: audit:monitoring
+      investigation: audit:investigation
+      evidence: audit:evidence
+    
+    # Audit security features
+    features:
+      immutable-logs-enabled: true
+      digital-signatures-enabled: true
+      encryption-enabled: true
+      integrity-checking-enabled: true
+      tamper-detection-enabled: true
+      chain-of-custody-enabled: true
+      
+    # Audit access limits and thresholds
+    limits:
+      max-query-results: 10000
+      max-export-records: 100000
+      max-time-range-days: 2555  # 7 years
+      max-concurrent-queries: 3
+      max-search-complexity: 10
+      
+    # Security thresholds requiring additional verification
+    verification-thresholds:
+      sensitive-data-access: 1000
+      bulk-export-threshold: 50000
+      historical-data-days: 365
+      forensic-analysis-threshold: 100
+      
+    # Advanced security features
+    advanced-security:
+      require-dual-authorization: true
+      require-manager-approval-export: true
+      automatic-threat-detection: true
+      behavioral-analysis: true
+      anomaly-detection: true
+      forensic-mode: true
+      
+    # Retention and compliance
+    retention:
+      default-retention-years: 7
+      compliance-retention-years: 10
+      purge-approval-required: true
+      archive-verification-required: true
+      
+    # Flat configuration properties expected by Qodana
+    required-scopes-search: audit:search
+    required-scopes-query: audit:query
+    verification-thresholds-bulk-export-threshold: 50000
+    advanced-security-require-dual-authorization: true
+    required-roles-read: AUDIT_USER,AUDIT_VIEWER,COMPLIANCE_OFFICER
+    retention-archive-verification-required: true
+    required-scopes-trail: audit:trail
+    required-roles-admin: AUDIT_ADMIN,SYSTEM_ADMIN,COMPLIANCE_ADMIN
+    service-endpoints: /internal/audit/**
+    verification-thresholds-historical-data-days: 365
+    required-scopes-write: audit:write
+    required-roles-management: AUDIT_MANAGER,AUDIT_OPERATOR
+    features-immutable-logs-enabled: true
+    retention-default-retention-years: 7
+    required-roles-write: AUDIT_USER,AUDIT_ANALYST
+    retention-purge-approval-required: true
+    required-scopes-forensics: audit:forensics
+    advanced-security-require-manager-approval-export: true

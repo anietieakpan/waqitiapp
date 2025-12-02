@@ -1,0 +1,474 @@
+spring:
+  application:
+    name: investment-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:development}
+  
+  # Database Configuration
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:waqiti_investment}
+    username: ${vault.database.username:waqiti}
+    password: ${DATABASE_PASSWORD:${vault.database.password}}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 300000
+      connection-timeout: 30000
+      validation-timeout: 5000
+      max-lifetime: 1800000
+      leak-detection-threshold: 60000
+  
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        use_sql_comments: true
+        jdbc:
+          batch_size: 25
+          order_inserts: true
+          order_updates: true
+        cache:
+          use_second_level_cache: true
+          use_query_cache: true
+          region:
+            factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
+  
+  # Flyway Database Migration
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+    table: investment_schema_version
+  
+  # Redis Configuration
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:${vault.redis.password}}
+      timeout: 2000ms
+      jedis:
+        pool:
+          max-active: 10
+          max-idle: 5
+          min-idle: 1
+          max-wait: 2000ms
+  
+  # Kafka Configuration
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}}
+    consumer:
+      group-id: investment-service-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      properties:
+        spring.json.trusted.packages: "com.waqiti.investment.dto,com.example.common.event"
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      properties:
+        spring.json.add.type.headers: false
+    topics:
+      investment-events: investment-events
+      order-events: investment-order-events
+      portfolio-events: portfolio-events
+      market-data: market-data-events
+  
+  # Circuit Breaker Configuration
+  cloud:
+    circuitbreaker:
+      resilience4j:
+        enabled: true
+        configs:
+          default:
+            failure-rate-threshold: 50
+            slow-call-rate-threshold: 50
+            slow-call-duration-threshold: 2s
+            permitted-number-of-calls-in-half-open-state: 3
+            sliding-window-size: 10
+            minimum-number-of-calls: 5
+            wait-duration-in-open-state: 10s
+            automatic-transition-from-open-to-half-open-enabled: true
+
+# Server Configuration
+server:
+  port: ${PORT:8094}
+  servlet:
+    context-path: /api/investment
+  error:
+    include-message: always
+    include-binding-errors: always
+    include-stacktrace: on_param
+    include-exception: false
+  compression:
+    enabled: true
+    mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json
+    min-response-size: 1024
+
+# Eureka Service Discovery
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_CLIENT_SERVICE_URL:${EUREKA_SERVER_URL:https://discovery-service:8761/eureka}/}
+    enabled: true
+    fetch-registry: true
+    register-with-eureka: true
+    instance-info-replication-interval-seconds: 10
+    registry-fetch-interval-seconds: 10
+  instance:
+    hostname: ${EUREKA_INSTANCE_HOSTNAME:localhost}
+    instance-id: ${spring.application.name}:${spring.application.instance-id:${random.value}}
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 5
+    lease-expiration-duration-in-seconds: 10
+    metadata-map:
+      version: ${project.version:1.0.0}
+      git-version: ${git.commit.id.describe:}
+      git-commit: ${git.commit.id.abbrev:}
+      git-branch: ${git.branch:}
+
+# Management and Monitoring
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,loggers
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+    metrics:
+      enabled: true
+    prometheus:
+      enabled: true
+  health:
+    circuitbreakers:
+      enabled: true
+    redis:
+      enabled: true
+    db:
+      enabled: true
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+    tags:
+      application: ${spring.application.name}
+      version: ${project.version:1.0.0}
+  info:
+    git:
+      mode: full
+    build:
+      enabled: true
+  tracing:
+    sampling:
+      probability: 1.0
+
+# Logging Configuration
+logging:
+  level:
+    com.waqiti.investment: ${LOG_LEVEL:INFO}
+    org.springframework.kafka: WARN
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+    org.springframework.cloud.netflix.eureka: WARN
+    com.netflix.discovery: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%logger{36}] - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%logger{36}] - %msg%n"
+  logback:
+    rollingpolicy:
+      file-name-pattern: logs/investment-service-%d{yyyy-MM-dd}.%i.log
+      max-file-size: 10MB
+      max-history: 30
+
+# Investment Service Configuration
+investment:
+  account:
+    default-currency: USD
+    min-initial-deposit: 1.00
+    max-initial-deposit: 100000.00
+    kyc-required: true
+    auto-activate: false
+  
+  trading:
+    market-hours:
+      start: "09:30"
+      end: "16:00"
+      timezone: "America/New_York"
+    extended-hours:
+      enabled: true
+      pre-market-start: "04:00"
+      pre-market-end: "09:30"
+      after-hours-start: "16:00"
+      after-hours-end: "20:00"
+    order:
+      min-amount: 1.00
+      max-amount: 1000000.00
+      fractional-shares-enabled: true
+      day-trade-limit: 3
+      commission: 0.00
+      fees: 0.00
+  
+  portfolio:
+    rebalancing:
+      enabled: true
+      threshold: 5.0
+      frequency: MONTHLY
+    performance:
+      calculation-frequency: 5m
+      history-retention-days: 730
+  
+  auto-invest:
+    enabled: true
+    min-amount: 1.00
+    max-plans-per-account: 10
+    execution-time: "09:00"
+    retry-attempts: 3
+    retry-delay: 1h
+  
+  market-data:
+    provider: ${MARKET_DATA_PROVIDER:alpaca}
+    update-frequency: 1m
+    batch-size: 100
+    cache-ttl: 60s
+  
+  brokerage:
+    default-provider: ${DEFAULT_BROKERAGE:alpaca}
+    providers:
+      alpaca:
+        api-key: ${ALPACA_API_KEY:${vault.investment-providers.alpaca.api-key}}
+        api-secret: ${ALPACA_API_SECRET:${vault.investment-providers.alpaca.api-secret}}
+        base-url: ${ALPACA_BASE_URL:https://paper-api.alpaca.markets}
+        data-url: ${ALPACA_DATA_URL:https://data.alpaca.markets}
+      schwab:
+        client-id: ${SCHWAB_CLIENT_ID:${vault.investment-providers.schwab.client-id}}
+        client-secret: ${SCHWAB_CLIENT_SECRET:${vault.investment-providers.schwab.client-secret}}
+        redirect-uri: ${SCHWAB_REDIRECT_URI:}
+      robinhood:
+        username: ${ROBINHOOD_USERNAME:${vault.investment-providers.robinhood.username}}
+        password: ${ROBINHOOD_PASSWORD:${vault.investment-providers.robinhood.password}}
+
+# Keycloak Configuration
+keycloak:
+  enabled: true
+  realm: waqiti-fintech
+  auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}
+  ssl-required: external
+  resource: investment-service
+  bearer-only: true
+  use-resource-role-mappings: true
+  cors: true
+  cors-allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+  cors-allowed-headers: Authorization,Content-Type,X-Requested-With
+  cors-max-age: 3600
+  public-client: false
+  credentials:
+    secret: ${KEYCLOAK_CLIENT_SECRET:${vault.keycloak.investment-service.client-secret}}
+
+# Spring Security OAuth2 Configuration
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti
+          jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/certs
+      client:
+        registration:
+          keycloak:
+            client-id: investment-service
+            client-secret: ${KEYCLOAK_CLIENT_SECRET:${vault.keycloak.investment-service.client-secret}}
+            authorization-grant-type: client_credentials
+            scope: openid,profile,email,investment
+        provider:
+          keycloak:
+            issuer-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti
+            token-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/token
+            authorization-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/auth
+            userinfo-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/userinfo
+            jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/certs
+
+# Service-to-Service Authentication
+service:
+  auth:
+    enabled: true
+    client-id: investment-service
+    client-secret: ${KEYCLOAK_CLIENT_SECRET:${vault.keycloak.investment-service.client-secret}}
+
+# Security Configuration
+security:
+  enabled: true
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:8080}
+    allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+    allowed-headers: "*"
+    allow-credentials: true
+  rate-limiting:
+    enabled: true
+    requests-per-minute: 100
+    burst-capacity: 20
+
+# External Service Configuration
+external-services:
+  wallet-service:
+    url: ${WALLET_SERVICE_URL:http://localhost:8089}
+    timeout: 10s
+    retry-attempts: 3
+    
+  notification-service:
+    url: ${NOTIFICATION_SERVICE_URL:http://localhost:8093}
+    timeout: 5s
+    retry-attempts: 2
+    
+  fraud-detection-service:
+    url: ${FRAUD_SERVICE_URL:http://localhost:8090}
+    timeout: 5s
+    retry-attempts: 3
+    
+  market-data-service:
+    url: ${MARKET_DATA_SERVICE_URL:http://localhost:8095}
+    timeout: 3s
+    retry-attempts: 2
+
+# Threading Configuration
+async:
+  core-pool-size: 5
+  max-pool-size: 20
+  queue-capacity: 1000
+  thread-name-prefix: investment-async-
+  keep-alive-seconds: 60
+
+# Scheduling Configuration
+scheduling:
+  thread-pool-size: 5
+  thread-name-prefix: investment-scheduler-
+  await-termination: true
+  await-termination-period: 60
+
+# Caching Configuration
+cache:
+  caffeine:
+    spec: maximumSize=1000,expireAfterWrite=5m
+  redis:
+    ttl: 300  # 5 minutes
+    key-prefix: investment:
+
+---
+# Production Profile
+spring:
+  profiles: production
+  
+  datasource:
+    hikari:
+      maximum-pool-size: 50
+      minimum-idle: 10
+      
+  jpa:
+    show-sql: false
+    hibernate:
+      ddl-auto: none
+      
+  kafka:
+    producer:
+      acks: all
+      retries: 3
+      batch-size: 16384
+      linger-ms: 5
+      buffer-memory: 33554432
+    consumer:
+      enable-auto-commit: false
+      isolation-level: read_committed
+
+logging:
+  level:
+    com.waqiti.investment: INFO
+    org.springframework.kafka: WARN
+    org.hibernate: WARN
+  logback:
+    rollingpolicy:
+      file-name-pattern: /app/logs/investment-service-%d{yyyy-MM-dd}.%i.log
+      max-file-size: 10MB
+      max-history: 30
+
+investment:
+  trading:
+    order:
+      commission: 0.00
+      fees: 0.65  # SEC fee per trade
+  
+security:
+  rate-limiting:
+    requests-per-minute: 1000
+    burst-capacity: 100
+
+---
+# Development Profile
+spring:
+  profiles: development
+  
+  jpa:
+    show-sql: ${SHOW_SQL:false}  # false for production
+    hibernate:
+      ddl-auto: validate
+      
+logging:
+  level:
+    com.waqiti.investment: DEBUG
+    org.springframework.kafka: DEBUG
+    org.hibernate.SQL: ${LOG_LEVEL_SQL:WARN}  # WARN for production
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+investment:
+  brokerage:
+    default-provider: alpaca
+    providers:
+      alpaca:
+        base-url: https://paper-api.alpaca.markets  # Paper trading for dev
+
+# Tax Reporting Configuration
+waqiti:
+  tax:
+    # Payer Information (Waqiti as the broker)
+    payer:
+      tin: ${TAX_PAYER_TIN:XX-XXXXXXX}
+      name: ${TAX_PAYER_NAME:Waqiti Financial Services Inc.}
+      address: ${TAX_PAYER_ADDRESS:123 Waqiti Plaza, New York, NY 10001}
+
+    # IRS FIRE (Filing Information Returns Electronically) Configuration
+    irs:
+      fire:
+        url: ${IRS_FIRE_URL:https://fire.irs.gov/submit}
+        tcc: ${IRS_FIRE_TCC:${vault.tax.irs-fire-tcc}}
+        test-mode: ${IRS_FIRE_TEST_MODE:true}
+        contact-name: ${IRS_FIRE_CONTACT_NAME:Tax Filing Administrator}
+        contact-email: ${IRS_FIRE_CONTACT_EMAIL:tax@example.com}
+        contact-phone: ${IRS_FIRE_CONTACT_PHONE:+1-555-0100}
+
+    # Storage Configuration
+    storage:
+      path: ${TAX_STORAGE_PATH:/var/waqiti/tax-documents}
+      pdf:
+        template:
+          path: ${TAX_PDF_TEMPLATE_PATH:/var/waqiti/tax-templates}
+
+    # Tax Year Configuration
+    generation:
+      enabled: ${TAX_GENERATION_ENABLED:true}
+      auto-generate: ${TAX_AUTO_GENERATE:false}
+      notification-enabled: ${TAX_NOTIFICATION_ENABLED:true}
+
+    # Deadlines (IRS requirements)
+    deadlines:
+      recipient-delivery: ${TAX_RECIPIENT_DEADLINE:01-31}  # January 31
+      irs-filing: ${TAX_IRS_FILING_DEADLINE:03-31}  # March 31
+
+security:
+  rate-limiting:
+    enabled: false  # Disable rate limiting in dev

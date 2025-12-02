@@ -1,0 +1,156 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: expense-service-config
+  namespace: waqiti
+data:
+  # Database Configuration
+  database.host: "expense-db.waqiti-data.svc.cluster.local"
+  database.port: "5432"
+  database.name: "expense_db"
+  database.username: "expense_user"
+
+  # Kafka Configuration
+  kafka.bootstrap.servers: "kafka.waqiti-messaging.svc.cluster.local:9092"
+  kafka.consumer.group.id: "expense-service-group"
+  kafka.dlq.enabled: "true"
+  kafka.retry.max-attempts: "3"
+
+  # Redis Configuration
+  redis.host: "redis.waqiti-cache.svc.cluster.local"
+  redis.port: "6379"
+
+  # Service Configuration
+  server.port: "8055"
+  spring.application.name: "expense-service"
+
+  # Resilience Configuration
+  resilience4j.circuitbreaker.enabled: "true"
+  resilience4j.retry.enabled: "true"
+  resilience4j.ratelimiter.enabled: "true"
+
+  # Monitoring Configuration
+  management.endpoints.web.exposure.include: "health,info,metrics,prometheus"
+  management.endpoint.health.show-details: "always"
+  management.health.readiness.enabled: "true"
+  management.health.liveness.enabled: "true"
+
+  # Tracing Configuration
+  tracing.sampling.probability: "0.1"
+
+  # Notification Configuration
+  notification.enabled: "true"
+  notification.email.enabled: "true"
+  notification.sms.enabled: "true"
+  notification.push.enabled: "true"
+
+  # Logging Configuration
+  logging.level.root: "INFO"
+  logging.level.com.waqiti.expense: "DEBUG"
+  logging.pattern.console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+  logging.pattern.file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+  # Application Configuration
+  application.yml: |
+    spring:
+      application:
+        name: expense-service
+      profiles:
+        active: production
+
+      datasource:
+        url: jdbc:postgresql://${database.host}:${database.port}/${database.name}
+        username: ${database.username}
+        password: ${EXPENSE_DB_PASSWORD}
+        hikari:
+          maximum-pool-size: 20
+          minimum-idle: 5
+          connection-timeout: 30000
+          idle-timeout: 600000
+          max-lifetime: 1800000
+
+      jpa:
+        hibernate:
+          ddl-auto: validate
+        show-sql: false
+        properties:
+          hibernate:
+            dialect: org.hibernate.dialect.PostgreSQLDialect
+            format_sql: false
+            use_sql_comments: false
+
+      kafka:
+        bootstrap-servers: ${kafka.bootstrap.servers}
+        consumer:
+          group-id: ${kafka.consumer.group.id}
+          auto-offset-reset: earliest
+          enable-auto-commit: false
+        producer:
+          acks: all
+          retries: 3
+          compression-type: snappy
+
+      data:
+        redis:
+          host: ${redis.host}
+          port: ${redis.port}
+          timeout: 2000ms
+
+      cache:
+        type: redis
+        redis:
+          time-to-live: 600000
+
+    server:
+      port: ${server.port}
+      shutdown: graceful
+      tomcat:
+        threads:
+          max: 200
+          min-spare: 10
+
+    management:
+      endpoints:
+        web:
+          exposure:
+            include: ${management.endpoints.web.exposure.include}
+      endpoint:
+        health:
+          show-details: ${management.endpoint.health.show-details}
+      health:
+        readiness:
+          enabled: ${management.health.readiness.enabled}
+        liveness:
+          enabled: ${management.health.liveness.enabled}
+      metrics:
+        export:
+          prometheus:
+            enabled: true
+
+    resilience4j:
+      circuitbreaker:
+        configs:
+          default:
+            registerHealthIndicator: true
+            slidingWindowSize: 10
+            minimumNumberOfCalls: 5
+            failureRateThreshold: 50
+            waitDurationInOpenState: 10s
+      retry:
+        configs:
+          default:
+            maxAttempts: 3
+            waitDuration: 1s
+
+    notification:
+      enabled: ${notification.enabled}
+      email:
+        enabled: ${notification.email.enabled}
+      sms:
+        enabled: ${notification.sms.enabled}
+      push:
+        enabled: ${notification.push.enabled}
+
+    tracing:
+      sampling:
+        probability: ${tracing.sampling.probability}

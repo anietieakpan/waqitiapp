@@ -1,0 +1,432 @@
+groups:
+  - name: waqiti.transaction.alerts
+    rules:
+      # Transaction Volume Alerts
+      - alert: TransactionVolumeSpike
+        expr: rate(waqiti_transactions_total[5m]) > 50
+        for: 2m
+        labels:
+          severity: warning
+          component: transactions
+          team: platform
+        annotations:
+          summary: "High transaction volume detected"
+          description: "Transaction rate is {{ $value }} transactions/second, which is above the threshold of 50 TPS."
+          runbook_url: "https://docs.example.com/runbooks/transaction-volume-spike"
+
+      - alert: TransactionVolumeDrop
+        expr: rate(waqiti_transactions_total[5m]) < 5
+        for: 5m
+        labels:
+          severity: warning
+          component: transactions
+          team: platform
+        annotations:
+          summary: "Transaction volume unusually low"
+          description: "Transaction rate is {{ $value }} transactions/second, which is below expected levels."
+          runbook_url: "https://docs.example.com/runbooks/transaction-volume-drop"
+
+      # Success Rate Alerts
+      - alert: TransactionFailureRateHigh
+        expr: (rate(waqiti_transaction_failures_total[5m]) / rate(waqiti_transactions_total[5m])) * 100 > 5
+        for: 2m
+        labels:
+          severity: critical
+          component: transactions
+          team: platform
+        annotations:
+          summary: "High transaction failure rate"
+          description: "Transaction failure rate is {{ $value }}%, which exceeds the 5% threshold."
+          runbook_url: "https://docs.example.com/runbooks/high-failure-rate"
+
+      - alert: TransactionSuccessRateLow
+        expr: (1 - rate(waqiti_transaction_failures_total[5m]) / rate(waqiti_transactions_total[5m])) * 100 < 95
+        for: 3m
+        labels:
+          severity: warning
+          component: transactions
+          team: platform
+        annotations:
+          summary: "Transaction success rate below threshold"
+          description: "Transaction success rate is {{ $value }}%, which is below the 95% threshold."
+
+  - name: waqiti.fraud.alerts
+    rules:
+      # Fraud Detection Alerts
+      - alert: HighFraudScore
+        expr: waqiti_fraud_score > 0.8
+        for: 0s
+        labels:
+          severity: critical
+          component: fraud-detection
+          team: security
+        annotations:
+          summary: "High fraud score detected"
+          description: "Transaction {{ $labels.transaction_id }} has fraud score {{ $value }}, requiring immediate review."
+          runbook_url: "https://docs.example.com/runbooks/high-fraud-score"
+
+      - alert: FraudRateSpike
+        expr: rate(waqiti_fraud_transactions_total[10m]) > 10
+        for: 1m
+        labels:
+          severity: critical
+          component: fraud-detection
+          team: security
+        annotations:
+          summary: "Fraud transaction rate spike"
+          description: "Fraud transaction rate is {{ $value }} transactions/second, indicating potential attack."
+
+      - alert: FraudModelOffline
+        expr: up{job="fraud-detection-service"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: fraud-detection
+          team: security
+        annotations:
+          summary: "Fraud detection service offline"
+          description: "Fraud detection service is not responding, transactions may not be properly screened."
+
+  - name: waqiti.payment.alerts
+    rules:
+      # Payment Processing Alerts
+      - alert: PaymentProcessingLatencyHigh
+        expr: histogram_quantile(0.95, sum(rate(waqiti_payment_processing_duration_seconds_bucket[5m])) by (le)) > 5
+        for: 3m
+        labels:
+          severity: warning
+          component: payment-processing
+          team: platform
+        annotations:
+          summary: "High payment processing latency"
+          description: "95th percentile payment processing time is {{ $value }}s, exceeding 5s threshold."
+          runbook_url: "https://docs.example.com/runbooks/payment-latency"
+
+      - alert: PaymentProcessingLatencyCritical
+        expr: histogram_quantile(0.95, sum(rate(waqiti_payment_processing_duration_seconds_bucket[5m])) by (le)) > 10
+        for: 1m
+        labels:
+          severity: critical
+          component: payment-processing
+          team: platform
+        annotations:
+          summary: "Critical payment processing latency"
+          description: "95th percentile payment processing time is {{ $value }}s, exceeding critical 10s threshold."
+
+      - alert: PaymentServiceDown
+        expr: up{job="payment-service"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: payment-service
+          team: platform
+        annotations:
+          summary: "Payment service is down"
+          description: "Payment service is not responding to health checks."
+
+  - name: waqiti.system.alerts
+    rules:
+      # System Resource Alerts
+      - alert: HighCPUUsage
+        expr: waqiti_system_cpu_usage_percent > 80
+        for: 5m
+        labels:
+          severity: warning
+          component: infrastructure
+          team: platform
+        annotations:
+          summary: "High CPU usage on {{ $labels.service }}"
+          description: "CPU usage is {{ $value }}% on service {{ $labels.service }}."
+
+      - alert: CriticalCPUUsage
+        expr: waqiti_system_cpu_usage_percent > 90
+        for: 2m
+        labels:
+          severity: critical
+          component: infrastructure
+          team: platform
+        annotations:
+          summary: "Critical CPU usage on {{ $labels.service }}"
+          description: "CPU usage is {{ $value }}% on service {{ $labels.service }}, immediate action required."
+
+      - alert: HighMemoryUsage
+        expr: waqiti_system_memory_usage_percent > 85
+        for: 5m
+        labels:
+          severity: warning
+          component: infrastructure
+          team: platform
+        annotations:
+          summary: "High memory usage on {{ $labels.service }}"
+          description: "Memory usage is {{ $value }}% on service {{ $labels.service }}."
+
+      - alert: CriticalMemoryUsage
+        expr: waqiti_system_memory_usage_percent > 95
+        for: 1m
+        labels:
+          severity: critical
+          component: infrastructure
+          team: platform
+        annotations:
+          summary: "Critical memory usage on {{ $labels.service }}"
+          description: "Memory usage is {{ $value }}% on service {{ $labels.service }}, risk of OOM."
+
+      - alert: DiskSpaceLow
+        expr: waqiti_disk_usage_percent > 80
+        for: 10m
+        labels:
+          severity: warning
+          component: infrastructure
+          team: platform
+        annotations:
+          summary: "Low disk space on {{ $labels.service }}"
+          description: "Disk usage is {{ $value }}% on service {{ $labels.service }}."
+
+      - alert: DiskSpaceCritical
+        expr: waqiti_disk_usage_percent > 90
+        for: 5m
+        labels:
+          severity: critical
+          component: infrastructure
+          team: platform
+        annotations:
+          summary: "Critical disk space on {{ $labels.service }}"
+          description: "Disk usage is {{ $value }}% on service {{ $labels.service }}, immediate cleanup required."
+
+  - name: waqiti.api.alerts
+    rules:
+      # API Performance Alerts
+      - alert: APILatencyHigh
+        expr: histogram_quantile(0.95, sum(rate(waqiti_http_request_duration_seconds_bucket[5m])) by (le, service)) > 2
+        for: 3m
+        labels:
+          severity: warning
+          component: api
+          team: platform
+        annotations:
+          summary: "High API latency on {{ $labels.service }}"
+          description: "95th percentile API response time is {{ $value }}s for service {{ $labels.service }}."
+
+      - alert: APIErrorRateHigh
+        expr: (rate(waqiti_http_requests_total{status=~"5.."}[5m]) / rate(waqiti_http_requests_total[5m])) * 100 > 5
+        for: 2m
+        labels:
+          severity: critical
+          component: api
+          team: platform
+        annotations:
+          summary: "High API error rate on {{ $labels.service }}"
+          description: "API error rate is {{ $value }}% for service {{ $labels.service }}."
+
+      - alert: APIThroughputDrop
+        expr: rate(waqiti_http_requests_total[5m]) < 10
+        for: 5m
+        labels:
+          severity: warning
+          component: api
+          team: platform
+        annotations:
+          summary: "API throughput drop on {{ $labels.service }}"
+          description: "API request rate is {{ $value }} requests/second for service {{ $labels.service }}."
+
+  - name: waqiti.database.alerts
+    rules:
+      # Database Alerts
+      - alert: DatabaseConnectionsHigh
+        expr: waqiti_database_connections_active / waqiti_database_connections_max * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          component: database
+          team: platform
+        annotations:
+          summary: "High database connection usage"
+          description: "Database connection usage is {{ $value }}% of maximum connections."
+
+      - alert: DatabaseQueryLatencyHigh
+        expr: histogram_quantile(0.95, sum(rate(waqiti_database_query_duration_seconds_bucket[5m])) by (le)) > 1
+        for: 3m
+        labels:
+          severity: warning
+          component: database
+          team: platform
+        annotations:
+          summary: "High database query latency"
+          description: "95th percentile database query time is {{ $value }}s."
+
+      - alert: DatabaseDown
+        expr: up{job="postgres-exporter"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: database
+          team: platform
+        annotations:
+          summary: "Database is down"
+          description: "Database is not responding to health checks."
+
+      - alert: DatabaseDeadlocks
+        expr: increase(waqiti_database_deadlocks_total[5m]) > 0
+        for: 0s
+        labels:
+          severity: warning
+          component: database
+          team: platform
+        annotations:
+          summary: "Database deadlocks detected"
+          description: "{{ $value }} database deadlocks detected in the last 5 minutes."
+
+  - name: waqiti.security.alerts
+    rules:
+      # Security Alerts
+      - alert: SuspiciousLoginAttempts
+        expr: rate(waqiti_login_attempts_failed_total[5m]) > 20
+        for: 2m
+        labels:
+          severity: warning
+          component: authentication
+          team: security
+        annotations:
+          summary: "High rate of failed login attempts"
+          description: "Failed login attempt rate is {{ $value }} attempts/second."
+
+      - alert: UnauthorizedAPIAccess
+        expr: rate(waqiti_http_requests_total{status="401"}[5m]) > 50
+        for: 1m
+        labels:
+          severity: warning
+          component: api
+          team: security
+        annotations:
+          summary: "High rate of unauthorized API access"
+          description: "Unauthorized API request rate is {{ $value }} requests/second."
+
+      - alert: AnomalousUserBehavior
+        expr: waqiti_user_anomaly_score > 0.8
+        for: 0s
+        labels:
+          severity: warning
+          component: user-behavior
+          team: security
+        annotations:
+          summary: "Anomalous user behavior detected"
+          description: "User {{ $labels.user_id }} has anomaly score {{ $value }}."
+
+  - name: waqiti.business.alerts
+    rules:
+      # Business Metric Alerts
+      - alert: RevenueDrop
+        expr: (rate(waqiti_revenue_total[1h]) - rate(waqiti_revenue_total[1h] offset 24h)) / rate(waqiti_revenue_total[1h] offset 24h) * 100 < -20
+        for: 10m
+        labels:
+          severity: warning
+          component: business-metrics
+          team: business
+        annotations:
+          summary: "Significant revenue drop"
+          description: "Revenue has dropped {{ $value }}% compared to the same time yesterday."
+
+      - alert: ActiveUsersDrop
+        expr: waqiti_active_users_total < 1000
+        for: 15m
+        labels:
+          severity: warning
+          component: business-metrics
+          team: business
+        annotations:
+          summary: "Active users below threshold"
+          description: "Active users count is {{ $value }}, below the expected threshold of 1000."
+
+      - alert: ConversionRateDrop
+        expr: waqiti_conversion_rate < 0.05
+        for: 30m
+        labels:
+          severity: warning
+          component: business-metrics
+          team: business
+        annotations:
+          summary: "Conversion rate below threshold"
+          description: "Conversion rate is {{ $value }}, below the expected threshold of 5%."
+
+  - name: example.compliance.alerts
+    rules:
+      # Compliance and Regulatory Alerts
+      - alert: KYCProcessingDelay
+        expr: histogram_quantile(0.95, sum(rate(waqiti_kyc_processing_duration_seconds_bucket[10m])) by (le)) > 3600
+        for: 5m
+        labels:
+          severity: warning
+          component: kyc
+          team: compliance
+        annotations:
+          summary: "KYC processing delays"
+          description: "95th percentile KYC processing time is {{ $value }}s ({{ $value | humanizeDuration }})."
+
+      - alert: AMLAlertGenerated
+        expr: increase(waqiti_aml_alerts_total[5m]) > 0
+        for: 0s
+        labels:
+          severity: critical
+          component: aml
+          team: compliance
+        annotations:
+          summary: "AML alert generated"
+          description: "{{ $value }} AML alerts generated in the last 5 minutes."
+
+      - alert: ComplianceReportingFailure
+        expr: waqiti_compliance_report_status == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: compliance-reporting
+          team: compliance
+        annotations:
+          summary: "Compliance reporting failure"
+          description: "Compliance reporting system has failed."
+
+  - name: waqiti.infrastructure.alerts
+    rules:
+      # Infrastructure Component Alerts
+      - alert: KafkaConsumerLag
+        expr: kafka_consumer_lag_sum > 10000
+        for: 5m
+        labels:
+          severity: warning
+          component: kafka
+          team: platform
+        annotations:
+          summary: "Kafka consumer lag high"
+          description: "Kafka consumer lag is {{ $value }} messages for topic {{ $labels.topic }}."
+
+      - alert: RedisConnectionFailure
+        expr: redis_connected_clients == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: redis
+          team: platform
+        annotations:
+          summary: "Redis connection failure"
+          description: "No active Redis connections detected."
+
+      - alert: ElasticsearchClusterRed
+        expr: elasticsearch_cluster_health_status{color="red"} == 1
+        for: 1m
+        labels:
+          severity: critical
+          component: elasticsearch
+          team: platform
+        annotations:
+          summary: "Elasticsearch cluster health is red"
+          description: "Elasticsearch cluster {{ $labels.cluster }} health is red."
+
+      - alert: LoadBalancerHealthCheck
+        expr: haproxy_server_check_failures_total > 5
+        for: 2m
+        labels:
+          severity: warning
+          component: load-balancer
+          team: platform
+        annotations:
+          summary: "Load balancer health check failures"
+          description: "{{ $value }} health check failures for server {{ $labels.server }}."

@@ -1,0 +1,491 @@
+{
+  "realm": "waqiti-fintech",
+  "enabled": true,
+  "displayName": "Waqiti Financial Services",
+  "displayNameHtml": "<strong>Waqiti</strong> Financial Services",
+  "sslRequired": "all",
+  "registrationAllowed": true,
+  "registrationEmailAsUsername": true,
+  "rememberMe": true,
+  "verifyEmail": true,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "maxFailureWaitSeconds": 900,
+  "minimumQuickLoginWaitSeconds": 60,
+  "waitIncrementSeconds": 300,
+  "quickLoginCheckMilliSeconds": 1000,
+  "maxDeltaTimeSeconds": 43200,
+  "failureFactor": 5,
+  "roles": {
+    "realm": [
+      {
+        "name": "super_admin",
+        "description": "Super Administrator with full system access",
+        "composite": true,
+        "composites": {
+          "realm": ["admin", "compliance_officer", "support_agent", "user"]
+        }
+      },
+      {
+        "name": "admin",
+        "description": "Administrator with administrative functions",
+        "composite": true,
+        "composites": {
+          "realm": ["support_agent", "user"]
+        }
+      },
+      {
+        "name": "compliance_officer",
+        "description": "Compliance and audit access",
+        "composite": false
+      },
+      {
+        "name": "support_agent",
+        "description": "Customer support functions",
+        "composite": true,
+        "composites": {
+          "realm": ["user"]
+        }
+      },
+      {
+        "name": "user",
+        "description": "Standard user access",
+        "composite": false
+      },
+      {
+        "name": "merchant",
+        "description": "Merchant account access",
+        "composite": false
+      },
+      {
+        "name": "business",
+        "description": "Business account access",
+        "composite": false
+      },
+      {
+        "name": "family_admin",
+        "description": "Family account administrator",
+        "composite": false
+      },
+      {
+        "name": "family_member",
+        "description": "Family account member",
+        "composite": false
+      }
+    ]
+  },
+  "groups": [
+    {
+      "name": "Administrators",
+      "path": "/administrators",
+      "realmRoles": ["admin"]
+    },
+    {
+      "name": "Support",
+      "path": "/support",
+      "realmRoles": ["support_agent"]
+    },
+    {
+      "name": "Compliance",
+      "path": "/compliance",
+      "realmRoles": ["compliance_officer"]
+    },
+    {
+      "name": "Users",
+      "path": "/users",
+      "realmRoles": ["user"]
+    },
+    {
+      "name": "Merchants",
+      "path": "/merchants",
+      "realmRoles": ["merchant", "user"]
+    },
+    {
+      "name": "Business",
+      "path": "/business",
+      "realmRoles": ["business", "user"]
+    }
+  ],
+  "defaultRoles": ["user"],
+  "defaultGroups": ["/users"],
+  "requiredCredentials": ["password"],
+  "passwordPolicy": "length(12) and upperCase(2) and lowerCase(2) and digits(2) and specialChars(2) and notUsername() and notEmail() and passwordHistory(5)",
+  "otpPolicyType": "totp",
+  "otpPolicyAlgorithm": "HmacSHA256",
+  "otpPolicyInitialCounter": 0,
+  "otpPolicyDigits": 6,
+  "otpPolicyLookAheadWindow": 1,
+  "otpPolicyPeriod": 30,
+  "otpSupportedApplications": ["FreeOTP", "Google Authenticator", "Microsoft Authenticator", "Authy"],
+  "webAuthnPolicyRpEntityName": "Waqiti",
+  "webAuthnPolicySignatureAlgorithms": ["ES256", "ES384", "ES512", "RS256", "RS384", "RS512"],
+  "webAuthnPolicyRpId": "example.com",
+  "webAuthnPolicyAttestationConveyancePreference": "indirect",
+  "webAuthnPolicyAuthenticatorAttachment": "platform",
+  "webAuthnPolicyRequireResidentKey": "not specified",
+  "webAuthnPolicyUserVerificationRequirement": "preferred",
+  "webAuthnPolicyCreateTimeout": 60000,
+  "webAuthnPolicyAvoidSameAuthenticatorRegister": true,
+  "clients": [
+    {
+      "clientId": "waqiti-api-gateway",
+      "name": "API Gateway Service",
+      "description": "Central API Gateway for all services",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${GATEWAY_CLIENT_SECRET}",
+      "redirectUris": [],
+      "webOrigins": [],
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "bearerOnly": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": true,
+      "fullScopeAllowed": false,
+      "attributes": {
+        "access.token.lifespan": "300",
+        "client.session.idle.timeout": "300",
+        "client.session.max.lifespan": "300"
+      },
+      "protocolMappers": [
+        {
+          "name": "service-account-roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-client-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "resource_access.${client_id}.roles",
+            "jsonType.label": "String"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "waqiti-web-app",
+      "name": "Waqiti Web Application",
+      "description": "Main web application for users",
+      "enabled": true,
+      "publicClient": true,
+      "redirectUris": [
+        "https://app.example.com/*",
+        "http://localhost:3000/*"
+      ],
+      "webOrigins": [
+        "https://app.example.com",
+        "http://localhost:3000"
+      ],
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "fullScopeAllowed": false,
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "https://app.example.com/logout-success",
+        "access.token.lifespan": "300",
+        "client.session.idle.timeout": "1800",
+        "client.session.max.lifespan": "36000"
+      },
+      "protocolMappers": [
+        {
+          "name": "user-id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "userinfo.token.claim": "true",
+            "user.attribute": "id",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "user_id",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "name": "email-verified",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "consentRequired": false,
+          "config": {
+            "userinfo.token.claim": "true",
+            "user.attribute": "emailVerified",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "email_verified",
+            "jsonType.label": "boolean"
+          }
+        }
+      ],
+      "defaultClientScopes": ["openid", "profile", "email", "roles", "web-origins"],
+      "optionalClientScopes": ["address", "phone", "offline_access", "microprofile-jwt"]
+    },
+    {
+      "clientId": "waqiti-mobile",
+      "name": "Waqiti Mobile Application",
+      "description": "Mobile application for iOS and Android",
+      "enabled": true,
+      "publicClient": true,
+      "redirectUris": [
+        "waqiti://auth/callback",
+        "com.waqiti.app://auth/callback"
+      ],
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "fullScopeAllowed": false,
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "use.refresh.tokens": "true",
+        "client.offline.session.idle.timeout": "2592000",
+        "client.offline.session.max.lifespan": "5184000",
+        "access.token.lifespan": "300",
+        "client.session.idle.timeout": "1800",
+        "client.session.max.lifespan": "36000"
+      },
+      "protocolMappers": [
+        {
+          "name": "biometric-auth",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "userinfo.token.claim": "true",
+            "user.attribute": "biometric_enabled",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "biometric_enabled",
+            "jsonType.label": "boolean"
+          }
+        },
+        {
+          "name": "device-id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "userinfo.token.claim": "false",
+            "user.attribute": "device_id",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "device_id",
+            "jsonType.label": "String"
+          }
+        }
+      ],
+      "defaultClientScopes": ["openid", "profile", "email", "roles", "offline_access"],
+      "optionalClientScopes": ["address", "phone", "microprofile-jwt"]
+    },
+    {
+      "clientId": "waqiti-admin-dashboard",
+      "name": "Waqiti Admin Dashboard",
+      "description": "Administrative dashboard for system management",
+      "enabled": true,
+      "publicClient": true,
+      "redirectUris": [
+        "https://admin.example.com/*",
+        "http://localhost:3001/*"
+      ],
+      "webOrigins": [
+        "https://admin.example.com",
+        "http://localhost:3001"
+      ],
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "fullScopeAllowed": false,
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "https://admin.example.com/logout",
+        "access.token.lifespan": "300",
+        "client.session.idle.timeout": "900",
+        "client.session.max.lifespan": "3600"
+      },
+      "defaultClientScopes": ["openid", "profile", "email", "roles", "web-origins"],
+      "optionalClientScopes": ["address", "phone", "microprofile-jwt"]
+    },
+    {
+      "clientId": "user-service",
+      "name": "User Service",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${USER_SERVICE_CLIENT_SECRET}",
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "bearerOnly": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": false,
+      "fullScopeAllowed": false
+    },
+    {
+      "clientId": "payment-service",
+      "name": "Payment Service",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${PAYMENT_SERVICE_CLIENT_SECRET}",
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "bearerOnly": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": false,
+      "fullScopeAllowed": false
+    },
+    {
+      "clientId": "banking-service",
+      "name": "Core Banking Service",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${BANKING_SERVICE_CLIENT_SECRET}",
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "bearerOnly": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": false,
+      "fullScopeAllowed": false
+    }
+  ],
+  "clientScopes": [
+    {
+      "name": "microservice",
+      "description": "Scope for service-to-service communication",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "service-name",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "userinfo.token.claim": "false",
+            "user.attribute": "service_name",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "service_name",
+            "jsonType.label": "String"
+          }
+        }
+      ]
+    },
+    {
+      "name": "payment",
+      "description": "Payment operations scope",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true",
+        "consent.screen.text": "Access to payment operations"
+      }
+    },
+    {
+      "name": "banking",
+      "description": "Banking operations scope",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true",
+        "consent.screen.text": "Access to banking operations"
+      }
+    }
+  ],
+  "authenticationFlows": [
+    {
+      "alias": "adaptive-auth",
+      "description": "Adaptive authentication based on risk",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "auth-cookie",
+          "requirement": "ALTERNATIVE",
+          "priority": 10
+        },
+        {
+          "authenticator": "auth-username-password-form",
+          "requirement": "REQUIRED",
+          "priority": 20
+        },
+        {
+          "authenticator": "conditional-otp",
+          "requirement": "CONDITIONAL",
+          "priority": 30,
+          "authenticatorConfig": "risk-based-otp"
+        }
+      ]
+    }
+  ],
+  "authenticatorConfig": [
+    {
+      "alias": "risk-based-otp",
+      "config": {
+        "conditionalUserAttribute": "risk_level",
+        "attributeValue": "high",
+        "forceOtpForHeaderPattern": "X-Risk-Level: high",
+        "skipOtpForHttpHeader": "X-Trusted-Network: true",
+        "defaultOtpOutcome": "skip"
+      }
+    }
+  ],
+  "browserSecurityHeaders": {
+    "contentSecurityPolicy": "default-src 'self'; frame-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'",
+    "contentSecurityPolicyReportOnly": "",
+    "xContentTypeOptions": "nosniff",
+    "xRobotsTag": "none",
+    "xFrameOptions": "SAMEORIGIN",
+    "xXSSProtection": "1; mode=block",
+    "strictTransportSecurity": "max-age=31536000; includeSubDomains; preload"
+  },
+  "eventsEnabled": true,
+  "eventsListeners": ["jboss-logging", "event-forwarder"],
+  "enabledEventTypes": [
+    "LOGIN",
+    "LOGIN_ERROR",
+    "LOGOUT",
+    "LOGOUT_ERROR",
+    "REGISTER",
+    "REGISTER_ERROR",
+    "CODE_TO_TOKEN",
+    "CODE_TO_TOKEN_ERROR",
+    "REFRESH_TOKEN",
+    "REFRESH_TOKEN_ERROR",
+    "INTROSPECT_TOKEN",
+    "INTROSPECT_TOKEN_ERROR",
+    "CLIENT_LOGIN",
+    "CLIENT_LOGIN_ERROR",
+    "UPDATE_PASSWORD",
+    "UPDATE_PASSWORD_ERROR",
+    "UPDATE_TOTP",
+    "UPDATE_TOTP_ERROR",
+    "REMOVE_TOTP",
+    "REMOVE_TOTP_ERROR"
+  ],
+  "adminEventsEnabled": true,
+  "adminEventsDetailsEnabled": true,
+  "internationalizationEnabled": true,
+  "supportedLocales": ["en", "es", "fr", "de", "ar", "zh-CN", "ja", "ko", "pt-BR"],
+  "defaultLocale": "en"
+}

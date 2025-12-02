@@ -1,0 +1,88 @@
+{
+  "namespace": "com.waqiti.events.v1.user",
+  "type": "record",
+  "name": "UserProfileCreatedEvent",
+  "doc": "Event published when a new user profile is created",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "Unique identifier for this event (UUID)"
+    },
+    {
+      "name": "eventType",
+      "type": "string",
+      "default": "user.profile.created",
+      "doc": "Type of event"
+    },
+    {
+      "name": "eventVersion",
+      "type": "string",
+      "default": "1.0.0",
+      "doc": "Event schema version"
+    },
+    {
+      "name": "timestamp",
+      "type": "long",
+      "logicalType": "timestamp-millis",
+      "doc": "Event timestamp in epoch milliseconds"
+    },
+    {
+      "name": "correlationId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Correlation ID for tracking"
+    },
+    {
+      "name": "userId",
+      "type": "string",
+      "doc": "Unique user identifier (UUID)"
+    },
+    {
+      "name": "email",
+      "type": "string",
+      "doc": "User email address"
+    },
+    {
+      "name": "username",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Username if provided"
+    },
+    {
+      "name": "firstName",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "User first name"
+    },
+    {
+      "name": "lastName",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "User last name"
+    },
+    {
+      "name": "phoneNumber",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "User phone number in E.164 format"
+    },
+    {
+      "name": "country",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "ISO 3166-1 alpha-2 country code"
+    },
+    {
+      "name": "accountType",
+      "type": "string",
+      "doc": "Account type (PERSONAL, BUSINESS, ENTERPRISE)"
+    },
+    {
+      "name": "registrationSource",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "How the user registered (WEB, MOBILE_IOS, MOBILE_ANDROID, API)"
+    }
+  ]
+}

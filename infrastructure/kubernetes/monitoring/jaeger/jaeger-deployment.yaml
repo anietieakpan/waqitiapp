@@ -1,0 +1,471 @@
+# Jaeger Distributed Tracing for Waqiti P2P Platform
+# Production-ready Jaeger deployment with Elasticsearch storage
+
+apiVersion: jaegertracing.io/v1
+kind: Jaeger
+metadata:
+  name: waqiti-jaeger
+  namespace: example-monitoring
+  labels:
+    app.kubernetes.io/name: jaeger
+    app.kubernetes.io/component: tracing
+    app.kubernetes.io/part-of: observability-stack
+spec:
+  strategy: production
+  
+  storage:
+    type: elasticsearch
+    elasticsearch:
+      nodeCount: 3
+      redundancyPolicy: SingleRedundancy
+      resources:
+        requests:
+          memory: "2Gi"
+          cpu: "1000m"
+        limits:
+          memory: "4Gi"
+          cpu: "2000m"
+      storage:
+        storageClassName: "gp3-encrypted"
+        size: "100Gi"
+      
+      # Use existing Elasticsearch cluster
+      server-urls: "https://example-elasticsearch-http:9200"
+      username: "elastic"
+      password-secret:
+        name: "example-elasticsearch-elastic-user"
+        key: "elastic"
+      tls:
+        ca: "/usr/share/jaeger/ca/ca.crt"
+      
+      # Index configuration
+      index-prefix: "jaeger"
+      create-index-templates: true
+      index-date-separator: "-"
+      use-aliases: true
+      
+      # Retention policy
+      max-span-age: "168h" # 7 days
+      max-num-spans: 10000000
+      
+  collector:
+    replicas: 3
+    maxReplicas: 10
+    resources:
+      requests:
+        memory: "1Gi"
+        cpu: "500m"
+      limits:
+        memory: "2Gi"
+        cpu: "1000m"
+    
+    config: |
+      receivers:
+        jaeger:
+          protocols:
+            grpc:
+              endpoint: 0.0.0.0:14250
+            thrift_http:
+              endpoint: 0.0.0.0:14268
+            thrift_compact:
+              endpoint: 0.0.0.0:6831
+            thrift_binary:
+              endpoint: 0.0.0.0:6832
+        otlp:
+          protocols:
+            grpc:
+              endpoint: 0.0.0.0:4317
+            http:
+              endpoint: 0.0.0.0:4318
+        zipkin:
+          endpoint: 0.0.0.0:9411
+      
+      processors:
+        batch:
+          timeout: 1s
+          send_batch_size: 1024
+          send_batch_max_size: 2048
+        
+        memory_limiter:
+          limit_mib: 1024
+          spike_limit_mib: 256
+          check_interval: 5s
+        
+        # Resource processor to add service metadata
+        resource:
+          attributes:
+          - key: service.namespace
+            value: waqiti
+            action: upsert
+          - key: deployment.environment
+            from_attribute: environment
+            action: upsert
+      
+      exporters:
+        jaeger:
+          endpoint: jaeger-collector-headless:14250
+          tls:
+            insecure: true
+      
+      service:
+        extensions: [health_check]
+        pipelines:
+          traces:
+            receivers: [jaeger, otlp, zipkin]
+            processors: [memory_limiter, resource, batch]
+            exporters: [jaeger]
+    
+    # Auto-scaling configuration
+    autoscale: true
+    hpa:
+      minReplicas: 3
+      maxReplicas: 10
+      targetCPUUtilizationPercentage: 70
+      targetMemoryUtilizationPercentage: 80
+    
+    # Service configuration
+    service:
+      type: LoadBalancer
+      annotations:
+        service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+        service.beta.kubernetes.io/aws-load-balancer-internal: "true"
+
+  query:
+    replicas: 2
+    maxReplicas: 5
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "250m"
+      limits:
+        memory: "1Gi"
+        cpu: "500m"
+    
+    # UI configuration
+    config: |
+      dependencies:
+        dagMaxNumServices: 200
+        menuEnabled: true
+      
+      archiveEnabled: true
+      
+      # UI customization
+      ui:
+        headerColor: "#1f4788"
+        logo: "waqiti-logo.png"
+        
+      # Search configuration
+      search:
+        maxLookback: "168h" # 7 days
+        maxTraceCount: 20
+        defaultLookback: "1h"
+      
+      # Metrics configuration
+      metrics:
+        storage: prometheus
+        prometheus:
+          server-url: "http://prometheus:9090"
+          query-scope-enabled: true
+
+  agent:
+    strategy: DaemonSet
+    resources:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "256Mi"
+        cpu: "200m"
+    
+    config: |
+      server:
+        http-port: 5778
+      
+      reporter:
+        grpc:
+          host-port: "jaeger-collector:14250"
+        type: grpc
+      
+      processor:
+        jaeger-compact:
+          server-max-packet-size: 65000
+          server-host-port: "0.0.0.0:6831"
+          server-queue-size: 1000
+          workers: 10
+        jaeger-binary:
+          server-max-packet-size: 65000
+          server-host-port: "0.0.0.0:6832"
+          server-queue-size: 1000
+          workers: 10
+
+  ingress:
+    enabled: true
+    annotations:
+      kubernetes.io/ingress.class: "nginx"
+      cert-manager.io/cluster-issuer: "letsencrypt-prod"
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/auth-type: basic
+      nginx.ingress.kubernetes.io/auth-secret: jaeger-basic-auth
+      nginx.ingress.kubernetes.io/auth-realm: "Waqiti Jaeger - Authentication Required"
+    
+    hosts:
+    - host: jaeger.example.com
+      paths:
+      - path: /
+        pathType: Prefix
+    
+    tls:
+    - hosts:
+      - jaeger.example.com
+      secretName: jaeger-tls
+
+  volumeMounts:
+  - name: elasticsearch-ca
+    mountPath: /usr/share/jaeger/ca
+    readOnly: true
+
+  volumes:
+  - name: elasticsearch-ca
+    secret:
+      secretName: example-elasticsearch-http-certs-public
+
+---
+# Network Policy for Jaeger
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: jaeger-network-policy
+  namespace: example-monitoring
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: waqiti-jaeger
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Allow ingress access
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 16686
+  
+  # Allow collector ingress from all application services
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: waqiti
+    ports:
+    - protocol: TCP
+      port: 14250 # gRPC
+    - protocol: TCP
+      port: 14268 # HTTP
+    - protocol: UDP
+      port: 6831  # UDP compact
+    - protocol: UDP
+      port: 6832  # UDP binary
+    - protocol: TCP
+      port: 4317  # OTLP gRPC
+    - protocol: TCP
+      port: 4318  # OTLP HTTP
+    - protocol: TCP
+      port: 9411  # Zipkin
+  
+  # Allow agent communication
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/instance: waqiti-jaeger
+    ports:
+    - protocol: TCP
+      port: 5778
+  
+  egress:
+  # Allow DNS
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+  
+  # Allow Elasticsearch access
+  - to:
+    - podSelector:
+        matchLabels:
+          elasticsearch.k8s.elastic.co/cluster-name: example-elasticsearch
+    ports:
+    - protocol: TCP
+      port: 9200
+  
+  # Allow Prometheus access
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: prometheus
+    ports:
+    - protocol: TCP
+      port: 9090
+
+---
+# ConfigMap for Jaeger sampling strategies
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jaeger-sampling-config
+  namespace: example-monitoring
+  labels:
+    app.kubernetes.io/name: jaeger
+data:
+  sampling_strategies.json: |
+    {
+      "default_strategy": {
+        "type": "probabilistic",
+        "param": 0.1
+      },
+      "per_service_strategies": [
+        {
+          "service": "user-service",
+          "type": "probabilistic",
+          "param": 0.5,
+          "max_traces_per_second": 1000
+        },
+        {
+          "service": "payment-service",
+          "type": "probabilistic",
+          "param": 1.0,
+          "max_traces_per_second": 2000
+        },
+        {
+          "service": "transaction-service",
+          "type": "probabilistic",
+          "param": 1.0,
+          "max_traces_per_second": 2000
+        },
+        {
+          "service": "wallet-service",
+          "type": "probabilistic",
+          "param": 1.0,
+          "max_traces_per_second": 1500
+        },
+        {
+          "service": "bank-integration-service",
+          "type": "probabilistic",
+          "param": 1.0,
+          "max_traces_per_second": 500
+        },
+        {
+          "service": "saga-orchestration-service",
+          "type": "probabilistic",
+          "param": 1.0,
+          "max_traces_per_second": 800
+        },
+        {
+          "service": "security-service",
+          "type": "probabilistic",
+          "param": 0.8,
+          "max_traces_per_second": 600
+        },
+        {
+          "service": "notification-service",
+          "type": "probabilistic",
+          "param": 0.3,
+          "max_traces_per_second": 1000
+        },
+        {
+          "service": "analytics-service",
+          "type": "probabilistic",
+          "param": 0.2,
+          "max_traces_per_second": 500
+        },
+        {
+          "service": "api-gateway",
+          "type": "probabilistic",
+          "param": 0.1,
+          "max_traces_per_second": 3000
+        }
+      ],
+      "per_operation_strategies": [
+        {
+          "service": "payment-service",
+          "operation": "processPayment",
+          "type": "probabilistic",
+          "param": 1.0
+        },
+        {
+          "service": "user-service",
+          "operation": "authenticate",
+          "type": "probabilistic",
+          "param": 0.1
+        },
+        {
+          "service": "analytics-service",
+          "operation": "healthCheck",
+          "type": "probabilistic",
+          "param": 0.01
+        }
+      ]
+    }
+
+---
+# Secret for basic authentication
+apiVersion: v1
+kind: Secret
+metadata:
+  name: jaeger-basic-auth
+  namespace: example-monitoring
+type: Opaque
+data:
+  # admin:$2y$10$... (bcrypt hash of password)
+  # Generate with: htpasswd -nb admin password | base64
+  auth: YWRtaW46JDJ5JDEwJEVxdHFkNzZhNm9QLkg3Q2t1S1ZTdWVtSG5pQ2FIZnlmVkhNRFczd0IxOEo4SmszOUhrUXlH
+
+---
+# ServiceMonitor for Prometheus
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: jaeger-metrics
+  namespace: example-monitoring
+  labels:
+    app.kubernetes.io/name: jaeger
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: waqiti-jaeger
+  endpoints:
+  - port: admin-http
+    interval: 30s
+    path: /metrics
+  - port: http-query
+    interval: 30s
+    path: /metrics
+
+---
+# Pod Disruption Budget
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: jaeger-collector-pdb
+  namespace: example-monitoring
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: waqiti-jaeger
+      app.kubernetes.io/component: collector
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: jaeger-query-pdb
+  namespace: example-monitoring
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: waqiti-jaeger
+      app.kubernetes.io/component: query

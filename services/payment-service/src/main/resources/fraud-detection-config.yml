@@ -1,0 +1,90 @@
+# SECURITY FIX: Fraud Detection Configuration
+# Added: 2025-09-27
+# Purpose: Risk-based fraud detection fallback strategy
+
+payment:
+  fraud:
+    # Enable/disable fraud detection
+    enabled: ${FRAUD_DETECTION_ENABLED:true}
+    
+    # Timeout for fraud detection calls (milliseconds)
+    timeout: ${FRAUD_DETECTION_TIMEOUT:5000}
+    
+    # SECURITY FIX: Risk-based transaction thresholds
+    # When fraud service is unavailable, these thresholds determine auto-approval behavior
+    
+    # Low-value transactions below this amount are auto-approved with enhanced monitoring
+    # Default: $100 USD
+    auto-approve-threshold: ${FRAUD_AUTO_APPROVE_THRESHOLD:100.00}
+    
+    # High-value transactions at or above this amount are BLOCKED and require manual review
+    # Default: $1,000 USD
+    high-value-threshold: ${FRAUD_HIGH_VALUE_THRESHOLD:1000.00}
+    
+    # Fallback mode when fraud service is unavailable
+    # Options: CONSERVATIVE (block high-value), PERMISSIVE (allow all), ADAPTIVE (ML-based)
+    # Default: CONSERVATIVE (recommended for production)
+    fallback-mode: ${FRAUD_FALLBACK_MODE:CONSERVATIVE}
+    
+    # Enhanced monitoring for low-value auto-approved transactions
+    enhanced-monitoring:
+      enabled: true
+      alert-threshold: 5  # Alert after 5 consecutive auto-approvals
+      review-period-hours: 24  # Review window for patterns
+    
+    # Manual review queue configuration
+    manual-review:
+      enabled: true
+      high-priority-threshold: 5000.00  # Expedite review for amounts >= $5,000
+      sla-hours: 4  # Review SLA for high-value transactions
+      escalation-hours: 24  # Escalate if not reviewed within 24 hours
+    
+    # Circuit breaker specific settings
+    circuit-breaker:
+      failure-threshold: 50  # Trip after 50% failures
+      wait-duration: 15s  # Wait 15s in open state before half-open
+      sliding-window-size: 20  # Track last 20 requests
+      minimum-calls: 10  # Minimum calls before trip
+    
+    # Retry configuration
+    retry:
+      max-attempts: 3
+      wait-duration: 2s
+      exponential-backoff: true
+      multiplier: 2.0
+    
+    # Adaptive fallback (future enhancement)
+    adaptive:
+      enabled: false
+      ml-model-endpoint: ${FRAUD_ML_MODEL_ENDPOINT:http://ml-service:8090/api/v1/fraud/predict}
+      confidence-threshold: 0.8
+      fallback-to-conservative: true  # Fall back to conservative if ML unavailable
+
+services:
+  fraud-detection-service:
+    url: ${FRAUD_DETECTION_SERVICE_URL:http://fraud-detection-service:8085}
+    fallback-url: ${FRAUD_DETECTION_FALLBACK_URL:http://fraud-service:8085}
+    
+resilience4j:
+  circuitbreaker:
+    instances:
+      fraud-detection:
+        baseConfig: financial
+        slidingWindowSize: ${payment.fraud.circuit-breaker.sliding-window-size:20}
+        minimumNumberOfCalls: ${payment.fraud.circuit-breaker.minimum-calls:10}
+        failureRateThreshold: ${payment.fraud.circuit-breaker.failure-threshold:50}
+        waitDurationInOpenState: ${payment.fraud.circuit-breaker.wait-duration:15s}
+        
+  retry:
+    instances:
+      fraud-detection:
+        maxAttempts: ${payment.fraud.retry.max-attempts:3}
+        waitDuration: ${payment.fraud.retry.wait-duration:2s}
+        enableExponentialBackoff: ${payment.fraud.retry.exponential-backoff:true}
+        exponentialBackoffMultiplier: ${payment.fraud.retry.multiplier:2.0}
+        
+  timelimiter:
+    instances:
+      fraud-detection:
+        timeoutDuration: ${payment.fraud.timeout:5000ms}
+        cancelRunningFuture: true

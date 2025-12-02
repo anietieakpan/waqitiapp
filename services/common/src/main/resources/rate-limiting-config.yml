@@ -1,0 +1,203 @@
+# Common Rate Limiting Configuration for All Services
+# Include this in each service's application.yml
+
+rate-limiting:
+  enabled: true
+  key-prefix: "waqiti:rate-limit:"
+  bucket-expiration-minutes: 60
+  
+  # Default limits that apply when no specific limits are configured
+  default:
+    capacity: 100
+    refill-tokens: 100
+    refill-period-minutes: 1
+  
+  # Service-specific rate limits
+  services:
+    # Payment Service - Critical financial operations
+    payment-service:
+      capacity: 50
+      refill-tokens: 50
+      refill-period-minutes: 1
+      endpoints:
+        "/api/v1/payments/request":
+          capacity: 10
+          refill-tokens: 10
+          refill-period-minutes: 5
+          tokens: 1
+        "/api/v1/payments/transfer":
+          capacity: 5
+          refill-tokens: 5
+          refill-period-minutes: 10
+          tokens: 1
+    
+    # User Service - Authentication and user management
+    user-service:
+      capacity: 200
+      refill-tokens: 200
+      refill-period-minutes: 1
+      endpoints:
+        "/api/v1/auth/login":
+          capacity: 5
+          refill-tokens: 5
+          refill-period-minutes: 15
+          tokens: 1
+        "/api/v1/auth/register":
+          capacity: 3
+          refill-tokens: 3
+          refill-period-minutes: 60
+          tokens: 1
+        "/api/v1/users/profile":
+          capacity: 50
+          refill-tokens: 50
+          refill-period-minutes: 1
+    
+    # Wallet Service - Wallet operations
+    wallet-service:
+      capacity: 100
+      refill-tokens: 100
+      refill-period-minutes: 1
+      endpoints:
+        "/api/v1/wallets/balance":
+          capacity: 200
+          refill-tokens: 200
+          refill-period-minutes: 1
+        "/api/v1/wallets/transactions":
+          capacity: 50
+          refill-tokens: 50
+          refill-period-minutes: 1
+    
+    # Notification Service - High volume service
+    notification-service:
+      capacity: 500
+      refill-tokens: 500
+      refill-period-minutes: 1
+      endpoints:
+        "/api/v1/notifications/send":
+          capacity: 100
+          refill-tokens: 100
+          refill-period-minutes: 1
+    
+    # Investment Service - Financial operations
+    investment-service:
+      capacity: 30
+      refill-tokens: 30
+      refill-period-minutes: 1
+      endpoints:
+        "/api/v1/investments/buy":
+          capacity: 10
+          refill-tokens: 10
+          refill-period-minutes: 5
+          tokens: 2
+        "/api/v1/investments/sell":
+          capacity: 10
+          refill-tokens: 10
+          refill-period-minutes: 5
+          tokens: 2
+    
+    # Messaging Service - Real-time messaging
+    messaging-service:
+      capacity: 300
+      refill-tokens: 300
+      refill-period-minutes: 1
+      endpoints:
+        "/api/v1/messages/send":
+          capacity: 100
+          refill-tokens: 100
+          refill-period-minutes: 1
+    
+    # Compliance Service - KYC/AML operations
+    compliance-service:
+      capacity: 20
+      refill-tokens: 20
+      refill-period-minutes: 1
+      endpoints:
+        "/api/v1/kyc/submit":
+          capacity: 3
+          refill-tokens: 3
+          refill-period-minutes: 60
+          tokens: 1
+        "/api/v1/aml/screen":
+          capacity: 50
+          refill-tokens: 50
+          refill-period-minutes: 1
+    
+    # Fraud Detection Service - Security operations
+    fraud-detection-service:
+      capacity: 1000
+      refill-tokens: 1000
+      refill-period-minutes: 1
+      endpoints:
+        "/api/v1/fraud/analyze":
+          capacity: 500
+          refill-tokens: 500
+          refill-period-minutes: 1
+    
+    # API Gateway - Public facing
+    api-gateway:
+      capacity: 1000
+      refill-tokens: 1000
+      refill-period-minutes: 1
+    
+    # Transaction Service - Core transaction processing
+    transaction-service:
+      capacity: 200
+      refill-tokens: 200
+      refill-period-minutes: 1
+      endpoints:
+        "/api/v1/transactions/create":
+          capacity: 20
+          refill-tokens: 20
+          refill-period-minutes: 1
+          tokens: 1
+    
+    # Card Service - Card operations
+    card-service:
+      capacity: 50
+      refill-tokens: 50
+      refill-period-minutes: 1
+      endpoints:
+        "/api/v1/cards/create":
+          capacity: 5
+          refill-tokens: 5
+          refill-period-minutes: 60
+          tokens: 1
+        "/api/v1/cards/activate":
+          capacity: 10
+          refill-tokens: 10
+          refill-period-minutes: 5
+    
+    # Merchant Service - Merchant operations
+    merchant-service:
+      capacity: 100
+      refill-tokens: 100
+      refill-period-minutes: 1
+      endpoints:
+        "/api/v1/merchants/register":
+          capacity: 2
+          refill-tokens: 2
+          refill-period-minutes: 60
+          tokens: 1
+    
+    # Support Service - Customer support
+    support-service:
+      capacity: 50
+      refill-tokens: 50
+      refill-period-minutes: 1
+      endpoints:
+        "/api/v1/support/tickets":
+          capacity: 10
+          refill-tokens: 10
+          refill-period-minutes: 5
+    
+    # Recurring Payment Service - Automated payments
+    recurring-payment-service:
+      capacity: 100
+      refill-tokens: 100
+      refill-period-minutes: 1
+      endpoints:
+        "/api/v1/recurring/create":
+          capacity: 5
+          refill-tokens: 5
+          refill-period-minutes: 10
+          tokens: 1

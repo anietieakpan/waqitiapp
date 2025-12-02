@@ -1,0 +1,138 @@
+# HSM Configuration for Waqiti Platform
+# This configuration supports multiple HSM providers with enterprise-grade security
+
+waqiti:
+  security:
+    hsm:
+      # Enable HSM integration
+      enabled: false
+      
+      # HSM Provider Type
+      # Options: pkcs11, aws-cloudhsm, thales, yubico, utimaco, ncipher, safenet
+      provider: pkcs11
+      
+      # Primary mode - when true, HSM is primary with Vault fallback
+      # When false, Vault is primary with HSM fallback
+      primary-mode: false
+      
+      # Fallback configuration
+      fallback-to-vault: true
+      
+      # Key prefix for HSM keys
+      key-prefix: waqiti-prod
+      
+      # Connection and operation timeouts (milliseconds)
+      connection-timeout: 30000
+      operation-timeout: 10000
+      max-retries: 3
+      
+      # Health monitoring
+      monitoring:
+        enabled: true
+        health-check-interval: 30000
+        performance-test-interval: 300000
+        
+      # PKCS#11 Generic HSM Configuration
+      pkcs11:
+        # Path to PKCS#11 library
+        # SafeNet Luna: /usr/lib/libCryptoki2_64.so
+        # nCipher nShield: /opt/nfast/toolkits/pkcs11/libcknfast.so
+        # Utimaco CryptoServer: /usr/lib/libcs_pkcs11_R2.so
+        library-path: /usr/lib/pkcs11/libpkcs11.so
+        
+        # HSM slot ID
+        slot-id: 0
+        
+        # HSM PIN/Password (should be provided via environment variable)
+        pin: ${HSM_PIN:}
+        
+        # Configuration name
+        config-name: WaqitiHSM
+        
+        # PKCS#11 specific settings
+        thread-safe: true
+        load-opencryptoki: false
+        
+      # AWS CloudHSM Configuration
+      aws:
+        cluster-id: ${AWS_CLOUDHSM_CLUSTER_ID:}
+        region: ${AWS_REGION:us-east-1}
+        
+        # AWS CloudHSM Client Configuration
+        client:
+          # Path to CloudHSM client library
+          library-path: /opt/cloudhsm/lib/libcloudhsm_pkcs11.so
+          
+          # CloudHSM user credentials
+          username: ${CLOUDHSM_USERNAME:}
+          password: ${CLOUDHSM_PASSWORD:}
+          
+      # Thales CipherTrust Configuration
+      thales:
+        server-host: ${THALES_SERVER_HOST:}
+        server-port: ${THALES_SERVER_PORT:9000}
+        username: ${THALES_USERNAME:}
+        password: ${THALES_PASSWORD:}
+        
+        # SSL Configuration
+        ssl:
+          enabled: true
+          keystore-path: ${THALES_KEYSTORE_PATH:}
+          keystore-password: ${THALES_KEYSTORE_PASSWORD:}
+          
+      # YubiHSM Configuration
+      yubico:
+        connector-url: ${YUBIHSM_CONNECTOR_URL:http://localhost:12345}
+        auth-key-id: ${YUBIHSM_AUTH_KEY_ID:1}
+        auth-key-password: ${YUBIHSM_AUTH_KEY_PASSWORD:}
+        
+      # Utimaco CryptoServer Configuration
+      utimaco:
+        server-host: ${UTIMACO_SERVER_HOST:}
+        server-port: ${UTIMACO_SERVER_PORT:3001}
+        username: ${UTIMACO_USERNAME:}
+        password: ${UTIMACO_PASSWORD:}
+        
+      # nCipher nShield Configuration  
+      ncipher:
+        # nShield typically uses PKCS#11 interface
+        library-path: /opt/nfast/toolkits/pkcs11/libcknfast.so
+        slot-id: 0
+        pin: ${NCIPHER_PIN:}
+        
+      # SafeNet Luna Configuration
+      safenet:
+        library-path: /usr/lib/libCryptoki2_64.so
+        slot-id: 0
+        pin: ${SAFENET_PIN:}
+        
+        # Luna Client Configuration
+        client-config: /usr/safenet/lunaclient/bin/crystoki.ini
+
+# Encryption Service HSM Configuration
+encryption:
+  hsm:
+    enabled: ${waqiti.security.hsm.enabled:false}
+    primary-mode: ${waqiti.security.hsm.primary-mode:false}
+    key-prefix: ${waqiti.security.hsm.key-prefix:waqiti-enc}
+    fallback-to-vault: ${waqiti.security.hsm.fallback-to-vault:true}
+
+# Logging configuration for HSM operations
+logging:
+  level:
+    com.example.common.security.hsm: INFO
+    sun.security.pkcs11: WARN
+    
+# Spring Boot Actuator - expose HSM health endpoint
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,hsm
+  endpoint:
+    health:
+      show-details: when-authorized
+      show-components: always
+  health:
+    hsm:
+      enabled: true

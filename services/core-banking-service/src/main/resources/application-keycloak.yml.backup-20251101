@@ -1,0 +1,123 @@
+# Keycloak Configuration for Core Banking Service
+
+keycloak:
+  enabled: true
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  ssl-required: external
+  resource: core-banking-service
+  bearer-only: true
+  credentials:
+    secret: ${CORE_BANKING_SERVICE_CLIENT_SECRET:CHANGE_ME_SECURE_SECRET_REQUIRED}
+  use-resource-role-mappings: true
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# Core Banking Service Security Configuration
+core-banking:
+  security:
+    # Public endpoints that don't require authentication
+    public-endpoints:
+      - /actuator/health
+      - /actuator/info
+      - /swagger-ui/**
+      - /v3/api-docs/**
+    
+    # Service-to-service endpoints
+    service-endpoints:
+      - /internal/core-banking/**
+    
+    # Required roles for core banking operations
+    required-roles:
+      read:
+        - USER
+        - BANKING_USER
+      account-create:
+        - USER
+        - BANKING_USER
+        - ACCOUNT_MANAGER
+      account-read:
+        - USER
+        - BANKING_USER
+      account-manage:
+        - ACCOUNT_MANAGER
+        - BANKING_ADMIN
+      transaction-read:
+        - USER
+        - BANKING_USER
+      transaction-create:
+        - USER
+        - BANKING_USER
+        - TRANSACTION_PROCESSOR
+      ledger-read:
+        - LEDGER_VIEWER
+        - BANKING_ADMIN
+      ledger-write:
+        - LEDGER_MANAGER
+        - BANKING_ADMIN
+      settlement:
+        - SETTLEMENT_OPERATOR
+        - BANKING_ADMIN
+      reconciliation:
+        - RECONCILIATION_OFFICER
+        - BANKING_ADMIN
+      management:
+        - BANKING_MANAGER
+        - BANKING_OPERATOR
+      admin:
+        - BANKING_ADMIN
+        - SYSTEM_ADMIN
+    
+    # Required scopes for operations
+    required-scopes:
+      account-read: banking:account:read
+      account-write: banking:account:write
+      transaction-read: banking:transaction:read
+      transaction-write: banking:transaction:write
+      ledger-read: banking:ledger:read
+      ledger-write: banking:ledger:write
+      balance-read: banking:balance:read
+      interest-calculation: banking:interest:calculate
+      fee-calculation: banking:fee:calculate
+      settlement: banking:settlement
+      reconciliation: banking:reconciliation
+      admin: banking:admin
+      management: banking:manage
+    
+    # Core banking security features
+    features:
+      double-entry-validation-enabled: true
+      transaction-validation-enabled: true
+      balance-verification-enabled: true
+      interest-calculation-enabled: true
+      fee-calculation-enabled: true
+      regulatory-reporting-enabled: true
+      
+    # Core banking limits and thresholds
+    limits:
+      max-transaction-amount: 1000000.00
+      max-daily-transaction-volume: 10000000.00
+      max-accounts-per-customer: 10
+      transaction-batch-size: 1000
+      
+    # Security thresholds requiring additional verification
+    verification-thresholds:
+      high-value-transaction: 50000.00
+      suspicious-transaction-pattern: 10
+      large-balance-transfer: 100000.00
+      dormant-account-activation: true
+      
+    # Advanced security features
+    advanced-security:
+      require-dual-authorization-high-value: true
+      require-manager-approval-settlements: true
+      automatic-fraud-detection: true
+      real-time-balance-monitoring: true
+      transaction-pattern-analysis: true
+      regulatory-compliance-monitoring: true

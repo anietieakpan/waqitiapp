@@ -1,0 +1,170 @@
+{
+  "properties": [
+    {
+      "name": "audit.retention.default-days",
+      "type": "java.lang.Integer",
+      "description": "Default retention period in days for audit records",
+      "defaultValue": 2555
+    },
+    {
+      "name": "audit.retention.financial-days",
+      "type": "java.lang.Integer",
+      "description": "Retention period for financial audit records",
+      "defaultValue": 2555
+    },
+    {
+      "name": "audit.retention.security-days",
+      "type": "java.lang.Integer",
+      "description": "Retention period for security audit records",
+      "defaultValue": 2555
+    },
+    {
+      "name": "audit.retention.compliance-days",
+      "type": "java.lang.Integer",
+      "description": "Retention period for compliance audit records",
+      "defaultValue": 2555
+    },
+    {
+      "name": "audit.storage.encryption-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable encryption for audit log storage",
+      "defaultValue": true
+    },
+    {
+      "name": "audit.storage.compression-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable compression for audit log storage",
+      "defaultValue": true
+    },
+    {
+      "name": "audit.export.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable audit log export functionality",
+      "defaultValue": true
+    },
+    {
+      "name": "audit.export.formats",
+      "type": "java.util.List",
+      "description": "Supported export formats for audit logs"
+    },
+    {
+      "name": "audit.realtime.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable real-time audit logging",
+      "defaultValue": true
+    },
+    {
+      "name": "audit.batch.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable batch audit log processing",
+      "defaultValue": false
+    },
+    {
+      "name": "audit.batch.size",
+      "type": "java.lang.Integer",
+      "description": "Batch size for audit log processing",
+      "defaultValue": 100
+    },
+    {
+      "name": "audit.compliance.pci-dss",
+      "type": "java.lang.Boolean",
+      "description": "Enable PCI-DSS compliance auditing",
+      "defaultValue": true
+    },
+    {
+      "name": "audit.compliance.gdpr",
+      "type": "java.lang.Boolean",
+      "description": "Enable GDPR compliance auditing",
+      "defaultValue": true
+    },
+    {
+      "name": "audit.compliance.sox",
+      "type": "java.lang.Boolean",
+      "description": "Enable SOX compliance auditing",
+      "defaultValue": true
+    },
+    {
+      "name": "audit.alerts.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable audit alerts",
+      "defaultValue": true
+    },
+    {
+      "name": "audit.alerts.suspicious-activity",
+      "type": "java.lang.Boolean",
+      "description": "Alert on suspicious activity",
+      "defaultValue": true
+    },
+    {
+      "name": "audit.immutable-logging",
+      "type": "java.lang.Boolean",
+      "description": "Enable immutable audit logging",
+      "defaultValue": true
+    },
+    {
+      "name": "authentication.legacy-jwt-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable legacy JWT authentication",
+      "defaultValue": false
+    },
+    {
+      "name": "authentication.keycloak-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Keycloak authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "keycloak.resource",
+      "type": "java.lang.String",
+      "description": "Keycloak resource name",
+      "defaultValue": "audit-service"
+    },
+    {
+      "name": "keycloak.confidential-port",
+      "type": "java.lang.Integer",
+      "description": "Keycloak confidential port",
+      "defaultValue": 8443
+    },
+    {
+      "name": "vault.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable HashiCorp Vault integration",
+      "defaultValue": true
+    },
+    {
+      "name": "vault.uri",
+      "type": "java.lang.String",
+      "description": "HashiCorp Vault URI",
+      "defaultValue": "https://vault.example.internal:8200"
+    },
+    {
+      "name": "vault.authentication",
+      "type": "java.lang.String",
+      "description": "Vault authentication method",
+      "defaultValue": "kubernetes"
+    },
+    {
+      "name": "vault.kubernetes.role",
+      "type": "java.lang.String",
+      "description": "Kubernetes role for Vault",
+      "defaultValue": "audit-service"
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "OAuth2 client ID for service",
+      "defaultValue": "audit-service"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "OAuth2 client secret for service"
+    }
+  ]
+}

@@ -1,0 +1,395 @@
+spring:
+  application:
+    name: gamification-service
+  
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+    include: keycloak
+  
+  cloud:
+    config:
+      uri: ${CONFIG_SERVER_URL:http://localhost:8888}
+      fail-fast: true
+      retry:
+        max-attempts: 3
+  
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/waqiti_gamification}
+    username: ${DATABASE_USERNAME:waqiti}
+    password: ${DATABASE_PASSWORD:${VAULT_DATABASE_PASSWORD}}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 300000
+      connection-timeout: 30000
+      validation-timeout: 5000
+      max-lifetime: 1800000
+      leak-detection-threshold: 60000
+  
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        jdbc:
+          batch_size: 25
+        order_inserts: true
+        order_updates: true
+    show-sql: false
+  
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.trusted.packages: "*"
+    consumer:
+      group-id: gamification-service
+      enable-auto-commit: false  # Manual acknowledgment for DLQ support
+      max-poll-records: 50  # Batch size control
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+      auto-offset-reset: earliest
+  
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+  
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:${EUREKA_SERVER_URL:https://discovery-service:8761/eureka}/}
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+    metadata-map:
+      version: ${info.version}
+      region: ${DEPLOYMENT_REGION:us-east-1}
+
+server:
+  port: ${PORT:8079}
+  servlet:
+    context-path: /api/v1
+  error:
+    include-message: always
+    include-binding-errors: always
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# Feign client configuration
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 5000
+        readTimeout: 5000
+        loggerLevel: FULL
+      user-service:
+        url: ${USER_SERVICE_URL:http://user-service/api/v1}
+      wallet-service:
+        url: ${WALLET_SERVICE_URL:http://wallet-service/api/v1}
+      transaction-service:
+        url: ${TRANSACTION_SERVICE_URL:http://transaction-service/api/v1}
+      notification-service:
+        url: ${NOTIFICATION_SERVICE_URL:http://notification-service/api/v1}
+      rewards-service:
+        url: ${REWARDS_SERVICE_URL:http://rewards-service/api/v1}
+
+# Kafka topics
+kafka:
+  topics:
+    points-earned: gamification-points-earned-events
+    badge-unlocked: gamification-badge-unlocked-events
+    level-up: gamification-level-up-events
+    challenge-completed: gamification-challenge-completed-events
+    leaderboard-updated: gamification-leaderboard-updated-events
+    reward-claimed: gamification-reward-claimed-events
+    notification: notification-events
+
+# Gamification Configuration
+gamification:
+  points:
+    rules:
+      # Transaction Points
+      transaction-completed: 10
+      first-transaction-of-day: 50
+      milestone-transaction-100: 500
+      milestone-transaction-1000: 5000
+      
+      # Payment Points
+      bill-payment: 15
+      recurring-payment-setup: 100
+      international-transfer: 50
+      crypto-transaction: 30
+      
+      # Social Points
+      referral-successful: 200
+      referral-first-transaction: 100
+      social-share: 25
+      review-posted: 50
+      
+      # Engagement Points
+      daily-login: 10
+      weekly-streak: 100
+      monthly-active: 500
+      profile-completion: 200
+      kyc-completion: 300
+      
+      # Financial Wellness Points
+      budget-created: 50
+      savings-goal-achieved: 200
+      expense-tracked: 5
+      financial-tip-read: 10
+    
+    multipliers:
+      weekend: 1.5
+      holiday: 2.0
+      special-event: 3.0
+      vip-status: 1.2
+  
+  badges:
+    categories:
+      - TRANSACTION
+      - SOCIAL
+      - SAVINGS
+      - INVESTMENT
+      - LOYALTY
+      - ACHIEVEMENT
+      - SPECIAL
+    
+    unlock-criteria:
+      early-adopter:
+        type: SPECIAL
+        requirement: "Register within first month"
+        points: 1000
+      
+      transaction-rookie:
+        type: TRANSACTION
+        requirement: "Complete 10 transactions"
+        points: 100
+      
+      transaction-pro:
+        type: TRANSACTION
+        requirement: "Complete 100 transactions"
+        points: 500
+      
+      transaction-master:
+        type: TRANSACTION
+        requirement: "Complete 1000 transactions"
+        points: 2000
+      
+      social-butterfly:
+        type: SOCIAL
+        requirement: "Refer 5 friends"
+        points: 500
+      
+      savings-champion:
+        type: SAVINGS
+        requirement: "Save $1000"
+        points: 1000
+      
+      investment-guru:
+        type: INVESTMENT
+        requirement: "Invest in 5 different assets"
+        points: 1500
+  
+  levels:
+    system:
+      bronze:
+        min-points: 0
+        max-points: 999
+        benefits:
+          - "Basic rewards access"
+          - "Standard support"
+        cashback-rate: 0.5
+      
+      silver:
+        min-points: 1000
+        max-points: 4999
+        benefits:
+          - "Enhanced rewards"
+          - "Priority support"
+          - "Monthly bonus points"
+        cashback-rate: 1.0
+      
+      gold:
+        min-points: 5000
+        max-points: 19999
+        benefits:
+          - "Premium rewards"
+          - "VIP support"
+          - "Weekly bonus points"
+          - "Exclusive offers"
+        cashback-rate: 1.5
+      
+      platinum:
+        min-points: 20000
+        max-points: 49999
+        benefits:
+          - "Elite rewards"
+          - "Dedicated account manager"
+          - "Daily bonus points"
+          - "Special event invites"
+        cashback-rate: 2.0
+      
+      diamond:
+        min-points: 50000
+        max-points: -1
+        benefits:
+          - "Ultimate rewards"
+          - "Concierge service"
+          - "Unlimited benefits"
+          - "Exclusive partnerships"
+        cashback-rate: 3.0
+  
+  challenges:
+    types:
+      daily:
+        reset-time: "00:00"
+        max-active: 3
+        examples:
+          - "Complete 3 transactions"
+          - "Send money to a friend"
+          - "Check your balance"
+      
+      weekly:
+        reset-day: MONDAY
+        max-active: 5
+        examples:
+          - "Complete 20 transactions"
+          - "Save $100"
+          - "Pay 3 bills"
+      
+      monthly:
+        reset-day: 1
+        max-active: 3
+        examples:
+          - "Maintain login streak"
+          - "Complete all weekly challenges"
+          - "Reach savings goal"
+      
+      special:
+        duration-days: 7
+        examples:
+          - "Holiday shopping spree"
+          - "Back to school challenge"
+          - "New year savings"
+  
+  leaderboard:
+    types:
+      - GLOBAL
+      - FRIENDS
+      - REGIONAL
+      - CATEGORY
+    
+    refresh-interval-minutes: 5
+    display-top: 100
+    reward-top: 10
+    
+    prizes:
+      first-place: 5000
+      second-place: 3000
+      third-place: 1000
+      top-10: 500
+      top-100: 100
+  
+  rewards:
+    redemption:
+      min-points: 100
+      conversion-rate: 0.01 # 1 point = $0.01
+      
+    catalog:
+      cashback:
+        enabled: true
+        min-points: 1000
+        instant: true
+      
+      gift-cards:
+        enabled: true
+        providers:
+          - Amazon
+          - Starbucks
+          - Uber
+          - Netflix
+        discount-rate: 0.1
+      
+      merchant-vouchers:
+        enabled: true
+        min-points: 500
+      
+      charity-donation:
+        enabled: true
+        min-points: 100
+        partners:
+          - Red Cross
+          - UNICEF
+          - Local Charities
+      
+      exclusive-features:
+        enabled: true
+        options:
+          - "Premium account upgrade"
+          - "Higher transaction limits"
+          - "Free international transfers"
+  
+  notifications:
+    enabled: true
+    channels:
+      - IN_APP
+      - PUSH
+      - EMAIL
+    
+    triggers:
+      - points-earned
+      - badge-unlocked
+      - level-up
+      - challenge-completed
+      - leaderboard-position-change
+      - reward-available
+
+logging:
+  level:
+    com.waqiti.gamification: INFO
+    org.springframework.web: INFO
+    org.springframework.kafka: INFO
+    org.hibernate.SQL: INFO
+    org.hibernate.type.descriptor.sql.BasicBinder: INFO
+    org.springframework.security: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

@@ -1,0 +1,309 @@
+version: '3.8'
+
+# SIEM Stack for Security Monitoring
+# Implements real-time security event monitoring and correlation
+
+services:
+  # Elasticsearch for log storage and searching
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.10.2
+    container_name: waqiti-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - cluster.name=waqiti-security
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms2g -Xmx2g"
+      - xpack.security.enabled=true
+      - xpack.security.authc.api_key.enabled=true
+      - xpack.security.enrollment.enabled=true
+      - xpack.security.http.ssl.enabled=true
+      - xpack.security.http.ssl.keystore.path=/usr/share/elasticsearch/config/certs/elastic-certificates.p12
+      - xpack.security.http.ssl.truststore.path=/usr/share/elasticsearch/config/certs/elastic-certificates.p12
+      - xpack.security.transport.ssl.enabled=true
+      - xpack.security.transport.ssl.verification_mode=certificate
+      - xpack.security.transport.ssl.keystore.path=/usr/share/elasticsearch/config/certs/elastic-certificates.p12
+      - xpack.security.transport.ssl.truststore.path=/usr/share/elasticsearch/config/certs/elastic-certificates.p12
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-SecureP@ssw0rd!}
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+      - ./certs:/usr/share/elasticsearch/config/certs
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    networks:
+      - siem-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s -k https://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=1s"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Logstash for log processing and enrichment
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.10.2
+    container_name: waqiti-logstash
+    volumes:
+      - ./logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml
+      - ./logstash/pipeline:/usr/share/logstash/pipeline
+      - ./certs:/usr/share/logstash/config/certs
+    ports:
+      - "5044:5044"  # Beats input
+      - "5000:5000"  # TCP input
+      - "9600:9600"  # Monitoring API
+      - "5514:5514/udp"  # Syslog UDP
+      - "5514:5514"  # Syslog TCP
+    environment:
+      - "LS_JAVA_OPTS=-Xmx1g -Xms1g"
+      - ELASTIC_USERNAME=elastic
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-SecureP@ssw0rd!}
+    networks:
+      - siem-network
+    depends_on:
+      - elasticsearch
+
+  # Kibana for visualization and dashboards
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.10.2
+    container_name: waqiti-kibana
+    environment:
+      - SERVERNAME=waqiti-kibana
+      - ELASTICSEARCH_HOSTS=https://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=elastic
+      - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD:-SecureP@ssw0rd!}
+      - ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=/usr/share/kibana/config/certs/ca/ca.crt
+      - SERVER_SSL_ENABLED=true
+      - SERVER_SSL_CERTIFICATE=/usr/share/kibana/config/certs/kibana/kibana.crt
+      - SERVER_SSL_KEY=/usr/share/kibana/config/certs/kibana/kibana.key
+      - XPACK_SECURITY_ENABLED=true
+      - XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=${KIBANA_ENCRYPTION_KEY:-a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6}
+    volumes:
+      - ./certs:/usr/share/kibana/config/certs
+      - ./kibana/config/kibana.yml:/usr/share/kibana/config/kibana.yml
+    ports:
+      - "5601:5601"
+    networks:
+      - siem-network
+    depends_on:
+      - elasticsearch
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s -k https://localhost:5601/api/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Filebeat for log shipping
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.10.2
+    container_name: waqiti-filebeat
+    user: root
+    volumes:
+      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/log:/var/log:ro
+    command: filebeat -e -strict.perms=false
+    networks:
+      - siem-network
+    depends_on:
+      - elasticsearch
+      - logstash
+
+  # Metricbeat for metrics collection
+  metricbeat:
+    image: docker.elastic.co/beats/metricbeat:8.10.2
+    container_name: waqiti-metricbeat
+    user: root
+    volumes:
+      - ./metricbeat/metricbeat.yml:/usr/share/metricbeat/metricbeat.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro
+      - /proc:/hostfs/proc:ro
+      - /:/hostfs:ro
+    command: metricbeat -e -system.hostfs=/hostfs -strict.perms=false
+    networks:
+      - siem-network
+    depends_on:
+      - elasticsearch
+
+  # Heartbeat for uptime monitoring
+  heartbeat:
+    image: docker.elastic.co/beats/heartbeat:8.10.2
+    container_name: waqiti-heartbeat
+    volumes:
+      - ./heartbeat/heartbeat.yml:/usr/share/heartbeat/heartbeat.yml:ro
+    command: heartbeat -e -strict.perms=false
+    networks:
+      - siem-network
+    depends_on:
+      - elasticsearch
+
+  # Auditbeat for audit data collection
+  auditbeat:
+    image: docker.elastic.co/beats/auditbeat:8.10.2
+    container_name: waqiti-auditbeat
+    user: root
+    pid: host
+    cap_add:
+      - AUDIT_CONTROL
+      - AUDIT_READ
+    volumes:
+      - ./auditbeat/auditbeat.yml:/usr/share/auditbeat/auditbeat.yml:ro
+    command: auditbeat -e -strict.perms=false
+    networks:
+      - siem-network
+    depends_on:
+      - elasticsearch
+
+  # ElastAlert for alerting
+  elastalert:
+    image: jertel/elastalert2:2.10.0
+    container_name: waqiti-elastalert
+    volumes:
+      - ./elastalert/config.yaml:/opt/elastalert/config.yaml
+      - ./elastalert/rules:/opt/elastalert/rules
+    environment:
+      - ELASTICSEARCH_HOST=elasticsearch
+      - ELASTICSEARCH_PORT=9200
+      - ELASTICSEARCH_USERNAME=elastic
+      - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD:-SecureP@ssw0rd!}
+    networks:
+      - siem-network
+    depends_on:
+      - elasticsearch
+
+  # Wazuh Manager for security orchestration
+  wazuh-manager:
+    image: wazuh/wazuh-manager:4.5.2
+    container_name: waqiti-wazuh-manager
+    hostname: wazuh-manager
+    environment:
+      - INDEXER_URL=https://elasticsearch:9200
+      - INDEXER_USERNAME=elastic
+      - INDEXER_PASSWORD=${ELASTIC_PASSWORD:-SecureP@ssw0rd!}
+      - FILEBEAT_SSL_VERIFICATION_MODE=none
+      - SSL_CERTIFICATE_AUTHORITIES=/etc/ssl/root-ca.pem
+      - SSL_CERTIFICATE=/etc/ssl/filebeat.pem
+      - SSL_KEY=/etc/ssl/filebeat.key
+      - API_USERNAME=wazuh-api
+      - API_PASSWORD=${WAZUH_API_PASSWORD:-W@zuh$ecure123}
+    ports:
+      - "1514:1514/udp"  # Syslog
+      - "1514:1514"      # Syslog TCP
+      - "1515:1515"      # Wazuh registration
+      - "514:514/udp"    # Standard syslog
+      - "55000:55000"    # Wazuh API
+    volumes:
+      - wazuh-manager-data:/var/ossec/data
+      - wazuh-manager-etc:/var/ossec/etc
+      - wazuh-manager-logs:/var/ossec/logs
+      - wazuh-manager-queue:/var/ossec/queue
+      - wazuh-manager-var:/var/ossec/var
+      - wazuh-manager-integrations:/var/ossec/integrations
+      - wazuh-manager-active-response:/var/ossec/active-response/bin
+      - wazuh-manager-agentless:/var/ossec/agentless
+      - wazuh-manager-wodles:/var/ossec/wodles
+      - ./wazuh/rules:/var/ossec/ruleset/rules
+      - ./certs:/etc/ssl
+    networks:
+      - siem-network
+
+  # Redis for caching and queuing
+  redis:
+    image: redis:7.2-alpine
+    container_name: waqiti-redis-siem
+    command: redis-server --requirepass ${REDIS_PASSWORD:-R3d1sSecure!}
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - siem-network
+
+  # Grafana for additional visualization
+  grafana:
+    image: grafana/grafana:10.1.5
+    container_name: waqiti-grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-Gr@fana$ecure123}
+      - GF_SERVER_ROOT_URL=https://grafana.example.internal
+      - GF_SERVER_PROTOCOL=https
+      - GF_SERVER_CERT_FILE=/etc/grafana/certs/grafana.crt
+      - GF_SERVER_CERT_KEY=/etc/grafana/certs/grafana.key
+      - GF_AUTH_GENERIC_OAUTH_ENABLED=true
+      - GF_AUTH_GENERIC_OAUTH_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./certs:/etc/grafana/certs
+    ports:
+      - "3000:3000"
+    networks:
+      - siem-network
+    depends_on:
+      - elasticsearch
+
+  # Prometheus for metrics
+  prometheus:
+    image: prom/prometheus:v2.47.0
+    container_name: waqiti-prometheus
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus/rules:/etc/prometheus/rules
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+    ports:
+      - "9090:9090"
+    networks:
+      - siem-network
+
+  # AlertManager for alert management
+  alertmanager:
+    image: prom/alertmanager:v0.26.0
+    container_name: waqiti-alertmanager
+    volumes:
+      - ./alertmanager/config.yml:/etc/alertmanager/config.yml
+      - alertmanager-data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/config.yml'
+      - '--storage.path=/alertmanager'
+    ports:
+      - "9093:9093"
+    networks:
+      - siem-network
+
+networks:
+  siem-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.0.0/16
+
+volumes:
+  elasticsearch-data:
+  wazuh-manager-data:
+  wazuh-manager-etc:
+  wazuh-manager-logs:
+  wazuh-manager-queue:
+  wazuh-manager-var:
+  wazuh-manager-integrations:
+  wazuh-manager-active-response:
+  wazuh-manager-agentless:
+  wazuh-manager-wodles:
+  redis-data:
+  grafana-data:
+  prometheus-data:
+  alertmanager-data:

@@ -1,0 +1,185 @@
+version: '3.8'
+
+services:
+  # Prometheus - Metrics collection and storage
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    container_name: waqiti-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus-production.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--storage.tsdb.retention.size=50GB'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+    volumes:
+      - ./prometheus/prometheus-production.yml:/etc/prometheus/prometheus-production.yml:ro
+      - ./prometheus/rules:/etc/prometheus/rules:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - waqiti-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2'
+
+  # Grafana - Visualization and dashboards
+  grafana:
+    image: grafana/grafana:10.0.3
+    container_name: waqiti-grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-changeme}
+      - GF_SERVER_ROOT_URL=https://grafana.example.com
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel,grafana-worldmap-panel
+      - GF_RENDERING_SERVER_URL=http://renderer:8081/render
+      - GF_RENDERING_CALLBACK_URL=http://grafana:3000/
+      - GF_ALERTING_ENABLED=true
+      - GF_UNIFIED_ALERTING_ENABLED=true
+    volumes:
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    networks:
+      - waqiti-network
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+
+  # Grafana Image Renderer - For dashboard PDF exports
+  grafana-renderer:
+    image: grafana/grafana-image-renderer:3.8.0
+    container_name: waqiti-grafana-renderer
+    ports:
+      - "8081:8081"
+    environment:
+      - ENABLE_METRICS=true
+      - HTTP_PORT=8081
+    networks:
+      - waqiti-network
+    restart: unless-stopped
+
+  # Alertmanager - Alert routing and silencing
+  alertmanager:
+    image: prom/alertmanager:v0.26.0
+    container_name: waqiti-alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/config.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=https://alertmanager.example.com'
+    volumes:
+      - ./alertmanager/config.yml:/etc/alertmanager/config.yml:ro
+      - alertmanager-data:/alertmanager
+    ports:
+      - "9093:9093"
+    networks:
+      - waqiti-network
+    restart: unless-stopped
+
+  # PostgreSQL Exporter
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.13.2
+    container_name: waqiti-postgres-exporter
+    environment:
+      - DATA_SOURCE_NAME=postgresql://waqiti_user:${DB_PASSWORD}@postgres:5432/waqiti?sslmode=disable
+    ports:
+      - "9187:9187"
+    networks:
+      - waqiti-network
+    restart: unless-stopped
+
+  # Redis Exporter
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.52.0
+    container_name: waqiti-redis-exporter
+    environment:
+      - REDIS_ADDR=redis://redis:6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+    ports:
+      - "9121:9121"
+    networks:
+      - waqiti-network
+    restart: unless-stopped
+
+  # Kafka Exporter
+  kafka-exporter:
+    image: danielqsj/kafka-exporter:v1.7.0
+    container_name: waqiti-kafka-exporter
+    command:
+      - --kafka.server=kafka:9092
+      - --web.listen-address=:9308
+      - --topic.filter=waqiti.*
+      - --group.filter=.*
+    ports:
+      - "9308:9308"
+    networks:
+      - waqiti-network
+    restart: unless-stopped
+
+  # Node Exporter - Infrastructure metrics
+  node-exporter:
+    image: prom/node-exporter:v1.6.1
+    container_name: waqiti-node-exporter
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    ports:
+      - "9100:9100"
+    networks:
+      - waqiti-network
+    restart: unless-stopped
+
+  # Loki - Log aggregation
+  loki:
+    image: grafana/loki:2.9.0
+    container_name: waqiti-loki
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./loki/config.yml:/etc/loki/local-config.yaml:ro
+      - loki-data:/loki
+    ports:
+      - "3100:3100"
+    networks:
+      - waqiti-network
+    restart: unless-stopped
+
+  # Promtail - Log shipper
+  promtail:
+    image: grafana/promtail:2.9.0
+    container_name: waqiti-promtail
+    command: -config.file=/etc/promtail/config.yml
+    volumes:
+      - ./promtail/config.yml:/etc/promtail/config.yml:ro
+      - /var/log:/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    networks:
+      - waqiti-network
+    restart: unless-stopped
+
+volumes:
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+  alertmanager-data:
+    driver: local
+  loki-data:
+    driver: local
+
+networks:
+  waqiti-network:
+    external: true

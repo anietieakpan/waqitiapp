@@ -1,0 +1,230 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vault-policies
+  namespace: vault
+data:
+  # Policy for WAQITI services (read-only access to secrets)
+  waqiti-services.hcl: |
+    # Read access to all WAQITI secrets
+    path "waqiti/data/*" {
+      capabilities = ["read", "list"]
+    }
+    
+    # List metadata
+    path "waqiti/metadata/*" {
+      capabilities = ["list"]
+    }
+    
+    # Renew tokens
+    path "auth/token/renew-self" {
+      capabilities = ["update"]
+    }
+    
+    # Lookup own token
+    path "auth/token/lookup-self" {
+      capabilities = ["read"]
+    }
+
+  # Policy for developers (read access, no production secrets)
+  waqiti-developers.hcl: |
+    # Read access to non-production secrets
+    path "waqiti/data/+/dev/*" {
+      capabilities = ["read", "list"]
+    }
+    
+    path "waqiti/data/+/staging/*" {
+      capabilities = ["read", "list"]
+    }
+    
+    # No access to production secrets
+    path "waqiti/data/+/prod/*" {
+      capabilities = ["deny"]
+    }
+    
+    # List metadata
+    path "waqiti/metadata/*" {
+      capabilities = ["list"]
+    }
+
+  # Policy for CI/CD pipelines
+  waqiti-cicd.hcl: |
+    # Read access to deployment secrets
+    path "waqiti/data/cicd/*" {
+      capabilities = ["read", "list"]
+    }
+    
+    # Read access to Docker registry credentials
+    path "waqiti/data/docker/*" {
+      capabilities = ["read"]
+    }
+    
+    # Write access to update deployment status
+    path "waqiti/data/deployments/*" {
+      capabilities = ["create", "update", "read", "list"]
+    }
+
+  # Policy for secret rotation service
+  waqiti-rotation.hcl: |
+    # Update secrets for rotation
+    path "waqiti/data/infrastructure/*" {
+      capabilities = ["read", "update"]
+    }
+    
+    path "waqiti/data/*/db-password" {
+      capabilities = ["read", "update"]
+    }
+    
+    path "waqiti/data/*/redis-password" {
+      capabilities = ["read", "update"]
+    }
+    
+    # Read rotation configuration
+    path "waqiti/data/rotation-config/*" {
+      capabilities = ["read", "list"]
+    }
+
+  # Policy for backup service
+  waqiti-backup.hcl: |
+    # Read all secrets for backup
+    path "waqiti/data/*" {
+      capabilities = ["read", "list"]
+    }
+    
+    path "waqiti/metadata/*" {
+      capabilities = ["list"]
+    }
+    
+    # Create snapshots
+    path "sys/storage/raft/snapshot" {
+      capabilities = ["read"]
+    }
+
+  # Policy for monitoring and metrics
+  example-monitoring.hcl: |
+    # Read metrics
+    path "sys/metrics" {
+      capabilities = ["read"]
+    }
+    
+    # Read health
+    path "sys/health" {
+      capabilities = ["read"]
+    }
+    
+    # Read audit
+    path "sys/audit" {
+      capabilities = ["read", "list"]
+    }
+    
+    # Read monitoring secrets
+    path "waqiti/data/monitoring/*" {
+      capabilities = ["read"]
+    }
+
+  # Policy for security team
+  waqiti-security.hcl: |
+    # Full access to audit logs
+    path "sys/audit/*" {
+      capabilities = ["create", "read", "update", "delete", "list", "sudo"]
+    }
+    
+    # Read all policies
+    path "sys/policies/*" {
+      capabilities = ["read", "list"]
+    }
+    
+    # Manage auth methods
+    path "sys/auth/*" {
+      capabilities = ["read", "list"]
+    }
+    
+    # Read all secrets (for security audits)
+    path "waqiti/data/*" {
+      capabilities = ["read", "list"]
+    }
+    
+    # Manage encryption keys
+    path "waqiti/data/encryption/*" {
+      capabilities = ["create", "read", "update", "delete", "list"]
+    }
+
+  # Policy for compliance auditors
+  waqiti-auditors.hcl: |
+    # Read audit logs
+    path "sys/audit-hash/*" {
+      capabilities = ["read"]
+    }
+    
+    # List auth methods
+    path "sys/auth" {
+      capabilities = ["read", "list"]
+    }
+    
+    # List policies
+    path "sys/policies" {
+      capabilities = ["list"]
+    }
+    
+    # Read compliance-related secrets
+    path "waqiti/data/compliance/*" {
+      capabilities = ["read", "list"]
+    }
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: vault-policy-setup
+  namespace: vault
+spec:
+  template:
+    spec:
+      serviceAccountName: vault
+      containers:
+      - name: policy-setup
+        image: vault:1.15.4
+        env:
+        - name: VAULT_ADDR
+          value: "https://vault.vault.svc.cluster.local:8200"
+        - name: VAULT_CACERT
+          value: "/vault/tls/ca.crt"
+        command:
+        - /bin/sh
+        - -c
+        - |
+          # Wait for Vault to be ready
+          until vault status; do
+            echo "Waiting for Vault to be ready..."
+            sleep 5
+          done
+          
+          # Login with root token (passed as secret)
+          vault login $(cat /vault/token/root-token)
+          
+          # Create all policies
+          for policy in /vault/policies/*.hcl; do
+            policy_name=$(basename "$policy" .hcl)
+            echo "Creating policy: $policy_name"
+            vault policy write "$policy_name" "$policy"
+          done
+          
+          echo "All policies created successfully!"
+        volumeMounts:
+        - name: policies
+          mountPath: /vault/policies
+        - name: vault-token
+          mountPath: /vault/token
+        - name: vault-tls
+          mountPath: /vault/tls
+      volumes:
+      - name: policies
+        configMap:
+          name: vault-policies
+      - name: vault-token
+        secret:
+          secretName: vault-root-token
+      - name: vault-tls
+        secret:
+          secretName: vault-server-tls
+      restartPolicy: OnFailure

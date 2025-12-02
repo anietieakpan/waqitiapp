@@ -1,0 +1,352 @@
+<!-- Wazuh Security Rules for Waqiti Platform -->
+<!-- Custom rules for P2P payment security monitoring -->
+
+<group name="waqiti,payment,">
+
+  <!-- Payment Transaction Rules -->
+  <rule id="100001" level="3">
+    <decoded_as>json</decoded_as>
+    <field name="service">payment-service</field>
+    <description>Waqiti payment transaction logged</description>
+    <group>payment_transaction</group>
+  </rule>
+
+  <rule id="100002" level="7">
+    <if_sid>100001</if_sid>
+    <field name="payment_amount">^[1-9]\d{4,}$</field>
+    <description>High-value payment transaction (>10000)</description>
+    <group>high_value_transaction</group>
+  </rule>
+
+  <rule id="100003" level="9">
+    <if_sid>100001</if_sid>
+    <field name="payment_status">failed</field>
+    <description>Payment transaction failed</description>
+    <group>payment_failure</group>
+  </rule>
+
+  <rule id="100004" level="12" frequency="5" timeframe="300">
+    <if_matched_sid>100003</if_matched_sid>
+    <same_field>sender_id</same_field>
+    <description>Multiple payment failures from same user (possible fraud)</description>
+    <group>payment_fraud,pci_dss_10.6</group>
+  </rule>
+
+  <rule id="100005" level="10">
+    <if_sid>100001</if_sid>
+    <field name="payment_amount">^[1-9]\d{5,}$</field>
+    <time>0:00-6:00</time>
+    <description>High-value transaction during off-hours</description>
+    <group>suspicious_activity,payment_fraud</group>
+  </rule>
+
+  <!-- Wallet Service Rules -->
+  <rule id="100010" level="3">
+    <decoded_as>json</decoded_as>
+    <field name="service">wallet-service</field>
+    <description>Waqiti wallet operation logged</description>
+    <group>wallet_operation</group>
+  </rule>
+
+  <rule id="100011" level="8">
+    <if_sid>100010</if_sid>
+    <field name="operation">address_change</field>
+    <description>Wallet address changed</description>
+    <group>wallet_security,account_modification</group>
+  </rule>
+
+  <rule id="100012" level="10" frequency="3" timeframe="3600">
+    <if_matched_sid>100011</if_matched_sid>
+    <same_field>user_id</same_field>
+    <description>Multiple wallet address changes (possible account takeover)</description>
+    <group>account_takeover,critical_alert</group>
+  </rule>
+
+  <rule id="100013" level="9">
+    <if_sid>100010</if_sid>
+    <field name="error">insufficient_funds</field>
+    <description>Wallet operation failed due to insufficient funds</description>
+    <group>wallet_error</group>
+  </rule>
+
+  <!-- Authentication and Access Control -->
+  <rule id="100020" level="3">
+    <decoded_as>json</decoded_as>
+    <field name="event_type">authentication</field>
+    <description>Authentication event logged</description>
+    <group>authentication</group>
+  </rule>
+
+  <rule id="100021" level="5">
+    <if_sid>100020</if_sid>
+    <field name="auth_status">failed</field>
+    <description>Authentication failure</description>
+    <group>authentication_failed,pci_dss_10.2.4</group>
+  </rule>
+
+  <rule id="100022" level="10" frequency="5" timeframe="120">
+    <if_matched_sid>100021</if_matched_sid>
+    <same_field>username</same_field>
+    <description>Brute force attack - Multiple authentication failures</description>
+    <group>authentication_failures,brute_force,pci_dss_10.2.4</group>
+  </rule>
+
+  <rule id="100023" level="8">
+    <if_sid>100020</if_sid>
+    <field name="auth_method">api_key</field>
+    <field name="auth_status">failed</field>
+    <description>API key authentication failure</description>
+    <group>api_security,authentication_failed</group>
+  </rule>
+
+  <rule id="100024" level="12" frequency="10" timeframe="60">
+    <if_matched_sid>100023</if_matched_sid>
+    <same_field>client_ip</same_field>
+    <description>API key brute force attack detected</description>
+    <group>api_attack,brute_force,critical_alert</group>
+  </rule>
+
+  <!-- SQL Injection Detection -->
+  <rule id="100030" level="0">
+    <decoded_as>web-log</decoded_as>
+    <description>Web access log</description>
+  </rule>
+
+  <rule id="100031" level="12">
+    <if_sid>100030</if_sid>
+    <regex>(\bUNION\b.*\bSELECT\b|\bOR\b.*=.*|--|\#|\/\*|\bEXEC\b|\bDROP\b.*\bTABLE\b)</regex>
+    <description>SQL injection attempt detected</description>
+    <group>sql_injection,web_attack,pci_dss_6.5.1</group>
+  </rule>
+
+  <rule id="100032" level="12">
+    <if_sid>100030</if_sid>
+    <regex>(javascript:|onerror=|onload=|<script|<iframe|<embed)</regex>
+    <description>XSS attack attempt detected</description>
+    <group>xss_attack,web_attack,pci_dss_6.5.7</group>
+  </rule>
+
+  <!-- Geographic Anomaly Detection -->
+  <rule id="100040" level="0">
+    <decoded_as>json</decoded_as>
+    <field name="geo_country">\.+</field>
+    <description>Event with geographic information</description>
+  </rule>
+
+  <rule id="100041" level="10">
+    <if_sid>100040</if_sid>
+    <field name="alert_type">IMPOSSIBLE_TRAVEL</field>
+    <description>Impossible travel detected - Geographic anomaly</description>
+    <group>geographic_anomaly,account_compromise</group>
+  </rule>
+
+  <!-- PCI DSS Compliance Rules -->
+  <rule id="100050" level="7">
+    <decoded_as>json</decoded_as>
+    <field name="sensitive_data_exposed">true</field>
+    <description>Sensitive data exposure detected</description>
+    <group>data_leak,pci_dss_3.4</group>
+  </rule>
+
+  <rule id="100051" level="10">
+    <decoded_as>json</decoded_as>
+    <regex>\b(?:\d{4}[-\s]?){3}\d{4}\b</regex>
+    <description>Credit card number detected in logs (PCI DSS violation)</description>
+    <group>pci_dss_violation,critical_compliance,pci_dss_3.4</group>
+  </rule>
+
+  <rule id="100052" level="8">
+    <decoded_as>json</decoded_as>
+    <field name="encryption_status">disabled</field>
+    <description>Unencrypted sensitive data transmission</description>
+    <group>encryption_failure,pci_dss_4.1</group>
+  </rule>
+
+  <!-- Rate Limiting and DDoS Detection -->
+  <rule id="100060" level="3">
+    <decoded_as>json</decoded_as>
+    <field name="endpoint">\/api\/</field>
+    <description>API request logged</description>
+    <group>api_request</group>
+  </rule>
+
+  <rule id="100061" level="8" frequency="100" timeframe="60">
+    <if_matched_sid>100060</if_matched_sid>
+    <same_field>client_ip</same_field>
+    <description>High API request rate from single IP</description>
+    <group>rate_limit,possible_ddos</group>
+  </rule>
+
+  <rule id="100062" level="12" frequency="1000" timeframe="60">
+    <if_matched_sid>100060</if_matched_sid>
+    <description>DDoS attack detected - Excessive API requests</description>
+    <group>ddos_attack,critical_alert</group>
+  </rule>
+
+  <!-- Privilege Escalation Detection -->
+  <rule id="100070" level="8">
+    <decoded_as>json</decoded_as>
+    <field name="event_type">permission_change</field>
+    <description>User permission modification</description>
+    <group>permission_change,pci_dss_10.2.5</group>
+  </rule>
+
+  <rule id="100071" level="10">
+    <if_sid>100070</if_sid>
+    <field name="new_role">admin|root|super_admin</field>
+    <description>Privilege escalation to administrative role</description>
+    <group>privilege_escalation,critical_change,pci_dss_10.2.5</group>
+  </rule>
+
+  <!-- File Integrity Monitoring -->
+  <rule id="100080" level="7">
+    <decoded_as>syscheck_new_entry</decoded_as>
+    <match>/etc/waqiti/|/opt/waqiti/config/</match>
+    <description>Critical configuration file created</description>
+    <group>fim,config_change,pci_dss_11.5</group>
+  </rule>
+
+  <rule id="100081" level="8">
+    <decoded_as>syscheck_integrity_changed</decoded_as>
+    <match>/etc/waqiti/|/opt/waqiti/config/</match>
+    <description>Critical configuration file modified</description>
+    <group>fim,config_change,pci_dss_11.5</group>
+  </rule>
+
+  <rule id="100082" level="9">
+    <decoded_as>syscheck_deleted</decoded_as>
+    <match>/etc/waqiti/|/opt/waqiti/config/</match>
+    <description>Critical configuration file deleted</description>
+    <group>fim,config_change,critical_alert,pci_dss_11.5</group>
+  </rule>
+
+  <!-- Container and Kubernetes Security -->
+  <rule id="100090" level="5">
+    <decoded_as>json</decoded_as>
+    <field name="kubernetes.event.reason">FailedMount|FailedAttachVolume</field>
+    <description>Kubernetes volume mount failure</description>
+    <group>kubernetes,container_error</group>
+  </rule>
+
+  <rule id="100091" level="8">
+    <decoded_as>json</decoded_as>
+    <field name="kubernetes.event.reason">FailedKillPod|NodeNotReady</field>
+    <description>Kubernetes node or pod critical failure</description>
+    <group>kubernetes,infrastructure_alert</group>
+  </rule>
+
+  <rule id="100092" level="10">
+    <decoded_as>json</decoded_as>
+    <field name="container.privileged">true</field>
+    <description>Privileged container detected (security risk)</description>
+    <group>container_security,privilege_escalation</group>
+  </rule>
+
+  <!-- Fraud Detection Patterns -->
+  <rule id="100100" level="9">
+    <decoded_as>json</decoded_as>
+    <field name="fraud_score">[8-9]\d|100</field>
+    <description>High fraud risk score detected</description>
+    <group>fraud_detection,payment_security</group>
+  </rule>
+
+  <rule id="100101" level="10" frequency="3" timeframe="3600">
+    <if_matched_sid>100100</if_matched_sid>
+    <same_field>user_id</same_field>
+    <description>Multiple high-risk transactions from same user</description>
+    <group>fraud_pattern,critical_alert</group>
+  </rule>
+
+  <rule id="100102" level="8">
+    <decoded_as>json</decoded_as>
+    <field name="velocity_check">failed</field>
+    <description>Transaction velocity limit exceeded</description>
+    <group>velocity_check,fraud_prevention</group>
+  </rule>
+
+  <!-- Audit Trail and Compliance -->
+  <rule id="100110" level="4">
+    <decoded_as>json</decoded_as>
+    <field name="audit_event">true</field>
+    <description>Audit event logged</description>
+    <group>audit_trail,pci_dss_10.3</group>
+  </rule>
+
+  <rule id="100111" level="8">
+    <if_sid>100110</if_sid>
+    <field name="audit_action">delete|purge|truncate</field>
+    <description>Audit log deletion attempt</description>
+    <group>audit_tampering,pci_dss_10.5</group>
+  </rule>
+
+  <rule id="100112" level="12">
+    <if_sid>100111</if_sid>
+    <field name="audit_target">audit_log|security_log</field>
+    <description>Critical audit log tampering detected</description>
+    <group>audit_tampering,critical_alert,pci_dss_10.5</group>
+  </rule>
+
+  <!-- Data Exfiltration Detection -->
+  <rule id="100120" level="7" frequency="50" timeframe="600">
+    <decoded_as>json</decoded_as>
+    <field name="action">export|download|fetch</field>
+    <same_field>user_id</same_field>
+    <description>Potential data exfiltration - Excessive data export</description>
+    <group>data_exfiltration,insider_threat</group>
+  </rule>
+
+  <rule id="100121" level="9">
+    <decoded_as>json</decoded_as>
+    <field name="data_size">[1-9]\d{8,}</field>
+    <field name="action">export|download</field>
+    <description>Large data export detected (>100MB)</description>
+    <group>data_exfiltration,anomaly</group>
+  </rule>
+
+  <!-- Service Health Monitoring -->
+  <rule id="100130" level="6">
+    <decoded_as>json</decoded_as>
+    <field name="service_status">unhealthy|degraded</field>
+    <description>Service health degradation detected</description>
+    <group>service_health,availability</group>
+  </rule>
+
+  <rule id="100131" level="9" frequency="3" timeframe="300">
+    <if_matched_sid>100130</if_matched_sid>
+    <same_field>service_name</same_field>
+    <description>Service repeatedly unhealthy - possible outage</description>
+    <group>service_outage,critical_availability</group>
+  </rule>
+
+  <!-- Zero-Day and Anomaly Detection -->
+  <rule id="100140" level="8">
+    <decoded_as>json</decoded_as>
+    <field name="anomaly_score">[7-9]\d|100</field>
+    <description>Behavioral anomaly detected</description>
+    <group>anomaly_detection,machine_learning</group>
+  </rule>
+
+  <rule id="100141" level="10">
+    <if_sid>100140</if_sid>
+    <field name="anomaly_type">zero_day|unknown_pattern</field>
+    <description>Potential zero-day attack pattern detected</description>
+    <group>zero_day,critical_threat</group>
+  </rule>
+
+  <!-- Cryptojacking Detection -->
+  <rule id="100150" level="9">
+    <decoded_as>json</decoded_as>
+    <field name="cpu_usage">[8-9]\d|100</field>
+    <field name="process_name">minerd|xmrig|cgminer</field>
+    <description>Cryptocurrency mining process detected</description>
+    <group>cryptojacking,malware</group>
+  </rule>
+
+  <rule id="100151" level="10">
+    <decoded_as>json</decoded_as>
+    <regex>(stratum\+tcp:|mining\.pool|cryptonight)</regex>
+    <description>Cryptocurrency mining network activity detected</description>
+    <group>cryptojacking,network_threat</group>
+  </rule>
+
+</group>

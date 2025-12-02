@@ -1,0 +1,99 @@
+# Keycloak Configuration for Payment Service
+
+keycloak:
+  enabled: true
+  realm: ${KEYCLOAK_REALM:waqiti-fintech}
+  auth-server-url: ${KEYCLOAK_URL:https://localhost:8180}
+  ssl-required: external
+  resource: payment-service
+  bearer-only: true
+  credentials:
+    # SECURITY FIX: No default value - application will fail fast if not set
+    # Set via environment variable or Vault: export PAYMENT_SERVICE_CLIENT_SECRET=$(openssl rand -base64 48)
+    secret: ${PAYMENT_SERVICE_CLIENT_SECRET}
+  use-resource-role-mappings: true
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://localhost:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:https://localhost:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# Payment Service Security Configuration
+payment:
+  security:
+    # Public endpoints that don't require authentication
+    public-endpoints:
+      - /actuator/health
+      - /actuator/info
+      - /api/v1/payments/webhook/**
+      - /swagger-ui/**
+      - /v3/api-docs/**
+    
+    # Service-to-service endpoints
+    service-endpoints:
+      - /internal/payments/**
+    
+    # Required roles for payment operations
+    required-roles:
+      read:
+        - PAYMENT_USER
+        - PAYMENT_VIEWER
+      write:
+        - PAYMENT_USER
+        - PAYMENT_PROCESSOR
+      management:
+        - PAYMENT_MANAGER
+        - PAYMENT_OPERATOR
+      admin:
+        - PAYMENT_ADMIN
+        - SYSTEM_ADMIN
+    
+    # Required scopes for operations
+    required-scopes:
+      read: payment:read
+      write: payment:write
+      transfer: payment:transfer
+      instant-deposit: payment:instant-deposit
+      ach-transfer: payment:ach-transfer
+      refund: payment:refund
+      cancel: payment:cancel
+      analytics: payment:analytics
+      webhook: payment:webhook
+      bulk: payment:bulk
+      schedule: payment:schedule
+      reconcile: payment:reconcile
+    
+    # Payment security features
+    features:
+      fraud-detection-enabled: true
+      velocity-checking-enabled: true
+      risk-assessment-enabled: true
+      pci-compliance-enabled: true
+      audit-logging-enabled: true
+      encryption-enabled: true
+      
+    # Payment limits and thresholds
+    limits:
+      max-daily-amount: 50000.00
+      max-single-transaction: 10000.00
+      max-instant-deposits-daily: 5
+      max-ach-transfers-daily: 10
+      
+    # Security thresholds requiring additional verification
+    verification-thresholds:
+      high-value-transaction: 5000.00
+      suspicious-pattern-amount: 1000.00
+      velocity-check-amount: 2000.00
+      international-transfer-amount: 1000.00
+      
+    # Advanced security features
+    advanced-security:
+      require-mfa-above: 1000.00
+      require-manager-approval-above: 10000.00
+      automatic-fraud-detection: true
+      velocity-monitoring: true
+      geolocation-verification: true
+      device-fingerprinting: true

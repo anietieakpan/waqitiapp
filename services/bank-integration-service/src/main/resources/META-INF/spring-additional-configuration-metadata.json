@@ -1,0 +1,51 @@
+{
+  "properties": [
+    {
+      "name": "bank-integration.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable bank integration functionality",
+      "defaultValue": true
+    },
+    {
+      "name": "bank-integration.providers.plaid.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Plaid integration",
+      "defaultValue": true
+    },
+    {
+      "name": "bank-integration.providers.yodlee.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Yodlee integration",
+      "defaultValue": false
+    },
+    {
+      "name": "bank-integration.sync.interval-minutes",
+      "type": "java.lang.Integer",
+      "description": "Bank data sync interval in minutes",
+      "defaultValue": 60
+    },
+    {
+      "name": "bank-integration.security.encryption-enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable bank data encryption",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "OAuth2 client ID for service",
+      "defaultValue": "bank-integration-service"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "OAuth2 client secret for service"
+    }
+  ]
+}

@@ -1,0 +1,377 @@
+server:
+  port: 8092
+  servlet:
+    context-path: /
+
+spring:
+  application:
+    name: ledger-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:development}
+
+# P1 FIX: Distributed Tracing Configuration
+tracing:
+  enabled: ${TRACING_ENABLED:true}
+
+opentelemetry:
+  enabled: ${OTEL_ENABLED:true}
+  service-name: ${spring.application.name}
+  exporter:
+    type: ${OTEL_EXPORTER_TYPE:otlp}
+    endpoint: ${OTEL_COLLECTOR_ENDPOINT:http://otel-collector:4317}
+  sampler:
+    type: adaptive
+    probability: ${OTEL_SAMPLER_PROBABILITY:0.1}
+  resource:
+    attributes:
+      service.name: ${spring.application.name}
+      service.namespace: waqiti-fintech
+      service.version: ${APPLICATION_VERSION:1.0.0}
+      deployment.environment: ${SPRING_PROFILES_ACTIVE:development}
+  
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:waqiti_ledger}
+    username: ${DB_USERNAME:waqiti_user}
+    password: ${DATABASE_PASSWORD:${vault.database.password}}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 300000
+      connection-timeout: 20000
+      validation-timeout: 5000
+  
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        use_sql_comments: true
+        jdbc:
+          batch_size: 50
+          order_inserts: true
+          order_updates: true
+        cache:
+          use_second_level_cache: true
+          use_query_cache: true
+  
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+  
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:${vault.redis.password}}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+  
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false
+        # P1 FIX: Kafka Tracing Interceptor
+        interceptor.classes: com.example.common.telemetry.kafka.WaqitiKafkaTracingProducerInterceptor
+    consumer:
+      group-id: ledger-service
+      enable-auto-commit: false  # Manual acknowledgment for DLQ support
+      max-poll-records: 50  # Batch size control
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        # CRITICAL SECURITY FIX: Changed from wildcard "*" to specific package whitelist
+        # Wildcard "*" allows deserialization of ANY class = Remote Code Execution (RCE) vulnerability!
+        # CVE Risk: Attackers could deserialize malicious payloads leading to arbitrary code execution
+        # Only allow trusted Waqiti application packages + standard Java classes
+        spring.json.trusted.packages: "com.waqiti.*,java.util.*,java.time.*,java.math.*"
+        spring.json.use.type.headers: false
+        # P1 FIX: Kafka Tracing Interceptor
+        interceptor.classes: com.example.common.telemetry.kafka.WaqitiKafkaTracingConsumerInterceptor
+  
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti
+          jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/certs
+      client:
+        registration:
+          keycloak:
+            client-id: ledger-service
+            client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+            authorization-grant-type: client_credentials
+            scope: openid,profile,email,ledger
+        provider:
+          keycloak:
+            issuer-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti
+            token-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/token
+            authorization-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/auth
+            userinfo-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/userinfo
+            jwk-set-uri: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}/realms/waqiti/protocol/openid-connect/certs
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:${EUREKA_SERVER_URL:https://discovery-service:8761/eureka}/}
+    healthcheck:
+      enabled: true
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: ${spring.application.name}
+      service: ledger-service
+
+# Keycloak Configuration
+keycloak:
+  enabled: true
+  realm: waqiti-fintech
+  auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:https://localhost:8080}
+  ssl-required: external
+  resource: ledger-service
+  bearer-only: true
+  use-resource-role-mappings: true
+  cors: true
+  cors-allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+  cors-allowed-headers: Authorization,Content-Type,X-Requested-With
+  cors-max-age: 3600
+  public-client: false
+  credentials:
+    secret: ${KEYCLOAK_CLIENT_SECRET:}
+
+# Spring Security OAuth2 Configuration (moved to root spring section)
+# This configuration is merged into the main spring section above
+
+# Service-to-Service Authentication
+service:
+  auth:
+    enabled: true
+    client-id: ledger-service
+    client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+
+logging:
+  level:
+    com.waqiti: DEBUG
+    org.springframework.kafka: INFO
+    org.hibernate.SQL: ${LOG_LEVEL_SQL:WARN}  # WARN for production
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# Service-specific configuration
+ledger:
+  accounting:
+    currency:
+      default: USD
+      supported: USD,EUR,GBP,JPY,CAD,AUD
+    precision: 4
+    rounding-mode: HALF_UP
+    
+  journal-entry:
+    auto-reference: true
+    reference-prefix: JE
+    require-attachments: false
+    max-entries-per-journal: 1000
+    
+  validation:
+    enforce-balance: true
+    allow-negative-balances: false
+    require-approval-above: 100000
+    
+  period-end:
+    auto-close: false
+    close-after-days: 35
+    require-reconciliation: true
+    backup-before-close: true
+    
+  chart-of-accounts:
+    account-code-length: 10
+    enforce-hierarchy: true
+    max-depth: 5
+    
+  reconciliation:
+    auto-match-threshold: 0.99
+    tolerance-amount: 0.01
+    max-age-days: 90
+    
+  reports:
+    cache-enabled: true
+    cache-ttl: 3600
+    max-export-rows: 100000
+    
+  audit:
+    log-all-changes: true
+    retention-days: 2555  # 7 years
+    
+  integration:
+    transaction-service:
+      enabled: true
+      auto-post: true
+      batch-interval: 60s
+    
+    payment-service:
+      enabled: true
+      auto-reconcile: true
+
+# External service configurations
+services:
+  audit-service:
+    url: ${AUDIT_SERVICE_URL:http://localhost:8090}
+    timeout: 30s
+  transaction-service:
+    url: ${TRANSACTION_SERVICE_URL:http://localhost:8087}
+    timeout: 30s
+  payment-service:
+    url: ${PAYMENT_SERVICE_URL:http://localhost:8083}
+    timeout: 30s
+
+# Alert and Notification Configuration
+waqiti:
+  # PagerDuty Integration
+  pagerduty:
+    enabled: ${PAGERDUTY_ENABLED:true}
+    api-url: ${PAGERDUTY_API_URL:https://events.pagerduty.com/v2/enqueue}
+    integration-key: ${PAGERDUTY_INTEGRATION_KEY:${vault.pagerduty.integration-key}}
+
+  # Slack Integration
+  slack:
+    enabled: ${SLACK_ENABLED:true}
+    webhook-url: ${SLACK_WEBHOOK_URL:${vault.slack.webhook-url}}
+    finance-ops-webhook: ${SLACK_FINANCE_OPS_WEBHOOK:${vault.slack.finance-ops-webhook}}
+    accounting-webhook: ${SLACK_ACCOUNTING_WEBHOOK:${vault.slack.accounting-webhook}}
+    compliance-webhook: ${SLACK_COMPLIANCE_WEBHOOK:${vault.slack.compliance-webhook}}
+
+  # Email Configuration
+  email:
+    enabled: ${EMAIL_ENABLED:true}
+    from: ${EMAIL_FROM:noreply@example.com}
+    recipients:
+      cfo: ${EMAIL_CFO:${vault.email.cfo}}
+      ceo: ${EMAIL_CEO:${vault.email.ceo}}
+      cto: ${EMAIL_CTO:${vault.email.cto}}
+      controller: ${EMAIL_CONTROLLER:${vault.email.controller}}
+      finance-ops: ${EMAIL_FINANCE_OPS:${vault.email.finance-ops}}
+      compliance: ${EMAIL_COMPLIANCE:${vault.email.compliance}}
+      finance-manager: ${EMAIL_FINANCE_MANAGER:${vault.email.finance-manager}}
+
+# Spring Mail Configuration
+spring.mail:
+  host: ${MAIL_HOST:${vault.mail.host}}
+  port: ${MAIL_PORT:587}
+  username: ${MAIL_USERNAME:${vault.mail.username}}
+  password: ${MAIL_PASSWORD:${vault.mail.password}}
+  properties:
+    mail:
+      smtp:
+        auth: true
+        starttls:
+          enable: true
+          required: true
+      transport:
+        protocol: smtp
+
+# Circuit breaker configuration
+resilience4j:
+  circuitbreaker:
+    instances:
+      audit-service:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 5s
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10
+  
+  retry:
+    instances:
+      default:
+        maxAttempts: 3
+        waitDuration: 500ms
+        exponentialBackoffMultiplier: 2
+
+# Security configuration
+security:
+  jwt:
+    secret: ${JWT_SECRET:${vault.jwt.ledger-service.secret}}
+    expiration: 86400000 # 24 hours in milliseconds
+
+---
+spring:
+  profiles: test
+  
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+  
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    database-platform: org.hibernate.dialect.H2Dialect
+  
+  kafka:
+    bootstrap-servers: ${spring.embedded.kafka.brokers}
+
+ledger:
+  journal-entry:
+    require-approval-above: 999999999
+  audit:
+    log-all-changes: false
+
+---
+spring:
+  profiles: production
+  
+  jpa:
+    show-sql: false
+    properties:
+      hibernate:
+        generate_statistics: false
+
+logging:
+  level:
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+
+ledger:
+  validation:
+    require-approval-above: 50000
+  period-end:
+    auto-close: true
+  audit:
+    log-all-changes: true

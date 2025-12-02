@@ -1,0 +1,3036 @@
+{
+  "timestamp": "2025-07-30T11:30:25.237992",
+  "project_root": "/home/aniix/git/waqiti-app",
+  "statistics": {
+    "files_checked": 1876,
+    "files_with_issues": 291,
+    "total_issues": 501
+  },
+  "issues_by_type": {
+    "javax_imports": 419,
+    "type_annotations": 76,
+    "security_deprecations": 5,
+    "duplicate_imports": 1,
+    "missing_imports": 0,
+    "other_issues": 0
+  },
+  "detailed_issues": {
+    "javax_imports": [
+      {
+        "file": "/home/aniix/git/waqiti-app/services/notification-service/src/main/java/com/waqiti/notification/event/UserRegisteredEvent.java",
+        "line": 12,
+        "issue": "Found import javax.annotation. - should be jakarta.annotation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/notification-service/src/main/java/com/waqiti/notification/event/UserVerifiedEvent.java",
+        "line": 12,
+        "issue": "Found import javax.annotation. - should be jakarta.annotation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/notification-service/src/main/java/com/waqiti/notification/domain/NotificationTopic.java",
+        "line": 10,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/notification-service/src/main/java/com/waqiti/notification/domain/PushNotificationLog.java",
+        "line": 10,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/notification-service/src/main/java/com/waqiti/notification/domain/DeviceToken.java",
+        "line": 11,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/notification-service/src/main/java/com/waqiti/notification/domain/TopicSubscription.java",
+        "line": 10,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/notification-service/src/main/java/com/waqiti/notification/controller/PushNotificationController.java",
+        "line": 16,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/notification-service/src/main/java/com/waqiti/notification/controller/PushNotificationController.java",
+        "line": 17,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/notification-service/src/main/java/com/waqiti/notification/controller/TopicManagementController.java",
+        "line": 16,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/notification-service/src/main/java/com/waqiti/notification/controller/TopicManagementController.java",
+        "line": 17,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/notification-service/src/main/java/com/waqiti/notification/dto/BulkCreateTopicsRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/notification-service/src/main/java/com/waqiti/notification/dto/BulkCreateTopicsRequest.java",
+        "line": 9,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/notification-service/src/main/java/com/waqiti/notification/dto/DeviceRegistrationRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/notification-service/src/main/java/com/waqiti/notification/dto/DeviceRegistrationRequest.java",
+        "line": 9,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/notification-service/src/main/java/com/waqiti/notification/dto/EmailRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/notification-service/src/main/java/com/waqiti/notification/dto/EmailRequest.java",
+        "line": 9,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/notification-service/src/main/java/com/waqiti/notification/dto/EmailRequest.java",
+        "line": 10,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/notification-service/src/main/java/com/waqiti/notification/dto/PushSendNotificationRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/notification-service/src/main/java/com/waqiti/notification/dto/BulkUpdateTopicsRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/notification-service/src/main/java/com/waqiti/notification/dto/BulkNotificationRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/notification-service/src/main/java/com/waqiti/notification/dto/BulkNotificationRequest.java",
+        "line": 9,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/notification-service/src/main/java/com/waqiti/notification/dto/TopicSubscriptionRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/notification-service/src/main/java/com/waqiti/notification/dto/UpdateTokenRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/notification-service/src/main/java/com/waqiti/notification/dto/CreateTopicRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/notification-service/src/main/java/com/waqiti/notification/dto/CreateTopicRequest.java",
+        "line": 9,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/notification-service/src/main/java/com/waqiti/notification/integration/sendgrid/SendGridEmailProvider.java",
+        "line": 18,
+        "issue": "Found import javax.annotation. - should be jakarta.annotation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/notification-service/src/main/java/com/waqiti/notification/service/impl/PushNotificationServiceImpl.java",
+        "line": 25,
+        "issue": "Found import javax.annotation. - should be jakarta.annotation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/compliance-service/src/main/java/com/waqiti/compliance/domain/ComplianceRule.java",
+        "line": 11,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/compliance-service/src/main/java/com/waqiti/compliance/domain/CustomerRiskProfile.java",
+        "line": 11,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/compliance-service/src/main/java/com/waqiti/compliance/domain/SuspiciousActivity.java",
+        "line": 11,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/compliance-service/src/main/java/com/waqiti/compliance/domain/ComplianceAlert.java",
+        "line": 11,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/compliance-service/src/main/java/com/waqiti/compliance/controller/ComplianceController.java",
+        "line": 23,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/compliance-service/src/main/java/com/waqiti/compliance/dto/ComplianceCheckRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/social-service/src/main/java/com/waqiti/social/domain/SocialFeed.java",
+        "line": 9,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/social-service/src/main/java/com/waqiti/social/domain/SocialPayment.java",
+        "line": 9,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/social-service/src/main/java/com/waqiti/social/domain/SocialConnection.java",
+        "line": 9,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/group-payment-service/src/main/java/com/waqiti/grouppayment/entity/GroupPaymentItemParticipant.java",
+        "line": 8,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/group-payment-service/src/main/java/com/waqiti/grouppayment/entity/GroupPaymentItem.java",
+        "line": 9,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/group-payment-service/src/main/java/com/waqiti/grouppayment/entity/GroupPayment.java",
+        "line": 10,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/group-payment-service/src/main/java/com/waqiti/grouppayment/entity/GroupPaymentParticipant.java",
+        "line": 10,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/group-payment-service/src/main/java/com/waqiti/grouppayment/controller/GroupPaymentController.java",
+        "line": 15,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/group-payment-service/src/main/java/com/waqiti/grouppayment/dto/RecordPaymentRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/group-payment-service/src/main/java/com/waqiti/grouppayment/dto/RecordPaymentRequest.java",
+        "line": 9,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/group-payment-service/src/main/java/com/waqiti/grouppayment/dto/RecordPaymentRequest.java",
+        "line": 10,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/group-payment-service/src/main/java/com/waqiti/grouppayment/dto/RecordPaymentRequest.java",
+        "line": 11,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/group-payment-service/src/main/java/com/waqiti/grouppayment/dto/CreateGroupPaymentRequest.java",
+        "line": 9,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/group-payment-service/src/main/java/com/waqiti/grouppayment/dto/CreateGroupPaymentRequest.java",
+        "line": 10,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/group-payment-service/src/main/java/com/waqiti/grouppayment/dto/UpdateGroupPaymentRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/user-service/src/main/java/com/waqiti/user/service/CachedUserService.java",
+        "line": 15,
+        "issue": "Found import javax.annotation. - should be jakarta.annotation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/user-service/src/main/java/com/waqiti/user/domain/BiometricCredential.java",
+        "line": 11,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/user-service/src/main/java/com/waqiti/user/controller/BiometricAuthenticationController.java",
+        "line": 22,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/user-service/src/main/java/com/waqiti/user/dto/security/BiometricRegistrationRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/user-service/src/main/java/com/waqiti/user/dto/security/BiometricRegistrationRequest.java",
+        "line": 9,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/user-service/src/main/java/com/waqiti/user/dto/security/BiometricAuthenticationRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/user-service/src/main/java/com/waqiti/user/dto/security/BiometricAuthenticationRequest.java",
+        "line": 9,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-commons/src/main/java/com/waqiti/payment/commons/domain/Money.java",
+        "line": 9,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-commons/src/main/java/com/waqiti/payment/commons/domain/Money.java",
+        "line": 10,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-commons/src/main/java/com/waqiti/payment/commons/dto/PaymentRequest.java",
+        "line": 12,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-commons/src/main/java/com/waqiti/payment/commons/dto/PaymentRequest.java",
+        "line": 13,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-commons/src/main/java/com/waqiti/payment/commons/dto/PaymentRequest.java",
+        "line": 14,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-commons/src/main/java/com/waqiti/payment/commons/dto/PaymentRequest.java",
+        "line": 15,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/event-sourcing-service/src/main/java/com/waqiti/eventsourcing/query/TransactionView.java",
+        "line": 5,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/event-sourcing-service/src/main/java/com/waqiti/eventsourcing/api/EventSourcingController.java",
+        "line": 24,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/event-sourcing-service/src/main/java/com/waqiti/eventsourcing/api/EventSourcingController.java",
+        "line": 25,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/event-sourcing-service/src/main/java/com/waqiti/eventsourcing/api/EventSourcingController.java",
+        "line": 26,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/event-sourcing-service/src/main/java/com/waqiti/eventsourcing/config/AxonConfig.java",
+        "line": 21,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/reporting-service/src/main/java/com/waqiti/reporting/domain/ReportSchedule.java",
+        "line": 11,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/reporting-service/src/main/java/com/waqiti/reporting/domain/FinancialData.java",
+        "line": 10,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/reporting-service/src/main/java/com/waqiti/reporting/domain/ReportExecution.java",
+        "line": 12,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/reporting-service/src/main/java/com/waqiti/reporting/domain/ReportDefinition.java",
+        "line": 11,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/reporting-service/src/main/java/com/waqiti/reporting/controller/ReportingController.java",
+        "line": 26,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/reporting-service/src/main/java/com/waqiti/reporting/dto/RegulatoryReportRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/reporting-service/src/main/java/com/waqiti/reporting/dto/TransactionAnalyticsRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/rewards-service/src/main/java/com/waqiti/rewards/controller/RewardsController.java",
+        "line": 22,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/rewards-service/src/main/java/com/waqiti/rewards/controller/RewardsController.java",
+        "line": 23,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/rewards-service/src/main/java/com/waqiti/rewards/controller/RewardsController.java",
+        "line": 24,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/rewards-service/src/main/java/com/waqiti/rewards/dto/RedeemPointsRequest.java",
+        "line": 9,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/rewards-service/src/main/java/com/waqiti/rewards/dto/RedeemPointsRequest.java",
+        "line": 10,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/rewards-service/src/main/java/com/waqiti/rewards/dto/AdjustRewardsRequest.java",
+        "line": 6,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/rewards-service/src/main/java/com/waqiti/rewards/dto/UpdatePreferencesRequest.java",
+        "line": 7,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/rewards-service/src/main/java/com/waqiti/rewards/dto/CashbackEstimateRequest.java",
+        "line": 6,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/rewards-service/src/main/java/com/waqiti/rewards/dto/CashbackEstimateRequest.java",
+        "line": 7,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/rewards-service/src/main/java/com/waqiti/rewards/dto/CashbackEstimateRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/rewards-service/src/main/java/com/waqiti/rewards/dto/ProcessPointsRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/rewards-service/src/main/java/com/waqiti/rewards/dto/ProcessPointsRequest.java",
+        "line": 9,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/rewards-service/src/main/java/com/waqiti/rewards/dto/ProcessPointsRequest.java",
+        "line": 10,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/analytics-service/src/main/java/com/waqiti/analytics/api/TransactionAnalyticsController.java",
+        "line": 16,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/analytics-service/src/main/java/com/waqiti/analytics/api/RealTimeAnalyticsController.java",
+        "line": 12,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/analytics-service/src/main/java/com/waqiti/analytics/api/BusinessIntelligenceController.java",
+        "line": 13,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/analytics-service/src/main/java/com/waqiti/analytics/api/UserAnalyticsController.java",
+        "line": 13,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/analytics-service/src/main/java/com/waqiti/analytics/ml/FraudDetectionEngine.java",
+        "line": 18,
+        "issue": "Found import javax.annotation. - should be jakarta.annotation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/websocket-service/src/main/java/com/waqiti/websocket/controller/WebSocketController.java",
+        "line": 17,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/websocket-service/src/main/java/com/waqiti/websocket/dto/ChatMessage.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/websocket-service/src/main/java/com/waqiti/websocket/dto/ChatMessage.java",
+        "line": 9,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/websocket-service/src/main/java/com/waqiti/websocket/dto/ChatMessage.java",
+        "line": 10,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/websocket-service/src/main/java/com/waqiti/websocket/dto/GroupPaymentUpdate.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/websocket-service/src/main/java/com/waqiti/websocket/dto/PaymentStatusUpdate.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/websocket-service/src/main/java/com/waqiti/websocket/dto/PaymentStatusUpdate.java",
+        "line": 9,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/websocket-service/src/main/java/com/waqiti/websocket/dto/LocationShare.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/websocket-service/src/main/java/com/waqiti/websocket/dto/AnalyticsEvent.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/websocket-service/src/main/java/com/waqiti/websocket/dto/TypingIndicator.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/security-service/src/main/java/com/waqiti/security/filter/APISignatureVerificationFilter.java",
+        "line": 17,
+        "issue": "Found import javax.servlet. - should be jakarta.servlet",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/security-service/src/main/java/com/waqiti/security/filter/APISignatureVerificationFilter.java",
+        "line": 18,
+        "issue": "Found import javax.servlet. - should be jakarta.servlet",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/security-service/src/main/java/com/waqiti/security/filter/APISignatureVerificationFilter.java",
+        "line": 19,
+        "issue": "Found import javax.servlet. - should be jakarta.servlet",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/security-service/src/main/java/com/waqiti/security/filter/APISignatureVerificationFilter.java",
+        "line": 20,
+        "issue": "Found import javax.servlet. - should be jakarta.servlet",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/security-service/src/main/java/com/waqiti/security/api/SecurityAuditController.java",
+        "line": 13,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/security-service/src/main/java/com/waqiti/security/api/FraudDetectionController.java",
+        "line": 14,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/security-service/src/main/java/com/waqiti/security/api/AmlComplianceController.java",
+        "line": 15,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/security-service/src/main/java/com/waqiti/security/api/MultiFactorAuthController.java",
+        "line": 11,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/security-service/src/main/java/com/waqiti/security/api/RiskAssessmentController.java",
+        "line": 11,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/security-service/src/main/java/com/waqiti/security/domain/TransactionSignature.java",
+        "line": 6,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/security-service/src/main/java/com/waqiti/security/domain/SigningKey.java",
+        "line": 6,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/security-service/src/main/java/com/waqiti/security/controller/TransactionSigningController.java",
+        "line": 19,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/security-service/src/main/java/com/waqiti/security/controller/TransactionSigningController.java",
+        "line": 20,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/security-service/src/main/java/com/waqiti/security/dto/SignTransactionRequest.java",
+        "line": 10,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/security-service/src/main/java/com/waqiti/security/dto/SignTransactionRequest.java",
+        "line": 11,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/transaction-service/src/main/java/com/waqiti/transaction/domain/Transaction.java",
+        "line": 7,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/transaction-service/src/main/java/com/waqiti/transaction/domain/Transaction.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/transaction-service/src/main/java/com/waqiti/transaction/domain/Transaction.java",
+        "line": 9,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/transaction-service/src/main/java/com/waqiti/transaction/domain/TransactionEvent.java",
+        "line": 6,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/transaction-service/src/main/java/com/waqiti/transaction/domain/TransactionEvent.java",
+        "line": 7,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/transaction-service/src/main/java/com/waqiti/transaction/controller/TransactionController.java",
+        "line": 20,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/savings-service/src/main/java/com/waqiti/savings/domain/SavingsContribution.java",
+        "line": 9,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/savings-service/src/main/java/com/waqiti/savings/domain/AutoSaveRule.java",
+        "line": 9,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/savings-service/src/main/java/com/waqiti/savings/domain/Milestone.java",
+        "line": 9,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/savings-service/src/main/java/com/waqiti/savings/domain/SavingsAccount.java",
+        "line": 9,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/savings-service/src/main/java/com/waqiti/savings/domain/SavingsGoal.java",
+        "line": 9,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/integration-service/src/main/java/com/waqiti/integration/dto/PaymentRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/integration-service/src/main/java/com/waqiti/integration/dto/PaymentRequest.java",
+        "line": 9,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/integration-service/src/main/java/com/waqiti/integration/dto/PaymentRequest.java",
+        "line": 10,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/integration-service/src/main/java/com/waqiti/integration/dto/AccountCreationRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/integration-service/src/main/java/com/waqiti/integration/dto/AccountCreationRequest.java",
+        "line": 9,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/integration-service/src/main/java/com/waqiti/integration/dto/UserRegistrationRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/integration-service/src/main/java/com/waqiti/integration/dto/UserRegistrationRequest.java",
+        "line": 9,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/integration-service/src/main/java/com/waqiti/integration/dto/UserRegistrationRequest.java",
+        "line": 10,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/kyc-service/src/main/java/com/waqiti/kyc/provider/KYCProviderFactory.java",
+        "line": 13,
+        "issue": "Found import javax.annotation. - should be jakarta.annotation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/kyc-service/src/main/java/com/waqiti/kyc/integration/KYCProviderFactory.java",
+        "line": 10,
+        "issue": "Found import javax.annotation. - should be jakarta.annotation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/kyc-service/src/main/java/com/waqiti/kyc/model/AMLResult.java",
+        "line": 12,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/kyc-service/src/main/java/com/waqiti/kyc/model/Address.java",
+        "line": 12,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/kyc-service/src/main/java/com/waqiti/kyc/controller/KYCWorkflowController.java",
+        "line": 18,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/kyc-service/src/main/java/com/waqiti/kyc/dto/DocumentVerificationRequest.java",
+        "line": 9,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/kyc-service/src/main/java/com/waqiti/kyc/dto/DocumentVerificationRequest.java",
+        "line": 10,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/kyc-service/src/main/java/com/waqiti/kyc/dto/AddressVerificationRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/kyc-service/src/main/java/com/waqiti/kyc/dto/AMLScreeningRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/kyc-service/src/main/java/com/waqiti/kyc/dto/AMLScreeningRequest.java",
+        "line": 9,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/kyc-service/src/main/java/com/waqiti/kyc/dto/KYCApplicationRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/kyc-service/src/main/java/com/waqiti/kyc/dto/KYCApplicationRequest.java",
+        "line": 9,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/kyc-service/src/main/java/com/waqiti/kyc/dto/KYCApplicationRequest.java",
+        "line": 10,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/kyc-service/src/main/java/com/waqiti/kyc/service/impl/S3StorageServiceImpl.java",
+        "line": 16,
+        "issue": "Found import javax.annotation. - should be jakarta.annotation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/kyc-service/src/main/java/com/waqiti/kyc/dto/request/BatchKYCRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/kyc-service/src/main/java/com/waqiti/kyc/dto/request/BatchKYCRequest.java",
+        "line": 9,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/kyc-service/src/main/java/com/waqiti/kyc/dto/request/BatchKYCRequest.java",
+        "line": 10,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/kyc-service/src/main/java/com/waqiti/kyc/dto/request/ComplianceReportRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/kyc-service/src/main/java/com/waqiti/kyc/dto/request/ComplianceReportRequest.java",
+        "line": 9,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/international-service/src/main/java/com/waqiti/international/domain/InternationalTransfer.java",
+        "line": 9,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/ml-service/src/main/java/com/waqiti/ml/api/RiskScoringController.java",
+        "line": 10,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/ml-service/src/main/java/com/waqiti/ml/api/ModelManagementController.java",
+        "line": 12,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/ml-service/src/main/java/com/waqiti/ml/service/model/NeuralNetworkModel.java",
+        "line": 10,
+        "issue": "Found import javax.annotation. - should be jakarta.annotation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/ml-service/src/main/java/com/waqiti/ml/service/model/NeuralNetworkModel.java",
+        "line": 11,
+        "issue": "Found import javax.annotation. - should be jakarta.annotation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/ml-service/src/main/java/com/waqiti/ml/service/model/SVMModel.java",
+        "line": 6,
+        "issue": "Found import javax.annotation. - should be jakarta.annotation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/ml-service/src/main/java/com/waqiti/ml/service/model/IsolationForestModel.java",
+        "line": 6,
+        "issue": "Found import javax.annotation. - should be jakarta.annotation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/ml-service/src/main/java/com/waqiti/ml/service/model/XGBoostModel.java",
+        "line": 9,
+        "issue": "Found import javax.annotation. - should be jakarta.annotation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/ml-service/src/main/java/com/waqiti/ml/service/model/RandomForestModel.java",
+        "line": 6,
+        "issue": "Found import javax.annotation. - should be jakarta.annotation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/audit-service/src/main/java/com/waqiti/audit/domain/AuditEvent.java",
+        "line": 8,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/audit-service/src/main/java/com/waqiti/audit/controller/AuditController.java",
+        "line": 19,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/reconciliation-service/src/main/java/com/waqiti/reconciliation/controller/ReconciliationController.java",
+        "line": 21,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/bank-integration-service/src/main/java/com/waqiti/bankintegration/api/BankAccountController.java",
+        "line": 12,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/bank-integration-service/src/main/java/com/waqiti/bankintegration/api/PaymentProviderController.java",
+        "line": 12,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/bank-integration-service/src/main/java/com/waqiti/bankintegration/strategy/StripePaymentStrategy.java",
+        "line": 24,
+        "issue": "Found import javax.annotation. - should be jakarta.annotation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/bank-integration-service/src/main/java/com/waqiti/bankintegration/domain/PaymentProvider.java",
+        "line": 12,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/bank-integration-service/src/main/java/com/waqiti/bankintegration/dto/PaymentRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/bank-integration-service/src/main/java/com/waqiti/bankintegration/dto/RefundRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/ledger-service/src/main/java/com/waqiti/ledger/domain/ReconciliationDiscrepancy.java",
+        "line": 10,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/ledger-service/src/main/java/com/waqiti/ledger/domain/Account.java",
+        "line": 10,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/ledger-service/src/main/java/com/waqiti/ledger/domain/JournalEntry.java",
+        "line": 10,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/ledger-service/src/main/java/com/waqiti/ledger/domain/AccountingPeriod.java",
+        "line": 10,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/ledger-service/src/main/java/com/waqiti/ledger/domain/BankStatement.java",
+        "line": 10,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/ledger-service/src/main/java/com/waqiti/ledger/controller/LedgerController.java",
+        "line": 20,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/ledger-service/src/main/java/com/waqiti/ledger/dto/UpdateAccountRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/ledger-service/src/main/java/com/waqiti/ledger/dto/ResolveDiscrepancyRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/ledger-service/src/main/java/com/waqiti/ledger/dto/ResolveDiscrepancyRequest.java",
+        "line": 9,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/ledger-service/src/main/java/com/waqiti/ledger/dto/BankReconciliationRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/ledger-service/src/main/java/com/waqiti/ledger/dto/BankReconciliationRequest.java",
+        "line": 9,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/ledger-service/src/main/java/com/waqiti/ledger/dto/BankReconciliationRequest.java",
+        "line": 10,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/ledger-service/src/main/java/com/waqiti/ledger/dto/BankReconciliationRequest.java",
+        "line": 11,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/ledger-service/src/main/java/com/waqiti/ledger/dto/CreateLedgerAccountRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/ledger-service/src/main/java/com/waqiti/ledger/dto/CreateLedgerAccountRequest.java",
+        "line": 9,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/ledger-service/src/main/java/com/waqiti/ledger/dto/CreateLedgerAccountRequest.java",
+        "line": 10,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/ledger-service/src/main/java/com/waqiti/ledger/dto/CreateJournalEntryRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/ledger-service/src/main/java/com/waqiti/ledger/dto/CreateJournalEntryRequest.java",
+        "line": 9,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/ledger-service/src/main/java/com/waqiti/ledger/dto/CreateJournalEntryRequest.java",
+        "line": 10,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/ledger-service/src/main/java/com/waqiti/ledger/dto/CreateJournalEntryRequest.java",
+        "line": 11,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/ledger-service/src/main/java/com/waqiti/ledger/dto/CreateJournalEntryRequest.java",
+        "line": 12,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/ledger-service/src/main/java/com/waqiti/ledger/dto/BatchJournalEntryRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/ledger-service/src/main/java/com/waqiti/ledger/dto/BatchJournalEntryRequest.java",
+        "line": 9,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/ledger-service/src/main/java/com/waqiti/ledger/dto/BatchJournalEntryRequest.java",
+        "line": 10,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/ledger-service/src/main/java/com/waqiti/ledger/dto/LedgerEntryRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/ledger-service/src/main/java/com/waqiti/ledger/dto/LedgerEntryRequest.java",
+        "line": 9,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/ledger-service/src/main/java/com/waqiti/ledger/dto/LedgerEntryRequest.java",
+        "line": 10,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/ledger-service/src/main/java/com/waqiti/ledger/dto/CreateAccountRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/ledger-service/src/main/java/com/waqiti/ledger/dto/CreateAccountRequest.java",
+        "line": 9,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/ledger-service/src/main/java/com/waqiti/ledger/dto/CreateAccountRequest.java",
+        "line": 10,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/ledger-service/src/main/java/com/waqiti/ledger/dto/ClosePeriodRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/ledger-service/src/main/java/com/waqiti/ledger/dto/ReverseJournalEntryRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/ledger-service/src/main/java/com/waqiti/ledger/dto/ReverseJournalEntryRequest.java",
+        "line": 9,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/ledger-service/src/main/java/com/waqiti/ledger/dto/ReverseJournalEntryRequest.java",
+        "line": 10,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/ledger-service/src/main/java/com/waqiti/ledger/dto/PostTransactionRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/ledger-service/src/main/java/com/waqiti/ledger/dto/PostTransactionRequest.java",
+        "line": 9,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/ledger-service/src/main/java/com/waqiti/ledger/dto/PostTransactionRequest.java",
+        "line": 10,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/ledger-service/src/main/java/com/waqiti/ledger/dto/InterCompanyReconciliationRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/support-service/src/main/java/com/waqiti/support/domain/TicketAttachment.java",
+        "line": 11,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/support-service/src/main/java/com/waqiti/support/domain/ChatSession.java",
+        "line": 9,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/support-service/src/main/java/com/waqiti/support/domain/Ticket.java",
+        "line": 11,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/support-service/src/main/java/com/waqiti/support/domain/TicketActivity.java",
+        "line": 11,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/support-service/src/main/java/com/waqiti/support/domain/KnowledgeArticle.java",
+        "line": 11,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/support-service/src/main/java/com/waqiti/support/domain/TicketMessage.java",
+        "line": 11,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/support-service/src/main/java/com/waqiti/support/domain/TicketFeedback.java",
+        "line": 11,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/support-service/src/main/java/com/waqiti/support/dto/ChatMessageRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/support-service/src/main/java/com/waqiti/support/dto/CreateTicketRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/support-service/src/main/java/com/waqiti/support/dto/CreateTicketRequest.java",
+        "line": 9,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/support-service/src/main/java/com/waqiti/support/service/impl/TicketServiceImpl.java",
+        "line": 22,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/international-transfer-service/src/main/java/com/waqiti/internationaltransfer/entity/TransferStatusHistory.java",
+        "line": 8,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/international-transfer-service/src/main/java/com/waqiti/internationaltransfer/entity/TransferDocument.java",
+        "line": 8,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/international-transfer-service/src/main/java/com/waqiti/internationaltransfer/entity/ComplianceCheck.java",
+        "line": 9,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/international-transfer-service/src/main/java/com/waqiti/internationaltransfer/entity/InternationalTransfer.java",
+        "line": 9,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/international-transfer-service/src/main/java/com/waqiti/internationaltransfer/controller/InternationalTransferController.java",
+        "line": 20,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/international-transfer-service/src/main/java/com/waqiti/internationaltransfer/controller/InternationalTransferController.java",
+        "line": 21,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/international-transfer-service/src/main/java/com/waqiti/internationaltransfer/dto/RecipientDetailsDto.java",
+        "line": 5,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/international-transfer-service/src/main/java/com/waqiti/internationaltransfer/dto/RecipientDetailsDto.java",
+        "line": 6,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/international-transfer-service/src/main/java/com/waqiti/internationaltransfer/dto/RecipientDetailsDto.java",
+        "line": 7,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/international-transfer-service/src/main/java/com/waqiti/internationaltransfer/dto/RecipientDetailsDto.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/international-transfer-service/src/main/java/com/waqiti/internationaltransfer/dto/RecipientDetailsDto.java",
+        "line": 9,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/international-transfer-service/src/main/java/com/waqiti/internationaltransfer/dto/RecipientDetailsDto.java",
+        "line": 10,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/international-transfer-service/src/main/java/com/waqiti/internationaltransfer/dto/TransferFeeCalculationRequest.java",
+        "line": 6,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/international-transfer-service/src/main/java/com/waqiti/internationaltransfer/dto/TransferFeeCalculationRequest.java",
+        "line": 7,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/international-transfer-service/src/main/java/com/waqiti/internationaltransfer/dto/TransferFeeCalculationRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/international-transfer-service/src/main/java/com/waqiti/internationaltransfer/dto/TransferFeeCalculationRequest.java",
+        "line": 9,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/international-transfer-service/src/main/java/com/waqiti/internationaltransfer/dto/ComplianceDecisionRequest.java",
+        "line": 5,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/international-transfer-service/src/main/java/com/waqiti/internationaltransfer/dto/CreateInternationalTransferRequest.java",
+        "line": 6,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/international-transfer-service/src/main/java/com/waqiti/internationaltransfer/dto/CreateInternationalTransferRequest.java",
+        "line": 7,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/international-transfer-service/src/main/java/com/waqiti/internationaltransfer/dto/BankDetailsDto.java",
+        "line": 5,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/international-transfer-service/src/main/java/com/waqiti/internationaltransfer/dto/BankDetailsDto.java",
+        "line": 6,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/international-transfer-service/src/main/java/com/waqiti/internationaltransfer/dto/AddressDto.java",
+        "line": 5,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/international-transfer-service/src/main/java/com/waqiti/internationaltransfer/dto/AddressDto.java",
+        "line": 6,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/international-transfer-service/src/main/java/com/waqiti/internationaltransfer/dto/SaveTransferTemplateRequest.java",
+        "line": 5,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/international-transfer-service/src/main/java/com/waqiti/internationaltransfer/dto/SaveTransferTemplateRequest.java",
+        "line": 6,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/international-transfer-service/src/main/java/com/waqiti/internationaltransfer/dto/SaveTransferTemplateRequest.java",
+        "line": 7,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/config-service/src/main/java/com/waqiti/config/controller/ConfigurationController.java",
+        "line": 22,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/saga-orchestration-service/src/main/java/com/waqiti/saga/domain/SagaExecution.java",
+        "line": 7,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/saga-orchestration-service/src/main/java/com/waqiti/saga/domain/SagaExecution.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/virtual-card-service/src/main/java/com/waqiti/virtualcard/controller/PhysicalCardController.java",
+        "line": 19,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/virtual-card-service/src/main/java/com/waqiti/virtualcard/controller/VirtualCardController.java",
+        "line": 22,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/virtual-card-service/src/main/java/com/waqiti/virtualcard/controller/VirtualCardController.java",
+        "line": 23,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/merchant-service/src/main/java/com/waqiti/merchant/domain/MerchantPayment.java",
+        "line": 10,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/merchant-service/src/main/java/com/waqiti/merchant/domain/MerchantPayment.java",
+        "line": 11,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/merchant-service/src/main/java/com/waqiti/merchant/domain/Merchant.java",
+        "line": 10,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/merchant-service/src/main/java/com/waqiti/merchant/domain/Merchant.java",
+        "line": 11,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/crypto-service/src/main/java/com/waqiti/crypto/entity/TradeOrder.java",
+        "line": 9,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/crypto-service/src/main/java/com/waqiti/crypto/entity/HighRiskAddress.java",
+        "line": 11,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/crypto-service/src/main/java/com/waqiti/crypto/entity/HighRiskAddress.java",
+        "line": 12,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/crypto-service/src/main/java/com/waqiti/crypto/entity/HighRiskAddress.java",
+        "line": 13,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/crypto-service/src/main/java/com/waqiti/crypto/entity/SanctionedAddress.java",
+        "line": 11,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/crypto-service/src/main/java/com/waqiti/crypto/entity/SanctionedAddress.java",
+        "line": 12,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/crypto-service/src/main/java/com/waqiti/crypto/entity/SanctionedAddress.java",
+        "line": 13,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/crypto-service/src/main/java/com/waqiti/crypto/entity/TradePair.java",
+        "line": 9,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/crypto-service/src/main/java/com/waqiti/crypto/compliance/SanctionsScreeningService.java",
+        "line": 15,
+        "issue": "Found import javax.annotation. - should be jakarta.annotation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/crypto-service/src/main/java/com/waqiti/crypto/blockchain/AddressAnalysisService.java",
+        "line": 16,
+        "issue": "Found import javax.annotation. - should be jakarta.annotation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/crypto-service/src/main/java/com/waqiti/crypto/controller/CryptoTradingController.java",
+        "line": 25,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/real-time-analytics-service/src/main/java/com/waqiti/analytics/stream/RealTimeAnalyticsEngine.java",
+        "line": 21,
+        "issue": "Found import javax.annotation. - should be jakarta.annotation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/common/security/src/main/java/com/waqiti/common/security/VaultSecretManager.java",
+        "line": 12,
+        "issue": "Found import javax.annotation. - should be jakarta.annotation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/common/security/src/main/java/com/waqiti/common/security/EnterpriseVaultManager.java",
+        "line": 20,
+        "issue": "Found import javax.annotation. - should be jakarta.annotation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/common/security/src/main/java/com/waqiti/common/security/EnterpriseVaultManager.java",
+        "line": 21,
+        "issue": "Found import javax.annotation. - should be jakarta.annotation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/common/src/main/java/com/waqiti/common/security/SecretRotationController.java",
+        "line": 14,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/common/src/main/java/com/waqiti/common/security/SecurityHeadersFilter.java",
+        "line": 8,
+        "issue": "Found import javax.servlet. - should be jakarta.servlet",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/common/src/main/java/com/waqiti/common/security/SecurityHeadersFilter.java",
+        "line": 9,
+        "issue": "Found import javax.servlet. - should be jakarta.servlet",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/common/src/main/java/com/waqiti/common/security/SecurityHeadersFilter.java",
+        "line": 10,
+        "issue": "Found import javax.servlet. - should be jakarta.servlet",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/common/src/main/java/com/waqiti/common/security/SecurityHeadersFilter.java",
+        "line": 11,
+        "issue": "Found import javax.servlet. - should be jakarta.servlet",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/common/src/main/java/com/waqiti/common/security/HybridSecretRotationService.java",
+        "line": 18,
+        "issue": "Found import javax.annotation. - should be jakarta.annotation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/common/src/main/java/com/waqiti/common/security/ServiceRegistry.java",
+        "line": 13,
+        "issue": "Found import javax.annotation. - should be jakarta.annotation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/common/src/main/java/com/waqiti/common/database/QueryOptimizationService.java",
+        "line": 14,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/common/src/main/java/com/waqiti/common/ratelimit/RateLimitInterceptor.java",
+        "line": 18,
+        "issue": "Found import javax.servlet. - should be jakarta.servlet",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/common/src/main/java/com/waqiti/common/ratelimit/RateLimitInterceptor.java",
+        "line": 19,
+        "issue": "Found import javax.servlet. - should be jakarta.servlet",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/common/src/main/java/com/waqiti/common/ratelimit/RateLimitingAspect.java",
+        "line": 22,
+        "issue": "Found import javax.servlet. - should be jakarta.servlet",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/common/src/main/java/com/waqiti/common/vault/ServiceVaultIntegration.java",
+        "line": 10,
+        "issue": "Found import javax.annotation. - should be jakarta.annotation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/common/src/main/java/com/waqiti/common/config/SecretManagementConfig.java",
+        "line": 12,
+        "issue": "Found import javax.annotation. - should be jakarta.annotation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/common/src/main/java/com/waqiti/common/security/secrets/SecretManager.java",
+        "line": 10,
+        "issue": "Found import javax.annotation. - should be jakarta.annotation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/common/src/main/java/com/waqiti/common/database/repository/OptimizedJpaRepositoryImpl.java",
+        "line": 11,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/common/src/main/java/com/waqiti/common/database/repository/OptimizedJpaRepositoryImpl.java",
+        "line": 12,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/common/src/main/java/com/waqiti/common/database/repository/OptimizedJpaRepositoryImpl.java",
+        "line": 13,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/common/src/main/java/com/waqiti/common/database/repository/OptimizedJpaRepositoryImpl.java",
+        "line": 14,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/common/src/main/java/com/waqiti/common/database/repository/OptimizedJpaRepositoryImpl.java",
+        "line": 15,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/common/src/main/java/com/waqiti/common/database/repository/OptimizedJpaRepositoryImpl.java",
+        "line": 16,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/common/src/main/java/com/waqiti/common/database/repository/OptimizedJpaRepositoryImpl.java",
+        "line": 17,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/common/src/main/java/com/waqiti/common/database/monitoring/QueryPerformanceMonitor.java",
+        "line": 16,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/common/src/main/java/com/waqiti/common/database/optimization/N1QueryOptimizer.java",
+        "line": 11,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/common/src/main/java/com/waqiti/common/database/optimization/N1QueryOptimizer.java",
+        "line": 12,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/core-banking-service/src/main/java/com/waqiti/corebanking/client/ComplianceServiceClient.java",
+        "line": 11,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/payment/domain/PaymentMethod.java",
+        "line": 10,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/payment/domain/PaymentMethod.java",
+        "line": 11,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/payment/controller/PaymentMethodController.java",
+        "line": 24,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/payment/controller/ScheduledPaymentController.java",
+        "line": 27,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/payment/controller/ScheduledPaymentController.java",
+        "line": 28,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/payment/dto/CreateScheduledPaymentRequest.java",
+        "line": 14,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/payment/dto/CreatePaymentMethodRequest.java",
+        "line": 9,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/payment/dto/CreatePaymentRequest.java",
+        "line": 13,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/payment/dto/UpdateScheduledPaymentRequest.java",
+        "line": 11,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/payment/integration/paypal/PayPalPaymentProvider.java",
+        "line": 24,
+        "issue": "Found import javax.annotation. - should be jakarta.annotation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/payment/integration/plaid/PlaidBankingService.java",
+        "line": 22,
+        "issue": "Found import javax.annotation. - should be jakarta.annotation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/payment/integration/stripe/StripePaymentProvider.java",
+        "line": 21,
+        "issue": "Found import javax.annotation. - should be jakarta.annotation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/payment/integration/paypal/domain/PayPalTransaction.java",
+        "line": 8,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/payment/integration/paypal/domain/PayPalCustomer.java",
+        "line": 8,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/payment/integration/paypal/controller/PayPalWebhookController.java",
+        "line": 10,
+        "issue": "Found import javax.servlet. - should be jakarta.servlet",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/paymentservice/entity/NFCTransaction.java",
+        "line": 8,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/paymentservice/entity/NFCSession.java",
+        "line": 8,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/paymentservice/entity/ACHTransfer.java",
+        "line": 9,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/paymentservice/entity/InstantDeposit.java",
+        "line": 9,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/paymentservice/entity/CheckDeposit.java",
+        "line": 9,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/paymentservice/client/BankingAPIClient.java",
+        "line": 16,
+        "issue": "Found import javax.annotation. - should be jakarta.annotation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/paymentservice/controller/ACHTransferController.java",
+        "line": 24,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/paymentservice/controller/ACHTransferController.java",
+        "line": 25,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/paymentservice/controller/CheckDepositController.java",
+        "line": 19,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/paymentservice/controller/CheckDepositController.java",
+        "line": 20,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/paymentservice/controller/DirectDepositController.java",
+        "line": 22,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/paymentservice/controller/NFCPaymentController.java",
+        "line": 21,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/paymentservice/controller/NFCPaymentController.java",
+        "line": 22,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/paymentservice/controller/NFCPaymentController.java",
+        "line": 23,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/paymentservice/controller/NFCPaymentController.java",
+        "line": 20,
+        "issue": "Found import javax.servlet. - should be jakarta.servlet",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/paymentservice/controller/InstantDepositController.java",
+        "line": 29,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/paymentservice/controller/InstantDepositController.java",
+        "line": 30,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/paymentservice/controller/CashDepositController.java",
+        "line": 22,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/paymentservice/dto/NFCMerchantSessionRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/paymentservice/dto/NFCMerchantPaymentRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/paymentservice/dto/CheckDepositRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/paymentservice/dto/InstantDepositRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/paymentservice/dto/InstantDepositRequest.java",
+        "line": 9,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/paymentservice/dto/InstantDepositRequest.java",
+        "line": 10,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/paymentservice/dto/NFCSignatureValidationRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/paymentservice/dto/ACHTransferDTO.java",
+        "line": 11,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/paymentservice/dto/NFCP2PSessionRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/paymentservice/dto/NFCContactExchangeRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/paymentservice/dto/NFCP2PTransferRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/discovery-service/src/main/java/com/waqiti/discovery/controller/ServiceRegistryController.java",
+        "line": 18,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/family-account-service/src/main/java/com/waqiti/family/service/FamilyAccountService.java",
+        "line": 24,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/family-account-service/src/main/java/com/waqiti/family/domain/FamilySpendingRule.java",
+        "line": 9,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/family-account-service/src/main/java/com/waqiti/family/domain/FamilySpendingRule.java",
+        "line": 10,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/family-account-service/src/main/java/com/waqiti/family/domain/FamilyAccount.java",
+        "line": 9,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/family-account-service/src/main/java/com/waqiti/family/domain/FamilyAccount.java",
+        "line": 10,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/family-account-service/src/main/java/com/waqiti/family/domain/FamilyMember.java",
+        "line": 9,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/family-account-service/src/main/java/com/waqiti/family/domain/FamilyMember.java",
+        "line": 10,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/messaging-service/src/main/java/com/waqiti/messaging/service/EncryptionService.java",
+        "line": 18,
+        "issue": "Found import javax.annotation. - should be jakarta.annotation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/messaging-service/src/main/java/com/waqiti/messaging/domain/Message.java",
+        "line": 9,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/messaging-service/src/main/java/com/waqiti/messaging/domain/ConversationParticipant.java",
+        "line": 9,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/messaging-service/src/main/java/com/waqiti/messaging/domain/MessageReceipt.java",
+        "line": 9,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/messaging-service/src/main/java/com/waqiti/messaging/domain/MessageReaction.java",
+        "line": 9,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/messaging-service/src/main/java/com/waqiti/messaging/domain/Conversation.java",
+        "line": 9,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/messaging-service/src/main/java/com/waqiti/messaging/domain/UserKeyBundle.java",
+        "line": 9,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/messaging-service/src/main/java/com/waqiti/messaging/domain/PreKey.java",
+        "line": 9,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/messaging-service/src/main/java/com/waqiti/messaging/domain/MessageAttachment.java",
+        "line": 9,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/messaging-service/src/main/java/com/waqiti/messaging/controller/MessageController.java",
+        "line": 18,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/messaging-service/src/main/java/com/waqiti/messaging/dto/SendMessageRequest.java",
+        "line": 9,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/messaging-service/src/main/java/com/waqiti/messaging/dto/SendMessageRequest.java",
+        "line": 10,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/messaging-service/src/main/java/com/waqiti/messaging/dto/SendMessageRequest.java",
+        "line": 11,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/messaging-service/src/main/java/com/waqiti/messaging/dto/EncryptedMessage.java",
+        "line": 9,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/messaging-service/src/main/java/com/waqiti/messaging/dto/EncryptedMessage.java",
+        "line": 10,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/messaging-service/src/main/java/com/waqiti/messaging/dto/AddParticipantsRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/messaging-service/src/main/java/com/waqiti/messaging/dto/KeyExchangeData.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/messaging-service/src/main/java/com/waqiti/messaging/dto/KeyExchangeData.java",
+        "line": 9,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/messaging-service/src/main/java/com/waqiti/messaging/dto/AddReactionRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/messaging-service/src/main/java/com/waqiti/messaging/dto/AddReactionRequest.java",
+        "line": 9,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/messaging-service/src/main/java/com/waqiti/messaging/dto/UpdateConversationRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/messaging-service/src/main/java/com/waqiti/messaging/dto/CreateConversationRequest.java",
+        "line": 9,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/messaging-service/src/main/java/com/waqiti/messaging/dto/CreateConversationRequest.java",
+        "line": 10,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/messaging-service/src/main/java/com/waqiti/messaging/dto/CreateConversationRequest.java",
+        "line": 11,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/business-service/src/main/java/com/waqiti/business/domain/BusinessInvoice.java",
+        "line": 9,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/business-service/src/main/java/com/waqiti/business/domain/BusinessExpense.java",
+        "line": 9,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/business-service/src/main/java/com/waqiti/business/domain/BusinessAccount.java",
+        "line": 9,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/investment-service/src/main/java/com/waqiti/investment/domain/WatchlistItem.java",
+        "line": 8,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/investment-service/src/main/java/com/waqiti/investment/domain/Transfer.java",
+        "line": 10,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/investment-service/src/main/java/com/waqiti/investment/domain/AutoInvestAllocation.java",
+        "line": 5,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/investment-service/src/main/java/com/waqiti/investment/domain/InvestmentHolding.java",
+        "line": 8,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/investment-service/src/main/java/com/waqiti/investment/domain/InvestmentOrder.java",
+        "line": 12,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/investment-service/src/main/java/com/waqiti/investment/domain/AutoInvest.java",
+        "line": 11,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/investment-service/src/main/java/com/waqiti/investment/domain/Portfolio.java",
+        "line": 8,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/investment-service/src/main/java/com/waqiti/investment/domain/InvestmentAccount.java",
+        "line": 9,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/investment-service/src/main/java/com/waqiti/investment/controller/OrderController.java",
+        "line": 19,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/investment-service/src/main/java/com/waqiti/investment/controller/InvestmentAccountController.java",
+        "line": 22,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/investment-service/src/main/java/com/waqiti/investment/controller/InvestmentAccountController.java",
+        "line": 23,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/investment-service/src/main/java/com/waqiti/investment/controller/PortfolioController.java",
+        "line": 21,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/investment-service/src/main/java/com/waqiti/investment/controller/AutoInvestController.java",
+        "line": 18,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/investment-service/src/main/java/com/waqiti/investment/controller/MarketDataController.java",
+        "line": 20,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/investment-service/src/main/java/com/waqiti/investment/dto/request/CreateOrderRequest.java",
+        "line": 11,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/investment-service/src/main/java/com/waqiti/investment/dto/request/CreateOrderRequest.java",
+        "line": 12,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/investment-service/src/main/java/com/waqiti/investment/dto/request/CreateOrderRequest.java",
+        "line": 13,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/investment-service/src/main/java/com/waqiti/investment/dto/request/CreateAccountRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/investment-service/src/main/java/com/waqiti/investment/dto/request/CreateAccountRequest.java",
+        "line": 9,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/investment-service/src/main/java/com/waqiti/investment/dto/request/CreateAutoInvestRequest.java",
+        "line": 9,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/investment-service/src/main/java/com/waqiti/investment/dto/request/CreateAutoInvestRequest.java",
+        "line": 10,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/investment-service/src/main/java/com/waqiti/investment/dto/request/FundAccountRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/investment-service/src/main/java/com/waqiti/investment/dto/request/FundAccountRequest.java",
+        "line": 9,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/gdpr-service/src/main/java/com/waqiti/gdpr/service/ConsentManagementService.java",
+        "line": 16,
+        "issue": "Found import javax.servlet. - should be jakarta.servlet",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/gdpr-service/src/main/java/com/waqiti/gdpr/domain/ConsentRecord.java",
+        "line": 9,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/gdpr-service/src/main/java/com/waqiti/gdpr/domain/DataSubjectRequest.java",
+        "line": 9,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/gdpr-service/src/main/java/com/waqiti/gdpr/domain/RequestAuditLog.java",
+        "line": 9,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/gdpr-service/src/main/java/com/waqiti/gdpr/domain/DataProcessingActivity.java",
+        "line": 9,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/gdpr-service/src/main/java/com/waqiti/gdpr/controller/GDPRController.java",
+        "line": 20,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/gdpr-service/src/main/java/com/waqiti/gdpr/controller/GDPRController.java",
+        "line": 19,
+        "issue": "Found import javax.servlet. - should be jakarta.servlet",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/gdpr-service/src/main/java/com/waqiti/gdpr/dto/CreateRequestDTO.java",
+        "line": 7,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/gdpr-service/src/main/java/com/waqiti/gdpr/dto/CreateRequestDTO.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/gdpr-service/src/main/java/com/waqiti/gdpr/dto/GrantConsentDTO.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/recurring-payment-service/src/main/java/com/waqiti/recurring/domain/RecurringExecution.java",
+        "line": 9,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/recurring-payment-service/src/main/java/com/waqiti/recurring/domain/RecurringTemplate.java",
+        "line": 10,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/recurring-payment-service/src/main/java/com/waqiti/recurring/domain/RecurringPayment.java",
+        "line": 10,
+        "issue": "Found import javax.persistence. - should be jakarta.persistence",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/recurring-payment-service/src/main/java/com/waqiti/recurring/controller/RecurringPaymentController.java",
+        "line": 37,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/recurring-payment-service/src/main/java/com/waqiti/recurring/controller/RecurringPaymentController.java",
+        "line": 38,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/recurring-payment-service/src/main/java/com/waqiti/recurring/dto/CreateTemplateRequest.java",
+        "line": 9,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/recurring-payment-service/src/main/java/com/waqiti/recurring/dto/CreateRecurringPaymentRequest.java",
+        "line": 9,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/recurring-payment-service/src/main/java/com/waqiti/recurring/dto/CreateFromTemplateRequest.java",
+        "line": 6,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/recurring-payment-service/src/main/java/com/waqiti/recurring/dto/UpdateTemplateRequest.java",
+        "line": 8,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/recurring-payment-service/src/main/java/com/waqiti/recurring/dto/UpdateRecurringPaymentRequest.java",
+        "line": 6,
+        "issue": "Found import javax.validation. - should be jakarta.validation",
+        "type": "javax_import"
+      }
+    ],
+    "type_annotations": [
+      {
+        "file": "/home/aniix/git/waqiti-app/services/social-service/src/main/java/com/waqiti/social/domain/SocialFeed.java",
+        "line": 53,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/social-service/src/main/java/com/waqiti/social/domain/SocialFeed.java",
+        "line": 57,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/social-service/src/main/java/com/waqiti/social/domain/SocialFeed.java",
+        "line": 61,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/social-service/src/main/java/com/waqiti/social/domain/SocialFeed.java",
+        "line": 84,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/social-service/src/main/java/com/waqiti/social/domain/SocialPayment.java",
+        "line": 66,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/social-service/src/main/java/com/waqiti/social/domain/SocialPayment.java",
+        "line": 70,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/social-service/src/main/java/com/waqiti/social/domain/SocialPayment.java",
+        "line": 83,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/social-service/src/main/java/com/waqiti/social/domain/SocialPayment.java",
+        "line": 87,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/social-service/src/main/java/com/waqiti/social/domain/SocialConnection.java",
+        "line": 58,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/social-service/src/main/java/com/waqiti/social/domain/SocialConnection.java",
+        "line": 62,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/rewards-service/src/main/java/com/waqiti/rewards/entity/RewardsTier.java",
+        "line": 53,
+        "issue": "Found @Type(JsonType.class) - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/bnpl-service/src/main/java/com/waqiti/bnpl/entity/BnplApplication.java",
+        "line": 95,
+        "issue": "Found @Type(JsonType.class) - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/bnpl-service/src/main/java/com/waqiti/bnpl/entity/CreditAssessment.java",
+        "line": 119,
+        "issue": "Found @Type(JsonType.class) - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/bnpl-service/src/main/java/com/waqiti/bnpl/entity/CreditAssessment.java",
+        "line": 135,
+        "issue": "Found @Type(JsonType.class) - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/savings-service/src/main/java/com/waqiti/savings/domain/SavingsContribution.java",
+        "line": 94,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/savings-service/src/main/java/com/waqiti/savings/domain/AutoSaveRule.java",
+        "line": 80,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/savings-service/src/main/java/com/waqiti/savings/domain/AutoSaveRule.java",
+        "line": 155,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/savings-service/src/main/java/com/waqiti/savings/domain/Milestone.java",
+        "line": 96,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/savings-service/src/main/java/com/waqiti/savings/domain/SavingsAccount.java",
+        "line": 132,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/savings-service/src/main/java/com/waqiti/savings/domain/SavingsAccount.java",
+        "line": 136,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/savings-service/src/main/java/com/waqiti/savings/domain/SavingsGoal.java",
+        "line": 168,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/savings-service/src/main/java/com/waqiti/savings/domain/SavingsGoal.java",
+        "line": 176,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/international-service/src/main/java/com/waqiti/international/domain/InternationalTransfer.java",
+        "line": 128,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/international-service/src/main/java/com/waqiti/international/domain/InternationalTransfer.java",
+        "line": 155,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/international-service/src/main/java/com/waqiti/international/domain/InternationalTransfer.java",
+        "line": 176,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/international-service/src/main/java/com/waqiti/international/domain/InternationalTransfer.java",
+        "line": 180,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/international-service/src/main/java/com/waqiti/international/domain/InternationalTransfer.java",
+        "line": 184,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/international-service/src/main/java/com/waqiti/international/domain/InternationalTransfer.java",
+        "line": 225,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/bank-integration-service/src/main/java/com/waqiti/bankintegration/domain/PaymentProvider.java",
+        "line": 62,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/bank-integration-service/src/main/java/com/waqiti/bankintegration/domain/PaymentProvider.java",
+        "line": 77,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/merchant-service/src/main/java/com/waqiti/merchant/domain/MerchantPayment.java",
+        "line": 74,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/merchant-service/src/main/java/com/waqiti/merchant/domain/MerchantPayment.java",
+        "line": 78,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/merchant-service/src/main/java/com/waqiti/merchant/domain/MerchantPayment.java",
+        "line": 82,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/merchant-service/src/main/java/com/waqiti/merchant/domain/MerchantPayment.java",
+        "line": 86,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/merchant-service/src/main/java/com/waqiti/merchant/domain/MerchantPayment.java",
+        "line": 138,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/merchant-service/src/main/java/com/waqiti/merchant/domain/Merchant.java",
+        "line": 95,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/merchant-service/src/main/java/com/waqiti/merchant/domain/Merchant.java",
+        "line": 99,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/merchant-service/src/main/java/com/waqiti/merchant/domain/Merchant.java",
+        "line": 103,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/merchant-service/src/main/java/com/waqiti/merchant/domain/Merchant.java",
+        "line": 107,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/crypto-service/src/main/java/com/waqiti/crypto/entity/TradeOrder.java",
+        "line": 93,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/crypto-service/src/main/java/com/waqiti/crypto/entity/TradeOrder.java",
+        "line": 97,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/crypto-service/src/main/java/com/waqiti/crypto/entity/TradePair.java",
+        "line": 101,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/crypto-service/src/main/java/com/waqiti/crypto/entity/TradePair.java",
+        "line": 105,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/crypto-service/src/main/java/com/waqiti/crypto/entity/TradePair.java",
+        "line": 109,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/crypto-service/src/main/java/com/waqiti/crypto/entity/CryptoWallet.java",
+        "line": 54,
+        "issue": "Found @Type(io.hypersistence.utils.hibernate.type.json.JsonType.class) - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/payment/entity/ScheduledPayment.java",
+        "line": 133,
+        "issue": "Found @Type(JsonType.class) - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/payment/domain/PaymentMethod.java",
+        "line": 64,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/payment-service/src/main/java/com/waqiti/payment/domain/PaymentMethod.java",
+        "line": 71,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/business-service/src/main/java/com/waqiti/business/domain/BusinessInvoice.java",
+        "line": 44,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/business-service/src/main/java/com/waqiti/business/domain/BusinessInvoice.java",
+        "line": 54,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/business-service/src/main/java/com/waqiti/business/domain/BusinessInvoice.java",
+        "line": 110,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/business-service/src/main/java/com/waqiti/business/domain/BusinessInvoice.java",
+        "line": 115,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/business-service/src/main/java/com/waqiti/business/domain/BusinessInvoice.java",
+        "line": 126,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/business-service/src/main/java/com/waqiti/business/domain/BusinessInvoice.java",
+        "line": 130,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/business-service/src/main/java/com/waqiti/business/domain/BusinessInvoice.java",
+        "line": 138,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/business-service/src/main/java/com/waqiti/business/domain/BusinessInvoice.java",
+        "line": 155,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/business-service/src/main/java/com/waqiti/business/domain/BusinessInvoice.java",
+        "line": 204,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/business-service/src/main/java/com/waqiti/business/domain/BusinessInvoice.java",
+        "line": 209,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/business-service/src/main/java/com/waqiti/business/domain/BusinessExpense.java",
+        "line": 71,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/business-service/src/main/java/com/waqiti/business/domain/BusinessExpense.java",
+        "line": 84,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/business-service/src/main/java/com/waqiti/business/domain/BusinessExpense.java",
+        "line": 103,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/business-service/src/main/java/com/waqiti/business/domain/BusinessExpense.java",
+        "line": 117,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/business-service/src/main/java/com/waqiti/business/domain/BusinessExpense.java",
+        "line": 134,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/business-service/src/main/java/com/waqiti/business/domain/BusinessExpense.java",
+        "line": 168,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/business-service/src/main/java/com/waqiti/business/domain/BusinessExpense.java",
+        "line": 182,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/business-service/src/main/java/com/waqiti/business/domain/BusinessExpense.java",
+        "line": 187,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/business-service/src/main/java/com/waqiti/business/domain/BusinessExpense.java",
+        "line": 201,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/business-service/src/main/java/com/waqiti/business/domain/BusinessExpense.java",
+        "line": 206,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/business-service/src/main/java/com/waqiti/business/domain/BusinessAccount.java",
+        "line": 105,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/business-service/src/main/java/com/waqiti/business/domain/BusinessAccount.java",
+        "line": 109,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/business-service/src/main/java/com/waqiti/business/domain/BusinessAccount.java",
+        "line": 113,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/business-service/src/main/java/com/waqiti/business/domain/BusinessAccount.java",
+        "line": 117,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/business-service/src/main/java/com/waqiti/business/domain/BusinessAccount.java",
+        "line": 121,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/business-service/src/main/java/com/waqiti/business/domain/BusinessAccount.java",
+        "line": 185,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/business-service/src/main/java/com/waqiti/business/domain/BusinessAccount.java",
+        "line": 199,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/business-service/src/main/java/com/waqiti/business/domain/BusinessAccount.java",
+        "line": 204,
+        "issue": "Found @Type(type = \"jsonb\") - should be @JdbcTypeCode(SqlTypes.JSON)",
+        "type": "type_annotation"
+      }
+    ],
+    "security_deprecations": [
+      {
+        "file": "/home/aniix/git/waqiti-app/services/rewards-service/src/main/java/com/waqiti/rewards/config/RewardsServiceConfig.java",
+        "line": 201,
+        "issue": "Found .antMatchers( - should be .requestMatchers(",
+        "type": "security_deprecation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/rewards-service/src/main/java/com/waqiti/rewards/config/RewardsServiceConfig.java",
+        "line": 202,
+        "issue": "Found .antMatchers( - should be .requestMatchers(",
+        "type": "security_deprecation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/rewards-service/src/main/java/com/waqiti/rewards/config/RewardsServiceConfig.java",
+        "line": 203,
+        "issue": "Found .antMatchers( - should be .requestMatchers(",
+        "type": "security_deprecation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/rewards-service/src/main/java/com/waqiti/rewards/config/RewardsServiceConfig.java",
+        "line": 204,
+        "issue": "Found .antMatchers( - should be .requestMatchers(",
+        "type": "security_deprecation"
+      },
+      {
+        "file": "/home/aniix/git/waqiti-app/services/rewards-service/src/main/java/com/waqiti/rewards/config/RewardsServiceConfig.java",
+        "line": 200,
+        "issue": "Found .authorizeRequests() - should be .authorizeHttpRequests()",
+        "type": "security_deprecation"
+      }
+    ],
+    "duplicate_imports": [
+      {
+        "file": "/home/aniix/git/waqiti-app/services/common/src/main/java/com/waqiti/common/exception/StandardizedErrorHandler.java",
+        "line": 0,
+        "issue": "Duplicate imports found: java.util.concurrent.TimeoutException",
+        "type": "duplicate_import"
+      }
+    ],
+    "missing_imports": [],
+    "compilation_errors": [],
+    "other_issues": []
+  }
+}

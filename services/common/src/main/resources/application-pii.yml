@@ -1,0 +1,204 @@
+# PII Protection Configuration for Waqiti Platform
+# GDPR, CCPA, and PCI-DSS Compliant Settings
+
+pii:
+  protection:
+    # Protection mode: ENCRYPT, TOKENIZE, MASK, HYBRID
+    mode: HYBRID
+    
+    # Environment: production, staging, development, test
+    environment: ${SPRING_PROFILES_ACTIVE:production}
+    
+    # Enable format-preserving encryption
+    fpe:
+      enabled: true
+      algorithm: FF3-1  # NIST approved FPE algorithm
+      
+    # Tokenization settings
+    tokenization:
+      enabled: true
+      vault:
+        type: DATABASE  # DATABASE, REDIS, VAULT
+        retention-days: 90
+        cleanup-enabled: true
+        cleanup-cron: "0 0 2 * * ?"  # Daily at 2 AM
+        
+    # GDPR Compliance
+    gdpr:
+      enabled: true
+      right-to-erasure: true
+      data-portability: true
+      consent-tracking: true
+      breach-notification: true
+      retention:
+        default-days: 365
+        financial-days: 2555  # 7 years
+        medical-days: 3650    # 10 years
+        
+    # CCPA Compliance
+    ccpa:
+      enabled: true
+      opt-out-enabled: true
+      disclosure-enabled: true
+      
+    # Data Residency
+    data-residency:
+      enabled: true
+      enforce-strict: true
+      regions:
+        - us-east-1
+        - eu-west-1
+        - ap-southeast-1
+      cross-border-transfer: PROHIBITED  # ALLOWED, PROHIBITED, CONDITIONAL
+      
+    # Monitoring and Alerting
+    monitoring:
+      enabled: true
+      alert-threshold: 100  # Alert after 100 PII accesses in 5 minutes
+      audit-all-access: true
+      suspicious-patterns:
+        enabled: true
+        ml-detection: true
+        
+    # Field-level settings
+    field-protection:
+      credit-card:
+        method: TOKENIZE
+        preserve-bin: true  # Preserve first 6 digits for routing
+        preserve-last4: true
+        
+      ssn:
+        method: ENCRYPT
+        format-preserving: true
+        partial-masking: true
+        
+      email:
+        method: HYBRID  # Tokenize for storage, mask for display
+        preserve-domain: true
+        
+      phone:
+        method: ENCRYPT
+        preserve-country-code: true
+        preserve-last4: false
+        
+      financial-account:
+        method: TOKENIZE
+        preserve-routing: true
+        preserve-last4: true
+        
+      medical-record:
+        method: ENCRYPT
+        extra-encryption: true  # Double encryption for medical data
+        
+      biometric:
+        method: ENCRYPT
+        hsm-required: true  # Must use HSM for biometric data
+        deletion-on-expire: true
+        
+    # Environment-specific masking
+    masking:
+      production:
+        strategy: STRONG
+        show-partial: false
+        mask-character: "*"
+        
+      staging:
+        strategy: PARTIAL
+        show-partial: true
+        mask-character: "X"
+        
+      development:
+        strategy: PARTIAL
+        show-partial: true
+        mask-character: "*"
+        
+      test:
+        strategy: WEAK
+        show-partial: true
+        use-synthetic-data: true
+        
+    # Access Control
+    access-control:
+      require-purpose: true
+      require-consent: true
+      role-based:
+        ROLE_ADMIN:
+          can-decrypt: true
+          can-export: true
+          audit-required: true
+          
+        ROLE_SUPPORT:
+          can-decrypt: false
+          can-view-masked: true
+          audit-required: true
+          
+        ROLE_USER:
+          can-decrypt: false
+          can-view-own: true
+          audit-required: false
+          
+    # Encryption settings
+    encryption:
+      algorithm: AES-256-GCM
+      key-rotation:
+        enabled: true
+        frequency-days: 90
+        auto-re-encrypt: true
+        
+      key-per-classification: true  # Different keys for different PII types
+      
+    # Database encryption
+    database:
+      column-encryption: true
+      transparent-encryption: true
+      encryption-at-rest: true
+      
+    # Audit and Compliance
+    audit:
+      enabled: true
+      log-all-access: true
+      log-all-modifications: true
+      retention-years: 7
+      immutable-logs: true
+      hash-chain: true
+      
+    # Performance optimization
+    performance:
+      cache:
+        enabled: true
+        ttl-minutes: 60
+        max-size: 10000
+        
+      batch-processing:
+        enabled: true
+        batch-size: 100
+        
+      async-processing:
+        enabled: true
+        thread-pool-size: 10
+        
+# Spring Security Integration
+spring:
+  security:
+    pii:
+      enabled: true
+      auto-protect: true  # Automatically protect PII in responses
+      
+# Logging configuration
+logging:
+  level:
+    com.example.common.security.pii: INFO
+    
+  # Ensure PII is not logged
+  pattern:
+    console: "%d{ISO8601} %highlight(%-5level) [%blue(%t)] %yellow(%C{1.}): %msg%n%throwable{filter(com.example.common.security.pii)}"
+    
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,pii
+        
+  endpoint:
+    pii:
+      enabled: true  # Custom endpoint for PII statistics

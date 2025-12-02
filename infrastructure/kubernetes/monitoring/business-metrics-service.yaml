@@ -1,0 +1,202 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: business-metrics-config
+  namespace: example-monitoring
+  labels:
+    app: business-metrics
+    component: monitoring
+data:
+  application.yml: |
+    server:
+      port: 8080
+    
+    spring:
+      application:
+        name: business-metrics-service
+      datasource:
+        url: jdbc:postgresql://postgres:5432/waqiti_metrics
+        username: ${DB_USERNAME}
+        password: ${DB_PASSWORD}
+        driver-class-name: org.postgresql.Driver
+      jpa:
+        hibernate:
+          ddl-auto: validate
+        show-sql: false
+        properties:
+          hibernate:
+            dialect: org.hibernate.dialect.PostgreSQLDialect
+            format_sql: true
+    
+    management:
+      endpoints:
+        web:
+          exposure:
+            include: health,info,metrics,prometheus
+      endpoint:
+        health:
+          show-details: always
+        metrics:
+          enabled: true
+      metrics:
+        export:
+          prometheus:
+            enabled: true
+        distribution:
+          percentiles-histogram:
+            http.server.requests: true
+          percentiles:
+            http.server.requests: 0.5, 0.95, 0.99
+          sla:
+            http.server.requests: 50ms,100ms,200ms,500ms,1s
+    
+    waqiti:
+      metrics:
+        enabled: true
+        collection-interval: 30s
+        batch-size: 100
+        real-time-enabled: true
+        
+    logging:
+      level:
+        com.waqiti: INFO
+        org.springframework.web: INFO
+      pattern:
+        file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+        console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: business-metrics-service
+  namespace: example-monitoring
+  labels:
+    app: business-metrics-service
+    component: monitoring
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: business-metrics-service
+  template:
+    metadata:
+      labels:
+        app: business-metrics-service
+        component: monitoring
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      serviceAccountName: business-metrics-service
+      containers:
+      - name: business-metrics-service
+        image: waqiti/business-metrics-service:latest
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        env:
+        - name: DB_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: metrics-db-secret
+              key: username
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: metrics-db-secret
+              key: password
+        - name: JAVA_OPTS
+          value: "-Xmx1g -Xms512m -XX:+UseG1GC -XX:+UseStringDeduplication"
+        resources:
+          requests:
+            cpu: 200m
+            memory: 512Mi
+          limits:
+            cpu: 1000m
+            memory: 1Gi
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        volumeMounts:
+        - name: config
+          mountPath: /app/config
+          readOnly: true
+        - name: logs
+          mountPath: /app/logs
+      volumes:
+      - name: config
+        configMap:
+          name: business-metrics-config
+      - name: logs
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: business-metrics-service
+  namespace: example-monitoring
+  labels:
+    app: business-metrics-service
+    component: monitoring
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8080"
+    prometheus.io/path: "/actuator/prometheus"
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  selector:
+    app: business-metrics-service
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: business-metrics-service
+  namespace: example-monitoring
+  labels:
+    app: business-metrics-service
+    component: monitoring
+---
+# External Secret for Business Metrics Database
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: metrics-db-secret
+  namespace: example-monitoring
+spec:
+  secretStoreRef:
+    name: vault-backend
+    kind: SecretStore
+  target:
+    name: metrics-db-secret
+    creationPolicy: Owner
+  data:
+    - secretKey: username
+      remoteRef:
+        key: secret/monitoring/metrics-db
+        property: username
+    - secretKey: password
+      remoteRef:
+        key: secret/monitoring/metrics-db
+        property: password

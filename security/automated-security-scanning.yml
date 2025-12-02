@@ -1,0 +1,209 @@
+# Waqiti Automated Security Scanning & Vulnerability Management
+# Production-Ready Security Pipeline for Financial Services Platform
+
+version: '3.8'
+services:
+  # OWASP Dependency Check
+  dependency-scanner:
+    image: owasp/dependency-check:8.4.0
+    volumes:
+      - ./services:/src/services:ro
+      - ./security/reports:/reports
+    command: >
+      --scan /src/services
+      --format "ALL"
+      --out /reports/dependency-check
+      --suppression /src/suppression.xml
+      --enableRetired
+      --enableExperimental
+      --data /tmp/cache
+    environment:
+      - NVD_API_KEY=${NVD_API_KEY}
+    restart: no
+
+  # Container Security Scanning with Trivy
+  container-scanner:
+    image: aquasec/trivy:0.45.0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./security/reports:/reports
+      - ./security/policies:/policies:ro
+    entrypoint: /bin/sh
+    command: >
+      -c "
+      mkdir -p /reports/trivy &&
+      echo 'Starting container vulnerability scanning...' &&
+      trivy image --format json --output /reports/trivy/payment-service.json waqiti/payment-service:latest &&
+      trivy image --format json --output /reports/trivy/api-gateway.json waqiti/api-gateway:latest &&
+      trivy image --format json --output /reports/trivy/user-service.json waqiti/user-service:latest &&
+      trivy image --format json --output /reports/trivy/wallet-service.json waqiti/wallet-service:latest &&
+      trivy image --format json --output /reports/trivy/fraud-detection.json waqiti/fraud-detection-service:latest &&
+      echo 'Container scanning completed'
+      "
+    restart: no
+
+  # Static Application Security Testing (SAST)
+  sast-scanner:
+    image: returntocorp/semgrep:latest
+    volumes:
+      - ./services:/src:ro
+      - ./security/reports:/reports
+      - ./security/semgrep-rules:/rules:ro
+    command: >
+      --config=/rules/waqiti-security-rules.yml
+      --config=p/java-spring
+      --config=p/javascript
+      --config=p/typescript
+      --config=p/docker
+      --json
+      --output=/reports/semgrep/security-findings.json
+      /src
+    restart: no
+
+  # Secret Scanning
+  secret-scanner:
+    image: trufflesecurity/trufflehog:latest
+    volumes:
+      - .:/src:ro
+      - ./security/reports:/reports
+    command: >
+      filesystem /src
+      --json
+      --only-verified=false
+      --results=/reports/secrets/truffles.json
+      --exclude-paths=/src/security/trufflehog-exclude.txt
+    restart: no
+
+  # Infrastructure Security Scanning
+  infrastructure-scanner:
+    image: checkmarx/kics:latest
+    volumes:
+      - ./infrastructure:/src:ro
+      - ./security/reports:/reports
+    command: >
+      scan
+      -p /src
+      -o /reports/kics
+      --report-formats json,html
+      --queries-path /app/bin/assets/queries
+      --exclude-queries d7dc6c2c-e151-4f23-8c19-5b7f2ec1ac4c
+    restart: no
+
+  # License Compliance Scanner
+  license-scanner:
+    image: fossology/fossology:latest
+    volumes:
+      - ./services:/src:ro
+      - ./security/reports:/reports
+    environment:
+      - FOSSOLOGY_DB_HOST=postgres-license
+      - FOSSOLOGY_DB_NAME=fossology
+      - FOSSOLOGY_DB_USER=fossuser
+      - FOSSOLOGY_DB_PASSWORD=${FOSSOLOGY_DB_PASSWORD:-generateRandomPassword}
+    depends_on:
+      - postgres-license
+
+  postgres-license:
+    image: postgres:13
+    environment:
+      - POSTGRES_DB=fossology
+      - POSTGRES_USER=fossuser
+      - POSTGRES_PASSWORD=${FOSSOLOGY_DB_PASSWORD:-generateRandomPassword}
+    volumes:
+      - license_db_data:/var/lib/postgresql/data
+
+  # API Security Scanner
+  api-security-scanner:
+    image: zaproxy/zap-stable:latest
+    volumes:
+      - ./security/reports:/zap/wrk
+      - ./security/zap-config:/zap/config:ro
+    command: >
+      zap-api-scan.py
+      -t http://api-gateway:8080/swagger-v1/api-docs
+      -f openapi
+      -r /zap/wrk/api-security-report.html
+      -J /zap/wrk/api-security-report.json
+      -c /zap/config/api-scan.conf
+    depends_on:
+      - api-gateway
+
+  # Compliance Scanner (PCI-DSS, SOX)
+  compliance-scanner:
+    image: compliance/scanner:latest
+    volumes:
+      - ./services:/src:ro
+      - ./infrastructure:/infra:ro
+      - ./security/reports:/reports
+      - ./security/compliance-rules:/rules:ro
+    environment:
+      - COMPLIANCE_STANDARDS=PCI-DSS,SOX,GDPR
+      - INDUSTRY=FINANCIAL_SERVICES
+      - OUTPUT_FORMAT=json,pdf
+    command: >
+      --scan-path /src
+      --infra-path /infra
+      --rules-path /rules
+      --output /reports/compliance
+      --standards ${COMPLIANCE_STANDARDS}
+
+  # Security Dashboard & Aggregator
+  security-dashboard:
+    build: ./security/dashboard
+    ports:
+      - "9000:8080"
+    volumes:
+      - ./security/reports:/app/reports:ro
+      - ./security/dashboard/config:/app/config:ro
+    environment:
+      - DATABASE_URL=postgresql://security_user:${SECURITY_DB_PASSWORD}@postgres-security:5432/security_db
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
+      - EMAIL_SMTP_SERVER=${EMAIL_SMTP_SERVER}
+    depends_on:
+      - postgres-security
+      - elasticsearch
+
+  postgres-security:
+    image: postgres:13
+    environment:
+      - POSTGRES_DB=security_db
+      - POSTGRES_USER=security_user
+      - POSTGRES_PASSWORD=${SECURITY_DB_PASSWORD}
+    volumes:
+      - security_db_data:/var/lib/postgresql/data
+      - ./security/database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.5.0
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+
+  # Automated Remediation Bot
+  remediation-bot:
+    build: ./security/remediation-bot
+    volumes:
+      - ./security/reports:/app/reports:ro
+      - ./services:/app/codebase
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - JIRA_URL=${JIRA_URL}
+      - JIRA_TOKEN=${JIRA_TOKEN}
+      - AUTO_FIX_ENABLED=${AUTO_FIX_ENABLED:-false}
+      - CRITICAL_THRESHOLD=8.0
+    depends_on:
+      - security-dashboard
+
+volumes:
+  license_db_data:
+  security_db_data:
+  es_data:
+
+networks:
+  default:
+    name: waqiti-security-network

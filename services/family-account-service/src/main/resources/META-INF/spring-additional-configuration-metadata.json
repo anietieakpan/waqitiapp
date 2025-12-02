@@ -1,0 +1,69 @@
+{
+  "properties": [
+    {
+      "name": "family-account.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable family account functionality",
+      "defaultValue": true
+    },
+    {
+      "name": "family-account.max-members",
+      "type": "java.lang.Integer",
+      "description": "Maximum family members per account",
+      "defaultValue": 10
+    },
+    {
+      "name": "family-account.child-accounts.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable child accounts",
+      "defaultValue": true
+    },
+    {
+      "name": "family-account.child-accounts.min-age",
+      "type": "java.lang.Integer",
+      "description": "Minimum age for child accounts",
+      "defaultValue": 13
+    },
+    {
+      "name": "family-account.parental-controls.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable parental controls",
+      "defaultValue": true
+    },
+    {
+      "name": "family-account.spending-limits.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable spending limits for family members",
+      "defaultValue": true
+    },
+    {
+      "name": "family-account.allowance.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable allowance features",
+      "defaultValue": true
+    },
+    {
+      "name": "family-account.chores.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable chores and rewards system",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable service-to-service authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "service.auth.client-id",
+      "type": "java.lang.String",
+      "description": "OAuth2 client ID for service",
+      "defaultValue": "family-account-service"
+    },
+    {
+      "name": "service.auth.client-secret",
+      "type": "java.lang.String",
+      "description": "OAuth2 client secret for service"
+    }
+  ]
+}

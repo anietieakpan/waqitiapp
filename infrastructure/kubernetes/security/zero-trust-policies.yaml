@@ -1,0 +1,558 @@
+# Zero Trust Security Policies for Waqiti P2P Platform
+# Comprehensive security policies implementing zero trust principles
+
+---
+# Waqiti Namespace Configuration with Istio Injection
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: waqiti
+  labels:
+    istio-injection: enabled
+    security-zone: "protected"
+    compliance: "pci-dss"
+
+---
+# Default Deny-All Authorization Policy for Waqiti Namespace
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: deny-all-default
+  namespace: waqiti
+spec:
+  # Empty selector applies to all workloads
+  # No rules means deny all
+
+---
+# Strict mTLS for All Waqiti Services
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: strict-mtls
+  namespace: waqiti
+spec:
+  mtls:
+    mode: STRICT
+
+---
+# API Gateway Authorization Policies
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: api-gateway-authz
+  namespace: waqiti
+spec:
+  selector:
+    matchLabels:
+      app: api-gateway
+  rules:
+  # Allow external traffic to API Gateway
+  - from:
+    - source:
+        notNamespaces: ["waqiti"]
+    to:
+    - operation:
+        methods: ["GET", "POST", "PUT", "DELETE", "PATCH"]
+        paths: ["/api/v1/*"]
+    when:
+    - key: request.headers[authorization]
+      values: ["Bearer *"]
+  # Allow internal service communication
+  - from:
+    - source:
+        principals: ["cluster.local/ns/waqiti/sa/istio-proxy"]
+    to:
+    - operation:
+        methods: ["GET", "POST", "PUT", "DELETE", "PATCH"]
+
+---
+# User Service Authorization
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: user-service-authz
+  namespace: waqiti
+spec:
+  selector:
+    matchLabels:
+      app: user-service
+  rules:
+  # Allow API Gateway to call User Service
+  - from:
+    - source:
+        principals: ["cluster.local/ns/waqiti/sa/api-gateway"]
+    to:
+    - operation:
+        methods: ["GET", "POST", "PUT", "PATCH"]
+        paths: ["/users/*", "/auth/*", "/profiles/*"]
+  # Allow Security Service for authentication
+  - from:
+    - source:
+        principals: ["cluster.local/ns/waqiti/sa/security-service"]
+    to:
+    - operation:
+        methods: ["GET", "POST"]
+        paths: ["/users/*/validate", "/auth/validate"]
+  # Allow ML Service for behavioral analysis
+  - from:
+    - source:
+        principals: ["cluster.local/ns/waqiti/sa/ml-service"]
+    to:
+    - operation:
+        methods: ["GET"]
+        paths: ["/users/*/behavior", "/users/*/profile"]
+
+---
+# Payment Service Authorization
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: payment-service-authz
+  namespace: waqiti
+spec:
+  selector:
+    matchLabels:
+      app: payment-service
+  rules:
+  # Allow API Gateway for payment endpoints
+  - from:
+    - source:
+        principals: ["cluster.local/ns/waqiti/sa/api-gateway"]
+    to:
+    - operation:
+        methods: ["POST", "GET", "PUT"]
+        paths: ["/payments/*"]
+    when:
+    - key: request.headers[x-user-id]
+      values: ["*"]
+  # Allow Transaction Service
+  - from:
+    - source:
+        principals: ["cluster.local/ns/waqiti/sa/transaction-service"]
+    to:
+    - operation:
+        methods: ["POST", "GET", "PUT"]
+        paths: ["/payments/process", "/payments/*/status"]
+  # Allow ML Service for fraud detection
+  - from:
+    - source:
+        principals: ["cluster.local/ns/waqiti/sa/ml-service"]
+    to:
+    - operation:
+        methods: ["GET"]
+        paths: ["/payments/*/analyze"]
+
+---
+# Transaction Service Authorization
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: transaction-service-authz
+  namespace: waqiti
+spec:
+  selector:
+    matchLabels:
+      app: transaction-service
+  rules:
+  # Allow Payment Service
+  - from:
+    - source:
+        principals: ["cluster.local/ns/waqiti/sa/payment-service"]
+    to:
+    - operation:
+        methods: ["POST", "GET", "PUT"]
+        paths: ["/transactions/*"]
+  # Allow Wallet Service
+  - from:
+    - source:
+        principals: ["cluster.local/ns/waqiti/sa/wallet-service"]
+    to:
+    - operation:
+        methods: ["POST", "GET"]
+        paths: ["/transactions/create", "/transactions/*/status"]
+  # Allow Saga Orchestration Service
+  - from:
+    - source:
+        principals: ["cluster.local/ns/waqiti/sa/saga-orchestration-service"]
+    to:
+    - operation:
+        methods: ["POST", "PUT", "GET"]
+        paths: ["/transactions/*"]
+
+---
+# Wallet Service Authorization
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: wallet-service-authz
+  namespace: waqiti
+spec:
+  selector:
+    matchLabels:
+      app: wallet-service
+  rules:
+  # Allow API Gateway for wallet operations
+  - from:
+    - source:
+        principals: ["cluster.local/ns/waqiti/sa/api-gateway"]
+    to:
+    - operation:
+        methods: ["GET", "POST", "PUT"]
+        paths: ["/wallets/*"]
+    when:
+    - key: request.headers[x-user-id]
+      values: ["*"]
+  # Allow Transaction Service
+  - from:
+    - source:
+        principals: ["cluster.local/ns/waqiti/sa/transaction-service"]
+    to:
+    - operation:
+        methods: ["POST", "PUT", "GET"]
+        paths: ["/wallets/*/balance", "/wallets/*/transfer"]
+
+---
+# ML Service Authorization
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: ml-service-authz
+  namespace: waqiti
+spec:
+  selector:
+    matchLabels:
+      app: ml-service
+  rules:
+  # Allow Payment Service for fraud detection
+  - from:
+    - source:
+        principals: ["cluster.local/ns/waqiti/sa/payment-service"]
+    to:
+    - operation:
+        methods: ["POST"]
+        paths: ["/fraud/analyze", "/fraud/score"]
+  # Allow Transaction Service
+  - from:
+    - source:
+        principals: ["cluster.local/ns/waqiti/sa/transaction-service"]
+    to:
+    - operation:
+        methods: ["POST"]
+        paths: ["/fraud/analyze", "/risk/assess"]
+  # Allow Security Service
+  - from:
+    - source:
+        principals: ["cluster.local/ns/waqiti/sa/security-service"]
+    to:
+    - operation:
+        methods: ["POST", "GET"]
+        paths: ["/fraud/*", "/behavior/*"]
+
+---
+# Security Service Authorization
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: security-service-authz
+  namespace: waqiti
+spec:
+  selector:
+    matchLabels:
+      app: security-service
+  rules:
+  # Allow all services for security operations
+  - from:
+    - source:
+        principals: 
+        - "cluster.local/ns/waqiti/sa/api-gateway"
+        - "cluster.local/ns/waqiti/sa/user-service"
+        - "cluster.local/ns/waqiti/sa/payment-service"
+        - "cluster.local/ns/waqiti/sa/transaction-service"
+    to:
+    - operation:
+        methods: ["POST", "GET"]
+        paths: ["/security/*", "/audit/*", "/compliance/*"]
+
+---
+# Bank Integration Service Authorization
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: bank-integration-authz
+  namespace: waqiti
+spec:
+  selector:
+    matchLabels:
+      app: bank-integration-service
+  rules:
+  # Allow Payment Service
+  - from:
+    - source:
+        principals: ["cluster.local/ns/waqiti/sa/payment-service"]
+    to:
+    - operation:
+        methods: ["POST", "GET"]
+        paths: ["/bank/*", "/providers/*"]
+  # Allow Transaction Service
+  - from:
+    - source:
+        principals: ["cluster.local/ns/waqiti/sa/transaction-service"]
+    to:
+    - operation:
+        methods: ["POST", "GET"]
+        paths: ["/bank/transfer", "/bank/status"]
+
+---
+# Notification Service Authorization
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: notification-service-authz
+  namespace: waqiti
+spec:
+  selector:
+    matchLabels:
+      app: notification-service
+  rules:
+  # Allow all services to send notifications
+  - from:
+    - source:
+        principals: 
+        - "cluster.local/ns/waqiti/sa/user-service"
+        - "cluster.local/ns/waqiti/sa/payment-service"
+        - "cluster.local/ns/waqiti/sa/transaction-service"
+        - "cluster.local/ns/waqiti/sa/security-service"
+    to:
+    - operation:
+        methods: ["POST"]
+        paths: ["/notifications/send", "/notifications/*/send"]
+
+---
+# Analytics Service Authorization
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: analytics-service-authz
+  namespace: waqiti
+spec:
+  selector:
+    matchLabels:
+      app: analytics-service
+  rules:
+  # Allow read-only access from API Gateway
+  - from:
+    - source:
+        principals: ["cluster.local/ns/waqiti/sa/api-gateway"]
+    to:
+    - operation:
+        methods: ["GET"]
+        paths: ["/analytics/*", "/reports/*"]
+  # Allow data ingestion from other services
+  - from:
+    - source:
+        principals: 
+        - "cluster.local/ns/waqiti/sa/payment-service"
+        - "cluster.local/ns/waqiti/sa/transaction-service"
+        - "cluster.local/ns/waqiti/sa/user-service"
+    to:
+    - operation:
+        methods: ["POST"]
+        paths: ["/analytics/events", "/analytics/metrics"]
+
+---
+# Request Authentication for JWT Validation
+apiVersion: security.istio.io/v1beta1
+kind: RequestAuthentication
+metadata:
+  name: jwt-auth
+  namespace: waqiti
+spec:
+  selector:
+    matchLabels:
+      app: api-gateway
+  jwtRules:
+  - issuer: "https://auth.example.com"
+    jwksUri: "https://auth.example.com/.well-known/jwks.json"
+    audiences:
+    - "waqiti-api"
+    - "waqiti-app"
+    fromHeaders:
+    - name: Authorization
+      prefix: "Bearer "
+    fromParams:
+    - "access_token"
+    forwardOriginalToken: true
+
+---
+# Rate Limiting Policy
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: rate-limit-filter
+  namespace: waqiti
+spec:
+  workloadSelector:
+    labels:
+      app: api-gateway
+  configPatches:
+  - applyTo: HTTP_FILTER
+    match:
+      context: SIDECAR_INBOUND
+      listener:
+        filterChain:
+          filter:
+            name: "envoy.filters.network.http_connection_manager"
+    patch:
+      operation: INSERT_BEFORE
+      value:
+        name: envoy.filters.http.local_ratelimit
+        typed_config:
+          "@type": type.googleapis.com/udpa.type.v1.TypedStruct
+          type_url: type.googleapis.com/envoy.extensions.filters.http.local_ratelimit.v3.LocalRateLimit
+          value:
+            stat_prefix: rate_limiter
+            token_bucket:
+              max_tokens: 100
+              tokens_per_fill: 100
+              fill_interval: 60s
+            filter_enabled:
+              runtime_key: rate_limit_enabled
+              default_value:
+                numerator: 100
+                denominator: HUNDRED
+            filter_enforced:
+              runtime_key: rate_limit_enforced
+              default_value:
+                numerator: 100
+                denominator: HUNDRED
+
+---
+# WASM Plugin for Advanced Security
+apiVersion: extensions.istio.io/v1alpha1
+kind: WasmPlugin
+metadata:
+  name: security-plugin
+  namespace: waqiti
+spec:
+  selector:
+    matchLabels:
+      app: api-gateway
+  url: "oci://registry.example.com/security-wasm:latest"
+  phase: AUTHN
+  pluginConfig:
+    # Advanced security features
+    enable_bot_detection: true
+    enable_geo_blocking: true
+    blocked_countries: ["CN", "RU", "KP"]
+    enable_device_fingerprinting: true
+    max_requests_per_ip: 1000
+    enable_anomaly_detection: true
+
+---
+# Service Entry for External Dependencies
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: external-apis
+  namespace: waqiti
+spec:
+  hosts:
+  - api.stripe.com
+  - api.paypal.com
+  ports:
+  - number: 443
+    name: https
+    protocol: HTTPS
+  location: MESH_EXTERNAL
+  resolution: DNS
+
+---
+# Destination Rule for External Services
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: external-apis-dr
+  namespace: waqiti
+spec:
+  host: "*.stripe.com"
+  trafficPolicy:
+    tls:
+      mode: SIMPLE
+      caCertificates: /etc/ssl/certs/ca-certificates.crt
+    connectionPool:
+      tcp:
+        maxConnections: 10
+        connectTimeout: 30s
+        tcpKeepalive:
+          time: 7200s
+          interval: 75s
+      http:
+        http1MaxPendingRequests: 10
+        http2MaxRequests: 100
+        maxRequestsPerConnection: 100
+        maxRetries: 3
+        consecutiveGatewayErrors: 5
+        interval: 30s
+        baseEjectionTime: 30s
+
+---
+# Virtual Service for Egress Traffic
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: external-apis-vs
+  namespace: waqiti
+spec:
+  hosts:
+  - api.stripe.com
+  - api.paypal.com
+  gateways:
+  - waqiti-egress-gateway
+  - mesh
+  tls:
+  - match:
+    - port: 443
+      sniHosts:
+      - api.stripe.com
+      - api.paypal.com
+    route:
+    - destination:
+        host: api.stripe.com
+        port:
+          number: 443
+      weight: 50
+    - destination:
+        host: api.paypal.com
+        port:
+          number: 443
+      weight: 50
+    timeout: 30s
+    retries:
+      attempts: 3
+      perTryTimeout: 10s
+
+---
+# Security Audit Policy
+apiVersion: audit.k8s.io/v1
+kind: Policy
+metadata:
+  name: waqiti-audit-policy
+rules:
+# Log all security-related events
+- level: RequestResponse
+  namespaces: ["waqiti"]
+  resources:
+  - group: "security.istio.io"
+    resources: ["*"]
+  - group: "networking.istio.io"
+    resources: ["*"]
+# Log authentication events
+- level: Request
+  namespaces: ["waqiti"]
+  verbs: ["create", "update", "patch", "delete"]
+  resources:
+  - group: ""
+    resources: ["secrets", "configmaps"]
+- level: Metadata
+  omitStages:
+  - RequestReceived

@@ -1,0 +1,308 @@
+# Waqiti Fintech Service Configuration Template
+# This file contains standardized configuration that all microservices should inherit
+# Copy this template to your service's application.yml and customize as needed
+
+# Server Configuration
+server:
+  port: ${SERVER_PORT:8080}
+  servlet:
+    context-path: /api/v1
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/xml,text/plain,application/javascript,text/css
+  http2:
+    enabled: true
+
+# Spring Configuration
+spring:
+  application:
+    name: ${SERVICE_NAME:waqiti-service}
+  
+  # Database Configuration - Production-Ready with NO hardcoded values
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://${DB_HOST:postgres.service.consul}:${DB_PORT:5432}/${DB_NAME:waqiti}?ssl=${DB_USE_SSL:true}&sslmode=${DB_SSL_MODE:require}}
+    username: ${DATABASE_USERNAME:${DB_USERNAME:waqiti_user}}
+    password: ${DATABASE_PASSWORD:${DB_PASSWORD}}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${DB_MAX_POOL_SIZE:20}
+      minimum-idle: ${DB_MIN_IDLE:5}
+      connection-timeout: ${DB_CONNECTION_TIMEOUT:30000}
+      idle-timeout: ${DB_IDLE_TIMEOUT:600000}
+      max-lifetime: ${DB_MAX_LIFETIME:1800000}
+      leak-detection-threshold: ${DB_LEAK_DETECTION:60000}
+      pool-name: WaqitiCP
+      auto-commit: false
+
+  # JPA Configuration
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:validate}
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.SnakeCasePhysicalNamingStrategy
+    show-sql: ${JPA_SHOW_SQL:false}
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        use_sql_comments: true
+        jdbc:
+          batch_size: 20
+          order_inserts: true
+          order_updates: true
+        cache:
+          use_second_level_cache: true
+          use_query_cache: true
+          region:
+            factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
+
+  # Redis Configuration - Production-Ready with Sentinel support
+  redis:
+    host: ${REDIS_HOST:redis-master.service.consul}
+    port: ${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD:}
+    database: ${REDIS_DATABASE:0}
+    timeout: ${REDIS_TIMEOUT:5000ms}
+    lettuce:
+      pool:
+        max-active: ${REDIS_MAX_ACTIVE:20}
+        max-idle: ${REDIS_MAX_IDLE:10}
+        min-idle: ${REDIS_MIN_IDLE:2}
+        max-wait: ${REDIS_MAX_WAIT:5000ms}
+
+  # Kafka Configuration - Production-Ready with cluster support
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka-broker-1.service.consul:9092,kafka-broker-2.service.consul:9092,kafka-broker-3.service.consul:9092}
+    producer:
+      acks: ${KAFKA_PRODUCER_ACKS:all}
+      retries: ${KAFKA_PRODUCER_RETRIES:3}
+      batch-size: ${KAFKA_BATCH_SIZE:16384}
+      linger-ms: ${KAFKA_LINGER_MS:5}
+      buffer-memory: ${KAFKA_BUFFER_MEMORY:33554432}
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      group-id: ${KAFKA_GROUP_ID:waqiti-fintech}
+      auto-offset-reset: ${KAFKA_AUTO_OFFSET_RESET:earliest}
+      enable-auto-commit: ${KAFKA_ENABLE_AUTO_COMMIT:false}
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.waqiti.*"
+
+  # Security Configuration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://keycloak.example.com:8180/realms/waqiti-fintech}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:https://keycloak.example.com:8180/realms/waqiti-fintech/protocol/openid-connect/certs}
+
+# Eureka Configuration - Production-Ready service discovery
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://eureka.service.consul:8761/eureka/}
+    register-with-eureka: ${EUREKA_REGISTER:true}
+    fetch-registry: ${EUREKA_FETCH_REGISTRY:true}
+    initial-instance-info-replication-interval-seconds: 5
+    instance-info-replication-interval-seconds: 5
+  instance:
+    hostname: ${EUREKA_INSTANCE_HOSTNAME:${HOSTNAME:${spring.application.name}.service.consul}}
+    prefer-ip-address: ${EUREKA_PREFER_IP:true}
+    lease-renewal-interval-in-seconds: 5
+    lease-expiration-duration-in-seconds: 10
+
+# Resilience4j Configuration
+resilience4j:
+  circuitbreaker:
+    instances:
+      default:
+        failure-rate-threshold: ${CIRCUIT_BREAKER_FAILURE_RATE:50}
+        slow-call-rate-threshold: ${CIRCUIT_BREAKER_SLOW_CALL_RATE:50}
+        slow-call-duration-threshold: ${CIRCUIT_BREAKER_SLOW_CALL_DURATION:2s}
+        permitted-number-of-calls-in-half-open-state: ${CIRCUIT_BREAKER_HALF_OPEN_CALLS:3}
+        sliding-window-size: ${CIRCUIT_BREAKER_SLIDING_WINDOW:10}
+        minimum-number-of-calls: ${CIRCUIT_BREAKER_MIN_CALLS:5}
+        wait-duration-in-open-state: ${CIRCUIT_BREAKER_WAIT_DURATION:30s}
+      wallet-service:
+        base-config: default
+      user-service:
+        base-config: default
+      notification-service:
+        base-config: default
+
+  retry:
+    instances:
+      default:
+        max-attempts: ${RETRY_MAX_ATTEMPTS:3}
+        wait-duration: ${RETRY_WAIT_DURATION:500ms}
+        exponential-backoff-multiplier: ${RETRY_BACKOFF_MULTIPLIER:2.0}
+        retry-exceptions:
+          - java.lang.RuntimeException
+          - org.springframework.web.client.ResourceAccessException
+          - org.springframework.dao.TransientDataAccessException
+
+  timelimiter:
+    instances:
+      default:
+        timeout-duration: ${TIME_LIMITER_TIMEOUT:10s}
+        cancel-running-future: ${TIME_LIMITER_CANCEL:true}
+
+  bulkhead:
+    instances:
+      default:
+        max-concurrent-calls: ${BULKHEAD_MAX_CALLS:25}
+        max-wait-duration: ${BULKHEAD_MAX_WAIT:0ms}
+
+# Feign Configuration
+feign:
+  client:
+    config:
+      default:
+        connect-timeout: ${FEIGN_CONNECT_TIMEOUT:10000}
+        read-timeout: ${FEIGN_READ_TIMEOUT:30000}
+        logger-level: ${FEIGN_LOG_LEVEL:basic}
+      wallet-service:
+        url: ${WALLET_SERVICE_URL:http://wallet-service.service.consul:8082}
+      user-service:
+        url: ${USER_SERVICE_URL:http://user-service.service.consul:8081}
+      notification-service:
+        url: ${NOTIFICATION_SERVICE_URL:http://notification-service.service.consul:8083}
+      fraud-detection-service:
+        url: ${FRAUD_SERVICE_URL:http://fraud-detection-service.service.consul:8084}
+      ledger-service:
+        url: ${LEDGER_SERVICE_URL:http://ledger-service.service.consul:8085}
+      payment-service:
+        url: ${PAYMENT_SERVICE_URL:http://payment-service.service.consul:8080}
+
+# Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: ${ACTUATOR_ENDPOINTS:health,info,metrics,prometheus}
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: ${ACTUATOR_HEALTH_DETAILS:when_authorized}
+      show-components: always
+      probes:
+        enabled: true
+    metrics:
+      enabled: true
+    prometheus:
+      enabled: true
+  health:
+    circuitbreakers:
+      enabled: true
+    ratelimiters:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+      environment: ${ENVIRONMENT:development}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      percentiles:
+        http.server.requests: 0.5, 0.95, 0.99
+
+# Logging Configuration
+logging:
+  level:
+    com.waqiti: ${LOG_LEVEL_WAQITI:INFO}
+    org.springframework.security: ${LOG_LEVEL_SECURITY:WARN}
+    org.springframework.web: ${LOG_LEVEL_WEB:WARN}
+    org.hibernate.SQL: ${LOG_LEVEL_SQL:WARN}
+    org.hibernate.type.descriptor.sql.BasicBinder: ${LOG_LEVEL_SQL_PARAMS:WARN}
+    feign: ${LOG_LEVEL_FEIGN:INFO}
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
+
+# Waqiti Custom Configuration
+waqiti:
+  # Security Settings
+  security:
+    enable-security: ${WAQITI_ENABLE_SECURITY:true}
+    jwt-secret: ${WAQITI_JWT_SECRET:${VAULT_JWT_SECRET}}
+    jwt-expiration: ${WAQITI_JWT_EXPIRATION:24h}
+    enable-csrf: ${WAQITI_ENABLE_CSRF:false}
+    enable-cors: ${WAQITI_ENABLE_CORS:true}
+
+  # Resilience Settings (used by WaqitiServiceConfiguration)
+  resilience:
+    circuit-breaker:
+      failure-rate-threshold: ${WAQITI_CB_FAILURE_RATE:50.0}
+      slow-call-rate-threshold: ${WAQITI_CB_SLOW_CALL_RATE:50.0}
+      slow-call-duration-threshold: ${WAQITI_CB_SLOW_CALL_DURATION:2s}
+      permitted-number-of-calls-in-half-open-state: ${WAQITI_CB_HALF_OPEN_CALLS:3}
+      sliding-window-size: ${WAQITI_CB_SLIDING_WINDOW:10}
+      minimum-number-of-calls: ${WAQITI_CB_MIN_CALLS:5}
+      wait-duration-in-open-state: ${WAQITI_CB_WAIT_DURATION:30s}
+    retry:
+      max-attempts: ${WAQITI_RETRY_MAX_ATTEMPTS:3}
+      wait-duration: ${WAQITI_RETRY_WAIT_DURATION:500ms}
+      exponential-backoff-multiplier: ${WAQITI_RETRY_BACKOFF_MULTIPLIER:2.0}
+    time-limiter:
+      timeout-duration: ${WAQITI_TIME_LIMITER_TIMEOUT:10s}
+      cancel-running-future: ${WAQITI_TIME_LIMITER_CANCEL:true}
+
+  # Database Pool Settings (used by WaqitiServiceConfiguration)
+  datasource:
+    hikari:
+      maximum-pool-size: ${WAQITI_DB_MAX_POOL_SIZE:20}
+      minimum-idle: ${WAQITI_DB_MIN_IDLE:5}
+      connection-timeout: ${WAQITI_DB_CONNECTION_TIMEOUT:30000}
+      idle-timeout: ${WAQITI_DB_IDLE_TIMEOUT:600000}
+      max-lifetime: ${WAQITI_DB_MAX_LIFETIME:1800000}
+      leak-detection-threshold: ${WAQITI_DB_LEAK_DETECTION:60000}
+      pool-name: ${WAQITI_DB_POOL_NAME:WaqitiCP}
+      auto-commit: ${WAQITI_DB_AUTO_COMMIT:false}
+
+  # Redis Settings (used by WaqitiServiceConfiguration)
+  redis:
+    host: ${WAQITI_REDIS_HOST:redis-master.service.consul}
+    port: ${WAQITI_REDIS_PORT:6379}
+    sentinel:
+      master: ${REDIS_SENTINEL_MASTER:mymaster}
+      nodes: ${REDIS_SENTINEL_NODES:redis-sentinel-1.service.consul:26379,redis-sentinel-2.service.consul:26379,redis-sentinel-3.service.consul:26379}
+    password: ${WAQITI_REDIS_PASSWORD:}
+    database: ${WAQITI_REDIS_DATABASE:0}
+    timeout: ${WAQITI_REDIS_TIMEOUT:5s}
+    max-active: ${WAQITI_REDIS_MAX_ACTIVE:20}
+    max-idle: ${WAQITI_REDIS_MAX_IDLE:10}
+    min-idle: ${WAQITI_REDIS_MIN_IDLE:2}
+    max-wait: ${WAQITI_REDIS_MAX_WAIT:5s}
+
+  # Kafka Settings (used by WaqitiServiceConfiguration)
+  kafka:
+    bootstrap-servers: ${WAQITI_KAFKA_BOOTSTRAP_SERVERS:kafka-broker-1.service.consul:9092,kafka-broker-2.service.consul:9092,kafka-broker-3.service.consul:9092}
+    security:
+      protocol: ${KAFKA_SECURITY_PROTOCOL:SASL_SSL}
+      sasl:
+        mechanism: ${KAFKA_SASL_MECHANISM:PLAIN}
+        jaas-config: ${KAFKA_SASL_JAAS_CONFIG:}
+    acks: ${WAQITI_KAFKA_ACKS:all}
+    retries: ${WAQITI_KAFKA_RETRIES:3}
+    batch-size: ${WAQITI_KAFKA_BATCH_SIZE:16384}
+    linger-ms: ${WAQITI_KAFKA_LINGER_MS:5}
+    buffer-memory: ${WAQITI_KAFKA_BUFFER_MEMORY:33554432}
+    key-serializer: ${WAQITI_KAFKA_KEY_SERIALIZER:org.apache.kafka.common.serialization.StringSerializer}
+    value-serializer: ${WAQITI_KAFKA_VALUE_SERIALIZER:org.springframework.kafka.support.serializer.JsonSerializer}
+    key-deserializer: ${WAQITI_KAFKA_KEY_DESERIALIZER:org.apache.kafka.common.serialization.StringDeserializer}
+    value-deserializer: ${WAQITI_KAFKA_VALUE_DESERIALIZER:org.springframework.kafka.support.serializer.JsonDeserializer}
+    group-id: ${WAQITI_KAFKA_GROUP_ID:waqiti-fintech}
+    auto-offset-reset: ${WAQITI_KAFKA_AUTO_OFFSET_RESET:earliest}
+    enable-auto-commit: ${WAQITI_KAFKA_ENABLE_AUTO_COMMIT:false}
+
+# Service-specific configuration
+# Override these in your service's application.yml
+payment:
+  limits:
+    max-amount: ${PAYMENT_MAX_AMOUNT:10000}
+    daily-limit: ${PAYMENT_DAILY_LIMIT:50000}
+  processing:
+    timeout: ${PAYMENT_PROCESSING_TIMEOUT:30s}
+    retry-attempts: ${PAYMENT_RETRY_ATTEMPTS:3}

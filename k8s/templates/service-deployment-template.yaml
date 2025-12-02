@@ -1,0 +1,258 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ${SERVICE_NAME}
+  namespace: example-prod
+  labels:
+    app: ${SERVICE_NAME}
+    environment: production
+    tier: backend
+    version: ${VERSION}
+spec:
+  replicas: ${REPLICAS}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: ${SERVICE_NAME}
+      environment: production
+  template:
+    metadata:
+      labels:
+        app: ${SERVICE_NAME}
+        environment: production
+        version: ${VERSION}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - ${SERVICE_NAME}
+              topologyKey: kubernetes.io/hostname
+      containers:
+      - name: ${SERVICE_NAME}
+        image: waqiti/${SERVICE_NAME}:${VERSION}
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        - containerPort: 8081
+          name: management
+          protocol: TCP
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "production"
+        - name: JAVA_OPTS
+          value: "-Xms${MIN_MEMORY} -Xmx${MAX_MEMORY} -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: ${SERVICE_NAME}-db-secret
+              key: url
+        - name: VAULT_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: vault-token
+              key: token
+        - name: KEYCLOAK_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: keycloak-secret
+              key: client-secret
+        resources:
+          requests:
+            memory: ${REQUEST_MEMORY}
+            cpu: ${REQUEST_CPU}
+          limits:
+            memory: ${LIMIT_MEMORY}
+            cpu: ${LIMIT_CPU}
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: management
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: management
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /actuator/health
+            port: management
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30
+        volumeMounts:
+        - name: config
+          mountPath: /app/config
+          readOnly: true
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: config
+        configMap:
+          name: ${SERVICE_NAME}-config
+      serviceAccountName: ${SERVICE_NAME}
+      securityContext:
+        fsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 1000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ${SERVICE_NAME}
+  namespace: example-prod
+  labels:
+    app: ${SERVICE_NAME}
+    environment: production
+spec:
+  type: ClusterIP
+  selector:
+    app: ${SERVICE_NAME}
+    environment: production
+  ports:
+  - port: 8080
+    targetPort: 8080
+    name: http
+    protocol: TCP
+  - port: 8081
+    targetPort: 8081
+    name: management
+    protocol: TCP
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ${SERVICE_NAME}-hpa
+  namespace: example-prod
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ${SERVICE_NAME}
+  minReplicas: ${MIN_REPLICAS}
+  maxReplicas: ${MAX_REPLICAS}
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+      - type: Pods
+        value: 2
+        periodSeconds: 15
+      selectPolicy: Max
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ${SERVICE_NAME}-pdb
+  namespace: example-prod
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: ${SERVICE_NAME}
+      environment: production
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ${SERVICE_NAME}-network-policy
+  namespace: example-prod
+spec:
+  podSelector:
+    matchLabels:
+      app: ${SERVICE_NAME}
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: api-gateway
+    - podSelector:
+        matchLabels:
+          tier: backend
+    ports:
+    - protocol: TCP
+      port: 8080
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          tier: backend
+    ports:
+    - protocol: TCP
+      port: 8080
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: database
+    ports:
+    - protocol: TCP
+      port: 5432
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: redis
+    ports:
+    - protocol: TCP
+      port: 6379
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: vault
+    ports:
+    - protocol: TCP
+      port: 8200

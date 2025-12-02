@@ -1,0 +1,167 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: vault
+  namespace: vault-system
+  labels:
+    app: vault
+spec:
+  serviceName: vault-internal
+  replicas: 3
+  selector:
+    matchLabels:
+      app: vault
+  template:
+    metadata:
+      labels:
+        app: vault
+    spec:
+      serviceAccountName: vault
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 100
+        fsGroup: 1000
+
+      affinity:
+        # Ensure pods are spread across different nodes
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: vault
+              topologyKey: kubernetes.io/hostname
+
+      terminationGracePeriodSeconds: 30
+
+      initContainers:
+        - name: config-init
+          image: busybox:1.35
+          command:
+            - /bin/sh
+            - -c
+            - |
+              cp /vault/config/vault.hcl /vault/config-rendered/vault.hcl
+              sed -i "s/VAULT_NODE_ID/vault-${HOSTNAME##*-}/g" /vault/config-rendered/vault.hcl
+              sed -i "s/VAULT_POD_NAME/${HOSTNAME}/g" /vault/config-rendered/vault.hcl
+              sed -i "s/VAULT_KMS_KEY_ID/${VAULT_KMS_KEY_ID}/g" /vault/config-rendered/vault.hcl
+          env:
+            - name: VAULT_KMS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: vault-kms
+                  key: kms-key-id
+          volumeMounts:
+            - name: vault-config
+              mountPath: /vault/config
+            - name: vault-config-rendered
+              mountPath: /vault/config-rendered
+
+      containers:
+        - name: vault
+          image: hashicorp/vault:1.15.4
+          imagePullPolicy: IfNotPresent
+
+          command:
+            - /bin/sh
+            - -c
+            - |
+              vault server -config=/vault/config-rendered/vault.hcl
+
+          env:
+            - name: VAULT_ADDR
+              value: "https://127.0.0.1:8200"
+            - name: VAULT_API_ADDR
+              value: "https://$(POD_NAME).vault-internal:8200"
+            - name: VAULT_CLUSTER_ADDR
+              value: "https://$(POD_NAME).vault-internal:8201"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: SKIP_CHOWN
+              value: "true"
+            - name: SKIP_SETCAP
+              value: "true"
+            - name: VAULT_LOG_LEVEL
+              value: "info"
+            - name: VAULT_LOG_FORMAT
+              value: "json"
+
+          ports:
+            - name: http
+              containerPort: 8200
+              protocol: TCP
+            - name: https-internal
+              containerPort: 8201
+              protocol: TCP
+            - name: metrics
+              containerPort: 8220
+              protocol: TCP
+
+          readinessProbe:
+            httpGet:
+              path: /v1/sys/health?standbyok=true&sealedcode=204&uninitcode=204
+              port: 8200
+              scheme: HTTPS
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 3
+
+          livenessProbe:
+            httpGet:
+              path: /v1/sys/health?standbyok=true
+              port: 8200
+              scheme: HTTPS
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 5
+
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "2Gi"
+            limits:
+              cpu: "2000m"
+              memory: "8Gi"
+
+          volumeMounts:
+            - name: vault-data
+              mountPath: /vault/data
+            - name: vault-config-rendered
+              mountPath: /vault/config-rendered
+            - name: vault-tls
+              mountPath: /vault/tls
+              readOnly: true
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+
+      volumes:
+        - name: vault-config
+          configMap:
+            name: vault-config
+        - name: vault-config-rendered
+          emptyDir: {}
+        - name: vault-tls
+          secret:
+            secretName: vault-tls
+            defaultMode: 0400
+
+  volumeClaimTemplates:
+    - metadata:
+        name: vault-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: ssd-storage
+        resources:
+          requests:
+            storage: 500Gi

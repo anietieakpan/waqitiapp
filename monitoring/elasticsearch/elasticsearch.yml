@@ -1,0 +1,85 @@
+cluster.name: "waqiti-logs"
+node.name: "waqiti-elasticsearch-node-1"
+
+# Network settings
+network.host: 0.0.0.0
+http.port: 9200
+transport.port: 9300
+
+# Discovery settings for single node
+discovery.type: single-node
+cluster.initial_master_nodes: ["waqiti-elasticsearch-node-1"]
+
+# Memory and performance settings
+bootstrap.memory_lock: true
+indices.memory.index_buffer_size: 30%
+indices.memory.min_index_buffer_size: 96mb
+
+# Index settings
+action.auto_create_index: +waqiti-*,+logstash-*,+filebeat-*,-.monitoring-*,-.watcher-*,-.triggered_watches,-.watches,-.kibana*
+
+# Security settings (PRODUCTION - ENABLED)
+xpack.security.enabled: true
+xpack.security.enrollment.enabled: true
+
+# HTTP SSL/TLS
+xpack.security.http.ssl.enabled: true
+xpack.security.http.ssl.key: /usr/share/elasticsearch/config/certs/elasticsearch.key
+xpack.security.http.ssl.certificate: /usr/share/elasticsearch/config/certs/elasticsearch.crt
+xpack.security.http.ssl.certificate_authorities: ["/ /usr/share/elasticsearch/config/certs/ca.crt"]
+xpack.security.http.ssl.verification_mode: certificate
+
+# Transport SSL/TLS (node-to-node communication)
+xpack.security.transport.ssl.enabled: true
+xpack.security.transport.ssl.key: /usr/share/elasticsearch/config/certs/elasticsearch.key
+xpack.security.transport.ssl.certificate: /usr/share/elasticsearch/config/certs/elasticsearch.crt
+xpack.security.transport.ssl.certificate_authorities: ["/usr/share/elasticsearch/config/certs/ca.crt"]
+xpack.security.transport.ssl.verification_mode: certificate
+
+# Authentication
+xpack.security.authc.realms.native.native1:
+  order: 0
+
+# Audit logging for compliance
+xpack.security.audit.enabled: true
+xpack.security.audit.logfile.events.include: ["access_denied", "authentication_failed", "connection_denied", "tampered_request", "run_as_denied"]
+xpack.security.audit.logfile.events.emit_request_body: true
+
+# Monitoring settings
+xpack.monitoring.collection.enabled: true
+xpack.monitoring.elasticsearch.collection.enabled: false
+
+# Machine learning settings
+xpack.ml.enabled: true
+
+# License settings
+xpack.license.self_generated.type: trial
+
+# Index lifecycle management
+xpack.ilm.enabled: true
+
+# Performance tuning
+indices.queries.cache.size: 10%
+indices.fielddata.cache.size: 20%
+indices.breaker.fielddata.limit: 40%
+indices.breaker.request.limit: 60%
+indices.breaker.total.limit: 95%
+
+# Thread pool settings
+thread_pool.write.queue_size: 1000
+thread_pool.search.queue_size: 1000
+
+# Index templates for log retention
+index_template:
+  patterns: ["waqiti-*"]
+  settings:
+    number_of_shards: 1
+    number_of_replicas: 0
+    index.refresh_interval: 30s
+    index.lifecycle.name: waqiti-logs-policy
+    index.lifecycle.rollover_alias: waqiti-logs
+
+# Logging configuration
+logger.org.elasticsearch.deprecation: warn
+logger.org.elasticsearch.discovery: info
+logger.org.elasticsearch.cluster.service: debug

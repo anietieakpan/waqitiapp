@@ -1,0 +1,126 @@
+# Kubernetes Deployment Patch Example
+#
+# This patch adds Vault token injection to a service deployment
+# Apply this patch to each service deployment YAML
+
+# Example for payment-service
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-service
+  namespace: waqiti-services
+spec:
+  template:
+    spec:
+      containers:
+        - name: payment-service
+          image: waqiti/payment-service:latest
+
+          # Add Vault environment variables
+          env:
+            # Vault configuration
+            - name: VAULT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: payment-service-vault-token
+                  key: vault-token
+
+            - name: VAULT_ENABLED
+              value: "true"
+
+            - name: VAULT_HOST
+              value: "vault.vault-system.svc.cluster.local"
+
+            - name: VAULT_PORT
+              value: "8200"
+
+            # Spring profiles (include vault profile)
+            - name: SPRING_PROFILES_ACTIVE
+              value: "prod,vault"
+
+            # Service name for Vault path resolution
+            - name: SPRING_APPLICATION_NAME
+              value: "payment-service"
+
+          # Vault health check (optional)
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            failureThreshold: 3
+
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 5
+            failureThreshold: 3
+
+---
+# Example ConfigMap for additional Vault configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: payment-service-vault-config
+  namespace: waqiti-services
+data:
+  vault-paths.properties: |
+    # Vault secret paths for payment-service
+    vault.paths.jwt-secret=secret/data/waqiti/jwt-secret
+    vault.paths.database=secret/data/waqiti/payment-service/database
+    vault.paths.redis=secret/data/waqiti/payment-service/redis
+    vault.paths.kafka=secret/data/waqiti/payment-service/kafka
+    vault.paths.stripe=secret/data/waqiti/payment-service/stripe
+    vault.paths.paypal=secret/data/waqiti/payment-service/paypal
+    vault.paths.flutterwave=secret/data/waqiti/payment-service/flutterwave
+
+---
+# Init Container to verify Vault connectivity (optional)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-service-with-init
+  namespace: waqiti-services
+spec:
+  template:
+    spec:
+      initContainers:
+        - name: vault-init
+          image: hashicorp/vault:1.15.4
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Checking Vault connectivity..."
+              export VAULT_ADDR="https://vault.vault-system.svc.cluster.local:8200"
+              export VAULT_TOKEN=$(cat /vault/token/vault-token)
+
+              until vault status; do
+                echo "Vault is unavailable - sleeping"
+                sleep 5
+              done
+
+              echo "Vault is ready!"
+
+              # Verify token is valid
+              vault token lookup
+          env:
+            - name: VAULT_SKIP_VERIFY
+              value: "true"  # Set to false in production with proper certs
+          volumeMounts:
+            - name: vault-token
+              mountPath: /vault/token
+              readOnly: true
+
+      containers:
+        - name: payment-service
+          # ... (same as above)
+
+      volumes:
+        - name: vault-token
+          secret:
+            secretName: payment-service-vault-token

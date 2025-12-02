@@ -1,0 +1,377 @@
+---
+# SECURITY: This Secret should be managed by external-secrets-operator with Vault
+# For production deployment, see: infrastructure/terraform/vault-secrets.tf
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: prometheus-auth-secrets
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: prometheus
+    security.example.com/type: authentication
+    security.example.com/managed-by: vault
+spec:
+  refreshInterval: 15m
+  secretStoreRef:
+    name: vault-backend
+    kind: ClusterSecretStore
+  target:
+    name: prometheus-auth-secrets
+    creationPolicy: Owner
+  data:
+    - secretKey: self-monitoring-password
+      remoteRef:
+        key: secret/monitoring/prometheus
+        property: self_monitoring_password
+    - secretKey: alertmanager-password
+      remoteRef:
+        key: secret/monitoring/prometheus
+        property: alertmanager_password
+    - secretKey: remote-write-password
+      remoteRef:
+        key: secret/monitoring/prometheus
+        property: remote_write_password
+    - secretKey: postgres-monitoring-password
+      remoteRef:
+        key: secret/monitoring/prometheus
+        property: postgres_monitoring_password
+    - secretKey: redis-monitoring-password
+      remoteRef:
+        key: secret/monitoring/prometheus
+        property: redis_monitoring_password
+    - secretKey: kafka-monitoring-password
+      remoteRef:
+        key: secret/monitoring/prometheus
+        property: kafka_monitoring_password
+    - secretKey: financial-monitoring-password
+      remoteRef:
+        key: secret/monitoring/prometheus
+        property: financial_monitoring_password
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: prometheus-ca
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: prometheus
+    security.example.com/type: ca-certificate
+type: Opaque
+data:
+  ca.crt: |
+    LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURsakNDQW42Z0F3SUJBZ0lVSXV0N1BpVUpnUkpSeHRHTUw0WUJvejJRNVhrd0RRWUpLb1pJaHZjTkFRRUwKQlFBd1dqRUxNQWtHQTFVRUJoTUNWVk14RXpBUkJnTlZCQWdNQ2tOaGJHbG1iM0p1YVdFeEZqQVVCZ05WQkFjTQpEVk5oYmlCR2NtRnVZMmx6WTI4eEZEQVNCZ05WQkFvTUMxZGhjV2wwYVNCSmJtTXhGREFTQmdOVkJBTU1DMU53CmIzUnNhV2RvZEZSTWMwMHdIaGNOTWpReE1qQXhNekF3TURBd1doY05NekF4TVRrek16QXdNREF3V2pCYU1Rc3cKQ1FZRFZRUUdFd0pWVXpFVE1CRUdBMVVFQ0F3S1EyRnNhV1p2Y201cFlURVdNQlFHQTFVRUJ3d05VMkZ1SUVaeQpZVzVqYVhOamJ6RVVNQKLHQTFVRQ==
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: prometheus-client-certs
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: prometheus
+    security.example.com/type: client-certificate
+type: kubernetes.io/tls
+data:
+  tls.crt: |
+    LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURLakNDQWhJQ0NRRDNSODVLQk5wL0tUQU5CZ2txaGtpRzl3MEJBUXNGQURCWE1Rc3dDUVlEVlFRR0V3SlYKVXpFVE1CRUdBMVVFQ0F3S1EyRnNhV1p2Y201cFlURVdNQlFHQTFVRUJ3d05VMkZ1SUVaeVlXNWphWE5qYnpFVQpNQklHQTFVRUNnd0xWMkZ4YVhScElFbHVZekVWTUJNR0ExVUVBd3dNVUhKdmJXVjBhR1YxY3lCRFFUQWVGdzB5Ck5ERXlNREV5TWpBd01EQmFGdzB6TXpFeE1qZ3lNakF3TURCYUMQYSUKQlFBd1dqRUxNQWtHQTFVRUJoTUNWVk14RXpBUkJnTlZCQWdNQ2tOaGJHbG1iM0p1YVdFeEZqQVVCZ05WQkFjTQ==
+  tls.key: |
+    LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tCk1JSUV2UUlCQURBTkJna3Foa2lHOXcwQkFRRUZBQVNDQktjd2dnU2pBZ0VBQW9JQkFRRFU3N0xoYkk4M29IVkUKVzdXZWc0NTF0RGhsOVJKV3c0UGlpOFB1YnpWZ21FbG5qYU9YSUJrd1lHU3JuTjZzN2R3bjJOQ3AwbnQ5YlQwbQpGUGNSc2xwVE9qb2ZKZmVxWEhTczVoOXZwY0xxMGZmcU9EZE04cWVJRWJOZlJLbTNzZW9zbC95K0FscXd0VGRGCk5PYmJONmlFR3AyeGpyaTdNR1JMQ1RSeGd6bmc5UmswQTJMZE1VQWZXTlNjSllSSlZXTGFNa3NlN0JOVnhyK0cK
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: prometheus-secure
+  labels:
+    app.kubernetes.io/name: prometheus
+rules:
+- apiGroups: [""]
+  resources:
+  - nodes
+  - nodes/proxy
+  - services
+  - endpoints
+  - pods
+  - ingresses
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources:
+  - configmaps
+  verbs: ["get"]
+- apiGroups: ["networking.k8s.io"]
+  resources:
+  - ingresses
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["extensions"]
+  resources:
+  - ingresses
+  verbs: ["get", "list", "watch"]
+- nonResourceURLs: ["/metrics"]
+  verbs: ["get"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: prometheus-secure
+  labels:
+    app.kubernetes.io/name: prometheus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: prometheus-secure
+subjects:
+- kind: ServiceAccount
+  name: prometheus
+  namespace: monitoring
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: prometheus
+  annotations:
+    # AWS IAM role for service account (IRSA)
+    eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/prometheus-monitoring-role
+automountServiceAccountToken: true
+
+---
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: prometheus-secure-psp
+  labels:
+    app.kubernetes.io/name: prometheus
+spec:
+  privileged: false
+  allowPrivilegeEscalation: false
+  requiredDropCapabilities:
+    - ALL
+  volumes:
+    - 'configMap'
+    - 'emptyDir'
+    - 'projected'
+    - 'secret'
+    - 'downwardAPI'
+    - 'persistentVolumeClaim'
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+  runAsUser:
+    rule: 'MustRunAsNonRoot'
+    ranges:
+      - min: 10000
+        max: 65535
+  seLinux:
+    rule: 'RunAsAny'
+  fsGroup:
+    rule: 'MustRunAs'
+    ranges:
+      - min: 10000
+        max: 65535
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: prometheus-psp-user
+  namespace: monitoring
+rules:
+- apiGroups: ['policy']
+  resources: ['podsecuritypolicies']
+  verbs: ['use']
+  resourceNames:
+  - prometheus-secure-psp
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: prometheus-psp-binding
+  namespace: monitoring
+roleRef:
+  kind: Role
+  name: prometheus-psp-user
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- kind: ServiceAccount
+  name: prometheus
+  namespace: monitoring
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-security-rules
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: prometheus
+data:
+  security-alerts.yml: |
+    groups:
+    - name: prometheus.security
+      rules:
+      - alert: PrometheusUnauthorizedAccess
+        expr: increase(prometheus_http_requests_total{code=~"401|403"}[5m]) > 5
+        for: 2m
+        labels:
+          severity: critical
+          category: security
+          compliance: pci-dss
+        annotations:
+          summary: "Prometheus detected unauthorized access attempts"
+          description: "{{ $value }} unauthorized access attempts to Prometheus in the last 5 minutes"
+          
+      - alert: PrometheusHighFailureRate
+        expr: rate(prometheus_http_requests_total{code!~"2.."}[5m]) / rate(prometheus_http_requests_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          category: availability
+        annotations:
+          summary: "High HTTP failure rate on Prometheus"
+          description: "Prometheus is experiencing {{ $value | humanizePercentage }} HTTP failures"
+          
+      - alert: PrometheusConfigurationReload
+        expr: increase(prometheus_config_last_reload_successful[1h]) > 0
+        for: 0m
+        labels:
+          severity: info
+          category: configuration
+        annotations:
+          summary: "Prometheus configuration reloaded"
+          description: "Prometheus configuration has been reloaded successfully"
+          
+      - alert: PrometheusRuleEvaluationFailures
+        expr: increase(prometheus_rule_evaluation_failures_total[5m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+          category: monitoring
+        annotations:
+          summary: "Prometheus rule evaluation failures"
+          description: "Prometheus has {{ $value }} rule evaluation failures"
+
+  financial-security-alerts.yml: |
+    groups:
+    - name: financial.security
+      rules:
+      - alert: FinancialServiceMetricsUnavailable
+        expr: up{security_classification="financial"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: financial-security
+          compliance: pci-dss
+        annotations:
+          summary: "Financial service metrics unavailable"
+          description: "Financial service {{ $labels.instance }} is not responding to metric requests"
+          
+      - alert: PaymentProcessingAnomalies
+        expr: rate(payment_transactions_total[5m]) > 100
+        for: 2m
+        labels:
+          severity: warning
+          category: financial-anomaly
+          compliance: pci-dss
+        annotations:
+          summary: "Unusual payment processing volume"
+          description: "Payment processing rate is {{ $value }} transactions/second, above normal threshold"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-backup-config
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: prometheus
+data:
+  backup-script.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    
+    # Secure backup script for Prometheus data
+    BACKUP_DATE=$(date +%Y%m%d_%H%M%S)
+    BACKUP_PATH="/backup/prometheus_${BACKUP_DATE}"
+    S3_BUCKET="waqiti-prometheus-backups-encrypted"
+    
+    # Create backup with compression and encryption
+    echo "Creating secure backup at ${BACKUP_PATH}"
+    tar -czf "${BACKUP_PATH}.tar.gz" /prometheus/
+    
+    # Encrypt backup
+    gpg --cipher-algo AES256 --compress-algo 2 --symmetric \
+        --output "${BACKUP_PATH}.tar.gz.gpg" "${BACKUP_PATH}.tar.gz"
+    
+    # Upload to encrypted S3 bucket
+    aws s3 cp "${BACKUP_PATH}.tar.gz.gpg" \
+        "s3://${S3_BUCKET}/prometheus/data/${BACKUP_DATE}.tar.gz.gpg" \
+        --server-side-encryption AES256
+    
+    # Cleanup local backup files
+    rm -f "${BACKUP_PATH}.tar.gz" "${BACKUP_PATH}.tar.gz.gpg"
+    
+    # Retention policy - keep 30 days
+    aws s3 ls "s3://${S3_BUCKET}/prometheus/data/" | \
+        while read -r line; do
+            createDate=$(echo "$line" | awk '{print $1" "$2}')
+            createDate=$(date -d "$createDate" +%s)
+            olderThan=$(date -d "30 days ago" +%s)
+            if [[ $createDate -lt $olderThan ]]; then
+                fileName=$(echo "$line" | awk '{print $4}')
+                aws s3 rm "s3://${S3_BUCKET}/prometheus/data/${fileName}"
+                echo "Deleted old backup: ${fileName}"
+            fi
+        done
+    
+    echo "Backup completed successfully"
+
+  restore-script.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    
+    # Secure restore script for Prometheus data
+    if [ $# -ne 1 ]; then
+        echo "Usage: $0 <backup_date>"
+        echo "Example: $0 20241201_143000"
+        exit 1
+    fi
+    
+    BACKUP_DATE="$1"
+    S3_BUCKET="waqiti-prometheus-backups-encrypted"
+    RESTORE_PATH="/tmp/prometheus_restore_${BACKUP_DATE}"
+    
+    # Download backup from S3
+    echo "Downloading backup for ${BACKUP_DATE}"
+    aws s3 cp "s3://${S3_BUCKET}/prometheus/data/${BACKUP_DATE}.tar.gz.gpg" \
+        "${RESTORE_PATH}.tar.gz.gpg" \
+        --server-side-encryption AES256
+    
+    # Decrypt backup
+    gpg --decrypt "${RESTORE_PATH}.tar.gz.gpg" > "${RESTORE_PATH}.tar.gz"
+    
+    # Stop Prometheus service
+    kubectl scale deployment prometheus-secure -n monitoring --replicas=0
+    
+    # Wait for pods to terminate
+    kubectl wait --for=delete pod -l app.kubernetes.io/name=prometheus -n monitoring --timeout=60s
+    
+    # Restore data
+    echo "Restoring Prometheus data"
+    tar -xzf "${RESTORE_PATH}.tar.gz" -C /
+    
+    # Fix permissions
+    chown -R 10001:10001 /prometheus/
+    
+    # Restart Prometheus
+    kubectl scale deployment prometheus-secure -n monitoring --replicas=2
+    
+    # Cleanup
+    rm -f "${RESTORE_PATH}.tar.gz" "${RESTORE_PATH}.tar.gz.gpg"
+    
+    echo "Restore completed successfully"

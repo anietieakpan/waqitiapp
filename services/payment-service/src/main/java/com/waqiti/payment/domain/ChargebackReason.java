@@ -1,0 +1,12 @@
+package com.waqiti.payment.domain;
+
+public enum ChargebackReason {
+    FRAUD,
+    AUTHORIZATION,
+    PROCESSING_ERROR,
+    CONSUMER_DISPUTE,
+    PRODUCT_NOT_RECEIVED,
+    PRODUCT_UNACCEPTABLE,
+    DUPLICATE_PROCESSING,
+    CREDIT_NOT_PROCESSED
+}

@@ -1,0 +1,140 @@
+{
+  "type": "record",
+  "name": "TransactionEvent",
+  "namespace": "com.waqiti.events.transaction",
+  "doc": "Financial transaction event with comprehensive metadata for compliance and auditing",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "Unique event identifier (UUID)"
+    },
+    {
+      "name": "transactionId",
+      "type": "string",
+      "doc": "Unique transaction identifier (UUID)"
+    },
+    {
+      "name": "eventType",
+      "type": {
+        "type": "enum",
+        "name": "TransactionEventType",
+        "symbols": [
+          "INITIATED",
+          "VALIDATED",
+          "AUTHORIZED",
+          "COMPLETED",
+          "FAILED",
+          "REVERSED",
+          "SETTLED"
+        ]
+      },
+      "doc": "Transaction lifecycle event type"
+    },
+    {
+      "name": "timestamp",
+      "type": "long",
+      "logicalType": "timestamp-millis",
+      "doc": "Event timestamp in milliseconds since epoch"
+    },
+    {
+      "name": "userId",
+      "type": "string",
+      "doc": "User identifier initiating the transaction"
+    },
+    {
+      "name": "sourceAccountId",
+      "type": "string",
+      "doc": "Source account identifier"
+    },
+    {
+      "name": "destinationAccountId",
+      "type": "string",
+      "doc": "Destination account identifier"
+    },
+    {
+      "name": "amount",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 19,
+        "scale": 4
+      },
+      "doc": "Transaction amount with 4 decimal precision"
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "doc": "ISO 4217 currency code"
+    },
+    {
+      "name": "transactionType",
+      "type": {
+        "type": "enum",
+        "name": "TransactionType",
+        "symbols": [
+          "TRANSFER",
+          "PAYMENT",
+          "DEPOSIT",
+          "WITHDRAWAL",
+          "REFUND",
+          "REVERSAL",
+          "CROSS_BORDER"
+        ]
+      },
+      "doc": "Type of financial transaction"
+    },
+    {
+      "name": "status",
+      "type": {
+        "type": "enum",
+        "name": "TransactionStatus",
+        "symbols": [
+          "PENDING",
+          "PROCESSING",
+          "COMPLETED",
+          "FAILED",
+          "CANCELLED",
+          "REVERSED"
+        ]
+      },
+      "doc": "Current transaction status"
+    },
+    {
+      "name": "metadata",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "default": {},
+      "doc": "Additional transaction metadata"
+    },
+    {
+      "name": "fraudScore",
+      "type": ["null", "double"],
+      "default": null,
+      "doc": "Fraud detection score (0.0 - 1.0)"
+    },
+    {
+      "name": "complianceFlags",
+      "type": {
+        "type": "array",
+        "items": "string"
+      },
+      "default": [],
+      "doc": "Compliance flags (e.g., TRAVEL_RULE, AML_CHECK)"
+    },
+    {
+      "name": "errorCode",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Error code if transaction failed"
+    },
+    {
+      "name": "errorMessage",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Error message if transaction failed"
+    }
+  ]
+}

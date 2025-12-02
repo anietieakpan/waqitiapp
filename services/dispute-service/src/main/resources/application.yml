@@ -1,0 +1,453 @@
+spring:
+  application:
+    name: dispute-service
+  
+  datasource:
+    url: ${DB_URL:?Database URL must be provided via DB_URL environment variable}
+    username: ${DB_USERNAME:?Database username must be provided via DB_USERNAME environment variable}
+    password: ${DB_PASSWORD:?Database password must be provided via DB_PASSWORD environment variable}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      pool-name: DisputeServicePool
+      leak-detection-threshold: 60000 # 60 seconds - detect connection leaks
+      connection-test-query: SELECT 1 # Health check query
+      auto-commit: false # Explicit transaction control
+  
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        show_sql: false
+        format_sql: true
+        use_sql_comments: true
+        jdbc:
+          batch_size: 25
+          time_zone: UTC
+        order_inserts: true
+        order_updates: true
+        query:
+          statistics: true
+    open-in-view: false # Prevent LazyInitializationException anti-pattern
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    validate-on-migrate: true
+    out-of-order: false
+    locations: classpath:db/migration
+    schemas: public
+
+  # Redis Configuration for Distributed Idempotency
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: 0
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 2
+          max-wait: 2000ms
+        shutdown-timeout: 200ms
+
+  # File Upload Configuration
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB
+      max-request-size: 15MB
+      file-size-threshold: 2MB
+      location: ${java.io.tmpdir}
+  
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+    consumer:
+      group-id: dispute-service-group
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      auto-offset-reset: earliest
+      enable-auto-commit: false # Manual commit for transactional processing
+      properties:
+        spring.json.trusted.packages: com.waqiti.dispute.dto,com.waqiti.dispute.entity,com.example.common.dto,com.example.common.events
+    listener:
+      ack-mode: manual # Manual acknowledgment for DLQ handling
+  
+  cloud:
+    discovery:
+      enabled: true
+    loadbalancer:
+      ribbon:
+        enabled: false
+  
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${JWT_ISSUER_URI:http://localhost:8080/auth/realms/waqiti}
+          jwk-set-uri: ${JWT_JWK_SET_URI:http://localhost:8080/auth/realms/waqiti/protocol/openid-connect/certs}
+
+server:
+  port: ${SERVER_PORT:8086}
+  servlet:
+    context-path: /
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/xml,text/plain
+  error:
+    include-message: always
+    include-binding-errors: always
+    include-stacktrace: on_param
+    include-exception: false
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER:${EUREKA_SERVER_URL:https://discovery-service:8761/eureka}}
+    registry-fetch-interval-seconds: 30
+  instance:
+    hostname: ${HOSTNAME:localhost}
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+    metadata-map:
+      zone: primary
+      version: 1.0.0
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+    metrics:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: ${spring.application.name}
+      environment: ${ENVIRONMENT:development}
+
+logging:
+  level:
+    root: INFO
+    com.waqiti.dispute: DEBUG
+    org.springframework.security: INFO # DEBUG only in dev, not production
+    org.hibernate.SQL: INFO # Don't log SQL in production
+    org.hibernate.type.descriptor.sql.BasicBinder: INFO # SECURITY: Don't log SQL parameters in production
+    org.flywaydb: INFO
+    io.lettuce.core: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: ${LOG_FILE_PATH:/var/log/waqiti}/dispute-service.log
+    max-size: 10MB
+    max-history: 30
+
+# Application specific configurations
+dispute:
+  service:
+    auto-escalation:
+      enabled: true
+      days-before-escalation: 7
+      escalation-levels:
+        - SUPPORT
+        - SENIOR_SUPPORT
+        - MANAGEMENT
+    
+    resolution:
+      max-resolution-days: 30
+      auto-close-resolved-days: 7
+      require-evidence-for-high-value: true
+      high-value-threshold: 1000
+    
+    notifications:
+      enabled: true
+      channels:
+        - EMAIL
+        - SMS
+        - PUSH
+    
+    file-upload:
+      max-size: 10485760 # 10MB
+      allowed-extensions:
+        - jpg
+        - jpeg
+        - png
+        - pdf
+        - doc
+        - docx
+      storage-path: ${FILE_STORAGE_PATH:/var/waqiti/disputes/evidence}
+    
+    export:
+      max-records: 10000
+      formats:
+        - CSV
+        - EXCEL
+        - PDF
+        - JSON
+
+# Feign client configurations
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 5000
+        readTimeout: 5000
+        loggerLevel: full
+      user-service:
+        url: ${USER_SERVICE_URL:http://user-service:8081}
+      payment-service:
+        url: ${PAYMENT_SERVICE_URL:http://payment-service:8082}
+      notification-service:
+        url: ${NOTIFICATION_SERVICE_URL:http://notification-service:8084}
+
+# Resilience4j circuit breaker
+resilience4j:
+  circuitbreaker:
+    instances:
+      # Default configuration for all circuit breakers
+      disputeService:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 10s
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10
+        recordExceptions:
+          - org.springframework.web.client.HttpServerErrorException
+          - org.springframework.web.client.ResourceAccessException
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+
+      # Wallet Service - Critical financial operations
+      walletService:
+        registerHealthIndicator: true
+        slidingWindowSize: 20
+        minimumNumberOfCalls: 10
+        permittedNumberOfCallsInHalfOpenState: 5
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 15s
+        failureRateThreshold: 40
+        eventConsumerBufferSize: 10
+        slowCallRateThreshold: 80
+        slowCallDurationThreshold: 5s
+        recordExceptions:
+          - org.springframework.web.client.HttpServerErrorException
+          - org.springframework.web.client.ResourceAccessException
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+
+      # Notification Service - Can tolerate failures
+      notificationService:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 30s
+        failureRateThreshold: 60
+        eventConsumerBufferSize: 10
+
+      # Transaction Service - Critical for dispute creation
+      transactionService:
+        registerHealthIndicator: true
+        slidingWindowSize: 15
+        minimumNumberOfCalls: 8
+        permittedNumberOfCallsInHalfOpenState: 4
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 12s
+        failureRateThreshold: 45
+        eventConsumerBufferSize: 10
+        slowCallRateThreshold: 75
+        slowCallDurationThreshold: 3s
+
+      # Fraud Detection Service - ML service can be slow
+      fraudDetectionService:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 20s
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10
+        slowCallRateThreshold: 80
+        slowCallDurationThreshold: 10s
+
+      # Payment Service - For transaction freezing
+      paymentService:
+        registerHealthIndicator: true
+        slidingWindowSize: 15
+        minimumNumberOfCalls: 8
+        permittedNumberOfCallsInHalfOpenState: 4
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 10s
+        failureRateThreshold: 45
+        eventConsumerBufferSize: 10
+
+      # User Service - For customer data
+      userService:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 10s
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10
+
+  retry:
+    instances:
+      # Default retry configuration
+      disputeService:
+        maxAttempts: 3
+        waitDuration: 1s
+        retryExceptions:
+          - org.springframework.web.client.ResourceAccessException
+          - java.io.IOException
+          - java.sql.SQLException
+
+      # Wallet Service - Financial operations need retries
+      walletService:
+        maxAttempts: 3
+        waitDuration: 1s
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - org.springframework.web.client.ResourceAccessException
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+        ignoreExceptions:
+          - org.springframework.web.client.HttpClientErrorException.BadRequest
+          - org.springframework.web.client.HttpClientErrorException.Unauthorized
+
+      # Notification Service - More retry attempts, less critical
+      notificationService:
+        maxAttempts: 5
+        waitDuration: 2s
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - org.springframework.web.client.ResourceAccessException
+          - java.io.IOException
+
+      # Transaction Service
+      transactionService:
+        maxAttempts: 3
+        waitDuration: 1s
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - org.springframework.web.client.ResourceAccessException
+          - java.io.IOException
+
+      # Fraud Detection Service - Expensive ML calls, fewer retries
+      fraudDetectionService:
+        maxAttempts: 2
+        waitDuration: 3s
+        retryExceptions:
+          - org.springframework.web.client.ResourceAccessException
+          - java.io.IOException
+
+      # Payment Service
+      paymentService:
+        maxAttempts: 3
+        waitDuration: 1s
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - org.springframework.web.client.ResourceAccessException
+          - java.io.IOException
+
+      # User Service
+      userService:
+        maxAttempts: 3
+        waitDuration: 1s
+        retryExceptions:
+          - org.springframework.web.client.ResourceAccessException
+          - java.io.IOException
+
+  bulkhead:
+    instances:
+      disputeService:
+        maxConcurrentCalls: 100
+        maxWaitDuration: 10ms
+
+      walletService:
+        maxConcurrentCalls: 50
+        maxWaitDuration: 20ms
+
+      notificationService:
+        maxConcurrentCalls: 200
+        maxWaitDuration: 5ms
+
+      transactionService:
+        maxConcurrentCalls: 100
+        maxWaitDuration: 10ms
+
+      fraudDetectionService:
+        maxConcurrentCalls: 30
+        maxWaitDuration: 50ms
+
+# Swagger/OpenAPI Configuration
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    operationsSorter: method
+    tagsSorter: alpha
+
+# Security configurations
+security:
+  jwt:
+    secret: ${JWT_SECRET:?JWT secret key must be provided via JWT_SECRET environment variable}
+    expiration: 86400000 # 24 hours
+  cors:
+    allowed-origins: ${CORS_ORIGINS:http://localhost:3000,http://localhost:3001}
+    allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+    allowed-headers: "*"
+    allow-credentials: true
+
+# File Upload Security Configuration
+# CRITICAL: FILE_ENCRYPTION_KEY is MANDATORY - service will NOT start without it
+# Generate with: openssl rand -base64 32
+# Store in: HashiCorp Vault or AWS Secrets Manager (DO NOT commit to git)
+file:
+  upload:
+    directory: ${FILE_UPLOAD_DIRECTORY:/var/waqiti/dispute-evidence}
+    max-size-bytes: 10485760 # 10MB
+  encryption:
+    key: ${FILE_ENCRYPTION_KEY:#{null}} # REQUIRED: Base64-encoded 256-bit AES key
+
+# ClamAV Virus Scanning Configuration
+clamav:
+  enabled: ${CLAMAV_ENABLED:false}
+  host: ${CLAMAV_HOST:localhost}
+  port: ${CLAMAV_PORT:3310}
+  timeout-ms: ${CLAMAV_TIMEOUT:60000}

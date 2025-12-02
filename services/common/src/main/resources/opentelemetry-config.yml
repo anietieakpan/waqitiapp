@@ -1,0 +1,99 @@
+# OpenTelemetry Configuration for Waqiti Platform
+# This configuration provides comprehensive tracing setup for all services
+
+opentelemetry:
+  enabled: true
+  service-name: ${spring.application.name}
+  service-version: ${waqiti.version:1.0.0}
+  environment: ${DEPLOYMENT_ENVIRONMENT:production}
+  
+  # Exporter Configuration
+  exporter:
+    type: ${OTEL_EXPORTER_TYPE:otlp}
+    endpoint: ${OTEL_EXPORTER_ENDPOINT:http://localhost:4317}
+    timeout: PT10S
+    compression: gzip
+    headers:
+      service.name: ${spring.application.name}
+      api.key: ${OTEL_API_KEY:}
+    api-key: ${OTEL_API_KEY:}
+  
+  # Sampling Configuration
+  sampling:
+    probability: ${OTEL_SAMPLING_PROBABILITY:1.0}
+    always-sample:
+      - "POST /api/v1/payments"
+      - "POST /api/v1/transfers"
+      - "POST /api/v1/settlements"
+      - "ComplianceCheck"
+      - "FraudDetection"
+      - "KYCVerification"
+      - "PaymentProcessing"
+      - "SettlementExecution"
+    never-sample:
+      - "GET /health"
+      - "GET /actuator/health"
+      - "GET /metrics"
+      - "GET /actuator/metrics"
+      - "GET /prometheus"
+      - "GET /ready"
+      - "GET /live"
+    error-boost-factor: 2.0
+    adaptive: true
+  
+  # Batch Processing Configuration
+  batch:
+    delay-millis: ${OTEL_BATCH_DELAY:5000}
+    max-queue-size: ${OTEL_BATCH_QUEUE_SIZE:2048}
+    max-export-batch-size: ${OTEL_BATCH_SIZE:512}
+    export-timeout: PT30S
+  
+  # Resource Attributes
+  resource-attributes:
+    service.namespace: waqiti
+    service.instance.id: ${HOSTNAME:${random.uuid}}
+    deployment.environment: ${DEPLOYMENT_ENVIRONMENT:production}
+    
+  # Instrumentation Configuration
+  instrumentation:
+    http-enabled: true
+    database-enabled: true
+    kafka-enabled: true
+    redis-enabled: true
+    grpc-enabled: true
+    custom:
+      feign: true
+      hystrix: true
+      resilience4j: true
+
+# Management endpoints for OpenTelemetry
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics,tracing
+  tracing:
+    sampling:
+      probability: ${opentelemetry.sampling.probability:1.0}
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+        spring.kafka.consumer: true
+        spring.kafka.producer: true
+      percentiles:
+        http.server.requests: 0.5,0.9,0.95,0.99
+        spring.kafka.consumer: 0.5,0.9,0.95,0.99
+        spring.kafka.producer: 0.5,0.9,0.95,0.99
+
+# Logging correlation
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
+  level:
+    io.opentelemetry: ${OTEL_LOG_LEVEL:INFO}
+    com.example.common.telemetry: DEBUG

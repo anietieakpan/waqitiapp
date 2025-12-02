@@ -1,0 +1,148 @@
+{
+  "properties": [
+    {
+      "name": "waqiti.wallet.balance.sync-frequency",
+      "type": "java.lang.String",
+      "description": "Frequency for balance synchronization",
+      "defaultValue": "5m"
+    },
+    {
+      "name": "waqiti.wallet.balance.real-time-validation",
+      "type": "java.lang.Boolean",
+      "description": "Enable real-time balance validation",
+      "defaultValue": true
+    },
+    {
+      "name": "waqiti.wallet.transaction.max-amount",
+      "type": "java.math.BigDecimal",
+      "description": "Maximum transaction amount",
+      "defaultValue": "10000"
+    },
+    {
+      "name": "waqiti.wallet.transaction.daily-limit",
+      "type": "java.math.BigDecimal",
+      "description": "Daily transaction limit",
+      "defaultValue": "50000"
+    },
+    {
+      "name": "waqiti.wallet.transaction.require-confirmation-above",
+      "type": "java.math.BigDecimal",
+      "description": "Amount threshold requiring confirmation",
+      "defaultValue": "1000"
+    },
+    {
+      "name": "waqiti.wallet.currency.supported",
+      "type": "java.lang.String",
+      "description": "Comma-separated list of supported currencies",
+      "defaultValue": "USD,EUR,GBP,CAD"
+    },
+    {
+      "name": "waqiti.wallet.currency.default",
+      "type": "java.lang.String",
+      "description": "Default currency",
+      "defaultValue": "USD"
+    },
+    {
+      "name": "waqiti.wallet.locking.timeout",
+      "type": "java.lang.String",
+      "description": "Wallet lock timeout duration",
+      "defaultValue": "30s"
+    },
+    {
+      "name": "waqiti.wallet.locking.retry-interval",
+      "type": "java.lang.String",
+      "description": "Wallet lock retry interval",
+      "defaultValue": "100ms"
+    },
+    {
+      "name": "services.integration-service.url",
+      "type": "java.lang.String",
+      "description": "Integration service URL",
+      "defaultValue": "http://integration-service:8085"
+    },
+    {
+      "name": "services.notification-service.url",
+      "type": "java.lang.String",
+      "description": "Notification service URL",
+      "defaultValue": "http://notification-service:8084"
+    },
+    {
+      "name": "services.user-service.url",
+      "type": "java.lang.String",
+      "description": "User service URL",
+      "defaultValue": "http://user-service:8081"
+    },
+    {
+      "name": "features.auth.mode",
+      "type": "java.lang.String",
+      "description": "Authentication mode",
+      "defaultValue": "KEYCLOAK"
+    },
+    {
+      "name": "features.auth.keycloak.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable Keycloak authentication",
+      "defaultValue": true
+    },
+    {
+      "name": "features.auth.legacy.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable legacy authentication",
+      "defaultValue": false
+    },
+    {
+      "name": "rate-limiting.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Enable rate limiting",
+      "defaultValue": true
+    },
+    {
+      "name": "rate-limiting.key-prefix",
+      "type": "java.lang.String",
+      "description": "Redis key prefix for rate limiting",
+      "defaultValue": "waqiti:wallet:rate-limit:"
+    },
+    {
+      "name": "rate-limiting.bucket-expiration-minutes",
+      "type": "java.lang.Integer",
+      "description": "Rate limit bucket expiration in minutes",
+      "defaultValue": 60
+    },
+    {
+      "name": "rate-limiting.default.capacity",
+      "type": "java.lang.Integer",
+      "description": "Default rate limit capacity",
+      "defaultValue": 200
+    },
+    {
+      "name": "rate-limiting.default.refill-tokens",
+      "type": "java.lang.Integer",
+      "description": "Default rate limit refill tokens",
+      "defaultValue": 200
+    },
+    {
+      "name": "rate-limiting.default.refill-period-minutes",
+      "type": "java.lang.Integer",
+      "description": "Default rate limit refill period in minutes",
+      "defaultValue": 1
+    },
+    {
+      "name": "rate-limiting.services.wallet-service.capacity",
+      "type": "java.lang.Integer",
+      "description": "Wallet service rate limit capacity",
+      "defaultValue": 200
+    },
+    {
+      "name": "rate-limiting.services.wallet-service.refill-tokens",
+      "type": "java.lang.Integer",
+      "description": "Wallet service rate limit refill tokens",
+      "defaultValue": 200
+    },
+    {
+      "name": "rate-limiting.services.wallet-service.refill-period-minutes",
+      "type": "java.lang.Integer",
+      "description": "Wallet service rate limit refill period in minutes",
+      "defaultValue": 1
+    }
+  ]
+}

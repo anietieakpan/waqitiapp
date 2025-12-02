@@ -1,0 +1,241 @@
+# Default Rate Limiting Configuration for Waqiti Services
+# These defaults apply to all services unless overridden
+
+rate-limiting:
+  enabled: true
+  key-prefix: "waqiti:rate-limit:"
+  bucket-expiration-minutes: 60
+  
+  # Default limits for all endpoints
+  default-limits:
+    capacity: 100
+    refill-tokens: 100
+    refill-period-minutes: 1
+  
+  # Service-specific configurations
+  services:
+    # Payment Service - Critical financial operations
+    payment-service:
+      capacity: 50
+      refill-tokens: 50
+      refill-period-minutes: 1
+      endpoints:
+        # High-value transfers have stricter limits
+        "/api/v1/payments/transfer":
+          capacity: 10
+          refill-tokens: 10
+          refill-period-minutes: 5
+          tokens: 1
+        # International transfers
+        "/api/v1/payments/international":
+          capacity: 5
+          refill-tokens: 5
+          refill-period-minutes: 10
+          tokens: 2
+    
+    # KYC Service - Document processing intensive
+    kyc-service:
+      capacity: 30
+      refill-tokens: 30
+      refill-period-minutes: 1
+      endpoints:
+        # Document upload endpoint
+        "/api/v1/kyc/documents/upload":
+          capacity: 5
+          refill-tokens: 5
+          refill-period-minutes: 5
+          tokens: 3
+        # Verification initiation
+        "/api/v1/kyc/users/*/verifications":
+          capacity: 3
+          refill-tokens: 3
+          refill-period-minutes: 10
+          tokens: 5
+    
+    # User Service - Authentication endpoints
+    user-service:
+      capacity: 60
+      refill-tokens: 60
+      refill-period-minutes: 1
+      endpoints:
+        # Login endpoint
+        "/api/v1/users/auth/login":
+          capacity: 5
+          refill-tokens: 5
+          refill-period-minutes: 1
+          tokens: 1
+        # Password reset
+        "/api/v1/users/auth/reset-password":
+          capacity: 3
+          refill-tokens: 3
+          refill-period-minutes: 5
+          tokens: 2
+        # Biometric authentication
+        "/api/v1/users/auth/biometric":
+          capacity: 10
+          refill-tokens: 10
+          refill-period-minutes: 1
+          tokens: 1
+    
+    # Virtual Card Service
+    virtual-card-service:
+      capacity: 40
+      refill-tokens: 40
+      refill-period-minutes: 1
+      endpoints:
+        # Card creation
+        "/api/v1/cards/virtual/create":
+          capacity: 5
+          refill-tokens: 5
+          refill-period-minutes: 10
+          tokens: 3
+        # Physical card order
+        "/api/v1/cards/physical/order":
+          capacity: 2
+          refill-tokens: 2
+          refill-period-minutes: 60
+          tokens: 5
+    
+    # Merchant Service
+    merchant-service:
+      capacity: 80
+      refill-tokens: 80
+      refill-period-minutes: 1
+      endpoints:
+        # Payment processing
+        "/api/v1/merchant/payments/process":
+          capacity: 100
+          refill-tokens: 100
+          refill-period-minutes: 1
+          tokens: 1
+        # Settlement requests
+        "/api/v1/merchant/settlements":
+          capacity: 10
+          refill-tokens: 10
+          refill-period-minutes: 5
+          tokens: 2
+    
+    # Investment Service
+    investment-service:
+      capacity: 40
+      refill-tokens: 40
+      refill-period-minutes: 1
+      endpoints:
+        # Order placement
+        "/api/v1/investments/orders":
+          capacity: 20
+          refill-tokens: 20
+          refill-period-minutes: 1
+          tokens: 2
+        # Market data
+        "/api/v1/investments/market-data":
+          capacity: 100
+          refill-tokens: 100
+          refill-period-minutes: 1
+          tokens: 1
+    
+    # BNPL Service
+    bnpl-service:
+      capacity: 30
+      refill-tokens: 30
+      refill-period-minutes: 1
+      endpoints:
+        # Plan creation
+        "/api/v1/bnpl/plans":
+          capacity: 5
+          refill-tokens: 5
+          refill-period-minutes: 5
+          tokens: 3
+        # Payment processing
+        "/api/v1/bnpl/payments":
+          capacity: 20
+          refill-tokens: 20
+          refill-period-minutes: 1
+          tokens: 1
+    
+    # Notification Service
+    notification-service:
+      capacity: 200
+      refill-tokens: 200
+      refill-period-minutes: 1
+      endpoints:
+        # Push notifications
+        "/api/v1/notifications/push":
+          capacity: 100
+          refill-tokens: 100
+          refill-period-minutes: 1
+          tokens: 1
+        # SMS notifications
+        "/api/v1/notifications/sms":
+          capacity: 50
+          refill-tokens: 50
+          refill-period-minutes: 1
+          tokens: 2
+    
+    # Support Service
+    support-service:
+      capacity: 50
+      refill-tokens: 50
+      refill-period-minutes: 1
+      endpoints:
+        # Ticket creation
+        "/api/v1/support/tickets":
+          capacity: 10
+          refill-tokens: 10
+          refill-period-minutes: 5
+          tokens: 1
+        # AI assistant
+        "/api/v1/support/ai-assistant":
+          capacity: 30
+          refill-tokens: 30
+          refill-period-minutes: 1
+          tokens: 2
+    
+    # ML Service
+    ml-service:
+      capacity: 20
+      refill-tokens: 20
+      refill-period-minutes: 1
+      endpoints:
+        # Fraud detection
+        "/api/v1/ml/fraud-detection":
+          capacity: 100
+          refill-tokens: 100
+          refill-period-minutes: 1
+          tokens: 1
+        # Model training
+        "/api/v1/ml/train":
+          capacity: 1
+          refill-tokens: 1
+          refill-period-minutes: 60
+          tokens: 10
+
+  # Endpoint patterns (regex supported)
+  endpoints:
+    # Health checks - no rate limiting
+    "*/health":
+      capacity: 10000
+      refill-tokens: 10000
+      refill-period-minutes: 1
+      tokens: 0
+    
+    # Actuator endpoints - admin only
+    "*/actuator/*":
+      capacity: 10
+      refill-tokens: 10
+      refill-period-minutes: 1
+      tokens: 1
+    
+    # Public APIs have stricter limits
+    "*/api/public/*":
+      capacity: 30
+      refill-tokens: 30
+      refill-period-minutes: 1
+      tokens: 1
+    
+    # Webhook endpoints
+    "*/webhooks/*":
+      capacity: 500
+      refill-tokens: 500
+      refill-period-minutes: 1
+      tokens: 1

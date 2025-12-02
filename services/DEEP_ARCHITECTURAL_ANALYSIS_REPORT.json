@@ -1,0 +1,630 @@
+{
+  "analysis_metadata": {
+    "services_analyzed": 10,
+    "analysis_date": "2025-10-13"
+  },
+  "services": {
+    "payment-service": {
+      "service_name": "payment-service",
+      "exists": true,
+      "service_path": "/home/aniix/git/waqiti-app/services/payment-service",
+      "statistics": {
+        "total_java_files": 1157,
+        "lines_of_code": 19678,
+        "controller_count": 33,
+        "service_count": 208,
+        "repository_count": 67,
+        "entity_count": 60,
+        "api_endpoint_count": 370,
+        "database_migrations": 37,
+        "kafka_consumers": 157,
+        "kafka_producers": 136,
+        "feign_clients": 14
+      },
+      "architecture": {
+        "patterns": [
+          "Layered Architecture",
+          "Hexagonal/Ports-Adapters",
+          "CQRS",
+          "Event Sourcing",
+          "Saga Pattern"
+        ],
+        "layered_structure": {
+          "controllers": true,
+          "services": true,
+          "repositories": true,
+          "entities": true
+        }
+      },
+      "domain_model": {
+        "entities": [
+          "LedgerAccount",
+          "JournalEntry",
+          "LedgerTransaction"
+        ],
+        "tables": []
+      },
+      "messaging": {
+        "kafka_topics": [],
+        "is_event_driven": true
+      },
+      "dependencies": {
+        "spring_boot": true,
+        "spring_security": true,
+        "spring_kafka": true,
+        "spring_data_jpa": true,
+        "postgresql": true,
+        "redis": true,
+        "feign": true,
+        "resilience4j": true,
+        "keycloak": true
+      },
+      "security": {
+        "features": [
+          "JWT Authentication",
+          "OAuth2",
+          "Role-Based Access Control",
+          "Data Encryption"
+        ]
+      },
+      "integration": {
+        "uses_feign": true,
+        "feign_client_count": 14
+      }
+    },
+    "wallet-service": {
+      "service_name": "wallet-service",
+      "exists": true,
+      "service_path": "/home/aniix/git/waqiti-app/services/wallet-service",
+      "statistics": {
+        "total_java_files": 262,
+        "lines_of_code": 51419,
+        "controller_count": 5,
+        "service_count": 48,
+        "repository_count": 15,
+        "entity_count": 12,
+        "api_endpoint_count": 65,
+        "database_migrations": 14,
+        "kafka_consumers": 42,
+        "kafka_producers": 28,
+        "feign_clients": 6
+      },
+      "architecture": {
+        "patterns": [
+          "Layered Architecture",
+          "CQRS",
+          "Event Sourcing"
+        ],
+        "layered_structure": {
+          "controllers": true,
+          "services": true,
+          "repositories": true,
+          "entities": true
+        }
+      },
+      "domain_model": {
+        "entities": [
+          "Wallet"
+        ],
+        "tables": []
+      },
+      "messaging": {
+        "kafka_topics": [],
+        "is_event_driven": true
+      },
+      "dependencies": {
+        "spring_boot": true,
+        "spring_security": true,
+        "spring_kafka": true,
+        "spring_data_jpa": true,
+        "postgresql": true,
+        "redis": true,
+        "feign": true,
+        "resilience4j": true,
+        "keycloak": true
+      },
+      "security": {
+        "features": [
+          "JWT Authentication",
+          "Role-Based Access Control",
+          "Data Encryption"
+        ]
+      },
+      "integration": {
+        "uses_feign": true,
+        "feign_client_count": 6
+      }
+    },
+    "fraud-detection-service": {
+      "service_name": "fraud-detection-service",
+      "exists": true,
+      "service_path": "/home/aniix/git/waqiti-app/services/fraud-detection-service",
+      "statistics": {
+        "total_java_files": 110,
+        "lines_of_code": 34401,
+        "controller_count": 4,
+        "service_count": 36,
+        "repository_count": 11,
+        "entity_count": 8,
+        "api_endpoint_count": 38,
+        "database_migrations": 6,
+        "kafka_consumers": 7,
+        "kafka_producers": 11,
+        "feign_clients": 0
+      },
+      "architecture": {
+        "patterns": [
+          "Layered Architecture",
+          "CQRS"
+        ],
+        "layered_structure": {
+          "controllers": true,
+          "services": true,
+          "repositories": true,
+          "entities": true
+        }
+      },
+      "domain_model": {
+        "entities": [],
+        "tables": []
+      },
+      "messaging": {
+        "kafka_topics": [],
+        "is_event_driven": true
+      },
+      "dependencies": {
+        "spring_boot": true,
+        "spring_security": true,
+        "spring_kafka": true,
+        "spring_data_jpa": true,
+        "postgresql": true,
+        "redis": true,
+        "feign": true,
+        "resilience4j": true,
+        "keycloak": false
+      },
+      "security": {
+        "features": [
+          "JWT Authentication",
+          "Role-Based Access Control",
+          "Data Encryption"
+        ]
+      },
+      "integration": {
+        "uses_feign": false,
+        "feign_client_count": 0
+      }
+    },
+    "compliance-service": {
+      "service_name": "compliance-service",
+      "exists": true,
+      "service_path": "/home/aniix/git/waqiti-app/services/compliance-service",
+      "statistics": {
+        "total_java_files": 333,
+        "lines_of_code": 113751,
+        "controller_count": 6,
+        "service_count": 72,
+        "repository_count": 17,
+        "entity_count": 20,
+        "api_endpoint_count": 87,
+        "database_migrations": 4,
+        "kafka_consumers": 121,
+        "kafka_producers": 69,
+        "feign_clients": 2
+      },
+      "architecture": {
+        "patterns": [
+          "Layered Architecture",
+          "CQRS",
+          "Event Sourcing"
+        ],
+        "layered_structure": {
+          "controllers": true,
+          "services": true,
+          "repositories": true,
+          "entities": true
+        }
+      },
+      "domain_model": {
+        "entities": [
+          "ComplianceRule",
+          "ComplianceAlert",
+          "SuspiciousActivity",
+          "CustomerRiskProfile",
+          "ComplianceRiskProfile",
+          "TransactionLimit",
+          "KycTier",
+          "RegulatoryFiling",
+          "SarFiling"
+        ],
+        "tables": []
+      },
+      "messaging": {
+        "kafka_topics": [],
+        "is_event_driven": true
+      },
+      "dependencies": {
+        "spring_boot": true,
+        "spring_security": true,
+        "spring_kafka": true,
+        "spring_data_jpa": true,
+        "postgresql": true,
+        "redis": false,
+        "feign": false,
+        "resilience4j": false,
+        "keycloak": true
+      },
+      "security": {
+        "features": [
+          "JWT Authentication",
+          "Role-Based Access Control",
+          "Data Encryption"
+        ]
+      },
+      "integration": {
+        "uses_feign": true,
+        "feign_client_count": 2
+      }
+    },
+    "core-banking-service": {
+      "service_name": "core-banking-service",
+      "exists": true,
+      "service_path": "/home/aniix/git/waqiti-app/services/core-banking-service",
+      "statistics": {
+        "total_java_files": 89,
+        "lines_of_code": 19516,
+        "controller_count": 6,
+        "service_count": 19,
+        "repository_count": 10,
+        "entity_count": 10,
+        "api_endpoint_count": 63,
+        "database_migrations": 8,
+        "kafka_consumers": 3,
+        "kafka_producers": 4,
+        "feign_clients": 2
+      },
+      "architecture": {
+        "patterns": [
+          "Layered Architecture",
+          "CQRS"
+        ],
+        "layered_structure": {
+          "controllers": true,
+          "services": true,
+          "repositories": true,
+          "entities": true
+        }
+      },
+      "domain_model": {
+        "entities": [],
+        "tables": []
+      },
+      "messaging": {
+        "kafka_topics": [],
+        "is_event_driven": true
+      },
+      "dependencies": {
+        "spring_boot": true,
+        "spring_security": true,
+        "spring_kafka": true,
+        "spring_data_jpa": true,
+        "postgresql": true,
+        "redis": true,
+        "feign": true,
+        "resilience4j": false,
+        "keycloak": true
+      },
+      "security": {
+        "features": [
+          "OAuth2",
+          "Role-Based Access Control",
+          "Data Encryption"
+        ]
+      },
+      "integration": {
+        "uses_feign": true,
+        "feign_client_count": 2
+      }
+    },
+    "user-service": {
+      "service_name": "user-service",
+      "exists": true,
+      "service_path": "/home/aniix/git/waqiti-app/services/user-service",
+      "statistics": {
+        "total_java_files": 324,
+        "lines_of_code": 71064,
+        "controller_count": 12,
+        "service_count": 64,
+        "repository_count": 28,
+        "entity_count": 28,
+        "api_endpoint_count": 127,
+        "database_migrations": 10,
+        "kafka_consumers": 42,
+        "kafka_producers": 33,
+        "feign_clients": 4
+      },
+      "architecture": {
+        "patterns": [
+          "Layered Architecture",
+          "CQRS"
+        ],
+        "layered_structure": {
+          "controllers": true,
+          "services": true,
+          "repositories": true,
+          "entities": true
+        }
+      },
+      "domain_model": {
+        "entities": [],
+        "tables": []
+      },
+      "messaging": {
+        "kafka_topics": [],
+        "is_event_driven": true
+      },
+      "dependencies": {
+        "spring_boot": true,
+        "spring_security": true,
+        "spring_kafka": true,
+        "spring_data_jpa": true,
+        "postgresql": true,
+        "redis": true,
+        "feign": true,
+        "resilience4j": true,
+        "keycloak": true
+      },
+      "security": {
+        "features": [
+          "JWT Authentication",
+          "OAuth2",
+          "Role-Based Access Control",
+          "Data Encryption"
+        ]
+      },
+      "integration": {
+        "uses_feign": true,
+        "feign_client_count": 4
+      }
+    },
+    "notification-service": {
+      "service_name": "notification-service",
+      "exists": true,
+      "service_path": "/home/aniix/git/waqiti-app/services/notification-service",
+      "statistics": {
+        "total_java_files": 237,
+        "lines_of_code": 51177,
+        "controller_count": 8,
+        "service_count": 42,
+        "repository_count": 11,
+        "entity_count": 9,
+        "api_endpoint_count": 94,
+        "database_migrations": 5,
+        "kafka_consumers": 54,
+        "kafka_producers": 21,
+        "feign_clients": 4
+      },
+      "architecture": {
+        "patterns": [
+          "Layered Architecture",
+          "CQRS"
+        ],
+        "layered_structure": {
+          "controllers": true,
+          "services": true,
+          "repositories": true,
+          "entities": true
+        }
+      },
+      "domain_model": {
+        "entities": [],
+        "tables": []
+      },
+      "messaging": {
+        "kafka_topics": [],
+        "is_event_driven": true
+      },
+      "dependencies": {
+        "spring_boot": true,
+        "spring_security": true,
+        "spring_kafka": true,
+        "spring_data_jpa": true,
+        "postgresql": true,
+        "redis": false,
+        "feign": true,
+        "resilience4j": true,
+        "keycloak": true
+      },
+      "security": {
+        "features": [
+          "JWT Authentication",
+          "Role-Based Access Control",
+          "Data Encryption"
+        ]
+      },
+      "integration": {
+        "uses_feign": true,
+        "feign_client_count": 4
+      }
+    },
+    "integration-service": {
+      "service_name": "integration-service",
+      "exists": true,
+      "service_path": "/home/aniix/git/waqiti-app/services/integration-service",
+      "statistics": {
+        "total_java_files": 22,
+        "lines_of_code": 2783,
+        "controller_count": 1,
+        "service_count": 5,
+        "repository_count": 0,
+        "entity_count": 0,
+        "api_endpoint_count": 5,
+        "database_migrations": 1,
+        "kafka_consumers": 2,
+        "kafka_producers": 0,
+        "feign_clients": 0
+      },
+      "architecture": {
+        "patterns": [
+          "Traditional Layered"
+        ],
+        "layered_structure": {
+          "controllers": true,
+          "services": true,
+          "repositories": false,
+          "entities": false
+        }
+      },
+      "domain_model": {
+        "entities": [],
+        "tables": []
+      },
+      "messaging": {
+        "kafka_topics": [],
+        "is_event_driven": true
+      },
+      "dependencies": {
+        "spring_boot": true,
+        "spring_security": false,
+        "spring_kafka": false,
+        "spring_data_jpa": true,
+        "postgresql": false,
+        "redis": false,
+        "feign": false,
+        "resilience4j": true,
+        "keycloak": false
+      },
+      "security": {
+        "features": [
+          "Role-Based Access Control"
+        ]
+      },
+      "integration": {
+        "uses_feign": false,
+        "feign_client_count": 0
+      }
+    },
+    "api-gateway": {
+      "service_name": "api-gateway",
+      "exists": true,
+      "service_path": "/home/aniix/git/waqiti-app/services/api-gateway",
+      "statistics": {
+        "total_java_files": 43,
+        "lines_of_code": 7534,
+        "controller_count": 2,
+        "service_count": 2,
+        "repository_count": 0,
+        "entity_count": 0,
+        "api_endpoint_count": 20,
+        "database_migrations": 1,
+        "kafka_consumers": 3,
+        "kafka_producers": 1,
+        "feign_clients": 0
+      },
+      "architecture": {
+        "patterns": [
+          "CQRS"
+        ],
+        "layered_structure": {
+          "controllers": true,
+          "services": true,
+          "repositories": false,
+          "entities": false
+        }
+      },
+      "domain_model": {
+        "entities": [],
+        "tables": []
+      },
+      "messaging": {
+        "kafka_topics": [],
+        "is_event_driven": true
+      },
+      "dependencies": {
+        "spring_boot": true,
+        "spring_security": true,
+        "spring_kafka": false,
+        "spring_data_jpa": false,
+        "postgresql": false,
+        "redis": true,
+        "feign": false,
+        "resilience4j": true,
+        "keycloak": true
+      },
+      "security": {
+        "features": [
+          "JWT Authentication",
+          "OAuth2",
+          "Role-Based Access Control",
+          "Data Encryption"
+        ]
+      },
+      "integration": {
+        "uses_feign": false,
+        "feign_client_count": 0
+      }
+    },
+    "saga-orchestration-service": {
+      "service_name": "saga-orchestration-service",
+      "exists": true,
+      "service_path": "/home/aniix/git/waqiti-app/services/saga-orchestration-service",
+      "statistics": {
+        "total_java_files": 44,
+        "lines_of_code": 9057,
+        "controller_count": 1,
+        "service_count": 6,
+        "repository_count": 1,
+        "entity_count": 3,
+        "api_endpoint_count": 16,
+        "database_migrations": 1,
+        "kafka_consumers": 0,
+        "kafka_producers": 6,
+        "feign_clients": 0
+      },
+      "architecture": {
+        "patterns": [
+          "Layered Architecture",
+          "Saga Pattern"
+        ],
+        "layered_structure": {
+          "controllers": true,
+          "services": true,
+          "repositories": true,
+          "entities": true
+        }
+      },
+      "domain_model": {
+        "entities": [
+          "SagaExecution"
+        ],
+        "tables": []
+      },
+      "messaging": {
+        "kafka_topics": [],
+        "is_event_driven": true
+      },
+      "dependencies": {
+        "spring_boot": true,
+        "spring_security": false,
+        "spring_kafka": true,
+        "spring_data_jpa": true,
+        "postgresql": true,
+        "redis": true,
+        "feign": true,
+        "resilience4j": false,
+        "keycloak": false
+      },
+      "security": {
+        "features": [
+          "JWT Authentication",
+          "Role-Based Access Control",
+          "Data Encryption"
+        ]
+      },
+      "integration": {
+        "uses_feign": false,
+        "feign_client_count": 0
+      }
+    }
+  }
+}
