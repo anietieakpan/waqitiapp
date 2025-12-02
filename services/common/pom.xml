@@ -45,7 +45,7 @@
         <vavr.version>0.10.4</vavr.version>
         <bucket4j.version>8.15.0</bucket4j.version>
         <hazelcast.version>5.3.2</hazelcast.version>
-        <testcontainers.version>1.20.4</testcontainers.version>
+        <testcontainers.version>1.21.3</testcontainers.version>
         <testcontainers-keycloak.version>3.2.0</testcontainers-keycloak.version>
         <testcontainers-junit.version>1.19.3</testcontainers-junit.version>
         <opentelemetry-instrumentation.version>2.20.0-alpha</opentelemetry-instrumentation.version>
