@@ -216,7 +216,7 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Setup kubectl
-        uses: azure/setup-kubectl@v3
+        uses: azure/setup-kubectl@v4
         with:
           version: ${{ env.KUBERNETES_VERSION }}
       
