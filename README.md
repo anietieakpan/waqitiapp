@@ -90,11 +90,11 @@
 
 **Waqiti** is a comprehensive, open-source fintech platform designed to power peer-to-peer payments, digital wallets, and a full suite of financial services. Built from the ground up with enterprise requirements in mind, Waqiti aims to provide the foundation for building modern payment applications that can scale to millions of users while maintaining regulatory compliance and bank-grade security.
 
-> **Note**: This project is under active development. While the architecture and patterns are production-grade, the implementation requires additional work before production deployment. See [ROADMAP.md](ROADMAP.md) for current status.
+> **Note**: This project is under active development. While the architecture and patterns are production-grade, the implementation still requires additional work before it can be deployed in production. See [ROADMAP.md](ROADMAP.md) for current status.
 
 ### What Makes Waqiti Different
 
-Unlike tutorial projects or proof-of-concepts, Waqiti is architected to the standards of real-world financial systems:
+Unlike tutorial projects or PoC's, I've architected Waqiti to the standards of real-world financial systems - combining my knowledge of banking systems, telecoms, other broad-based IT domains, and AI:
 
 - **Production-Grade Patterns**: Architectural decisions are documented; implementation is ongoing
 - **Compliance-Ready Design**: Architecture supports PCI-DSS, GDPR, AML/KYC, and SOX compliance
