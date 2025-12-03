@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  A production-ready fintech platform for peer-to-peer payments, multi-currency digital wallets,<br/>
+  A production-grade fintech platform for peer-to-peer payments, multi-currency digital wallets,<br/>
   and comprehensive financial services with enterprise security, compliance, and scalability.
 </p>
 
