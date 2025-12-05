@@ -826,7 +826,12 @@ Waqiti uses the Saga pattern for distributed transactions, ensuring data consist
 │                                └──────────┘                                  │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
+
 ```
+
+![alt text](waqiti-security-arch.png)
+
+
 
 ### Architecture Decision Records (ADRs)
 
