@@ -829,7 +829,7 @@ Waqiti uses the Saga pattern for distributed transactions, ensuring data consist
 
 ```
 
-![alt text](waqiti-security-arch.png)
+
 
 
 
@@ -1209,6 +1209,8 @@ Waqiti is designed and tested for high-throughput financial operations:
 │                                                                          │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
+
+![alt text](waqiti-security-arch.png)
 
 ### Security Features
 
